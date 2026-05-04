@@ -12,6 +12,7 @@
         .export _sysinfo_uci_asm_accept_data
         .export _sysinfo_uci_asm_abort
         .export _sysinfo_uci_asm_clear_error
+        .export _sysinfo_uci_asm_read_u64_turbo
         .export _sysinfo_rom_asm_read_basic
         .export _sysinfo_rom_asm_read_chargen
         .export _sysinfo_rom_asm_read_kernal
@@ -208,6 +209,22 @@ uci_clear_error:
         pla
         sta CPU_PORT
         plp
+        rts
+
+_sysinfo_uci_asm_read_u64_turbo:
+        php
+        sei
+        lda CPU_PORT
+        pha
+        and #$F8
+        ora #$07
+        sta CPU_PORT
+        lda $D031
+        tax
+        pla
+        sta CPU_PORT
+        plp
+        txa
         rts
 
 uci_base_lo:

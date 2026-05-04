@@ -25,6 +25,7 @@ void sysinfo_uci_asm_push_cmd(void);
 void sysinfo_uci_asm_accept_data(void);
 void sysinfo_uci_asm_abort(void);
 void sysinfo_uci_asm_clear_error(void);
+unsigned char sysinfo_uci_asm_read_u64_turbo(void);
 
 unsigned char __fastcall__ sysinfo_rom_asm_read_basic(unsigned int off);
 unsigned char __fastcall__ sysinfo_rom_asm_read_chargen(unsigned int off);

@@ -34,6 +34,7 @@
 #define KERNAL_BANNER_LEN 96u
 #define BASIC_OPENROMS_OFF 0x0000u
 #define BASIC_OPENROMS_LEN 128u
+#define CART_SIG_BASE   0x8004u
 #define JIFFY_LO        (*(volatile unsigned char*)0x00A2)
 #define JIFFY_MID       (*(volatile unsigned char*)0x00A1)
 #define JIFFY_HI        (*(volatile unsigned char*)0x00A0)
@@ -52,10 +53,13 @@
 #define REU_CMD_STASH 0x90
 #define REU_CMD_FETCH 0x91
 #define REU_TEST_OFF  0xFFF0u
+#define ULT_SPEED_U64   0u
+#define ULT_SPEED_U64E2 1u
 
 static unsigned char running;
 static unsigned char current_tab;
 static unsigned char row_y;
+static unsigned char ultimate_speed_table;
 
 static unsigned char uci_data[SYSINFO_UCI_DATA_MAX];
 static unsigned char uci_stat[SYSINFO_UCI_STAT_MAX];
@@ -82,7 +86,14 @@ static void format_reu(char *dst);
 static void format_video(char *dst);
 static void format_mac(char *dst, const unsigned char *src);
 static void format_ip(char *dst, const unsigned char *src);
-static void format_drive_info(char *dst, const unsigned char *src, unsigned char len);
+static void format_drive_line(char *dst, const unsigned char *src);
+static void draw_drive_info_rows(const unsigned char *src, unsigned char len);
+static unsigned char format_softiec_info(char *dst, const unsigned char *src, unsigned char len);
+static void draw_ultimate_model(void);
+static void draw_ultimate_cpu_speed(void);
+static unsigned char uci_status_ok(void);
+static unsigned char text_contains_ci(const char *text, const char *pattern);
+static const char *cart_name(void);
 static void append_char(char *dst, unsigned char dst_len, char ch);
 static void append_str(char *dst, unsigned char dst_len, const char *src);
 static void append_uint(char *dst, unsigned char dst_len, unsigned int value);
@@ -236,6 +247,27 @@ static unsigned char rom_upper(unsigned char ch) {
         return (unsigned char)(ch - ('a' - 'A'));
     }
     return ch;
+}
+
+static unsigned char text_contains_ci(const char *text, const char *pattern) {
+    unsigned char i;
+    unsigned char j;
+
+    for (i = 0u; text[i] != 0; ++i) {
+        j = 0u;
+        while (pattern[j] != 0 &&
+               rom_upper((unsigned char)text[(unsigned char)(i + j)]) ==
+                   (unsigned char)pattern[j]) {
+            ++j;
+        }
+        if (pattern[j] == 0) {
+            return 1u;
+        }
+        if (text[(unsigned char)(i + j)] == 0) {
+            return 0u;
+        }
+    }
+    return 0u;
 }
 
 static unsigned char match_pattern_at_kernal(unsigned int off, const char *pattern) {
@@ -396,6 +428,17 @@ static const char *chargen_name(void) {
         return "906143-02 jp";
     }
     return "custom/unknown";
+}
+
+static const char *cart_name(void) {
+    if (((volatile unsigned char*)CART_SIG_BASE)[0] == 'C' &&
+        ((volatile unsigned char*)CART_SIG_BASE)[1] == 'B' &&
+        ((volatile unsigned char*)CART_SIG_BASE)[2] == 'M' &&
+        ((volatile unsigned char*)CART_SIG_BASE)[3] == '8' &&
+        ((volatile unsigned char*)CART_SIG_BASE)[4] == '0') {
+        return "autostart rom";
+    }
+    return "none/hidden";
 }
 
 static unsigned int read_raster_line(void) {
@@ -602,8 +645,11 @@ static void draw_system_tab(void) {
     format_reu(value_buf);
     add_row("reu:", value_buf, TUI_COLOR_YELLOW);
 
+    add_row("cart:", cart_name(), TUI_COLOR_WHITE);
+
     format_uptime(value_buf);
     add_row("up since:", value_buf, TUI_COLOR_LIGHTGREEN);
+    add_row("", "(faster above 1mhz)", TUI_COLOR_YELLOW);
 }
 
 static unsigned char run_uci(const unsigned char *cmd, unsigned char len) {
@@ -612,6 +658,12 @@ static unsigned char run_uci(const unsigned char *cmd, unsigned char len) {
     return sysinfo_uci_command(cmd, len,
                                uci_data, sizeof(uci_data), &uci_data_len,
                                uci_stat, sizeof(uci_stat), &uci_stat_len);
+}
+
+static unsigned char uci_status_ok(void) {
+    return (unsigned char)(uci_stat_len >= 2u &&
+                           uci_stat[0] == '0' &&
+                           uci_stat[1] == '0');
 }
 
 static void copy_uci_text(char *dst, unsigned char dst_len) {
@@ -667,39 +719,136 @@ static const char *drive_type_name(unsigned char type) {
     }
 }
 
-static void format_drive_info(char *dst, const unsigned char *src, unsigned char len) {
-    unsigned char count;
-
+static void format_drive_line(char *dst, const unsigned char *src) {
     dst[0] = 0;
+    append_char(dst, 32u, 'd');
+    append_uint(dst, 32u, src[1]);
+    append_char(dst, 32u, ' ');
+    append_str(dst, 32u, drive_type_name(src[0]));
+    append_char(dst, 32u, ' ');
+    append_str(dst, 32u, src[2] ? "on" : "off");
+}
+
+static void draw_drive_info_rows(const unsigned char *src, unsigned char len) {
+    unsigned char count;
+    unsigned char i;
+    unsigned char off;
+
     if (len == 0u) {
-        append_str(dst, 32u, "no data");
+        add_row("drives:", "no data", TUI_COLOR_GRAY3);
         return;
     }
     count = src[0];
-    append_uint(dst, 32u, count);
-    append_str(dst, 32u, " drive");
-    if (count != 1u) {
-        append_char(dst, 32u, 's');
+    value_buf[0] = 0;
+    append_uint(value_buf, sizeof(value_buf), count);
+    add_row("drives:", value_buf, TUI_COLOR_WHITE);
+
+    off = 1u;
+    for (i = 0u; i < count && off + 2u < len; ++i) {
+        format_drive_line(value_buf, src + off);
+        add_row("", value_buf, TUI_COLOR_WHITE);
+        off = (unsigned char)(off + 3u);
     }
-    if (len >= 4u && count > 0u) {
-        append_str(dst, 32u, " d");
-        append_uint(dst, 32u, src[2]);
-        append_char(dst, 32u, ' ');
-        append_str(dst, 32u, drive_type_name(src[1]));
-        append_char(dst, 32u, ' ');
-        append_str(dst, 32u, src[3] ? "on" : "off");
+}
+
+static unsigned char format_softiec_info(char *dst, const unsigned char *src, unsigned char len) {
+    unsigned char count;
+    unsigned char i;
+    unsigned char off;
+
+    if (len == 0u) {
+        return 0u;
+    }
+    count = src[0];
+    off = 1u;
+    for (i = 0u; i < count && off + 2u < len; ++i) {
+        if (src[off] == 0x0Fu) {
+            dst[0] = 0;
+            append_char(dst, 32u, 'd');
+            append_uint(dst, 32u, src[(unsigned char)(off + 1u)]);
+            append_char(dst, 32u, ' ');
+            append_str(dst, 32u, src[(unsigned char)(off + 2u)] ? "on" : "off");
+            return 1u;
+        }
+        off = (unsigned char)(off + 3u);
+    }
+    return 0u;
+}
+
+static unsigned char ultimate_cpu_mhz(unsigned char index) {
+    static const unsigned char speeds_u64[] = {
+        1u, 2u, 3u, 4u, 5u, 6u, 8u, 10u,
+        12u, 14u, 16u, 20u, 24u, 32u, 40u, 48u
+    };
+    static const unsigned char speeds_u64e2[] = {
+        1u, 2u, 3u, 4u, 6u, 8u, 10u, 12u,
+        14u, 16u, 20u, 24u, 32u, 40u, 48u, 64u
+    };
+
+    if (ultimate_speed_table == ULT_SPEED_U64E2) {
+        return speeds_u64e2[index & 0x0Fu];
+    }
+    return speeds_u64[index & 0x0Fu];
+}
+
+static void draw_ultimate_cpu_speed(void) {
+    unsigned char reg;
+
+    reg = sysinfo_uci_asm_read_u64_turbo();
+    if (reg == 0xFFu) {
+        add_row("cpu:", "not exposed", TUI_COLOR_GRAY3);
+        return;
+    }
+
+    value_buf[0] = 0;
+    append_uint(value_buf, sizeof(value_buf), ultimate_cpu_mhz((unsigned char)(reg & 0x0Fu)));
+    append_str(value_buf, sizeof(value_buf), " mhz");
+    if ((reg & 0x80u) != 0u) {
+        append_str(value_buf, sizeof(value_buf), " no badlines");
+    }
+    add_row("cpu:", value_buf, TUI_COLOR_LIGHTGREEN);
+}
+
+static void draw_ultimate_model(void) {
+    static const unsigned char cmd_hwinfo_doc[] = {0x04u, 0x28u};
+    static const unsigned char cmd_hwinfo_legacy[] = {0x04u, 0x28u, 0x00u};
+
+    if ((!run_uci(cmd_hwinfo_doc, sizeof(cmd_hwinfo_doc)) || uci_data_len == 0u || !uci_status_ok()) &&
+        (!run_uci(cmd_hwinfo_legacy, sizeof(cmd_hwinfo_legacy)) || uci_data_len == 0u || !uci_status_ok())) {
+        add_row("model:", "not exposed", TUI_COLOR_GRAY3);
+        return;
+    }
+
+    copy_uci_text(value_buf, sizeof(value_buf));
+    if (text_contains_ci(value_buf, "COMMODORE 64 ULTIMATE") ||
+        text_contains_ci(value_buf, "C64 ULTIMATE")) {
+        ultimate_speed_table = ULT_SPEED_U64E2;
+        add_row("model:", "Commodore 64", TUI_COLOR_CYAN);
+        add_row("", "Ultimate", TUI_COLOR_CYAN);
+    } else if (text_contains_ci(value_buf, "ULTIMATE 64")) {
+        if (text_contains_ci(value_buf, "ELITE")) {
+            ultimate_speed_table = ULT_SPEED_U64E2;
+        } else {
+            ultimate_speed_table = ULT_SPEED_U64;
+        }
+        add_row("model:", "Ultimate 64", TUI_COLOR_CYAN);
+        add_row("family:", "Ultimate 64 fam", TUI_COLOR_GRAY3);
+    } else {
+        ultimate_speed_table = ULT_SPEED_U64;
+        add_row("model:", value_buf, TUI_COLOR_CYAN);
     }
 }
 
 static void draw_ultimate_tab(void) {
     static const unsigned char cmd_ctrl_ident[] = {0x04u, 0x01u};
-    static const unsigned char cmd_hwinfo[] = {0x04u, 0x28u, 0x00u};
-    static const unsigned char cmd_drvinfo[] = {0x04u, 0x29u, 0x00u};
+    static const unsigned char cmd_drvinfo[] = {0x04u, 0x29u, 0x01u};
+    static const unsigned char cmd_dos_time[] = {0x01u, 0x26u, 0x00u};
     static const unsigned char cmd_net_ident[] = {0x03u, 0x01u};
     static const unsigned char cmd_net_count[] = {0x03u, 0x02u};
     static const unsigned char cmd_net_mac0[] = {0x03u, 0x04u, 0x00u};
     static const unsigned char cmd_net_ip0[] = {0x03u, 0x05u, 0x00u};
     unsigned int uci_base;
+    unsigned char softiec_present;
 
     clear_info_pane();
     uci_base = sysinfo_uci_base();
@@ -714,19 +863,25 @@ static void draw_ultimate_tab(void) {
     value_buf[1] = 0;
     append_hex4(value_buf, sizeof(value_buf), uci_base);
     add_row("uci:", value_buf, TUI_COLOR_LIGHTGREEN);
+    ultimate_speed_table = ULT_SPEED_U64;
     if (run_uci(cmd_ctrl_ident, sizeof(cmd_ctrl_ident))) {
         copy_uci_text(value_buf, sizeof(value_buf));
         add_row("ctrl:", value_buf, TUI_COLOR_WHITE);
     }
-    if (run_uci(cmd_hwinfo, sizeof(cmd_hwinfo))) {
-        copy_uci_text(value_buf, sizeof(value_buf));
-        add_row("model:", value_buf, TUI_COLOR_CYAN);
-    } else {
-        add_row("model:", "not exposed", TUI_COLOR_GRAY3);
+    draw_ultimate_model();
+    draw_ultimate_cpu_speed();
+
+    softiec_present = 0u;
+    if (run_uci(cmd_drvinfo, sizeof(cmd_drvinfo)) && uci_status_ok()) {
+        draw_drive_info_rows(uci_data, uci_data_len);
+        softiec_present = format_softiec_info(value_buf, uci_data, uci_data_len);
     }
-    if (run_uci(cmd_drvinfo, sizeof(cmd_drvinfo))) {
-        format_drive_info(value_buf, uci_data, uci_data_len);
-        add_row("drives:", value_buf, TUI_COLOR_WHITE);
+    if (softiec_present) {
+        add_row("softiec:", value_buf, TUI_COLOR_LIGHTGREEN);
+    }
+    if (run_uci(cmd_dos_time, sizeof(cmd_dos_time)) && uci_data_len > 0u && uci_status_ok()) {
+        copy_uci_text(value_buf, sizeof(value_buf));
+        add_row("time:", value_buf, TUI_COLOR_LIGHTGREEN);
     }
     if (run_uci(cmd_net_ident, sizeof(cmd_net_ident))) {
         copy_uci_text(value_buf, sizeof(value_buf));
@@ -749,8 +904,6 @@ static void draw_ultimate_tab(void) {
             }
         }
     }
-    add_row("firmware:", "not exposed by uci", TUI_COLOR_GRAY3);
-    add_row("hostname:", "not exposed by uci", TUI_COLOR_GRAY3);
 }
 
 static void refresh_current_tab(void) {
