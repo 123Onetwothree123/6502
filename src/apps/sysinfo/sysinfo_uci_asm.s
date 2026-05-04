@@ -3,6 +3,7 @@
 ;
 
         .export _sysinfo_uci_asm_write_cmd
+        .export _sysinfo_uci_asm_set_base
         .export _sysinfo_uci_asm_id
         .export _sysinfo_uci_asm_status
         .export _sysinfo_uci_asm_read_data
@@ -15,53 +16,206 @@
         .export _sysinfo_rom_asm_read_chargen
         .export _sysinfo_rom_asm_read_kernal
 
-UCI_CONTROL = $DF1C
-UCI_STATUS  = $DF1C
-UCI_COMMAND = $DF1D
-UCI_ID      = $DF1D
-UCI_DATA    = $DF1E
-UCI_STAT    = $DF1F
 CPU_PORT    = $0001
 
+_sysinfo_uci_asm_set_base:
+        sta uci_base_lo
+        stx uci_base_hi
+
+        sta uci_status+1
+        sta uci_push+1
+        sta uci_accept+1
+        sta uci_abort+1
+        sta uci_clear_error+1
+        stx uci_status+2
+        stx uci_push+2
+        stx uci_accept+2
+        stx uci_abort+2
+        stx uci_clear_error+2
+
+        lda uci_base_lo
+        clc
+        adc #$01
+        sta uci_write_cmd+1
+        sta uci_id+1
+        lda uci_base_hi
+        adc #$00
+        sta uci_write_cmd+2
+        sta uci_id+2
+
+        lda uci_base_lo
+        clc
+        adc #$02
+        sta uci_data+1
+        lda uci_base_hi
+        adc #$00
+        sta uci_data+2
+
+        lda uci_base_lo
+        clc
+        adc #$03
+        sta uci_stat+1
+        lda uci_base_hi
+        adc #$00
+        sta uci_stat+2
+        rts
+
 _sysinfo_uci_asm_write_cmd:
-        sta UCI_COMMAND
+        sta uci_value
+        php
+        sei
+        lda CPU_PORT
+        pha
+        and #$F8
+        ora #$07
+        sta CPU_PORT
+        lda uci_value
+uci_write_cmd:
+        sta $DF1D
+        pla
+        sta CPU_PORT
+        plp
+        lda uci_value
         rts
 
 _sysinfo_uci_asm_id:
-        lda UCI_ID
+        php
+        sei
+        lda CPU_PORT
+        pha
+        and #$F8
+        ora #$07
+        sta CPU_PORT
+uci_id:
+        lda $DF1D
+        tax
+        pla
+        sta CPU_PORT
+        plp
+        txa
         rts
 
 _sysinfo_uci_asm_status:
-        lda UCI_STATUS
+        php
+        sei
+        lda CPU_PORT
+        pha
+        and #$F8
+        ora #$07
+        sta CPU_PORT
+uci_status:
+        lda $DF1C
+        tax
+        pla
+        sta CPU_PORT
+        plp
+        txa
         rts
 
 _sysinfo_uci_asm_read_data:
-        lda UCI_DATA
+        php
+        sei
+        lda CPU_PORT
+        pha
+        and #$F8
+        ora #$07
+        sta CPU_PORT
+uci_data:
+        lda $DF1E
+        tax
+        pla
+        sta CPU_PORT
+        plp
+        txa
         rts
 
 _sysinfo_uci_asm_read_stat:
-        lda UCI_STAT
+        php
+        sei
+        lda CPU_PORT
+        pha
+        and #$F8
+        ora #$07
+        sta CPU_PORT
+uci_stat:
+        lda $DF1F
+        tax
+        pla
+        sta CPU_PORT
+        plp
+        txa
         rts
 
 _sysinfo_uci_asm_push_cmd:
+        php
+        sei
+        lda CPU_PORT
+        pha
+        and #$F8
+        ora #$07
+        sta CPU_PORT
         lda #$01
-        sta UCI_CONTROL
+uci_push:
+        sta $DF1C
+        pla
+        sta CPU_PORT
+        plp
         rts
 
 _sysinfo_uci_asm_accept_data:
+        php
+        sei
+        lda CPU_PORT
+        pha
+        and #$F8
+        ora #$07
+        sta CPU_PORT
         lda #$02
-        sta UCI_CONTROL
+uci_accept:
+        sta $DF1C
+        pla
+        sta CPU_PORT
+        plp
         rts
 
 _sysinfo_uci_asm_abort:
+        php
+        sei
+        lda CPU_PORT
+        pha
+        and #$F8
+        ora #$07
+        sta CPU_PORT
         lda #$04
-        sta UCI_CONTROL
+uci_abort:
+        sta $DF1C
+        pla
+        sta CPU_PORT
+        plp
         rts
 
 _sysinfo_uci_asm_clear_error:
+        php
+        sei
+        lda CPU_PORT
+        pha
+        and #$F8
+        ora #$07
+        sta CPU_PORT
         lda #$08
-        sta UCI_CONTROL
+uci_clear_error:
+        sta $DF1C
+        pla
+        sta CPU_PORT
+        plp
         rts
+
+uci_base_lo:
+        .byte <$DF1C
+uci_base_hi:
+        .byte >$DF1C
+uci_value:
+        .byte $00
 
 _sysinfo_rom_asm_read_basic:
         sta read_basic+1

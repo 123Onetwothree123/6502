@@ -237,8 +237,7 @@ easyflash_after_launcher_restore:
     lda #'J'
     jsr dbg_put
     jsr show_stage_handoff
-    lda #$04
-    sta CART_CONTROL
+    jsr cart_disable_for_reu
     lda #'K'
     jsr dbg_put
     lda #$37
@@ -255,6 +254,7 @@ easyflash_after_launcher_restore:
     ; CLI cannot vector away before the launcher gets its first instruction.
     lda CIA1_ICR
     lda CIA2_ICR
+    jsr cart_disable_for_reu
 easyflash_before_launcher_jump:
     jmp APP_LOAD_START
 

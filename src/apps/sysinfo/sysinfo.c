@@ -87,6 +87,7 @@ static void append_char(char *dst, unsigned char dst_len, char ch);
 static void append_str(char *dst, unsigned char dst_len, const char *src);
 static void append_uint(char *dst, unsigned char dst_len, unsigned int value);
 static void append_hex2(char *dst, unsigned char dst_len, unsigned char value);
+static void append_hex4(char *dst, unsigned char dst_len, unsigned int value);
 static unsigned char reu_detect(void);
 static unsigned int reu_detect_kb(void);
 static void reu_stash_byte(unsigned char bank, unsigned int off, unsigned char value);
@@ -138,6 +139,11 @@ static void append_hex2(char *dst, unsigned char dst_len, unsigned char value) {
 
     append_char(dst, dst_len, hex[(value >> 4) & 0x0Fu]);
     append_char(dst, dst_len, hex[value & 0x0Fu]);
+}
+
+static void append_hex4(char *dst, unsigned char dst_len, unsigned int value) {
+    append_hex2(dst, dst_len, (unsigned char)(value >> 8));
+    append_hex2(dst, dst_len, (unsigned char)(value & 0xFFu));
 }
 
 static void append_2digit(char *dst, unsigned char dst_len, unsigned int value) {
@@ -693,16 +699,21 @@ static void draw_ultimate_tab(void) {
     static const unsigned char cmd_net_count[] = {0x03u, 0x02u};
     static const unsigned char cmd_net_mac0[] = {0x03u, 0x04u, 0x00u};
     static const unsigned char cmd_net_ip0[] = {0x03u, 0x05u, 0x00u};
+    unsigned int uci_base;
 
     clear_info_pane();
-    if (!sysinfo_uci_detect()) {
+    uci_base = sysinfo_uci_base();
+    if (uci_base == 0u) {
         add_row("uci:", "not detected", TUI_COLOR_LIGHTRED);
         add_row("hint:", "enable the uci", TUI_COLOR_YELLOW);
         add_row("", "to detect ultimate", TUI_COLOR_YELLOW);
         return;
     }
 
-    add_row("uci:", "detected", TUI_COLOR_LIGHTGREEN);
+    value_buf[0] = '$';
+    value_buf[1] = 0;
+    append_hex4(value_buf, sizeof(value_buf), uci_base);
+    add_row("uci:", value_buf, TUI_COLOR_LIGHTGREEN);
     if (run_uci(cmd_ctrl_ident, sizeof(cmd_ctrl_ident))) {
         copy_uci_text(value_buf, sizeof(value_buf));
         add_row("ctrl:", value_buf, TUI_COLOR_WHITE);

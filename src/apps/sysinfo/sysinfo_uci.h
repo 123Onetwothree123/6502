@@ -5,6 +5,7 @@
 #define SYSINFO_UCI_STAT_MAX 32
 
 unsigned char sysinfo_uci_detect(void);
+unsigned int sysinfo_uci_base(void);
 unsigned char sysinfo_uci_command(const unsigned char *cmd,
                                   unsigned char cmd_len,
                                   unsigned char *data,
@@ -14,6 +15,7 @@ unsigned char sysinfo_uci_command(const unsigned char *cmd,
                                   unsigned char stat_cap,
                                   unsigned char *stat_len);
 
+void __fastcall__ sysinfo_uci_asm_set_base(unsigned int base);
 unsigned char __fastcall__ sysinfo_uci_asm_write_cmd(unsigned char value);
 unsigned char sysinfo_uci_asm_id(void);
 unsigned char sysinfo_uci_asm_status(void);

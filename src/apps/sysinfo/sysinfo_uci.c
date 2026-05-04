@@ -1,6 +1,7 @@
 #include "sysinfo_uci.h"
 
-#define UCI_ID_VALUE   0xC9
+#define UCI_ID_MASK    0x7F
+#define UCI_ID_MATCH   0x49
 #define UCI_STAT_DATA  0x80
 #define UCI_STAT_STAT  0x40
 #define UCI_STATE_MASK 0x30
@@ -8,10 +9,26 @@
 #define UCI_STATE_BUSY 0x10
 #define UCI_STATE_LAST 0x20
 #define UCI_STATE_MORE 0x30
+#define UCI_STAT_ABORT 0x04
 #define UCI_STAT_ERROR 0x08
 
 #define UCI_WAIT_SHORT  1200u
 #define UCI_WAIT_LONG   6000u
+
+static unsigned int uci_base_addr;
+
+static unsigned char uci_id_matches(unsigned char id) {
+    return (unsigned char)((id & UCI_ID_MASK) == UCI_ID_MATCH);
+}
+
+static unsigned char uci_probe_base(unsigned int base) {
+    sysinfo_uci_asm_set_base(base);
+    if (uci_id_matches(sysinfo_uci_asm_id())) {
+        uci_base_addr = base;
+        return 1u;
+    }
+    return 0u;
+}
 
 static unsigned char uci_wait_idle(void) {
     unsigned int tries;
@@ -49,8 +66,77 @@ static unsigned char uci_wait_data_state(void) {
     return 0u;
 }
 
+static unsigned char uci_sync_interface(void) {
+    unsigned int tries;
+    unsigned char st;
+    unsigned char state;
+
+    for (tries = 0u; tries < UCI_WAIT_SHORT; ++tries) {
+        st = sysinfo_uci_asm_status();
+        state = (unsigned char)(st & UCI_STATE_MASK);
+
+        if ((st & UCI_STAT_ERROR) != 0u) {
+            sysinfo_uci_asm_clear_error();
+            tries = 0u;
+            continue;
+        }
+        if ((st & UCI_STAT_ABORT) != 0u) {
+            sysinfo_uci_asm_abort();
+            tries = 0u;
+            continue;
+        }
+        if ((st & UCI_STAT_DATA) != 0u) {
+            (void)sysinfo_uci_asm_read_data();
+            tries = 0u;
+            continue;
+        }
+        if ((st & UCI_STAT_STAT) != 0u) {
+            (void)sysinfo_uci_asm_read_stat();
+            tries = 0u;
+            continue;
+        }
+        if (state == UCI_STATE_LAST || state == UCI_STATE_MORE) {
+            sysinfo_uci_asm_accept_data();
+            tries = 0u;
+            continue;
+        }
+        if (state == UCI_STATE_IDLE && (st & 0x01u) == 0u) {
+            return 1u;
+        }
+    }
+
+    sysinfo_uci_asm_abort();
+    return uci_wait_idle();
+}
+
 unsigned char sysinfo_uci_detect(void) {
-    return (unsigned char)(sysinfo_uci_asm_id() == UCI_ID_VALUE);
+    static const unsigned int bases[] = {
+        0xDF1Cu,
+        0xDE1Cu,
+        0xDFFCu
+    };
+    unsigned char i;
+
+    if (uci_base_addr != 0u) {
+        if (uci_probe_base(uci_base_addr)) {
+            return 1u;
+        }
+        uci_base_addr = 0u;
+    }
+
+    for (i = 0u; i < sizeof(bases) / sizeof(bases[0]); ++i) {
+        if (uci_probe_base(bases[i])) {
+            return 1u;
+        }
+    }
+    return 0u;
+}
+
+unsigned int sysinfo_uci_base(void) {
+    if (!sysinfo_uci_detect()) {
+        return 0u;
+    }
+    return uci_base_addr;
 }
 
 unsigned char sysinfo_uci_command(const unsigned char *cmd,
@@ -80,7 +166,7 @@ unsigned char sysinfo_uci_command(const unsigned char *cmd,
         return 0u;
     }
 
-    if (!uci_wait_idle()) {
+    if (!uci_sync_interface()) {
         sysinfo_uci_asm_abort();
         if (!uci_wait_idle()) {
             return 0u;
