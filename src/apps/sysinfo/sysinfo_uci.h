@@ -24,4 +24,8 @@ void sysinfo_uci_asm_accept_data(void);
 void sysinfo_uci_asm_abort(void);
 void sysinfo_uci_asm_clear_error(void);
 
+unsigned char __fastcall__ sysinfo_rom_asm_read_basic(unsigned int off);
+unsigned char __fastcall__ sysinfo_rom_asm_read_chargen(unsigned int off);
+unsigned char __fastcall__ sysinfo_rom_asm_read_kernal(unsigned int off);
+
 #endif /* SYSINFO_UCI_H */

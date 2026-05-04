@@ -29,8 +29,11 @@
 
 #define SHIM_CURRENT_BANK (*(volatile unsigned char*)0xC834)
 
-#define KERNAL_REV_BYTE (*(volatile unsigned char*)0xE4AC)
-#define BASIC_ROM       ((volatile unsigned char*)0xA000)
+#define KERNAL_REV_OFF  0x04ACu
+#define KERNAL_BANNER_OFF 0x045Eu
+#define KERNAL_BANNER_LEN 96u
+#define BASIC_OPENROMS_OFF 0x0000u
+#define BASIC_OPENROMS_LEN 128u
 #define JIFFY_LO        (*(volatile unsigned char*)0x00A2)
 #define JIFFY_MID       (*(volatile unsigned char*)0x00A1)
 #define JIFFY_HI        (*(volatile unsigned char*)0x00A0)
@@ -88,6 +91,12 @@ static unsigned char reu_detect(void);
 static unsigned int reu_detect_kb(void);
 static void reu_stash_byte(unsigned char bank, unsigned int off, unsigned char value);
 static unsigned char reu_fetch_byte(unsigned char bank, unsigned int off);
+static const char *basic_name(void);
+static const char *chargen_name(void);
+static const char *kernal_name(unsigned char rev);
+static const char *model_name(unsigned char rev);
+static unsigned char kernal_banner_contains(const char *pattern);
+static unsigned char basic_window_contains(const char *pattern);
 
 static void append_char(char *dst, unsigned char dst_len, char ch) {
     unsigned char len;
@@ -216,23 +225,169 @@ static void clear_info_pane(void) {
     row_y = PANE_Y;
 }
 
-static const char *kernal_name(void) {
-    switch (KERNAL_REV_BYTE) {
+static unsigned char rom_upper(unsigned char ch) {
+    if (ch >= 'a' && ch <= 'z') {
+        return (unsigned char)(ch - ('a' - 'A'));
+    }
+    return ch;
+}
+
+static unsigned char match_pattern_at_kernal(unsigned int off, const char *pattern) {
+    unsigned char i;
+    unsigned char ch;
+
+    i = 0u;
+    while (pattern[i] != 0) {
+        ch = rom_upper(sysinfo_rom_asm_read_kernal((unsigned int)(off + i)));
+        if (ch != (unsigned char)pattern[i]) {
+            return 0u;
+        }
+        ++i;
+    }
+    return 1u;
+}
+
+static unsigned char match_pattern_at_basic(unsigned int off, const char *pattern) {
+    unsigned char i;
+    unsigned char ch;
+
+    i = 0u;
+    while (pattern[i] != 0) {
+        ch = rom_upper(sysinfo_rom_asm_read_basic((unsigned int)(off + i)));
+        if (ch != (unsigned char)pattern[i]) {
+            return 0u;
+        }
+        ++i;
+    }
+    return 1u;
+}
+
+static unsigned char kernal_banner_contains(const char *pattern) {
+    unsigned int off;
+
+    for (off = KERNAL_BANNER_OFF;
+         off < (unsigned int)(KERNAL_BANNER_OFF + KERNAL_BANNER_LEN);
+         ++off) {
+        if (match_pattern_at_kernal(off, pattern)) {
+            return 1u;
+        }
+    }
+    return 0u;
+}
+
+static unsigned char basic_window_contains(const char *pattern) {
+    unsigned int off;
+
+    for (off = BASIC_OPENROMS_OFF;
+         off < (unsigned int)(BASIC_OPENROMS_OFF + BASIC_OPENROMS_LEN);
+         ++off) {
+        if (match_pattern_at_basic(off, pattern)) {
+            return 1u;
+        }
+    }
+    return 0u;
+}
+
+static unsigned char kernal_is_c64gs(void) {
+    return (unsigned char)(sysinfo_rom_asm_read_kernal(0x1C00u) == 'C' &&
+                           sysinfo_rom_asm_read_kernal(0x1C0Fu) == 'C' &&
+                           sysinfo_rom_asm_read_kernal(0x1C1Cu) == 'C');
+}
+
+static const char *kernal_name(unsigned char rev) {
+    if (kernal_banner_contains("JAFFYDOS")) {
+        return "JaffyDOS";
+    }
+    if (kernal_banner_contains("JIFFYDOS")) {
+        return "JiffyDOS";
+    }
+    if (kernal_banner_contains("DOLPHIN")) {
+        return "Dolphin DOS";
+    }
+    if (kernal_banner_contains("SPEEDDOS") ||
+        kernal_banner_contains("SPEED DOS")) {
+        return "SpeedDOS";
+    }
+    if (kernal_banner_contains("PROFESSIONAL")) {
+        return "Professional DOS";
+    }
+    if (kernal_banner_contains("EXOS")) {
+        return "EXOS";
+    }
+    if (kernal_banner_contains("OPEN ROMS") ||
+        kernal_banner_contains("OPENROMS")) {
+        return "Open ROMs";
+    }
+
+    if (kernal_is_c64gs()) {
+        return "390852-01 gs";
+    }
+    switch (rev) {
         case 0x2Bu: return "901227-01";
         case 0x5Cu: return "901227-02";
         case 0x81u: return "901227-03";
         case 0x63u: return "901246-01 sx";
-        case 0x00u: return "406145-02 jp";
+        case 0x00u: return "906145-02 jp";
         case 0xB3u: return "251104-04 sx";
         default:    return "custom/unknown";
     }
 }
 
+static const char *model_name(unsigned char rev) {
+    if (kernal_is_c64gs()) {
+        return "C64GS";
+    }
+    switch (rev) {
+        case 0x63u:
+        case 0xB3u:
+            return "SX-64";
+        case 0x00u:
+            return "C64 JP";
+        case 0x2Bu:
+        case 0x5Cu:
+        case 0x81u:
+            return "C64";
+        default:
+            return "custom C64";
+    }
+}
+
 static const char *basic_name(void) {
-    if (BASIC_ROM[0] == 0x94u && BASIC_ROM[1] == 0xE3u &&
-        BASIC_ROM[2] == 0x7Bu && BASIC_ROM[3] == 0xE3u &&
-        BASIC_ROM[4] == 'C' && BASIC_ROM[5] == 'B') {
+    if (sysinfo_rom_asm_read_basic(0x0000u) == 0x94u &&
+        sysinfo_rom_asm_read_basic(0x0001u) == 0xE3u &&
+        sysinfo_rom_asm_read_basic(0x0002u) == 0x7Bu &&
+        sysinfo_rom_asm_read_basic(0x0003u) == 0xE3u &&
+        sysinfo_rom_asm_read_basic(0x0004u) == 'C' &&
+        sysinfo_rom_asm_read_basic(0x0005u) == 'B') {
         return "basic 2.0";
+    }
+    if (basic_window_contains("OPEN ROMS") ||
+        basic_window_contains("OPENROMS")) {
+        return "Open ROMs";
+    }
+    return "custom/unknown";
+}
+
+static const char *chargen_name(void) {
+    if (sysinfo_rom_asm_read_chargen(0x0000u) == 0x3Cu &&
+        sysinfo_rom_asm_read_chargen(0x0001u) == 0x66u &&
+        sysinfo_rom_asm_read_chargen(0x0002u) == 0x6Eu &&
+        sysinfo_rom_asm_read_chargen(0x0003u) == 0x6Eu &&
+        sysinfo_rom_asm_read_chargen(0x0004u) == 0x60u &&
+        sysinfo_rom_asm_read_chargen(0x0005u) == 0x62u &&
+        sysinfo_rom_asm_read_chargen(0x0006u) == 0x3Cu &&
+        sysinfo_rom_asm_read_chargen(0x0007u) == 0x00u) {
+        return "901225-01";
+    }
+    if (sysinfo_rom_asm_read_chargen(0x0000u) == 0x00u &&
+        sysinfo_rom_asm_read_chargen(0x0001u) == 0x1Cu &&
+        sysinfo_rom_asm_read_chargen(0x0002u) == 0x22u &&
+        sysinfo_rom_asm_read_chargen(0x0003u) == 0x4Au &&
+        sysinfo_rom_asm_read_chargen(0x0004u) == 0x56u &&
+        sysinfo_rom_asm_read_chargen(0x0005u) == 0x4Cu &&
+        sysinfo_rom_asm_read_chargen(0x0006u) == 0x20u &&
+        sysinfo_rom_asm_read_chargen(0x0007u) == 0x1Eu) {
+        return "906143-02 jp";
     }
     return "custom/unknown";
 }
@@ -421,26 +576,28 @@ static void format_reu(char *dst) {
 }
 
 static void draw_system_tab(void) {
+    unsigned char kernal_rev;
+
+    kernal_rev = sysinfo_rom_asm_read_kernal(KERNAL_REV_OFF);
     clear_info_pane();
-    add_row("kernal:", kernal_name(), TUI_COLOR_WHITE);
+    add_row("model:", model_name(kernal_rev), TUI_COLOR_WHITE);
+    add_row("kernal:", kernal_name(kernal_rev), TUI_COLOR_WHITE);
 
     value_buf[0] = '$';
     value_buf[1] = 0;
-    append_hex2(value_buf, sizeof(value_buf), KERNAL_REV_BYTE);
+    append_hex2(value_buf, sizeof(value_buf), kernal_rev);
     add_row("k byte:", value_buf, TUI_COLOR_GRAY3);
 
     add_row("basic:", basic_name(), TUI_COLOR_WHITE);
-    add_row("sku:", "unknown", TUI_COLOR_GRAY3);
+    add_row("charset:", chargen_name(), TUI_COLOR_WHITE);
     format_video(value_buf);
     add_row("video:", value_buf, TUI_COLOR_CYAN);
-    add_row("emulator:", "not reliable", TUI_COLOR_GRAY3);
 
     format_reu(value_buf);
     add_row("reu:", value_buf, TUI_COLOR_YELLOW);
 
     format_uptime(value_buf);
     add_row("up since:", value_buf, TUI_COLOR_LIGHTGREEN);
-    add_row("timer:", "24-bit jiffy wraps", TUI_COLOR_GRAY3);
 }
 
 static unsigned char run_uci(const unsigned char *cmd, unsigned char len) {
