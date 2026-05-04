@@ -110,9 +110,11 @@ REU_PROBE_SRC = $CA11
 REU_PROBE_DST = $CA12
 REU_PROBE_BANK = $FE
 APP_TABLE_RAM = $CC00
-OVERLAY_TABLE_RAM = $CC90
 APP_TABLE_BYTES = EASYFLASH_APP_COUNT * 9
 OVERLAY_TABLE_BYTES = EASYFLASH_OVERLAY_COUNT * 12
+; Keep the overlay table immediately after the app table so the EasyFlash
+; flavor can grow past 16 apps without corrupting the final app entry.
+OVERLAY_TABLE_RAM = APP_TABLE_RAM + APP_TABLE_BYTES
 
 dst_lo       = $F0
 dst_hi       = $F1
