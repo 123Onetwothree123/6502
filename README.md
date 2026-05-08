@@ -103,7 +103,9 @@ Boot note:
   path so the on-screen X/Y preload counter stays correct while the standard
   disk variants are filling app snapshots into the REU.
 - New `system info` app reports machine, ROM, video, REU, cartridge visibility,
-  Ultimate UCI status, and drive status for devices `8` through `11`.
+  Ultimate UCI status, and drive status for devices `8` through `11`; on the
+  C64 Ultimate it shows a variety of Ultimate machine details, including
+  networking information and IP addresses.
 
 ## Release Variants
 
@@ -245,7 +247,7 @@ Real C64 versus emulator key forms:
 | 9 | `hexview` | hex viewer | Memory browser with PETSCII and screen-code views |
 | 9 | `clipmgr` | clipboard | Multi-item clipboard manager with preview and file import/export |
 | 9 | `reuviewer` | reu viewer | Visual 256-bank REU map |
-| 9 | `sysinfo` | system info | Read-only machine, REU, Ultimate, cartridge, and drive status |
+| 9 | `sysinfo` | system info | Read-only machine, REU, Ultimate, cartridge, and drive status; on C64 Ultimate, also shows Ultimate machine details including networking information and IP addresses |
 | 9 | `tasklist` | task list | Hierarchical outliner with notes, search, and file persistence |
 | 9 | `simplefiles` | simple files | Dual-pane file manager with copy, rename, delete, and SEQ previewing |
 | 9 | `simplecells` | simple cells (alpha) | Single-sheet spreadsheet with formulas, formatting, and save/load |
