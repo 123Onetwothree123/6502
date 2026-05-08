@@ -1,11 +1,12 @@
 {
+  "reu_bank_skip": 32,
   "launcher": {
     "artifact": "bin/launcher_easyflash.prg",
     "start_bank": 1,
     "bank_span": 2,
     "load_addr": 4096,
-    "payload_len": 31059,
-    "checksum16": 5199
+    "payload_len": 31592,
+    "checksum16": 27863
   },
   "apps": [
     {
@@ -16,8 +17,8 @@
       "start_bank": 3,
       "bank_span": 2,
       "load_addr": 4096,
-      "payload_len": 24686,
-      "checksum16": 11988,
+      "payload_len": 24915,
+      "checksum16": 12044,
       "default_slot": 1
     },
     {
@@ -28,8 +29,8 @@
       "start_bank": 5,
       "bank_span": 2,
       "load_addr": 4096,
-      "payload_len": 30085,
-      "checksum16": 33983,
+      "payload_len": 30096,
+      "checksum16": 44370,
       "default_slot": 2
     },
     {
@@ -40,8 +41,8 @@
       "start_bank": 7,
       "bank_span": 2,
       "load_addr": 4096,
-      "payload_len": 29536,
-      "checksum16": 64679,
+      "payload_len": 29547,
+      "checksum16": 21302,
       "default_slot": 0
     },
     {
@@ -52,8 +53,8 @@
       "start_bank": 9,
       "bank_span": 2,
       "load_addr": 4096,
-      "payload_len": 31434,
-      "checksum16": 61074,
+      "payload_len": 31854,
+      "checksum16": 40672,
       "default_slot": 0
     },
     {
@@ -62,10 +63,10 @@
       "label": "calendar 26",
       "artifact": "bin/cal26.prg",
       "start_bank": 11,
-      "bank_span": 2,
+      "bank_span": 3,
       "load_addr": 4096,
-      "payload_len": 32719,
-      "checksum16": 51558,
+      "payload_len": 32953,
+      "checksum16": 61477,
       "default_slot": 0
     },
     {
@@ -73,11 +74,11 @@
       "prg": "tasklist",
       "label": "task list",
       "artifact": "bin/tasklist.prg",
-      "start_bank": 13,
+      "start_bank": 14,
       "bank_span": 2,
       "load_addr": 4096,
-      "payload_len": 31282,
-      "checksum16": 36918,
+      "payload_len": 31511,
+      "checksum16": 30408,
       "default_slot": 0
     },
     {
@@ -85,11 +86,11 @@
       "prg": "reuviewer",
       "label": "reu viewer",
       "artifact": "bin/reuviewer.prg",
-      "start_bank": 15,
+      "start_bank": 16,
       "bank_span": 1,
       "load_addr": 4096,
-      "payload_len": 13479,
-      "checksum16": 24774,
+      "payload_len": 14569,
+      "checksum16": 64436,
       "default_slot": 0
     },
     {
@@ -97,7 +98,7 @@
       "prg": "sysinfo",
       "label": "system info",
       "artifact": "bin/sysinfo.prg",
-      "start_bank": 16,
+      "start_bank": 17,
       "bank_span": 1,
       "load_addr": 4096,
       "payload_len": 16293,
@@ -109,11 +110,11 @@
       "prg": "quicknotes",
       "label": "quicknotes",
       "artifact": "bin/quicknotes.prg",
-      "start_bank": 17,
+      "start_bank": 18,
       "bank_span": 2,
       "load_addr": 4096,
-      "payload_len": 30729,
-      "checksum16": 47280,
+      "payload_len": 30958,
+      "checksum16": 51218,
       "default_slot": 0
     },
     {
@@ -121,11 +122,11 @@
       "prg": "calcplus",
       "label": "calc plus",
       "artifact": "bin/calcplus.prg",
-      "start_bank": 19,
+      "start_bank": 20,
       "bank_span": 3,
       "load_addr": 4096,
-      "payload_len": 38021,
-      "checksum16": 36514,
+      "payload_len": 38441,
+      "checksum16": 40894,
       "default_slot": 0
     },
     {
@@ -133,11 +134,11 @@
       "prg": "hexview",
       "label": "hex viewer",
       "artifact": "bin/hexview.prg",
-      "start_bank": 22,
+      "start_bank": 23,
       "bank_span": 1,
       "load_addr": 4096,
-      "payload_len": 13557,
-      "checksum16": 756,
+      "payload_len": 13977,
+      "checksum16": 21521,
       "default_slot": 0
     },
     {
@@ -145,11 +146,11 @@
       "prg": "simplecells",
       "label": "simple cells (alpha)",
       "artifact": "bin/simplecells.prg",
-      "start_bank": 23,
+      "start_bank": 24,
       "bank_span": 3,
       "load_addr": 4096,
-      "payload_len": 35058,
-      "checksum16": 44706,
+      "payload_len": 35292,
+      "checksum16": 46864,
       "default_slot": 0
     },
     {
@@ -157,11 +158,11 @@
       "prg": "game2048",
       "label": "2048 game",
       "artifact": "bin/game2048.prg",
-      "start_bank": 26,
+      "start_bank": 27,
       "bank_span": 2,
       "load_addr": 4096,
-      "payload_len": 16770,
-      "checksum16": 18060,
+      "payload_len": 16786,
+      "checksum16": 39325,
       "default_slot": 0
     },
     {
@@ -169,11 +170,11 @@
       "prg": "sidetris",
       "label": "sidetris",
       "artifact": "bin/sidetris.prg",
-      "start_bank": 28,
+      "start_bank": 29,
       "bank_span": 1,
       "load_addr": 4096,
-      "payload_len": 15375,
-      "checksum16": 30914,
+      "payload_len": 15386,
+      "checksum16": 44441,
       "default_slot": 0
     },
     {
@@ -181,11 +182,11 @@
       "prg": "deminer",
       "label": "deminer",
       "artifact": "bin/deminer.prg",
-      "start_bank": 29,
+      "start_bank": 30,
       "bank_span": 2,
       "load_addr": 4096,
-      "payload_len": 20110,
-      "checksum16": 29231,
+      "payload_len": 20126,
+      "checksum16": 46111,
       "default_slot": 0
     },
     {
@@ -193,11 +194,11 @@
       "prg": "dizzy",
       "label": "dizzy kanban",
       "artifact": "bin/dizzy.prg",
-      "start_bank": 31,
+      "start_bank": 32,
       "bank_span": 3,
       "load_addr": 4096,
-      "payload_len": 38392,
-      "checksum16": 18187,
+      "payload_len": 38408,
+      "checksum16": 9560,
       "default_slot": 0
     },
     {
@@ -205,11 +206,11 @@
       "prg": "readme",
       "label": "read.me",
       "artifact": "bin/readme.prg",
-      "start_bank": 34,
+      "start_bank": 35,
       "bank_span": 2,
       "load_addr": 4096,
-      "payload_len": 23757,
-      "checksum16": 49119,
+      "payload_len": 23773,
+      "checksum16": 27576,
       "default_slot": 0
     }
   ],
@@ -217,11 +218,11 @@
     {
       "name": "rsparser",
       "artifact": "bin/rsparser.prg",
-      "start_bank": 36,
+      "start_bank": 37,
       "bank_span": 1,
       "load_addr": 36352,
       "payload_len": 13005,
-      "checksum16": 20290,
+      "checksum16": 61058,
       "reu_bank": 64,
       "reu_off": 0,
       "valid_bit": 1
@@ -229,11 +230,11 @@
     {
       "name": "rsvm",
       "artifact": "bin/rsvm.prg",
-      "start_bank": 37,
+      "start_bank": 38,
       "bank_span": 1,
       "load_addr": 36352,
       "payload_len": 14033,
-      "checksum16": 19005,
+      "checksum16": 60668,
       "reu_bank": 64,
       "reu_off": 14336,
       "valid_bit": 2
@@ -241,11 +242,11 @@
     {
       "name": "rsdrvilst",
       "artifact": "bin/rsdrvilst.prg",
-      "start_bank": 38,
+      "start_bank": 39,
       "bank_span": 1,
       "load_addr": 36352,
       "payload_len": 11272,
-      "checksum16": 4429,
+      "checksum16": 35359,
       "reu_bank": 64,
       "reu_off": 28672,
       "valid_bit": 4
@@ -253,11 +254,11 @@
     {
       "name": "rsldv",
       "artifact": "bin/rsldv.prg",
-      "start_bank": 39,
+      "start_bank": 40,
       "bank_span": 1,
       "load_addr": 36352,
       "payload_len": 11884,
-      "checksum16": 24109,
+      "checksum16": 61235,
       "reu_bank": 65,
       "reu_off": 0,
       "valid_bit": 8
@@ -265,11 +266,11 @@
     {
       "name": "rsstv",
       "artifact": "bin/rsstv.prg",
-      "start_bank": 40,
+      "start_bank": 41,
       "bank_span": 1,
       "load_addr": 36352,
       "payload_len": 10205,
-      "checksum16": 37609,
+      "checksum16": 13871,
       "reu_bank": 64,
       "reu_off": 43008,
       "valid_bit": 16
@@ -277,11 +278,11 @@
     {
       "name": "rsfops",
       "artifact": "bin/rsfops.prg",
-      "start_bank": 41,
+      "start_bank": 42,
       "bank_span": 1,
       "load_addr": 36352,
       "payload_len": 14333,
-      "checksum16": 50495,
+      "checksum16": 1428,
       "reu_bank": 65,
       "reu_off": 14336,
       "valid_bit": 32
@@ -289,11 +290,11 @@
     {
       "name": "rscat",
       "artifact": "bin/rscat.prg",
-      "start_bank": 42,
+      "start_bank": 43,
       "bank_span": 1,
       "load_addr": 36352,
       "payload_len": 8078,
-      "checksum16": 46542,
+      "checksum16": 16912,
       "reu_bank": 65,
       "reu_off": 28672,
       "valid_bit": 64
@@ -301,15 +302,15 @@
     {
       "name": "rscopy",
       "artifact": "bin/rscopy.prg",
-      "start_bank": 43,
+      "start_bank": 44,
       "bank_span": 1,
       "load_addr": 36352,
       "payload_len": 6599,
-      "checksum16": 62993,
+      "checksum16": 34582,
       "reu_bank": 65,
       "reu_off": 43008,
       "valid_bit": 128
     }
   ],
-  "last_used_bank": 43
+  "last_used_bank": 44
 }

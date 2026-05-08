@@ -2,7 +2,7 @@
   "id": "precog-easyflash",
   "display_name": "precog easyflash",
   "kind": "easyflash",
-  "version_text": "0.2.4",
+  "version_text": "0.2.4B",
   "catalog_source": "cfg/flavors/readyos_easyflash.ini",
   "artifacts": {
     "crt": "releases/0.2.4/precog-easyflash/readyos_easyflash.crt",
@@ -136,18 +136,18 @@
     "start_bank": 1,
     "bank_span": 2,
     "load_addr": 4096,
-    "payload_len": 31059,
-    "checksum16": 5199
+    "payload_len": 31592,
+    "checksum16": 27863
   },
   "overlays": [
     {
       "name": "rsparser",
       "artifact": "bin/rsparser.prg",
-      "start_bank": 36,
+      "start_bank": 37,
       "bank_span": 1,
       "load_addr": 36352,
       "payload_len": 13005,
-      "checksum16": 20290,
+      "checksum16": 61058,
       "reu_bank": 64,
       "reu_off": 0,
       "valid_bit": 1
@@ -155,11 +155,11 @@
     {
       "name": "rsvm",
       "artifact": "bin/rsvm.prg",
-      "start_bank": 37,
+      "start_bank": 38,
       "bank_span": 1,
       "load_addr": 36352,
       "payload_len": 14033,
-      "checksum16": 19005,
+      "checksum16": 60668,
       "reu_bank": 64,
       "reu_off": 14336,
       "valid_bit": 2
@@ -167,11 +167,11 @@
     {
       "name": "rsdrvilst",
       "artifact": "bin/rsdrvilst.prg",
-      "start_bank": 38,
+      "start_bank": 39,
       "bank_span": 1,
       "load_addr": 36352,
       "payload_len": 11272,
-      "checksum16": 4429,
+      "checksum16": 35359,
       "reu_bank": 64,
       "reu_off": 28672,
       "valid_bit": 4
@@ -179,11 +179,11 @@
     {
       "name": "rsldv",
       "artifact": "bin/rsldv.prg",
-      "start_bank": 39,
+      "start_bank": 40,
       "bank_span": 1,
       "load_addr": 36352,
       "payload_len": 11884,
-      "checksum16": 24109,
+      "checksum16": 61235,
       "reu_bank": 65,
       "reu_off": 0,
       "valid_bit": 8
@@ -191,11 +191,11 @@
     {
       "name": "rsstv",
       "artifact": "bin/rsstv.prg",
-      "start_bank": 40,
+      "start_bank": 41,
       "bank_span": 1,
       "load_addr": 36352,
       "payload_len": 10205,
-      "checksum16": 37609,
+      "checksum16": 13871,
       "reu_bank": 64,
       "reu_off": 43008,
       "valid_bit": 16
@@ -203,11 +203,11 @@
     {
       "name": "rsfops",
       "artifact": "bin/rsfops.prg",
-      "start_bank": 41,
+      "start_bank": 42,
       "bank_span": 1,
       "load_addr": 36352,
       "payload_len": 14333,
-      "checksum16": 50495,
+      "checksum16": 1428,
       "reu_bank": 65,
       "reu_off": 14336,
       "valid_bit": 32
@@ -215,11 +215,11 @@
     {
       "name": "rscat",
       "artifact": "bin/rscat.prg",
-      "start_bank": 42,
+      "start_bank": 43,
       "bank_span": 1,
       "load_addr": 36352,
       "payload_len": 8078,
-      "checksum16": 46542,
+      "checksum16": 16912,
       "reu_bank": 65,
       "reu_off": 28672,
       "valid_bit": 64
@@ -227,11 +227,11 @@
     {
       "name": "rscopy",
       "artifact": "bin/rscopy.prg",
-      "start_bank": 43,
+      "start_bank": 44,
       "bank_span": 1,
       "load_addr": 36352,
       "payload_len": 6599,
-      "checksum16": 62993,
+      "checksum16": 34582,
       "reu_bank": 65,
       "reu_off": 43008,
       "valid_bit": 128
