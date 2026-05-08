@@ -7,10 +7,10 @@
 ;                (Using $C800 to avoid cc65 runtime overwriting $0800)
 ;   $1000-$C5FF: App snapshot window ($B600 / 46592 bytes)
 ;
-; REU Banks:
-;   Bank 0: Launcher
-;   Bank 1: Editor
-;   Bank 2: HexCalc
+; REU Banks are physical = READYOS_REU_BANK_SKIP + 1 + logical.
+;   Start:   reserved ReadyOS global bank
+;   Start+1: logical launcher bank 0
+;   Start+2: logical app bank 1
 ;-----------------------------------------------------------------------------
 
 .segment "LOADADDR"
@@ -938,6 +938,7 @@ msg_ready_end:
 
 .include "../generated/msg_version.inc"
 .include "../generated/msg_variant.inc"
+.include "../generated/readyos_reu_config.inc"
 
 err_msg:
     .byte 13, "    LOAD ERROR!", 13, 0

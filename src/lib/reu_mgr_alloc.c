@@ -5,6 +5,15 @@
 #include "reu_mgr.h"
 
 static unsigned char reu_fixed_bank_type(unsigned char bank) {
+    if (bank < *SHIM_REU_BANK_SKIP) {
+        return REU_SKIPPED;
+    }
+    if (bank == REU_READYOS_GLOBAL_PHYSICAL()) {
+        return REU_GLOBAL;
+    }
+    if (bank == REU_LOGICAL_TO_PHYSICAL(0)) {
+        return REU_LAUNCHER;
+    }
     switch (bank) {
         case REU_BANK_RS_CACHE: return REU_RS_CACHE;
         case REU_BANK_RS_CACHE2: return REU_RS_CACHE;
@@ -17,7 +26,7 @@ static unsigned char reu_fixed_bank_type(unsigned char bank) {
 unsigned char reu_alloc_bank(unsigned char type) {
     unsigned int bank;
 
-    for (bank = REU_FIRST_DYNAMIC; bank < REU_TOTAL_BANKS; ++bank) {
+    for (bank = REU_FIRST_DYNAMIC_PHYSICAL(); bank < REU_TOTAL_BANKS; ++bank) {
         if (reu_fixed_bank_type((unsigned char)bank) != 0xFF) {
             continue;
         }
@@ -39,8 +48,15 @@ void reu_free_bank(unsigned char bank) {
         return;
     }
 
-    if (bank < REU_FIRST_DYNAMIC) {
+    if (bank < REU_FIRST_DYNAMIC_PHYSICAL()) {
         REU_ALLOC_TABLE[bank] = REU_RESERVED;
+        if (bank <= *SHIM_REU_BANK_SKIP) {
+            return;
+        }
+        bank = (unsigned char)(bank - *SHIM_REU_BANK_SKIP - 1u);
+        if (bank == 0) {
+            return;
+        }
         if (bank < 8) {
             mask = (unsigned char)(1 << bank);
             *SHIM_REU_BITMAP_LO &= (unsigned char)~mask;

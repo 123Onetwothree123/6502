@@ -173,6 +173,7 @@ Each profile file in `cfg/profiles/` becomes the generated `apps.cfg` on drive
 [system]
 variant_name=precog dual d71
 variant_boot_name=precog dual d71
+reu_bank_skip=0
 
 [launcher]
 load_all_to_reu=0
@@ -194,6 +195,11 @@ How it works:
 - `[system]` carries launcher-visible variant text. `variant_name` is the
   general profile name, and `variant_boot_name` is the boot/display variant
   string when that needs to differ.
+- `reu_bank_skip` is a build-time boot contract, not a runtime launcher
+  setting. It is compiled into the disk and EasyFlash boot/shim images as the
+  number of physical 64K REU banks skipped before ReadyOS starts using REU
+  space. The generated `apps.cfg` still records the profile source value for
+  auditability, but the runtime launcher does not read it as configuration.
 - `load_all_to_reu` controls whether the launcher tries to preload all app
   payloads into the REU at startup.
 - `runappfirst` optionally names an app token to auto-launch after boot.

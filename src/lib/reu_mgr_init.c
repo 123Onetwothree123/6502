@@ -9,21 +9,33 @@ static void reu_sync_from_bitmap(void) {
     unsigned char bitmap_hi = *SHIM_REU_BITMAP_HI;
     unsigned char bitmap_xhi = *SHIM_REU_BITMAP_XHI;
     unsigned char bank;
+    unsigned char phys;
     unsigned char mask;
+    unsigned char skip = *SHIM_REU_BANK_SKIP;
 
-    for (bank = 0; bank < 8; ++bank) {
+    for (bank = 0; bank < skip; ++bank) {
+        REU_ALLOC_TABLE[bank] = REU_SKIPPED;
+    }
+
+    REU_ALLOC_TABLE[REU_READYOS_GLOBAL_PHYSICAL()] = REU_GLOBAL;
+    REU_ALLOC_TABLE[REU_LOGICAL_TO_PHYSICAL(0)] = REU_LAUNCHER;
+
+    for (bank = 1; bank < 8; ++bank) {
         mask = (unsigned char)(1 << bank);
-        REU_ALLOC_TABLE[bank] = (bitmap_lo & mask) ? REU_APP_STATE : REU_RESERVED;
+        phys = REU_LOGICAL_TO_PHYSICAL(bank);
+        REU_ALLOC_TABLE[phys] = (bitmap_lo & mask) ? REU_APP_STATE : REU_RESERVED;
     }
 
     for (bank = 0; bank < 8; ++bank) {
         mask = (unsigned char)(1 << bank);
-        REU_ALLOC_TABLE[bank + 8] = (bitmap_hi & mask) ? REU_APP_STATE : REU_RESERVED;
+        phys = REU_LOGICAL_TO_PHYSICAL((unsigned char)(bank + 8));
+        REU_ALLOC_TABLE[phys] = (bitmap_hi & mask) ? REU_APP_STATE : REU_RESERVED;
     }
 
     for (bank = 0; bank < 8; ++bank) {
         mask = (unsigned char)(1 << bank);
-        REU_ALLOC_TABLE[bank + 16] = (bitmap_xhi & mask) ? REU_APP_STATE : REU_RESERVED;
+        phys = REU_LOGICAL_TO_PHYSICAL((unsigned char)(bank + 16));
+        REU_ALLOC_TABLE[phys] = (bitmap_xhi & mask) ? REU_APP_STATE : REU_RESERVED;
     }
 }
 

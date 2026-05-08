@@ -71,10 +71,12 @@ READYSHELL = $(BIN_DIR)/readyshell.prg
 VERSION_HEADER = $(GEN_DIR)/build_version.h
 VERSION_ASM_INC = $(GEN_DIR)/msg_version.inc
 VARIANT_ASM_INC = $(GEN_DIR)/msg_variant.inc
+REU_CONFIG_ASM_INC = $(GEN_DIR)/readyos_reu_config.inc
 README_DATA_C = $(GEN_DIR)/readme_pages.c
 README_DATA_H = $(GEN_DIR)/readme_pages.h
 EASYFLASH_CATALOG_SRC = $(CFG_DIR)/flavors/readyos_easyflash.ini
 EASYFLASH_LAUNCHER_HEADER = $(GEN_DIR)/launcher_easyflash_catalog.h
+EASYFLASH_REU_CONFIG_ASM_INC = $(GEN_DIR)/readyos_easyflash_reu_config.inc
 EASYFLASH_LAYOUT_JSON = $(OBJ_DIR)/easyflash_layout.json
 EASYFLASH_LAYOUT_INC = $(GEN_DIR)/easyflash_layout.inc
 LAUNCHER_EASYFLASH = $(BIN_DIR)/launcher_easyflash.prg
@@ -350,12 +352,15 @@ all: profile
 	$(PYTHON) $(BUILD_SUPPORT_DIR)/readyos_profiles.py resolve --profile "$(PROFILE)" --version "$$VERSION_TEXT"
 
 # Boot loader (assembly version for size control)
-$(BOOT): $(BOOT_DIR)/boot_asm.s $(VERSION_ASM_INC) $(VARIANT_ASM_INC) $(CATALOG_SEQ)
+$(BOOT): $(BOOT_DIR)/boot_asm.s $(VERSION_ASM_INC) $(VARIANT_ASM_INC) $(REU_CONFIG_ASM_INC) $(CATALOG_SEQ)
 	$(AS) -o obj/boot.o $<
 	$(LD) -C $(CFG_DIR)/boot_asm.cfg -o $@ obj/boot.o
 
 # Variant asm include is generated as a side effect of apps.cfg generation.
 $(VARIANT_ASM_INC): $(CATALOG_SEQ)
+	@test -f $@
+
+$(REU_CONFIG_ASM_INC): $(CATALOG_SEQ)
 	@test -f $@
 
 # C64 BASIC preboot loader is profile-sensitive.
@@ -389,14 +394,15 @@ $(SHOWCFG): $(BOOT_DIR)/showcfg.bas
 $(CATALOG_SEQ): FORCE $(CATALOG_SRC) $(BUILD_SUPPORT_DIR)/build_apps_catalog_petscii.py
 	$(PYTHON) $(BUILD_SUPPORT_DIR)/build_apps_catalog_petscii.py --input $(CATALOG_SRC) --output $@ \
 		--variant-asm-output $(VARIANT_ASM_INC) \
+		--reu-config-asm-output $(REU_CONFIG_ASM_INC) \
 		$(if $(strip $(READYOS_CONFIG_LOAD_ALL)),--override-load-all $(READYOS_CONFIG_LOAD_ALL),) \
 		$(if $(strip $(READYOS_CONFIG_RUN_FIRST)),--override-run-first $(READYOS_CONFIG_RUN_FIRST),)
 
 $(SIDETRIS_APP_MANIFEST_SEQ): $(SIDETRIS_APP_MANIFEST_SRC) $(BUILD_SUPPORT_DIR)/build_petscii_lower_seq.py
 	$(PYTHON) $(BUILD_SUPPORT_DIR)/build_petscii_lower_seq.py --input $(SIDETRIS_APP_MANIFEST_SRC) --output $@
 
-$(EASYFLASH_LAUNCHER_HEADER): FORCE $(EASYFLASH_CATALOG_SRC) $(BUILD_SUPPORT_DIR)/readyos_easyflash.py
-	$(PYTHON) $(BUILD_SUPPORT_DIR)/readyos_easyflash.py catalog-header --catalog $(EASYFLASH_CATALOG_SRC) --output $@
+$(EASYFLASH_LAUNCHER_HEADER) $(EASYFLASH_REU_CONFIG_ASM_INC): FORCE $(EASYFLASH_CATALOG_SRC) $(BUILD_SUPPORT_DIR)/readyos_easyflash.py
+	$(PYTHON) $(BUILD_SUPPORT_DIR)/readyos_easyflash.py catalog-header --catalog $(EASYFLASH_CATALOG_SRC) --output $(EASYFLASH_LAUNCHER_HEADER) --reu-config-asm-output $(EASYFLASH_REU_CONFIG_ASM_INC)
 
 # Build plain-text lowercase PETASCII SEQ payloads
 $(EDITOR_HELP_SEQ): $(EDITOR_HELP_SRC) $(BUILD_SUPPORT_DIR)/build_petscii_lower_seq.py
@@ -595,7 +601,7 @@ $(READYSHELL_EASYFLASH): $(READYSHELL_RESIDENT_EASYFLASH_OBJS) $(READYSHELL_OVER
 $(EASYFLASH_LAYOUT_JSON) $(EASYFLASH_LAYOUT_INC): FORCE $(EASYFLASH_CATALOG_SRC) $(EASYFLASH_PAYLOADS) $(BUILD_SUPPORT_DIR)/readyos_easyflash.py
 	$(PYTHON) $(BUILD_SUPPORT_DIR)/readyos_easyflash.py layout --catalog $(EASYFLASH_CATALOG_SRC) --json-output $(EASYFLASH_LAYOUT_JSON) --asm-output $(EASYFLASH_LAYOUT_INC)
 
-$(EASYFLASH_SHIM_BIN): $(BOOT_DIR)/easyflash_shim.s $(CFG_DIR)/easyflash_shim.cfg
+$(EASYFLASH_SHIM_BIN): $(BOOT_DIR)/easyflash_shim.s $(CFG_DIR)/easyflash_shim.cfg $(EASYFLASH_REU_CONFIG_ASM_INC)
 	$(AS) -o $(OBJ_DIR)/easyflash_shim.o $<
 	$(LD) -C $(CFG_DIR)/easyflash_shim.cfg -o $@ $(OBJ_DIR)/easyflash_shim.o
 

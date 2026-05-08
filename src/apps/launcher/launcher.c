@@ -46,6 +46,7 @@
 #define SHIM_REU_BITMAP_LO ((unsigned char*)0xC836) /* Bitmap bits 0-7 */
 #define SHIM_REU_BITMAP_HI ((unsigned char*)0xC837) /* Bitmap bits 8-15 */
 #define SHIM_REU_BITMAP_XHI ((unsigned char*)0xC838) /* Bitmap bits 16-23 */
+#define SHIM_REU_BANK_SKIP ((unsigned char*)0xC83B)  /* Physical REU banks skipped before ReadyOS */
 #define SHIM_LOAD_DISK_DEV_IMM ((unsigned char*)0xC84D) /* A2 xx at $C84C */
 #define SHIM_PRELOAD_DEV_IMM   ((unsigned char*)0xC89C) /* A2 xx at $C89B */
 
@@ -165,7 +166,8 @@
 #endif
 
 /* REU bank assignments */
-#define REU_BANK_LAUNCHER  0   /* Bank 0 reserved for launcher self-save by shim */
+#define REU_BANK_LAUNCHER  0   /* Logical launcher bank; physical bank is skip + 1 */
+#define REU_LOGICAL_TO_PHYSICAL(bank) ((unsigned char)(*SHIM_REU_BANK_SKIP + 1u + (unsigned char)(bank)))
 #define LAUNCHER_RESUME_SCHEMA 5
 
 /* App save size - must include code + data + BSS */
@@ -1304,7 +1306,7 @@ static void save_launcher_to_reu(void) {
     REU_C64_HI = 0x10;
     REU_REU_LO = 0x00;
     REU_REU_HI = 0x00;
-    REU_REU_BANK = REU_BANK_LAUNCHER;
+    REU_REU_BANK = REU_LOGICAL_TO_PHYSICAL(REU_BANK_LAUNCHER);
     REU_LEN_LO = 0x00;
     REU_LEN_HI = 0xB6;  /* $B600 bytes */
     REU_COMMAND = REU_CMD_STASH;

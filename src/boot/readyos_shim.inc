@@ -48,7 +48,8 @@ jt_fetch_bank   = $C815     ; Helper: fetch from bank in A
 ;        This persists across app switches and is shared by apps that use the
 ;        common file-dialog default-drive contract.
 ; $C83A: log_index - debug byte ring head
-; $C83B-$C83F: reserved
+; $C83B: reu_bank_skip - physical 64K banks reserved before ReadyOS bank start
+; $C83C-$C83F: reserved
 
 .byte $00                   ; $C820: target_bank
 .byte $08                   ; $C821: filename_len
@@ -63,7 +64,8 @@ jt_fetch_bank   = $C815     ; Helper: fetch from bank in A
 .byte $00                   ; $C838: reu_bitmap_xhi
 .byte $08                   ; $C839: storage_drive (default drive 8)
 .byte $00                   ; $C83A: log_index (for debug buffer)
-.byte $00,$00,$00,$00,$00   ; $C83B-$C83F: reserved
+.byte READYOS_REU_BANK_SKIP ; $C83B: reu_bank_skip (compiled into boot image)
+.byte $00,$00,$00,$00       ; $C83C-$C83F: reserved
 
 ;-----------------------------------------------------------------------------
 ; $C840: load_disk - Load app from disk and run (32 bytes)
@@ -147,7 +149,7 @@ jt_fetch_bank   = $C815     ; Helper: fetch from bank in A
 ;-----------------------------------------------------------------------------
 ; $C8E0: stash_to_bank - Stash $1000-$C5FF to REU bank in A (16 bytes)
 ;-----------------------------------------------------------------------------
-.byte $20, $A0, $C9         ; JSR reu_setup ($C9A0)
+.byte $20, $60, $C9         ; JSR reu_setup_logical ($C960)
 .byte $A9, $90              ; LDA #$90 (STASH command)
 .byte $8D, $01, $DF         ; STA $DF01 - execute transfer
 .byte $60                   ; RTS
@@ -156,7 +158,7 @@ jt_fetch_bank   = $C815     ; Helper: fetch from bank in A
 ;-----------------------------------------------------------------------------
 ; $C8F0: fetch_bank - Fetch from REU bank in A to $1000-$C5FF (16 bytes)
 ;-----------------------------------------------------------------------------
-.byte $20, $A0, $C9         ; JSR reu_setup ($C9A0)
+.byte $20, $60, $C9         ; JSR reu_setup_logical ($C960)
 .byte $A9, $91              ; LDA #$91 (FETCH command)
 .byte $8D, $01, $DF         ; STA $DF01 - execute transfer
 .byte $60                   ; RTS
@@ -201,19 +203,26 @@ jt_fetch_bank   = $C815     ; Helper: fetch from bank in A
 .byte $00,$00,$00,$00,$00
 
 ;-----------------------------------------------------------------------------
-; $C960: debug_log_step - crash-surviving debug marker
+; $C960: reu_setup_logical - Add shim skip/launcher offset, then setup REU regs
 ;-----------------------------------------------------------------------------
-.byte $8D, $20, $D0         ; STA $D020 - border color shows current step
-.byte $8D, $F0, $01         ; STA $01F0 - store in stack page
-.byte $8D, $00, $04         ; STA $0400 - store at top-left of screen
 .byte $18                   ; CLC
-.byte $69, $30              ; ADC #$30 - convert to ASCII digit
-.byte $8D, $00, $04         ; STA $0400 - show as digit on screen
+.byte $6D, $3B, $C8         ; ADC $C83B (reu_bank_skip)
+.byte $69, $01              ; ADC #$01 (bank Start is reserved; launcher is Start+1)
+.byte $8D, $06, $DF         ; STA $DF06 (physical bank)
+.byte $A9, $00              ; LDA #$00
+.byte $8D, $02, $DF         ; STA $DF02 (C64 addr lo = $00)
+.byte $A9, $10              ; LDA #$10
+.byte $8D, $03, $DF         ; STA $DF03 (C64 addr hi = $10, so $1000)
+.byte $A9, $00              ; LDA #$00
+.byte $8D, $04, $DF         ; STA $DF04 (REU addr lo)
+.byte $8D, $05, $DF         ; STA $DF05 (REU addr hi)
+.byte $8D, $07, $DF         ; STA $DF07 (len lo = $00)
+.byte $A9, $B6              ; LDA #$B6
+.byte $8D, $08, $DF         ; STA $DF08 (len hi = $B6, so $B600 bytes)
 .byte $60                   ; RTS
 
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 
 ;-----------------------------------------------------------------------------
 ; $C9A0: reu_setup - Set up REU registers for $B600 transfer at $1000

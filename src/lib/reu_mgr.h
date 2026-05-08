@@ -13,7 +13,11 @@
 #define REU_APP_ALLOC  3
 #define REU_RESERVED   4
 #define REU_RS_CACHE   5
+#define REU_SKIPPED    6
+#define REU_GLOBAL     7
 #define REU_RS_DEBUG   8
+#define REU_LAUNCHER   9
+#define REU_UNAVAIL    10
 #define REU_RS_SCRATCH 13
 
 /* Memory-mapped system area ($C600-$C7FF, persists across app switches) */
@@ -22,7 +26,7 @@
 #define REU_MAGIC_VALUE  0xA5
 #define REU_TOTAL_BANKS  256
 
-/* First bank available for dynamic allocation (0-23 reserved for app slots) */
+/* Logical first app/dynamic contracts; physical dynamic base is skip + 25. */
 #define REU_FIRST_DYNAMIC 24
 
 /* ReadyShell fixed REU ownership (absolute offsets in 0x40xxxx-0x43xxxx range) */
@@ -35,6 +39,11 @@
 #define SHIM_REU_BITMAP_LO  ((unsigned char*)0xC836)
 #define SHIM_REU_BITMAP_HI  ((unsigned char*)0xC837)
 #define SHIM_REU_BITMAP_XHI ((unsigned char*)0xC838)
+#define SHIM_REU_BANK_SKIP  ((unsigned char*)0xC83B)
+
+#define REU_LOGICAL_TO_PHYSICAL(bank) ((unsigned char)(*SHIM_REU_BANK_SKIP + 1u + (unsigned char)(bank)))
+#define REU_FIRST_DYNAMIC_PHYSICAL()  ((unsigned char)(*SHIM_REU_BANK_SKIP + 25u))
+#define REU_READYOS_GLOBAL_PHYSICAL() ((unsigned char)(*SHIM_REU_BANK_SKIP))
 
 /* Initialize REU manager (safe to call multiple times) */
 void reu_mgr_init(void);

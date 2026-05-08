@@ -770,7 +770,7 @@ preload_launcher_bank0:
     lda #>EASYFLASH_LAUNCHER_PAYLOAD_LEN
     sta rem_hi
     jsr copy_payload_from_cart
-    lda #$00
+    lda #(READYOS_REU_BANK_SKIP + 1)
     sta reu_bank_zp
     lda #$00
     sta reu_off_lo
@@ -791,8 +791,9 @@ restore_launcher_ram:
     sta dst_lo
     lda #>APP_LOAD_START
     sta dst_hi
-    lda #$00
+    lda #(READYOS_REU_BANK_SKIP + 1)
     sta reu_bank_zp
+    lda #$00
     sta reu_off_lo
     sta reu_off_hi
     lda #<APP_WINDOW_LEN
@@ -814,6 +815,8 @@ preload_app_banks:
     jsr clear_app_window
     ldy #$00
     lda (table_lo),y
+    clc
+    adc #(READYOS_REU_BANK_SKIP + 1)
     sta reu_bank_zp
     iny
     lda (table_lo),y
@@ -851,7 +854,8 @@ preload_app_banks:
     lda #>APP_WINDOW_LEN
     sta rem_hi
     jsr reu_stash_window
-    lda reu_bank_zp
+    ldy #$00
+    lda (table_lo),y
     jsr set_bitmap
     clc
     lda table_lo
