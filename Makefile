@@ -134,6 +134,8 @@ READYOS_CONFIG_LOAD_ALL ?=
 READYOS_CONFIG_RUN_FIRST ?=
 CATALOG_SRC = $(READYOS_CONFIG_SRC)
 CATALOG_SEQ = $(OBJ_DIR)/apps_cfg_petscii.seq
+SIDETRIS_APP_MANIFEST_SRC = cfg/app_sidetris.txt
+SIDETRIS_APP_MANIFEST_SEQ = $(OBJ_DIR)/app_sidetris.seq
 EDITOR_HELP_SRC = cfg/editor_help.txt
 EDITOR_HELP_SEQ = $(OBJ_DIR)/editor_help.seq
 RSHELP_SRC = cfg/rshelp.txt
@@ -303,6 +305,7 @@ TUI_BASE_INPUT_NAV_MISC = $(TUI_BASE) $(TUI_INPUT_SRC) $(TUI_NAV_SRC) $(TUI_MISC
 TUI_BASE_MENU_INPUT_NAV_MISC = $(TUI_BASE) $(TUI_MENU_SRC) $(TUI_INPUT_SRC) $(TUI_NAV_SRC) $(TUI_MISC_SRC)
 
 LIB_LAUNCHER = $(TUI_BASE_MENU_MISC) $(TUI_HOTKEY_SRC) $(REU_DMA_SRC) $(RESUME_STATE_SEGMENT_SRCS)
+LIB_LAUNCHER_DISK = $(LIB_LAUNCHER) $(STORAGE_DEVICE_SRC) $(DIR_PAGE_SRC) $(FILE_DIALOG_SRC)
 LIB_REU_BASE = $(REU_INIT_SRC)
 LIB_REU_DMA = $(REU_INIT_SRC) $(REU_ALLOC_SRC) $(REU_DMA_SRC)
 LIB_REU_STATS = $(REU_INIT_SRC) $(REU_STATS_SRC)
@@ -389,6 +392,9 @@ $(CATALOG_SEQ): FORCE $(CATALOG_SRC) $(BUILD_SUPPORT_DIR)/build_apps_catalog_pet
 		$(if $(strip $(READYOS_CONFIG_LOAD_ALL)),--override-load-all $(READYOS_CONFIG_LOAD_ALL),) \
 		$(if $(strip $(READYOS_CONFIG_RUN_FIRST)),--override-run-first $(READYOS_CONFIG_RUN_FIRST),)
 
+$(SIDETRIS_APP_MANIFEST_SEQ): $(SIDETRIS_APP_MANIFEST_SRC) $(BUILD_SUPPORT_DIR)/build_petscii_lower_seq.py
+	$(PYTHON) $(BUILD_SUPPORT_DIR)/build_petscii_lower_seq.py --input $(SIDETRIS_APP_MANIFEST_SRC) --output $@
+
 $(EASYFLASH_LAUNCHER_HEADER): FORCE $(EASYFLASH_CATALOG_SRC) $(BUILD_SUPPORT_DIR)/readyos_easyflash.py
 	$(PYTHON) $(BUILD_SUPPORT_DIR)/readyos_easyflash.py catalog-header --catalog $(EASYFLASH_CATALOG_SRC) --output $@
 
@@ -422,8 +428,8 @@ $(TEST_REU): $(SRC_DIR)/test_reu.c
 	$(CC) $(CFLAGS) -o $@ $<
 
 # Launcher app (loads at $1000)
-$(LAUNCHER): $(APPS_DIR)/launcher/launcher.c $(LIB_LAUNCHER) $(VERSION_HEADER)
-	$(CC) $(LAUNCHER_CFLAGS) -m $(OBJ_DIR)/launcher.map -o $@ $(APPS_DIR)/launcher/launcher.c $(LIB_LAUNCHER)
+$(LAUNCHER): $(APPS_DIR)/launcher/launcher.c $(LIB_LAUNCHER_DISK) $(VERSION_HEADER)
+	$(CC) $(LAUNCHER_CFLAGS) -m $(OBJ_DIR)/launcher.map -o $@ $(APPS_DIR)/launcher/launcher.c $(LIB_LAUNCHER_DISK)
 
 $(LAUNCHER_EASYFLASH): $(APPS_DIR)/launcher/launcher_easyflash.c $(LIB_LAUNCHER) $(VERSION_HEADER) $(EASYFLASH_LAUNCHER_HEADER)
 	$(CC) $(LAUNCHER_CFLAGS) $(EASYFLASH_LAUNCHER_CPPFLAGS) -m $(OBJ_DIR)/launcher_easyflash.map -o $@ $(APPS_DIR)/launcher/launcher_easyflash.c $(LIB_LAUNCHER)
@@ -810,6 +816,7 @@ clean:
 	rm -f $(OBJ_DIR)/*.map
 	rm -rf $(READYSHELL_OBJ_DIR)
 	rm -f $(CATALOG_SEQ)
+	rm -f $(SIDETRIS_APP_MANIFEST_SEQ)
 	rm -f $(VARIANT_ASM_INC)
 	rm -f $(EDITOR_HELP_SEQ)
 	rm -f $(RSHELP_SEQ)

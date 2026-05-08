@@ -764,6 +764,12 @@ def ensure_generated_assets(profile: Dict[str, object],
         "--input", str(ROOT / "cfg" / "tasklist_sample.txt"),
         "--output", str(obj_dir / "tasklist_sample.seq"),
     ])
+    run([
+        sys.executable,
+        str(ROOT / "build_support" / "build_petscii_lower_seq.py"),
+        "--input", str(ROOT / "cfg" / "app_sidetris.txt"),
+        "--output", str(obj_dir / "app_sidetris.seq"),
+    ])
 
     write_preboot(str(profile["boot"]["preboot_mode"]), BIN_DIR / "preboot.prg")
     if str(profile["boot"]["preboot_mode"]) == "setd71":
@@ -771,7 +777,7 @@ def ensure_generated_assets(profile: Dict[str, object],
 
 
 def managed_build_names(profile: Dict[str, object], apps_set: set[str]) -> set[str]:
-    managed = {"apps.cfg"}
+    managed = {"apps.cfg", "app.sidetris"}
     for entry in build_owned_support_entries(None):
         managed.add(str(entry["disk_name"]))
     for entry in syncable_authoritative_entries(None):
@@ -1226,7 +1232,10 @@ def build_release(profile_id: str,
             disk_path.unlink()
         run(["c1541", "-format", str(disk_meta["label"]), str(disk_meta["image_type"]), str(disk_path)])
         for entry in disk_meta["contents"]:
-            if entry["type"] == "prg" and str(entry["name"]) in KNOWN_APP_NAMES and str(entry["name"]) not in apps_set:
+            keep_on_demand = bool(entry.get("include_even_if_not_catalog", False))
+            if (not keep_on_demand and entry["type"] == "prg" and
+                    str(entry["name"]) in KNOWN_APP_NAMES and
+                    str(entry["name"]) not in apps_set):
                 continue
             app_name = entry.get("app")
             if app_name and str(app_name) not in apps_set:

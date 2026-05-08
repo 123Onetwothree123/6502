@@ -11,6 +11,11 @@
 #ifndef READYOS_LAUNCHER_VARIANT_EASYFLASH
 #define READYOS_LAUNCHER_VARIANT_EASYFLASH 0
 #endif
+#if !READYOS_LAUNCHER_VARIANT_EASYFLASH
+#include "../../lib/file_dialog.h"
+#include "../../lib/storage_device.h"
+#include <cbm_filetype.h>
+#endif
 #if READYOS_LAUNCHER_VARIANT_EASYFLASH
 #include "../../generated/launcher_easyflash_catalog.h"
 #endif
@@ -71,6 +76,7 @@
 #define APP_BIND_LABEL_LEN 8
 #define VARIANT_MAX_LEN 31
 #define LAUNCHER_NOTICE_LEN 38
+#define MENU_NO_APP 0xFFu
 
 /* REU indicator character */
 #define REU_INDICATOR 0x2A  /* '*' in PETSCII screen code */
@@ -83,6 +89,8 @@
 #define DEFAULT_DRIVE 8
 #define APP_CFG_LFN 12
 #define APP_CFG_OPEN_SPEC "apps.cfg,s,r"
+#define APP_MANIFEST_LFN 13
+#define APP_MANIFEST_PREFIX "app."
 
 #ifndef LAUNCHER_CFG_VERBOSE
 #define LAUNCHER_CFG_VERBOSE 0
@@ -158,7 +166,7 @@
 
 /* REU bank assignments */
 #define REU_BANK_LAUNCHER  0   /* Bank 0 reserved for launcher self-save by shim */
-#define LAUNCHER_RESUME_SCHEMA 4
+#define LAUNCHER_RESUME_SCHEMA 5
 
 /* App save size - must include code + data + BSS */
 #define APP_SAVE_SIZE 0xB600  /* $1000-$C5FF (46KB) */
@@ -173,6 +181,7 @@
 static const char *app_names[MAX_APPS];
 static const char *app_descs[MAX_APPS];
 static const char *app_files[MAX_APPS];
+static const char *launcher_menu_items[MAX_APPS + 1];
 static unsigned char app_banks[MAX_APPS];
 static unsigned char app_drives[MAX_APPS];
 static unsigned char app_default_slots[MAX_APPS];
@@ -214,6 +223,11 @@ static char launcher_variant_boot_name[VARIANT_MAX_LEN + 1];
 static char launcher_runappfirst_prg[MAX_FILE_LEN + 1];
 static char launcher_notice[LAUNCHER_NOTICE_LEN + 1];
 static unsigned char launcher_notice_color = TUI_COLOR_GRAY3;
+#if !READYOS_LAUNCHER_VARIANT_EASYFLASH
+static FileDialogState launcher_file_dialog;
+static DirPageEntry launcher_manifest_entry;
+static char launcher_manifest_open_spec[24];
+#endif
 
 /* Menu state */
 static TuiMenu menu;
@@ -239,6 +253,7 @@ static unsigned char validate_slot_contract(unsigned char *detail_a,
                                             unsigned char *detail_c);
 static unsigned char load_all_to_reu_internal(unsigned char interactive);
 static void launch_app(unsigned char index);
+static void launcher_seed_default_hotkeys(void);
 #if READYOS_LAUNCHER_VARIANT_EASYFLASH
 static unsigned char load_catalog_from_embedded(unsigned char *detail_a,
                                                 unsigned char *detail_b,
@@ -247,6 +262,14 @@ static unsigned char load_catalog_from_embedded(unsigned char *detail_a,
 static unsigned char launcher_has_load_all_slot(void);
 static unsigned char launcher_first_app_index(void);
 static unsigned char launcher_is_app_slot(unsigned char index);
+static unsigned char launcher_menu_extra_count(void);
+static unsigned char launcher_menu_count(void);
+static unsigned char launcher_menu_is_browse(unsigned char menu_index);
+static unsigned char launcher_menu_to_app_index(unsigned char menu_index);
+static unsigned char launcher_app_to_menu_index(unsigned char app_index);
+#if !READYOS_LAUNCHER_VARIANT_EASYFLASH
+static void browse_and_load_manifest(void);
+#endif
 
 /* Launcher does not use F2/F4 global app cycling, but tui_hotkeys.c expects
  * these entry points when linked. Keep tiny local stubs instead of pulling in
@@ -281,6 +304,42 @@ static unsigned char launcher_is_app_slot(unsigned char index) {
         return 0;
     }
     return (unsigned char)(app_banks[index] != 0u);
+}
+
+static unsigned char launcher_menu_extra_count(void) {
+#if READYOS_LAUNCHER_VARIANT_EASYFLASH
+    return 0u;
+#else
+    return 1u;
+#endif
+}
+
+static unsigned char launcher_menu_count(void) {
+    return (unsigned char)(app_count + launcher_menu_extra_count());
+}
+
+static unsigned char launcher_menu_is_browse(unsigned char menu_index) {
+#if READYOS_LAUNCHER_VARIANT_EASYFLASH
+    (void)menu_index;
+    return 0u;
+#else
+    return (unsigned char)(menu_index == 0u);
+#endif
+}
+
+static unsigned char launcher_menu_to_app_index(unsigned char menu_index) {
+#if READYOS_LAUNCHER_VARIANT_EASYFLASH
+    return menu_index;
+#else
+    if (menu_index == 0u) {
+        return MENU_NO_APP;
+    }
+    return (unsigned char)(menu_index - 1u);
+#endif
+}
+
+static unsigned char launcher_app_to_menu_index(unsigned char app_index) {
+    return (unsigned char)(app_index + launcher_menu_extra_count());
 }
 
 /*---------------------------------------------------------------------------
@@ -441,14 +500,14 @@ static unsigned char is_blank_or_comment(const char *s) {
     return (unsigned char)(s[0] == 0 || s[0] == '#' || s[0] == ';');
 }
 
-static unsigned char cfg_read_line(char *out, unsigned char cap) {
+static unsigned char cfg_read_line_lfn(unsigned char lfn, char *out, unsigned char cap) {
     unsigned char ch;
     unsigned char raw;
     unsigned char len = 0;
     int n;
 
     while (1) {
-        n = cbm_read(APP_CFG_LFN, &ch, 1);
+        n = cbm_read(lfn, &ch, 1);
         if (n <= 0) {
             if (len == 0) {
                 out[0] = 0;
@@ -478,6 +537,10 @@ static unsigned char cfg_read_line(char *out, unsigned char cap) {
 
     out[len] = 0;
     return 1;
+}
+
+static unsigned char cfg_read_line(char *out, unsigned char cap) {
+    return cfg_read_line_lfn(APP_CFG_LFN, out, cap);
 }
 
 static unsigned char is_valid_prg_char(unsigned char ch) {
@@ -616,11 +679,20 @@ static void catalog_init_defaults(void) {
 
 static void catalog_rebind_views(void) {
     unsigned char i;
+    unsigned char extra;
 
     for (i = 0; i < MAX_APPS; ++i) {
         app_names[i] = app_name_buf[i];
         app_descs[i] = app_desc_buf[i];
         app_files[i] = app_file_buf[i];
+    }
+
+    extra = launcher_menu_extra_count();
+#if !READYOS_LAUNCHER_VARIANT_EASYFLASH
+    launcher_menu_items[0] = "BROWSE AND LOAD";
+#endif
+    for (i = 0; i < MAX_APPS; ++i) {
+        launcher_menu_items[(unsigned char)(i + extra)] = app_names[i];
     }
 }
 
@@ -709,7 +781,7 @@ static unsigned char launcher_resume_restore(unsigned char *out_selected,
 
     launcher_restore_catalog_cache();
 
-    if (out_selected != 0 && launcher_resume_blob.selected < app_count) {
+    if (out_selected != 0 && launcher_resume_blob.selected < launcher_menu_count()) {
         *out_selected = launcher_resume_blob.selected;
     }
     if (out_scroll_offset != 0) {
@@ -1592,6 +1664,243 @@ static void load_selected_to_reu(unsigned char index) {
 #endif
 }
 
+#if !READYOS_LAUNCHER_VARIANT_EASYFLASH
+static void launcher_show_message(const char *title,
+                                  const char *msg,
+                                  unsigned char color) {
+    TuiRect title_box;
+
+    tui_clear(TUI_COLOR_BLUE);
+    title_box.x = 1u;
+    title_box.y = 0u;
+    title_box.w = 38u;
+    title_box.h = 3u;
+    tui_window_title(&title_box, title, TUI_COLOR_LIGHTBLUE, TUI_COLOR_YELLOW);
+    tui_puts_n(2u, 8u, msg, 36u, color);
+    tui_puts(10u, 14u, "PRESS ANY KEY...", TUI_COLOR_WHITE);
+    tui_getkey();
+}
+
+static unsigned char manifest_name_starts_app(const char *name) {
+    unsigned char i;
+    unsigned char ch;
+    static const char prefix[] = APP_MANIFEST_PREFIX;
+
+    for (i = 0u; prefix[i] != 0; ++i) {
+        ch = (unsigned char)name[i];
+        if (ch >= 'A' && ch <= 'Z') {
+            ch = (unsigned char)(ch + ('a' - 'A'));
+        }
+        if (ch != (unsigned char)prefix[i]) {
+            return 0u;
+        }
+    }
+    return 1u;
+}
+
+static unsigned char build_manifest_open_spec(const char *name) {
+    unsigned char len;
+
+    len = (unsigned char)strlen(name);
+    if (len == 0u || len + 4u >= sizeof(launcher_manifest_open_spec)) {
+        return 0u;
+    }
+    strcpy(launcher_manifest_open_spec, name);
+    strcat(launcher_manifest_open_spec, ",s,r");
+    return 1u;
+}
+
+static unsigned char parse_manifest_from_disk(unsigned char manifest_drive,
+                                              const char *manifest_name,
+                                              unsigned char *out_index,
+                                              unsigned char *out_existing) {
+    char line[96];
+    char pending_prg[MAX_FILE_LEN + 1];
+    char pending_label[MAX_NAME_LEN + 1];
+    char pending_desc[MAX_DESC_LEN + 1];
+    unsigned char pending_drive = 0u;
+    unsigned char pending_slot = 0u;
+    unsigned char state = 0u;
+    unsigned char err;
+    unsigned char parse_detail = 0u;
+    unsigned char existing;
+
+    *out_index = 0u;
+    *out_existing = 0u;
+
+    if (!build_manifest_open_spec(manifest_name)) {
+        return CFG_ERR_PRG;
+    }
+
+    if (cbm_open(APP_MANIFEST_LFN, manifest_drive, 2,
+                 launcher_manifest_open_spec) != 0) {
+        return CFG_ERR_OPEN;
+    }
+
+    while (cfg_read_line_lfn(APP_MANIFEST_LFN, line, sizeof(line))) {
+        trim_in_place(line);
+        lowercase_in_place(line);
+        if (is_blank_or_comment(line)) {
+            continue;
+        }
+
+        if (state == 0u) {
+            pending_slot = 0u;
+            parse_detail = 0u;
+            err = parse_catalog_entry_line(line, &pending_drive, pending_prg,
+                                           pending_label, &pending_slot,
+                                           &parse_detail);
+            if (err != 0u) {
+                cbm_close(APP_MANIFEST_LFN);
+                return err;
+            }
+            state = 1u;
+            continue;
+        }
+
+        if (state == 1u) {
+            copy_text_limit(pending_desc, sizeof(pending_desc), line);
+            state = 2u;
+            continue;
+        }
+
+        cbm_close(APP_MANIFEST_LFN);
+        return CFG_ERR_FORMAT;
+    }
+
+    cbm_close(APP_MANIFEST_LFN);
+
+    if (state == 0u) {
+        return CFG_ERR_EMPTY;
+    }
+    if (state == 1u) {
+        return CFG_ERR_MISSING_DESC;
+    }
+
+    existing = launcher_find_app_by_prg(pending_prg);
+    if (existing < app_count) {
+        *out_index = existing;
+        *out_existing = 1u;
+        return 0u;
+    }
+
+    if (app_count >= MAX_APPS) {
+        return CFG_ERR_TOO_MANY;
+    }
+
+    err = add_catalog_entry(pending_drive, pending_prg, pending_label,
+                            pending_desc, pending_slot);
+    if (err != 0u) {
+        return err;
+    }
+
+    catalog_rebind_views();
+    menu.count = launcher_menu_count();
+    *out_index = (unsigned char)(app_count - 1u);
+    return 0u;
+}
+
+static void rollback_manifest_app(unsigned char index) {
+    if (index == 0u || index >= app_count || index + 1u != app_count) {
+        return;
+    }
+
+    apps_loaded[index] = 0u;
+    app_sizes[index] = 0u;
+    app_banks[index] = 0u;
+    app_drives[index] = DEFAULT_DRIVE;
+    app_default_slots[index] = 0u;
+    app_name_buf[index][0] = 0;
+    app_desc_buf[index][0] = 0;
+    app_file_buf[index][0] = 0;
+    --app_count;
+    catalog_rebind_views();
+    menu.count = launcher_menu_count();
+}
+
+static void browse_and_load_manifest(void) {
+    static const FileDialogConfig cfg = {
+        "BROWSE APP MANIFEST",
+        "LOAD",
+        "NO SEQ FILES FOUND",
+        CBM_T_SEQ,
+        1u
+    };
+    unsigned char rc;
+    unsigned char manifest_drive;
+    unsigned char index;
+    unsigned char existing;
+    unsigned int size;
+
+    storage_device_set_default(DEFAULT_DRIVE);
+    rc = file_dialog_pick(&launcher_file_dialog, &cfg, &launcher_manifest_entry);
+    if (rc == FILE_DIALOG_RC_CANCEL) {
+        return;
+    }
+    if (rc != FILE_DIALOG_RC_OK) {
+        launcher_show_message("BROWSE FAILED", "DISK READ ERROR",
+                              TUI_COLOR_LIGHTRED);
+        return;
+    }
+
+    manifest_drive = storage_device_get_default();
+    if (!manifest_name_starts_app(launcher_manifest_entry.name)) {
+        launcher_show_message("NOT APP MANIFEST", "FILENAME MUST START APP.",
+                              TUI_COLOR_LIGHTRED);
+        return;
+    }
+
+    rc = parse_manifest_from_disk(manifest_drive, launcher_manifest_entry.name,
+                                  &index, &existing);
+    if (rc != 0u) {
+        launcher_show_message("MANIFEST ERROR", "CANNOT READ APP MANIFEST",
+                              TUI_COLOR_LIGHTRED);
+        return;
+    }
+
+    menu.selected = launcher_app_to_menu_index(index);
+    launcher_sync_visible_window();
+    sync_from_reu_bitmap();
+
+    if (existing) {
+        if (!apps_loaded[index]) {
+            load_selected_to_reu(index);
+        } else {
+            launcher_set_notice("manifest app already in reu", TUI_COLOR_LIGHTGREEN);
+        }
+        launcher_resume_save(menu.selected, menu.scroll_offset, 0u);
+        return;
+    }
+
+    tui_clear(TUI_COLOR_BLUE);
+    {
+        TuiRect title_box = {1u, 0u, 38u, 3u};
+        tui_window_title(&title_box, "LOADING MANIFEST APP",
+                         TUI_COLOR_LIGHTBLUE, TUI_COLOR_YELLOW);
+    }
+    draw_drive_prefixed_name(4u, 6u, index, TUI_COLOR_CYAN, 24u);
+    tui_puts(4u, 8u, "LOADING TO REU...", TUI_COLOR_YELLOW);
+
+    size = load_app_to_reu(index);
+    sync_from_reu_bitmap();
+    if (!apps_loaded[index]) {
+        rollback_manifest_app(index);
+        launcher_show_message("LOAD FAILED", "APP PRG DID NOT LOAD",
+                              TUI_COLOR_LIGHTRED);
+        return;
+    }
+
+    launcher_seed_default_hotkeys();
+    launcher_resume_save(menu.selected, menu.scroll_offset, 0u);
+    tui_puts_n(4u, 8u, "", 20u, TUI_COLOR_WHITE);
+    tui_puts(4u, 8u, "LOADED TO REU", TUI_COLOR_LIGHTGREEN);
+    tui_print_uint(18u, 8u, size / 1024u, TUI_COLOR_GRAY3);
+    tui_puts(23u, 8u, "KB", TUI_COLOR_GRAY3);
+    tui_puts(10u, 14u, "PRESS ANY KEY...", TUI_COLOR_WHITE);
+    tui_getkey();
+}
+#endif
+
 /*---------------------------------------------------------------------------
  * Launch app from REU (fast)
  *---------------------------------------------------------------------------*/
@@ -1607,7 +1916,7 @@ static void launch_from_reu(unsigned char index) {
     tui_clear(TUI_COLOR_BLUE);
     tui_puts(8, 12, "LAUNCHING FROM REU...", TUI_COLOR_CYAN);
 
-    launcher_resume_save(index, menu.scroll_offset, 1);
+    launcher_resume_save(launcher_app_to_menu_index(index), menu.scroll_offset, 1);
 
     /* Save current launcher state to REU bank 0 first */
     save_launcher_to_reu();
@@ -1642,7 +1951,7 @@ static void launch_from_disk(unsigned char index) {
     set_shim_name(filename);
     set_shim_drive(app_drives[index]);
 
-    launcher_resume_save(index, menu.scroll_offset, 1);
+    launcher_resume_save(launcher_app_to_menu_index(index), menu.scroll_offset, 1);
 
     /* Save launcher to REU first so we can return to it */
     save_launcher_to_reu();
@@ -1720,7 +2029,7 @@ static void draw_help(void) {
 #if READYOS_LAUNCHER_VARIANT_EASYFLASH
     tui_puts(1, HELP_Y, "RET:LAUNCH            F3:STATUS", TUI_COLOR_GRAY3);
 #else
-    tui_puts(1, HELP_Y, "RET:LAUNCH F3:LOAD  F1:LOAD ALL", TUI_COLOR_GRAY3);
+    tui_puts(1, HELP_Y, "RET F3:LOAD F5:BROWSE F1:ALL", TUI_COLOR_GRAY3);
 #endif
     tui_puts(1, HELP_Y + 1, "F2:NEXT APP  F4:PREV  STOP:QUIT", TUI_COLOR_GRAY3);
 }
@@ -1832,6 +2141,7 @@ static void draw_menu_item(unsigned char idx) {
     unsigned char y;
     unsigned char color;
     unsigned char prefix;
+    unsigned char app_index;
     unsigned int screen_offset;
     const char *str;
     unsigned char pos;
@@ -1858,13 +2168,14 @@ static void draw_menu_item(unsigned char idx) {
         prefix = 32;    /* Space */
     }
 
+    app_index = launcher_menu_to_app_index(idx);
     screen_offset = (unsigned int)y * 40 + menu.x;
     TUI_SCREEN[screen_offset] = prefix;
     TUI_COLOR_RAM[screen_offset] = color;
     TUI_SCREEN[screen_offset + 1] = 32;
     TUI_COLOR_RAM[screen_offset + 1] = color;
-    if (launcher_is_app_slot(idx)) {
-        draw_drive_field(screen_offset + 2, app_drives[idx]);
+    if (app_index != MENU_NO_APP && launcher_is_app_slot(app_index)) {
+        draw_drive_field(screen_offset + 2, app_drives[app_index]);
     } else {
         TUI_SCREEN[screen_offset + 2] = 32;
         TUI_COLOR_RAM[screen_offset + 2] = color;
@@ -1889,13 +2200,15 @@ static void draw_menu_item(unsigned char idx) {
     reu_offset = screen_offset + menu.w - 1;
     binding_offset = reu_offset - (APP_BIND_LABEL_LEN + 1);
     slot = 0;
-    if (launcher_is_app_slot(idx)) {
-        slot = launcher_hotkey_slot_for_bank(app_banks[idx]);
+    if (app_index != MENU_NO_APP && launcher_is_app_slot(app_index)) {
+        slot = launcher_hotkey_slot_for_bank(app_banks[app_index]);
     }
     draw_binding_tag(binding_offset, slot, color);
     TUI_SCREEN[reu_offset - 1] = 32;
     TUI_COLOR_RAM[reu_offset - 1] = color;
-    if (launcher_is_app_slot(idx) && apps_loaded[idx]) {
+    if (app_index != MENU_NO_APP &&
+        launcher_is_app_slot(app_index) &&
+        apps_loaded[app_index]) {
         TUI_SCREEN[reu_offset] = REU_INDICATOR;
         TUI_COLOR_RAM[reu_offset] = TUI_COLOR_LIGHTGREEN;
     } else {
@@ -1920,32 +2233,38 @@ static void draw_menu(void) {
 
 static void draw_app_desc(void) {
     unsigned char sel = tui_menu_selected(&menu);
+    unsigned char app_index = launcher_menu_to_app_index(sel);
     static char launch_line[39];
 
     /* Overwrite both description lines in-place (no clear needed) */
-    if (sel < app_count) {
-        tui_puts_n(2, APPS_START_Y + APPS_HEIGHT, app_descs[sel], 38, TUI_COLOR_GRAY3);
+    if (launcher_menu_is_browse(sel)) {
+        tui_puts_n(2, APPS_START_Y + APPS_HEIGHT,
+                   "choose app.* seq manifest", 38, TUI_COLOR_GRAY3);
+        tui_puts_n(2, APPS_START_Y + APPS_HEIGHT + 1,
+                   "F3 CHANGES MANIFEST DRIVE", 38, TUI_COLOR_GRAY3);
+    } else if (app_index < app_count) {
+        tui_puts_n(2, APPS_START_Y + APPS_HEIGHT, app_descs[app_index], 38, TUI_COLOR_GRAY3);
 
         /* Show launch source */
-        if (apps_loaded[sel] && app_banks[sel] != 0) {
+        if (apps_loaded[app_index] && app_banks[app_index] != 0) {
             tui_puts_n(2, APPS_START_Y + APPS_HEIGHT + 1,
                        "LAUNCH FROM REU (INSTANT)", 38, TUI_COLOR_LIGHTGREEN);
-        } else if (app_banks[sel] != 0) {
+        } else if (app_banks[app_index] != 0) {
 #if READYOS_LAUNCHER_VARIANT_EASYFLASH
             tui_puts_n(2, APPS_START_Y + APPS_HEIGHT + 1,
                        "PRELOAD MISSING", 38, TUI_COLOR_LIGHTRED);
 #else
-            if (app_drives[sel] == 8) {
+            if (app_drives[app_index] == 8) {
                 tui_puts_n(2, APPS_START_Y + APPS_HEIGHT + 1,
                            "LAUNCH FROM DISK", 38, TUI_COLOR_GRAY3);
             } else {
                 strcpy(launch_line, "LAUNCH FROM DISK ");
-                if (app_drives[sel] >= 10) {
-                    launch_line[17] = (char)('0' + (app_drives[sel] / 10));
-                    launch_line[18] = (char)('0' + (app_drives[sel] % 10));
+                if (app_drives[app_index] >= 10) {
+                    launch_line[17] = (char)('0' + (app_drives[app_index] / 10));
+                    launch_line[18] = (char)('0' + (app_drives[app_index] % 10));
                     launch_line[19] = 0;
                 } else {
-                    launch_line[17] = (char)('0' + app_drives[sel]);
+                    launch_line[17] = (char)('0' + app_drives[app_index]);
                     launch_line[18] = 0;
                 }
                 tui_puts_n(2, APPS_START_Y + APPS_HEIGHT + 1, launch_line, 38, TUI_COLOR_GRAY3);
@@ -2128,11 +2447,12 @@ static void launcher_init(void) {
     }
 
     /* Initialize menu */
-    tui_menu_init(&menu, 2, APPS_START_Y, APP_MENU_WIDTH, APPS_HEIGHT, app_names, app_count);
+    tui_menu_init(&menu, 2, APPS_START_Y, APP_MENU_WIDTH, APPS_HEIGHT,
+                  launcher_menu_items, launcher_menu_count());
     menu.item_color = TUI_COLOR_WHITE;
     menu.sel_color = TUI_COLOR_CYAN;
 
-    if (saved_selected < app_count) {
+    if (saved_selected < launcher_menu_count()) {
         menu.selected = saved_selected;
     }
     menu.scroll_offset = saved_scroll_offset;
@@ -2194,7 +2514,17 @@ static void launcher_loop(void) {
         launcher_sync_visible_window();
 
         if (result != 255) {
-            launch_app(result);
+#if !READYOS_LAUNCHER_VARIANT_EASYFLASH
+            if (launcher_menu_is_browse(result)) {
+                browse_and_load_manifest();
+            } else
+#endif
+            {
+                result = launcher_menu_to_app_index(result);
+                if (result != MENU_NO_APP) {
+                    launch_app(result);
+                }
+            }
             launcher_draw();
             continue;
         }
@@ -2208,9 +2538,19 @@ static void launcher_loop(void) {
                 break;
 
             case TUI_KEY_F3:
-                load_selected_to_reu(tui_menu_selected(&menu));
+                result = launcher_menu_to_app_index(tui_menu_selected(&menu));
+                if (result != MENU_NO_APP) {
+                    load_selected_to_reu(result);
+                }
                 launcher_draw();
                 break;
+
+#if !READYOS_LAUNCHER_VARIANT_EASYFLASH
+            case TUI_KEY_F5:
+                browse_and_load_manifest();
+                launcher_draw();
+                break;
+#endif
 
             case TUI_KEY_RUNSTOP:
                 running = 0;

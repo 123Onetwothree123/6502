@@ -103,6 +103,22 @@ def expected_disk_assets(profile: dict[str, object], manifest: dict[str, object]
         "disk_name": "apps.cfg",
     }
 
+    for profile_disk in profile["disks"]:
+        disk_index = int(profile_disk["index"])
+        for entry in profile_disk.get("contents", []):
+            if str(entry.get("type", "")).lower() != "seq":
+                continue
+            disk_name = str(entry["name"])
+            if disk_name.lower() == "apps.cfg":
+                continue
+            source_path = readyos_profiles.repo_artifact_path(str(entry["artifact"]))
+            expected[disk_index][disk_name.lower()] = {
+                "type": "seq",
+                "bytes": source_path.read_bytes(),
+                "source": source_path.name,
+                "disk_name": disk_name,
+            }
+
     for support_entry in readyos_profiles.authoritative_support_entries(apps_set):
         target_drive = readyos_profiles.support_target_drive(profile, support_entry, catalog_entries)
         disk_index = int(disks_by_drive[target_drive]["index"])
