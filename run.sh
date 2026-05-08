@@ -99,6 +99,7 @@ INTERACTIVE=0
 LIST_PROFILES=0
 FORCE_ARTIFACTS_FROM_D71=0
 VICE_FAST=0
+REU_SIZE_KB=16384
 DEBUG_MONCMDS=""
 FAST_VICE_ARGS=()
 
@@ -247,6 +248,7 @@ show_help() {
     echo "                              into cfg/authoritative before the requested flow"
     echo "  --vice-fast                Disable true drive emulation, enable VICE drive traps,"
     echo "                              and start VICE in warp mode for launch"
+    echo "  --reu-size KB              Set VICE REU size in KB (default: 16384; use 12288 for 12MB)"
     echo "  --config PATH               Override the profile's catalog source"
     echo "  --load-all 0|1              Override launcher auto-preload in generated apps.cfg"
     echo "  --run-first APP             Override launcher runappfirst in generated apps.cfg"
@@ -320,6 +322,14 @@ while [ $# -gt 0 ]; do
             ;;
         --vice-fast)
             VICE_FAST=1
+            shift
+            ;;
+        --reu-size)
+            REU_SIZE_KB="$2"
+            shift 2
+            ;;
+        --reu-size=*)
+            REU_SIZE_KB="${1#*=}"
             shift
             ;;
         --config)
@@ -404,6 +414,11 @@ if [ -n "$PARSE_TRACE_DEBUG" ]; then
     export READYSHELL_PARSE_TRACE_DEBUG="$PARSE_TRACE_DEBUG"
 elif [ -n "${READYSHELL_PARSE_TRACE_DEBUG:-}" ]; then
     validate_parse_trace_debug "$READYSHELL_PARSE_TRACE_DEBUG"
+fi
+
+if ! [[ "$REU_SIZE_KB" =~ ^[0-9]+$ ]] || [ "$REU_SIZE_KB" -le 0 ]; then
+    echo "Error: --reu-size must be a positive KB value."
+    exit 1
 fi
 
 if [ "$SKIP_BUILD" -eq 1 ] && { [ -n "$CONFIG_SOURCE" ] || [ -n "$CONFIG_OVERRIDE_LOAD_ALL" ] || [ -n "$CONFIG_OVERRIDE_RUN_FIRST" ]; }; then
@@ -597,6 +612,7 @@ print_info() {
         echo "Drive ${PROFILE_DISK_DRIVES[$idx]}: ${PROFILE_DISK_PATHS[$idx]}"
     done
     echo "Build Support: $BUILD_SUPPORT_DIR"
+    echo "REU: ${REU_SIZE_KB}KB"
     echo "ReadyShell parse trace: $(current_parse_trace_label)"
     if [ "$VICE_FAST" -eq 1 ]; then
         echo "VICE Fast: on (warp, traps enabled, true drive off)"
@@ -611,7 +627,7 @@ print_easyflash_info() {
     echo "VICE: $VICE"
     echo "Target: $EASYFLASH_CRT"
     echo "Drive 8: $EASYFLASH_DATA_DISK"
-    echo "REU: 16MB"
+    echo "REU: ${REU_SIZE_KB}KB"
     echo "Build Support: $BUILD_SUPPORT_DIR"
     if [ "$VICE_FAST" -eq 1 ]; then
         echo "VICE Fast: on (warp, traps enabled, true drive off)"
@@ -648,12 +664,12 @@ case "${MODE:-}" in
         check_profile_disks
         check_prg "$PROFILE_AUTOSTART_PRG"
         print_info "Normal" "$PROFILE_AUTOSTART_PRG"
-        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize 16384 "${PROFILE_VICE_ATTACH_ARGS[@]}" -autostart "$PROFILE_AUTOSTART_PRG"
+        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize "$REU_SIZE_KB" "${PROFILE_VICE_ATTACH_ARGS[@]}" -autostart "$PROFILE_AUTOSTART_PRG"
         ;;
     test)
         check_prg "$TEST_PRG"
         print_info "REU Test" "$TEST_PRG"
-        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize 16384 -autostartprgmode 1 "$TEST_PRG"
+        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize "$REU_SIZE_KB" -autostartprgmode 1 "$TEST_PRG"
         ;;
     debug)
         check_profile_disks
@@ -661,18 +677,18 @@ case "${MODE:-}" in
         print_info "Debug" "$PROFILE_AUTOSTART_PRG"
         DEBUG_MONCMDS="$(mktemp /tmp/vice_debug_XXXXXX.cmd)"
         printf 'break C809\nbreak C80c\nbreak C80f\n' >"$DEBUG_MONCMDS"
-        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize 16384 "${PROFILE_VICE_ATTACH_ARGS[@]}" -moncommands "$DEBUG_MONCMDS" -autostart "$PROFILE_AUTOSTART_PRG"
+        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize "$REU_SIZE_KB" "${PROFILE_VICE_ATTACH_ARGS[@]}" -moncommands "$DEBUG_MONCMDS" -autostart "$PROFILE_AUTOSTART_PRG"
         ;;
     warp)
         check_profile_disks
         check_prg "$PROFILE_AUTOSTART_PRG"
         print_info "Warp Mode" "$PROFILE_AUTOSTART_PRG"
-        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize 16384 "${PROFILE_VICE_ATTACH_ARGS[@]}" -warp -autostart "$PROFILE_AUTOSTART_PRG"
+        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize "$REU_SIZE_KB" "${PROFILE_VICE_ATTACH_ARGS[@]}" -warp -autostart "$PROFILE_AUTOSTART_PRG"
         ;;
     easyflash)
         check_easyflash_artifacts
         print_easyflash_info
-        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize 16384 \
+        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize "$REU_SIZE_KB" \
             -cartcrt "$EASYFLASH_CRT" \
             -drive8type 1541 -devicebackend8 0 +busdevice8 -8 "$EASYFLASH_DATA_DISK"
         ;;
@@ -680,60 +696,60 @@ case "${MODE:-}" in
         check_profile_disks
         check_prg "$LAUNCHER_PRG"
         print_info "Direct Launch" "$LAUNCHER_PRG"
-        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize 16384 "${PROFILE_VICE_ATTACH_ARGS[@]}" -autostartprgmode 1 "$LAUNCHER_PRG"
+        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize "$REU_SIZE_KB" "${PROFILE_VICE_ATTACH_ARGS[@]}" -autostartprgmode 1 "$LAUNCHER_PRG"
         ;;
     editor)
         check_prg "$EDITOR_PRG"
         print_info "Standalone" "$EDITOR_PRG"
-        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize 16384 -autostartprgmode 1 "$EDITOR_PRG"
+        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize "$REU_SIZE_KB" -autostartprgmode 1 "$EDITOR_PRG"
         ;;
     calcplus)
         check_prg "$CALCPLUS_PRG"
         print_info "Standalone" "$CALCPLUS_PRG"
-        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize 16384 -autostartprgmode 1 "$CALCPLUS_PRG"
+        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize "$REU_SIZE_KB" -autostartprgmode 1 "$CALCPLUS_PRG"
         ;;
     hexview)
         check_prg "$HEXVIEW_PRG"
         print_info "Standalone" "$HEXVIEW_PRG"
-        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize 16384 -autostartprgmode 1 "$HEXVIEW_PRG"
+        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize "$REU_SIZE_KB" -autostartprgmode 1 "$HEXVIEW_PRG"
         ;;
     2048)
         check_prg "$GAME2048_PRG"
         print_info "Standalone" "$GAME2048_PRG"
-        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize 16384 -autostartprgmode 1 "$GAME2048_PRG"
+        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize "$REU_SIZE_KB" -autostartprgmode 1 "$GAME2048_PRG"
         ;;
     sidetris)
         check_prg "$SIDETRIS_PRG"
         print_info "Standalone" "$SIDETRIS_PRG"
-        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize 16384 -autostartprgmode 1 "$SIDETRIS_PRG"
+        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize "$REU_SIZE_KB" -autostartprgmode 1 "$SIDETRIS_PRG"
         ;;
     deminer)
         check_prg "$DEMINER_PRG"
         print_info "Standalone" "$DEMINER_PRG"
-        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize 16384 -autostartprgmode 1 "$DEMINER_PRG"
+        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize "$REU_SIZE_KB" -autostartprgmode 1 "$DEMINER_PRG"
         ;;
     cal26)
         check_profile_disks
         check_prg "$CAL26_PRG"
         print_info "Standalone" "$CAL26_PRG"
-        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize 16384 "${PROFILE_VICE_ATTACH_ARGS[@]}" -autostartprgmode 1 "$CAL26_PRG"
+        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize "$REU_SIZE_KB" "${PROFILE_VICE_ATTACH_ARGS[@]}" -autostartprgmode 1 "$CAL26_PRG"
         ;;
     dizzy)
         check_profile_disks
         check_prg "$DIZZY_PRG"
         print_info "Standalone" "$DIZZY_PRG"
-        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize 16384 "${PROFILE_VICE_ATTACH_ARGS[@]}" -autostartprgmode 1 "$DIZZY_PRG"
+        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize "$REU_SIZE_KB" "${PROFILE_VICE_ATTACH_ARGS[@]}" -autostartprgmode 1 "$DIZZY_PRG"
         ;;
     readme)
         check_prg "$README_PRG"
         print_info "Standalone" "$README_PRG"
-        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize 16384 -autostartprgmode 1 "$README_PRG"
+        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize "$REU_SIZE_KB" -autostartprgmode 1 "$README_PRG"
         ;;
     showcfg)
         check_profile_disks
         check_prg "$SHOWCFG_PRG"
         print_info "Catalog Inspector" "$SHOWCFG_PRG"
-        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize 16384 "${PROFILE_VICE_ATTACH_ARGS[@]}" -autostartprgmode 1 "$SHOWCFG_PRG"
+        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize "$REU_SIZE_KB" "${PROFILE_VICE_ATTACH_ARGS[@]}" -autostartprgmode 1 "$SHOWCFG_PRG"
         ;;
     xfilechk)
         RUN_VERSION_TEXT="$(python3 "$VERSION_TOOL" --next)"
@@ -751,7 +767,7 @@ case "${MODE:-}" in
             DRIVE8_TRUE_FLAG="+drive8truedrive"
             DRIVE9_TRUE_FLAG="+drive9truedrive"
         fi
-        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize 16384 \
+        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize "$REU_SIZE_KB" \
             -drive8type 1571 "$DRIVE8_TRUE_FLAG" -devicebackend8 0 +busdevice8 -8 "$XFILECHK_DISK_FILE_1" \
             -drive9type 1571 "$DRIVE9_TRUE_FLAG" -devicebackend9 0 +busdevice9 -9 "$XFILECHK_DISK_FILE_2" \
             -autostart "$XFILECHK_BOOT_PRG"
@@ -760,7 +776,7 @@ case "${MODE:-}" in
         check_profile_disks
         check_prg "$PROFILE_AUTOSTART_PRG"
         print_info "Monitor" "$PROFILE_AUTOSTART_PRG"
-        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize 16384 "${PROFILE_VICE_ATTACH_ARGS[@]}" -initbreak 0xC80D -autostart "$PROFILE_AUTOSTART_PRG"
+        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize "$REU_SIZE_KB" "${PROFILE_VICE_ATTACH_ARGS[@]}" -initbreak 0xC80D -autostart "$PROFILE_AUTOSTART_PRG"
         ;;
     readyshell-mon)
         check_profile_disks
@@ -769,7 +785,7 @@ case "${MODE:-}" in
         : > "$REMOTE_MON_LOG"
         : > "$VICE_STDIO_LOG"
         print_info "Readyshell Remote Monitor" "$PROFILE_AUTOSTART_PRG"
-        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize 16384 \
+        start_vice -logfile "$VICE_LOG_FILE" -reu -reusize "$REU_SIZE_KB" \
             "${PROFILE_VICE_ATTACH_ARGS[@]}" \
             -remotemonitor -remotemonitoraddress "$REMOTE_MON_ADDR" \
             -binarymonitor -binarymonitoraddress "$BINARY_MON_ADDR" \
