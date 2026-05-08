@@ -709,7 +709,9 @@ release-all: prepare-version
 		RS_PARSE_TRACE_DEBUG=$$($(PYTHON) $(BUILD_SUPPORT_DIR)/readyos_profiles.py readyshell-parse-trace-debug --profile "$$profile"); \
 		echo "==> $$profile ($$VERSION_TEXT, READYSHELL_PARSE_TRACE_DEBUG=$$RS_PARSE_TRACE_DEBUG)"; \
 		$(MAKE) PROFILE="$$profile" READYOS_VERSION_TEXT="$$VERSION_TEXT" READYSHELL_PARSE_TRACE_DEBUG="$$RS_PARSE_TRACE_DEBUG" profile; \
-	done
+	done; \
+	echo "==> precog-easyflash ($$VERSION_TEXT)"; \
+	$(MAKE) READYOS_VERSION_TEXT="$$VERSION_TEXT" easyflash
 
 audit-profile-assets:
 	$(PYTHON) $(BUILD_SUPPORT_DIR)/audit_release_seq_rel.py --profile "$(PROFILE)"
@@ -957,7 +959,7 @@ help:
 	@echo "  profiles    - List available build/run profiles"
 	@echo "  profile     - Build one profile under releases/<version>/<profile>"
 	@echo "                Use PROFILE=<id> (default: $(PROFILE))"
-	@echo "  release-all - Build every release profile with one version stamp"
+	@echo "  release-all - Build every disk profile and EasyFlash SKU with one version stamp"
 	@echo "  clean       - Remove built files"
 	@echo "  easyflash   - Build the EasyFlash CRT + runtime data D64 flavor"
 	@echo "  easyflash-report - Print a fixed-width EasyFlash cartridge usage map"

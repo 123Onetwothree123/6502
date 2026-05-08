@@ -506,7 +506,8 @@ maybe_build() {
             RUN_VERSION_TEXT="$(python3 "$VERSION_TOOL" --next)"
         fi
         echo "Build version: $RUN_VERSION_TEXT"
-        echo "Building all release profiles (using each profile's readyshell_parse_trace_debug setting)"
+        echo "Building all release SKUs, including EasyFlash cartridge"
+        echo "Disk profiles use each profile's readyshell_parse_trace_debug setting"
         make -B "BUILD_SUPPORT_DIR=$BUILD_SUPPORT_DIR" "READYOS_VERSION_TEXT=$RUN_VERSION_TEXT" release-all
         return
     fi
