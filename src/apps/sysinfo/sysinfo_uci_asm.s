@@ -13,7 +13,8 @@
         .export _sysinfo_uci_asm_abort
         .export _sysinfo_uci_asm_clear_error
         .export _sysinfo_uci_asm_read_u64_turbo
-        .export _sysinfo_rom_asm_read_basic
+        .export _sysinfo_uci_asm_read_u64_turbo_enable
+        .export _sysinfo_uci_asm_read_softiec_bus
         .export _sysinfo_rom_asm_read_chargen
         .export _sysinfo_rom_asm_read_kernal
 
@@ -33,6 +34,14 @@ _sysinfo_uci_asm_set_base:
         stx uci_accept+2
         stx uci_abort+2
         stx uci_clear_error+2
+
+        lda uci_base_lo
+        sec
+        sbc #$01
+        sta uci_softiec+1
+        lda uci_base_hi
+        sbc #$00
+        sta uci_softiec+2
 
         lda uci_base_lo
         clc
@@ -227,33 +236,45 @@ _sysinfo_uci_asm_read_u64_turbo:
         txa
         rts
 
-uci_base_lo:
-        .byte <$DF1C
-uci_base_hi:
-        .byte >$DF1C
-uci_value:
-        .byte $00
-
-_sysinfo_rom_asm_read_basic:
-        sta read_basic+1
-        txa
-        clc
-        adc #$A0
-        sta read_basic+2
+_sysinfo_uci_asm_read_u64_turbo_enable:
         php
         sei
         lda CPU_PORT
         pha
-        ora #$03
+        and #$F8
+        ora #$07
         sta CPU_PORT
-read_basic:
-        lda $A000
+        lda $D030
         tax
         pla
         sta CPU_PORT
         plp
         txa
         rts
+
+_sysinfo_uci_asm_read_softiec_bus:
+        php
+        sei
+        lda CPU_PORT
+        pha
+        and #$F8
+        ora #$07
+        sta CPU_PORT
+uci_softiec:
+        lda $DF1B
+        tax
+        pla
+        sta CPU_PORT
+        plp
+        txa
+        rts
+
+uci_base_lo:
+        .byte <$DF1C
+uci_base_hi:
+        .byte >$DF1C
+uci_value:
+        .byte $00
 
 _sysinfo_rom_asm_read_chargen:
         sta read_chargen+1

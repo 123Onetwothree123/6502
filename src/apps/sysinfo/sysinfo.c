@@ -9,6 +9,7 @@
 #include "sysinfo_uci.h"
 
 #include <c64.h>
+#include <cbm.h>
 #include <string.h>
 
 #define HEADER_Y       0
@@ -25,15 +26,14 @@
 
 #define TAB_SYSTEM     0
 #define TAB_ULTIMATE   1
-#define TAB_COUNT      2
+#define TAB_DRIVES     2
+#define TAB_COUNT      3
 
 #define SHIM_CURRENT_BANK (*(volatile unsigned char*)0xC834)
 
 #define KERNAL_REV_OFF  0x04ACu
 #define KERNAL_BANNER_OFF 0x045Eu
 #define KERNAL_BANNER_LEN 96u
-#define BASIC_OPENROMS_OFF 0x0000u
-#define BASIC_OPENROMS_LEN 128u
 #define CART_SIG_BASE   0x8004u
 #define JIFFY_LO        (*(volatile unsigned char*)0x00A2)
 #define JIFFY_MID       (*(volatile unsigned char*)0x00A1)
@@ -55,11 +55,27 @@
 #define REU_TEST_OFF  0xFFF0u
 #define ULT_SPEED_U64   0u
 #define ULT_SPEED_U64E2 1u
+#define DRIVE_FIRST      8u
+#define DRIVE_COUNT      4u
+#define DRIVE_STATUS_MAX 24u
+#define DRIVE_TYPE_MAX   8u
+#define DRIVE_LFN_CMD    15u
 
 static unsigned char running;
 static unsigned char current_tab;
 static unsigned char row_y;
 static unsigned char ultimate_speed_table;
+static unsigned char drives_cache_valid;
+
+typedef struct DriveProbe {
+    unsigned char device;
+    unsigned char present;
+    unsigned char status_code;
+    char type[DRIVE_TYPE_MAX];
+    char status[DRIVE_STATUS_MAX];
+} DriveProbe;
+
+static DriveProbe drive_cache[DRIVE_COUNT];
 
 static unsigned char uci_data[SYSINFO_UCI_DATA_MAX];
 static unsigned char uci_stat[SYSINFO_UCI_STAT_MAX];
@@ -69,7 +85,8 @@ static char value_buf[32];
 
 static const char *tab_names[TAB_COUNT] = {
     "system",
-    "ultimate"
+    "ultimate",
+    "drives"
 };
 
 static void draw_shell(void);
@@ -78,8 +95,11 @@ static void draw_divider(void);
 static void refresh_current_tab(void);
 static void draw_system_tab(void);
 static void draw_ultimate_tab(void);
+static void draw_drives_tab(unsigned char force_refresh);
 static void add_row(const char *label, const char *value, unsigned char color);
 static void add_row_uint(const char *label, unsigned int value);
+static void draw_centered_line(unsigned char y, const char *text, unsigned char color);
+static void copy_text_fit(char *dst, unsigned char dst_len, const char *src);
 static void copy_uci_text(char *dst, unsigned char dst_len);
 static void format_uptime(char *dst);
 static void format_reu(char *dst);
@@ -91,6 +111,15 @@ static void draw_drive_info_rows(const unsigned char *src, unsigned char len);
 static unsigned char format_softiec_info(char *dst, const unsigned char *src, unsigned char len);
 static void draw_ultimate_model(void);
 static void draw_ultimate_cpu_speed(void);
+static void draw_ultimate_http_target(void);
+static void drives_refresh(void);
+static void drives_probe_one(DriveProbe *probe, unsigned char device);
+static void drives_parse_status(const char *line,
+                                unsigned char *code_out,
+                                char *msg_out,
+                                unsigned char msg_cap);
+static const char *drive_detect_type(const char *line);
+static void draw_drive_probe_row(const DriveProbe *probe);
 static unsigned char uci_status_ok(void);
 static unsigned char text_contains_ci(const char *text, const char *pattern);
 static const char *cart_name(void);
@@ -103,12 +132,10 @@ static unsigned char reu_detect(void);
 static unsigned int reu_detect_kb(void);
 static void reu_stash_byte(unsigned char bank, unsigned int off, unsigned char value);
 static unsigned char reu_fetch_byte(unsigned char bank, unsigned int off);
-static const char *basic_name(void);
 static const char *chargen_name(void);
 static const char *kernal_name(unsigned char rev);
 static const char *model_name(unsigned char rev);
 static unsigned char kernal_banner_contains(const char *pattern);
-static unsigned char basic_window_contains(const char *pattern);
 
 static void append_char(char *dst, unsigned char dst_len, char ch) {
     unsigned char len;
@@ -178,6 +205,31 @@ static void add_row_uint(const char *label, unsigned int value) {
     add_row(label, value_buf, TUI_COLOR_WHITE);
 }
 
+static void draw_centered_line(unsigned char y, const char *text, unsigned char color) {
+    unsigned char text_len;
+    unsigned char x;
+
+    text_len = (unsigned char)strlen(text);
+    tui_clear_line(y, 0u, 40u, color);
+    if (text_len >= 40u) {
+        tui_puts_n(0u, y, text, 40u, color);
+        return;
+    }
+    x = (unsigned char)((40u - text_len) / 2u);
+    tui_puts_n(x, y, text, text_len, color);
+}
+
+static void copy_text_fit(char *dst, unsigned char dst_len, const char *src) {
+    if (dst_len == 0u || dst == 0 || src == 0) {
+        return;
+    }
+    dst[0] = 0;
+    while (*src != 0) {
+        append_char(dst, dst_len, *src);
+        ++src;
+    }
+}
+
 static void draw_header(void) {
     TuiRect header;
 
@@ -215,13 +267,15 @@ static void draw_divider(void) {
 }
 
 static void draw_help(void) {
-    tui_clear_line(HELP_Y, 0u, 40u, TUI_COLOR_GRAY3);
-    tui_puts(0u, HELP_Y, "UP/DN:TABS F2/F4:APPS CTRL+B:HOME", TUI_COLOR_GRAY3);
+    if (current_tab == TAB_DRIVES) {
+        draw_centered_line(HELP_Y, "R:REFRESH  CTRL+B:HOME", TUI_COLOR_GRAY3);
+    } else {
+        draw_centered_line(HELP_Y, "CTRL+B:HOME", TUI_COLOR_GRAY3);
+    }
 }
 
 static void draw_status(void) {
     tui_clear_line(STATUS_Y, 0u, 40u, TUI_COLOR_WHITE);
-    tui_puts(0u, STATUS_Y, "READ-ONLY INFO  REFRESH ON TAB ENTRY", TUI_COLOR_GRAY3);
 }
 
 static void draw_shell(void) {
@@ -285,21 +339,6 @@ static unsigned char match_pattern_at_kernal(unsigned int off, const char *patte
     return 1u;
 }
 
-static unsigned char match_pattern_at_basic(unsigned int off, const char *pattern) {
-    unsigned char i;
-    unsigned char ch;
-
-    i = 0u;
-    while (pattern[i] != 0) {
-        ch = rom_upper(sysinfo_rom_asm_read_basic((unsigned int)(off + i)));
-        if (ch != (unsigned char)pattern[i]) {
-            return 0u;
-        }
-        ++i;
-    }
-    return 1u;
-}
-
 static unsigned char kernal_banner_contains(const char *pattern) {
     unsigned int off;
 
@@ -307,19 +346,6 @@ static unsigned char kernal_banner_contains(const char *pattern) {
          off < (unsigned int)(KERNAL_BANNER_OFF + KERNAL_BANNER_LEN);
          ++off) {
         if (match_pattern_at_kernal(off, pattern)) {
-            return 1u;
-        }
-    }
-    return 0u;
-}
-
-static unsigned char basic_window_contains(const char *pattern) {
-    unsigned int off;
-
-    for (off = BASIC_OPENROMS_OFF;
-         off < (unsigned int)(BASIC_OPENROMS_OFF + BASIC_OPENROMS_LEN);
-         ++off) {
-        if (match_pattern_at_basic(off, pattern)) {
             return 1u;
         }
     }
@@ -390,22 +416,6 @@ static const char *model_name(unsigned char rev) {
     }
 }
 
-static const char *basic_name(void) {
-    if (sysinfo_rom_asm_read_basic(0x0000u) == 0x94u &&
-        sysinfo_rom_asm_read_basic(0x0001u) == 0xE3u &&
-        sysinfo_rom_asm_read_basic(0x0002u) == 0x7Bu &&
-        sysinfo_rom_asm_read_basic(0x0003u) == 0xE3u &&
-        sysinfo_rom_asm_read_basic(0x0004u) == 'C' &&
-        sysinfo_rom_asm_read_basic(0x0005u) == 'B') {
-        return "basic 2.0";
-    }
-    if (basic_window_contains("OPEN ROMS") ||
-        basic_window_contains("OPENROMS")) {
-        return "Open ROMs";
-    }
-    return "custom/unknown";
-}
-
 static const char *chargen_name(void) {
     if (sysinfo_rom_asm_read_chargen(0x0000u) == 0x3Cu &&
         sysinfo_rom_asm_read_chargen(0x0001u) == 0x66u &&
@@ -438,7 +448,7 @@ static const char *cart_name(void) {
         ((volatile unsigned char*)CART_SIG_BASE)[4] == '0') {
         return "autostart rom";
     }
-    return "none/hidden";
+    return "not visible";
 }
 
 static unsigned int read_raster_line(void) {
@@ -637,7 +647,6 @@ static void draw_system_tab(void) {
     append_hex2(value_buf, sizeof(value_buf), kernal_rev);
     add_row("k byte:", value_buf, TUI_COLOR_GRAY3);
 
-    add_row("basic:", basic_name(), TUI_COLOR_WHITE);
     add_row("charset:", chargen_name(), TUI_COLOR_WHITE);
     format_video(value_buf);
     add_row("video:", value_buf, TUI_COLOR_CYAN);
@@ -681,6 +690,165 @@ static void copy_uci_text(char *dst, unsigned char dst_len) {
     if (dst[0] == 0) {
         append_str(dst, dst_len, "no data");
     }
+}
+
+static void drives_cleanup_io(void) {
+    cbm_k_clrch();
+    cbm_k_clall();
+}
+
+static void drives_parse_status(const char *line,
+                                unsigned char *code_out,
+                                char *msg_out,
+                                unsigned char msg_cap) {
+    unsigned int code;
+    unsigned char i;
+    const char *p;
+
+    code = 0u;
+    p = line;
+    while (*p >= '0' && *p <= '9') {
+        code = (unsigned int)(code * 10u + (unsigned int)(*p - '0'));
+        ++p;
+    }
+    if (p == line) {
+        code = 255u;
+    }
+    if (code_out != 0) {
+        *code_out = (code > 255u) ? 255u : (unsigned char)code;
+    }
+    if (msg_out == 0 || msg_cap == 0u) {
+        return;
+    }
+
+    if (*p == ',') {
+        ++p;
+    }
+    while (*p == ' ') {
+        ++p;
+    }
+
+    i = 0u;
+    while (*p != 0 && *p != ',' && *p != '\r' && *p != '\n' &&
+           i + 1u < msg_cap) {
+        msg_out[i] = *p;
+        ++i;
+        ++p;
+    }
+    msg_out[i] = 0;
+    if (msg_out[0] == 0) {
+        copy_text_fit(msg_out, msg_cap, "NO STATUS");
+    }
+}
+
+static const char *drive_detect_type(const char *line) {
+    if (text_contains_ci(line, "SD2IEC")) {
+        return "sd2iec";
+    }
+    if (text_contains_ci(line, "PI1541")) {
+        return "pi1541";
+    }
+    if (text_contains_ci(line, "ULTIMATE") || text_contains_ci(line, "U64")) {
+        return "u64";
+    }
+    if (text_contains_ci(line, "VICE")) {
+        return "vice";
+    }
+    if (text_contains_ci(line, "CMD")) {
+        return "cmd";
+    }
+    if (text_contains_ci(line, "1581")) {
+        return "1581";
+    }
+    if (text_contains_ci(line, "1571")) {
+        return "1571";
+    }
+    if (text_contains_ci(line, "1541")) {
+        return "1541";
+    }
+    return "unknown";
+}
+
+static void drives_probe_one(DriveProbe *probe, unsigned char device) {
+    char line[40];
+    int n;
+
+    probe->device = device;
+    probe->present = 0u;
+    probe->status_code = 255u;
+    copy_text_fit(probe->type, sizeof(probe->type), "absent");
+    copy_text_fit(probe->status, sizeof(probe->status), "CMD OPEN");
+
+    drives_cleanup_io();
+    if (cbm_open(DRIVE_LFN_CMD, device, 15u, "ui") != 0) {
+        drives_cleanup_io();
+        return;
+    }
+
+    n = cbm_read(DRIVE_LFN_CMD, line, sizeof(line) - 1u);
+    if (n < 0) {
+        n = 0;
+    }
+    line[n] = 0;
+
+    cbm_close(DRIVE_LFN_CMD);
+    drives_cleanup_io();
+
+    probe->present = 1u;
+    drives_parse_status(line, &probe->status_code,
+                        probe->status, sizeof(probe->status));
+    copy_text_fit(probe->type, sizeof(probe->type), drive_detect_type(line));
+}
+
+static void drives_refresh(void) {
+    unsigned char i;
+
+    for (i = 0u; i < DRIVE_COUNT; ++i) {
+        drives_probe_one(&drive_cache[i], (unsigned char)(DRIVE_FIRST + i));
+    }
+    drives_cache_valid = 1u;
+}
+
+static void draw_drive_probe_row(const DriveProbe *probe) {
+    char label[5];
+
+    label[0] = 'd';
+    if (probe->device < 10u) {
+        label[1] = (char)('0' + probe->device);
+        label[2] = ':';
+        label[3] = 0;
+    } else {
+        label[1] = (char)('0' + (probe->device / 10u));
+        label[2] = (char)('0' + (probe->device % 10u));
+        label[3] = ':';
+        label[4] = 0;
+    }
+
+    value_buf[0] = 0;
+    append_str(value_buf, sizeof(value_buf), probe->type);
+    if (probe->present) {
+        append_char(value_buf, sizeof(value_buf), ' ');
+        append_uint(value_buf, sizeof(value_buf), probe->status_code);
+        append_char(value_buf, sizeof(value_buf), ' ');
+        append_str(value_buf, sizeof(value_buf), probe->status);
+    }
+    add_row(label, value_buf, probe->present ? TUI_COLOR_WHITE : TUI_COLOR_GRAY3);
+}
+
+static void draw_drives_tab(unsigned char force_refresh) {
+    unsigned char i;
+
+    clear_info_pane();
+    if (force_refresh || !drives_cache_valid) {
+        add_row("drives:", "scanning 8-11", TUI_COLOR_YELLOW);
+        drives_refresh();
+        clear_info_pane();
+    }
+
+    for (i = 0u; i < DRIVE_COUNT; ++i) {
+        draw_drive_probe_row(&drive_cache[i]);
+    }
+    add_row("", "press r to refresh", TUI_COLOR_GRAY3);
 }
 
 static void format_mac(char *dst, const unsigned char *src) {
@@ -755,22 +923,51 @@ static unsigned char format_softiec_info(char *dst, const unsigned char *src, un
     unsigned char count;
     unsigned char i;
     unsigned char off;
+    unsigned char max_off;
+    unsigned char step;
+    unsigned char softiec_bus;
 
-    if (len == 0u) {
-        return 0u;
-    }
-    count = src[0];
-    off = 1u;
-    for (i = 0u; i < count && off + 2u < len; ++i) {
-        if (src[off] == 0x0Fu) {
-            dst[0] = 0;
-            append_char(dst, 32u, 'd');
-            append_uint(dst, 32u, src[(unsigned char)(off + 1u)]);
-            append_char(dst, 32u, ' ');
-            append_str(dst, 32u, src[(unsigned char)(off + 2u)] ? "on" : "off");
-            return 1u;
+    if (len != 0u) {
+        count = src[0];
+
+        for (step = 3u; step <= 6u; step = (unsigned char)(step + 3u)) {
+            off = 1u;
+            for (i = 0u; i < count && off + 2u < len; ++i) {
+                if (src[off] == 0x0Fu) {
+                    dst[0] = 0;
+                    append_char(dst, 32u, 'd');
+                    append_uint(dst, 32u, src[(unsigned char)(off + 1u)]);
+                    append_char(dst, 32u, ' ');
+                    append_str(dst, 32u, src[(unsigned char)(off + 2u)] ? "on" : "off");
+                    return 1u;
+                }
+                off = (unsigned char)(off + step);
+            }
         }
-        off = (unsigned char)(off + 3u);
+
+        if (len >= 3u) {
+            max_off = (unsigned char)(len - 2u);
+            for (off = 1u; off < max_off; ++off) {
+                if (src[off] == 0x0Fu && src[(unsigned char)(off + 1u)] >= 4u &&
+                    src[(unsigned char)(off + 1u)] <= 30u && src[(unsigned char)(off + 2u)] <= 1u) {
+                    dst[0] = 0;
+                    append_char(dst, 32u, 'd');
+                    append_uint(dst, 32u, src[(unsigned char)(off + 1u)]);
+                    append_char(dst, 32u, ' ');
+                    append_str(dst, 32u, src[(unsigned char)(off + 2u)] ? "on" : "off");
+                    return 1u;
+                }
+            }
+        }
+    }
+
+    softiec_bus = sysinfo_uci_asm_read_softiec_bus();
+    if (softiec_bus >= 4u && softiec_bus <= 30u) {
+        dst[0] = 0;
+        append_char(dst, 32u, 'd');
+        append_uint(dst, 32u, softiec_bus);
+        append_str(dst, 32u, " present");
+        return 1u;
     }
     return 0u;
 }
@@ -793,10 +990,18 @@ static unsigned char ultimate_cpu_mhz(unsigned char index) {
 
 static void draw_ultimate_cpu_speed(void) {
     unsigned char reg;
+    unsigned char enable_reg;
 
     reg = sysinfo_uci_asm_read_u64_turbo();
     if (reg == 0xFFu) {
-        add_row("cpu:", "not exposed", TUI_COLOR_GRAY3);
+        enable_reg = sysinfo_uci_asm_read_u64_turbo_enable();
+        if (enable_reg == 0xFFu) {
+            add_row("cpu:", "not exposed", TUI_COLOR_GRAY3);
+        } else if ((enable_reg & 0x01u) != 0u) {
+            add_row("cpu:", "menu turbo", TUI_COLOR_LIGHTGREEN);
+        } else {
+            add_row("cpu:", "1 mhz", TUI_COLOR_LIGHTGREEN);
+        }
         return;
     }
 
@@ -832,11 +1037,29 @@ static void draw_ultimate_model(void) {
             ultimate_speed_table = ULT_SPEED_U64;
         }
         add_row("model:", "Ultimate 64", TUI_COLOR_CYAN);
-        add_row("family:", "Ultimate 64 fam", TUI_COLOR_GRAY3);
     } else {
         ultimate_speed_table = ULT_SPEED_U64;
         add_row("model:", value_buf, TUI_COLOR_CYAN);
     }
+}
+
+static void draw_ultimate_http_target(void) {
+    static const unsigned char cmd_http_ident[] = {0x06u, 0x01u};
+
+    if (!run_uci(cmd_http_ident, sizeof(cmd_http_ident))) {
+        add_row("http tgt:", "not exposed", TUI_COLOR_GRAY3);
+        return;
+    }
+    if (!uci_status_ok()) {
+        add_row("http tgt:", "not present", TUI_COLOR_GRAY3);
+        return;
+    }
+    if (uci_data_len == 0u) {
+        add_row("http tgt:", "present", TUI_COLOR_LIGHTGREEN);
+        return;
+    }
+    copy_uci_text(value_buf, sizeof(value_buf));
+    add_row("http tgt:", value_buf, TUI_COLOR_LIGHTGREEN);
 }
 
 static void draw_ultimate_tab(void) {
@@ -878,7 +1101,10 @@ static void draw_ultimate_tab(void) {
     }
     if (softiec_present) {
         add_row("softiec:", value_buf, TUI_COLOR_LIGHTGREEN);
+    } else {
+        add_row("softiec:", "not exposed", TUI_COLOR_GRAY3);
     }
+    draw_ultimate_http_target();
     if (run_uci(cmd_dos_time, sizeof(cmd_dos_time)) && uci_data_len > 0u && uci_status_ok()) {
         copy_uci_text(value_buf, sizeof(value_buf));
         add_row("time:", value_buf, TUI_COLOR_LIGHTGREEN);
@@ -908,10 +1134,14 @@ static void draw_ultimate_tab(void) {
 
 static void refresh_current_tab(void) {
     draw_tabs();
+    draw_status();
+    draw_help();
     if (current_tab == TAB_SYSTEM) {
         draw_system_tab();
-    } else {
+    } else if (current_tab == TAB_ULTIMATE) {
         draw_ultimate_tab();
+    } else {
+        draw_drives_tab(0u);
     }
 }
 
@@ -953,6 +1183,15 @@ static void sysinfo_loop(void) {
             case TUI_KEY_RIGHT:
             case TUI_KEY_RETURN:
                 refresh_current_tab();
+                break;
+            case 'r':
+            case 'R':
+                if (current_tab == TAB_DRIVES) {
+                    draw_tabs();
+                    draw_status();
+                    draw_help();
+                    draw_drives_tab(1u);
+                }
                 break;
             case TUI_KEY_RUNSTOP:
                 running = 0u;
