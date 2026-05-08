@@ -94,6 +94,17 @@ def parse_define(path: Path, name: str):
     return int(m.group(1), 0)
 
 
+def parse_pointer_define(path: Path, name: str):
+    src = path.read_text(encoding="utf-8", errors="replace")
+    m = re.search(
+        rf"#define\s+{re.escape(name)}\s+\(\(unsigned char\*\)(0x[0-9A-Fa-f]+|\d+)\)",
+        src,
+    )
+    if not m:
+        raise ValueError(f"{name} pointer define missing in {path}")
+    return int(m.group(1), 0)
+
+
 def parse_ready_app_window():
     cfg = (ROOT / "cfg" / "ready_app.cfg").read_text(encoding="utf-8", errors="replace")
     m = re.search(
@@ -393,11 +404,26 @@ def main():
         reu_total = parse_define(ROOT / "src" / "lib" / "reu_mgr.h", "REU_TOTAL_BANKS")
         reu_first = parse_define(ROOT / "src" / "lib" / "reu_mgr.h", "REU_FIRST_DYNAMIC")
         reu_rs_cache = parse_define(ROOT / "src" / "lib" / "reu_mgr.h", "REU_BANK_RS_CACHE")
+        reu_rs_cache2 = parse_define(ROOT / "src" / "lib" / "reu_mgr.h", "REU_BANK_RS_CACHE2")
         reu_rs_debug = parse_define(ROOT / "src" / "lib" / "reu_mgr.h", "REU_BANK_RS_DEBUG")
+        reu_rs_scratch = parse_define(ROOT / "src" / "lib" / "reu_mgr.h", "REU_BANK_RS_SCRATCH")
+        reu_skip_addr = parse_pointer_define(ROOT / "src" / "lib" / "reu_mgr.h", "SHIM_REU_BANK_SKIP")
+        reu_mgr_h = (ROOT / "src" / "lib" / "reu_mgr.h").read_text(encoding="utf-8", errors="replace")
         ok &= check("REU total banks", reu_total == int(spec["reu_contract"]["total_banks"]), str(reu_total))
-        ok &= check("REU first dynamic", reu_first == int(spec["reu_contract"]["first_dynamic"]), str(reu_first))
+        ok &= check("REU first dynamic logical", reu_first == int(spec["reu_contract"]["first_dynamic_logical"]), str(reu_first))
+        ok &= check("REU physical dynamic offset macro",
+                    "*SHIM_REU_BANK_SKIP + 25u" in reu_mgr_h,
+                    "expect skip + 25")
+        ok &= check("REU logical-to-physical macro",
+                    "*SHIM_REU_BANK_SKIP + 1u" in reu_mgr_h,
+                    "expect skip + 1 + logical")
+        ok &= check("SHIM_REU_BANK_SKIP address",
+                    reu_skip_addr == parse_int(spec["reu_contract"]["shim_reu_bank_skip_addr"]),
+                    hex(reu_skip_addr))
         ok &= check("REU bank RS cache", reu_rs_cache == int(spec["reu_contract"]["bank_rs_cache"]), str(reu_rs_cache))
+        ok &= check("REU bank RS cache2", reu_rs_cache2 == int(spec["reu_contract"]["bank_rs_cache2"]), str(reu_rs_cache2))
         ok &= check("REU bank RS debug", reu_rs_debug == int(spec["reu_contract"]["bank_rs_debug"]), str(reu_rs_debug))
+        ok &= check("REU bank RS scratch", reu_rs_scratch == int(spec["reu_contract"]["bank_rs_scratch"]), str(reu_rs_scratch))
     except ValueError as ex:
         ok &= check("reu_mgr.h constants", False, str(ex))
 

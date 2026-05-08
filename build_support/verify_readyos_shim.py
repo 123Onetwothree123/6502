@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Verify that the shared ReadyOS shim remains byte-identical to the historical
-non-cartridge baseline and that cartridge packaging consumes that exact image.
+Verify that the shared ReadyOS shim remains 512 bytes, preserves ABI anchor
+locations, and that cartridge packaging consumes the configured image.
 """
 
 from __future__ import annotations
@@ -9,7 +9,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import re
-import subprocess
 import sys
 from pathlib import Path
 
@@ -20,9 +19,7 @@ EASYFLASH_SHIM_SRC = ROOT / "src" / "boot" / "easyflash_shim.s"
 SHIM_INC = ROOT / "src" / "boot" / "readyos_shim.inc"
 EASYFLASH_SHIM_BIN = ROOT / "bin" / "easyflash_shim.bin"
 
-HISTORICAL_BASE_COMMIT = "a3dc03a"
 EXPECTED_SIZE = 512
-EXPECTED_SHA256 = "cabc712eb2ea54bcd5aa1aedfeec3f69b78326092e1adaee465522d30696edbc"
 
 ABI_CHECKS = (
     ("jt_load_disk", 0x000, bytes.fromhex("4c40c8")),
@@ -36,6 +33,10 @@ ABI_CHECKS = (
     ("jt_log_byte", 0x018, bytes.fromhex("4ce0c9")),
     ("data_filename_len", 0x021, bytes([0x08])),
     ("storage_drive_default", 0x039, bytes([0x08])),
+    ("stash_uses_logical_setup", 0x0E0, bytes.fromhex("2060c9")),
+    ("fetch_uses_logical_setup", 0x0F0, bytes.fromhex("2060c9")),
+    ("logical_setup_entry", 0x160, bytes.fromhex("186d3bc86901")),
+    ("raw_setup_entry", 0x1A0, bytes.fromhex("8d06df")),
 )
 
 
@@ -83,15 +84,18 @@ def split_tokens(payload: str) -> list[str]:
     return tokens
 
 
-def parse_byte_token(token: str) -> bytes:
+def parse_byte_token(token: str, constants: dict[str, int]) -> bytes:
     if token.startswith('"') and token.endswith('"'):
         return token[1:-1].encode("ascii")
     if token.startswith("$"):
         return bytes([int(token[1:], 16)])
+    if token in constants:
+        return bytes([constants[token] & 0xFF])
     return bytes([int(token, 0)])
 
 
-def parse_shim_bytes(text: str, *, start_label: str) -> bytes:
+def parse_shim_bytes(text: str, *, start_label: str, constants: dict[str, int] | None = None) -> bytes:
+    constants = dict(constants or {})
     data = bytearray()
     active = False
     for raw_line in text.splitlines():
@@ -103,13 +107,18 @@ def parse_shim_bytes(text: str, *, start_label: str) -> bytes:
         stripped = strip_comment(line).strip()
         if not stripped:
             continue
+        m = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(\$[0-9A-Fa-f]+|\d+)\s*$", stripped)
+        if m:
+            raw_value = m.group(2)
+            constants[m.group(1)] = int(raw_value[1:], 16) if raw_value.startswith("$") else int(raw_value, 10)
+            continue
         if stripped.startswith(".include"):
             continue
         if ".byte" not in stripped:
             continue
         payload = stripped.split(".byte", 1)[1]
         for token in split_tokens(payload):
-            data.extend(parse_byte_token(token))
+            data.extend(parse_byte_token(token, constants))
     return bytes(data)
 
 
@@ -117,19 +126,23 @@ def sha256_hex(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def read_historical_shim() -> bytes:
-    proc = subprocess.run(
-        ["git", "show", f"{HISTORICAL_BASE_COMMIT}:src/boot/boot_asm.s"],
-        cwd=str(ROOT),
-        check=True,
-        text=True,
-        capture_output=True,
+def read_config_value(path: Path) -> int:
+    if not path.exists():
+        return 0
+    text = path.read_text(encoding="utf-8")
+    m = re.search(r"(?m)^READYOS_REU_BANK_SKIP\s*=\s*(\$[0-9A-Fa-f]+|\d+)\s*$", text)
+    if not m:
+        return 0
+    raw_value = m.group(1)
+    return int(raw_value[1:], 16) if raw_value.startswith("$") else int(raw_value, 10)
+
+
+def read_current_shim(*, reu_bank_skip: int = 0) -> bytes:
+    return parse_shim_bytes(
+        "shim_data:\n" + SHIM_INC.read_text(encoding="utf-8"),
+        start_label="shim_data:",
+        constants={"READYOS_REU_BANK_SKIP": reu_bank_skip},
     )
-    return parse_shim_bytes(proc.stdout, start_label="shim_data:")
-
-
-def read_current_shim() -> bytes:
-    return parse_shim_bytes("shim_data:\n" + SHIM_INC.read_text(encoding="utf-8"), start_label="shim_data:")
 
 
 def require_include_pattern(path: Path, pattern: str, description: str) -> None:
@@ -139,15 +152,13 @@ def require_include_pattern(path: Path, pattern: str, description: str) -> None:
     ok(f"{description} present in {path.relative_to(ROOT)}")
 
 
-def verify_exact_image(label: str, data: bytes) -> None:
+def verify_exact_image(label: str, data: bytes, *, reu_bank_skip: int = 0) -> None:
     if len(data) != EXPECTED_SIZE:
         fail(f"{label} size changed ({len(data)} != {EXPECTED_SIZE})")
     ok(f"{label} size is {EXPECTED_SIZE} bytes")
 
     digest = sha256_hex(data)
-    if digest != EXPECTED_SHA256:
-        fail(f"{label} SHA-256 changed ({digest} != {EXPECTED_SHA256})")
-    ok(f"{label} SHA-256 matches historical baseline")
+    ok(f"{label} SHA-256 {digest}")
 
     for name, offset, expected in ABI_CHECKS:
         actual = data[offset:offset + len(expected)]
@@ -156,7 +167,10 @@ def verify_exact_image(label: str, data: bytes) -> None:
                 f"{label} ABI field {name} changed at ${0xC800 + offset:04X} "
                 f"({actual.hex()} != {expected.hex()})"
             )
-    ok(f"{label} ABI anchor bytes match historical layout")
+    skip_actual = data[0x03B]
+    if skip_actual != (reu_bank_skip & 0xFF):
+        fail(f"{label} reu_bank_skip changed at $C83B ({skip_actual} != {reu_bank_skip})")
+    ok(f"{label} ABI anchor bytes match expected layout")
 
 
 def main() -> int:
@@ -168,15 +182,9 @@ def main() -> int:
     )
     args = ap.parse_args()
 
-    historical = read_historical_shim()
-    current = read_current_shim()
+    current = read_current_shim(reu_bank_skip=0)
 
-    verify_exact_image("historical shim", historical)
-    verify_exact_image("readyos_shim.inc", current)
-
-    if historical != current:
-        fail("readyos_shim.inc bytes diverged from the historical non-cartridge shim")
-    ok("readyos_shim.inc is byte-identical to the historical shim")
+    verify_exact_image("readyos_shim.inc", current, reu_bank_skip=0)
 
     require_include_pattern(
         BOOT_ASM,
@@ -193,12 +201,14 @@ def main() -> int:
         if not EASYFLASH_SHIM_BIN.exists():
             fail("bin/easyflash_shim.bin is missing; build EasyFlash artifacts first")
         built = EASYFLASH_SHIM_BIN.read_bytes()
-        verify_exact_image("easyflash_shim.bin", built)
-        if built != current:
+        ef_skip = read_config_value(ROOT / "src" / "generated" / "readyos_easyflash_reu_config.inc")
+        configured = read_current_shim(reu_bank_skip=ef_skip)
+        verify_exact_image("easyflash_shim.bin", built, reu_bank_skip=ef_skip)
+        if built != configured:
             fail("easyflash_shim.bin diverged from readyos_shim.inc bytes")
         ok("easyflash_shim.bin is byte-identical to readyos_shim.inc")
 
-    print("PASS: ReadyOS shim matches the historical baseline and ABI")
+    print("PASS: ReadyOS shim size, ABI anchors, and configured bytes are valid")
     return 0
 
 

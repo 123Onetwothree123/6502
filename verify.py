@@ -567,6 +567,7 @@ def main():
     all_ok &= check("reu_bitmap_hi", shim[0x37] == 0x00, f"${shim[0x37]:02X} (expect $00)")
     all_ok &= check("reu_bitmap_xhi", shim[0x38] == 0x00, f"${shim[0x38]:02X} (expect $00)")
     all_ok &= check("storage_drive", shim[0x39] == 0x08, f"${shim[0x39]:02X} (expect $08)")
+    all_ok &= check("reu_bank_skip", shim[0x3B] <= 39, f"{shim[0x3B]} (expect 0..39)")
 
     # --- Routine Alignment ---
     print("\n=== Routine Alignment ===")
@@ -578,7 +579,7 @@ def main():
         (0x0F0, 0x20, "fetch_bank", "JSR"),
         (0x100, 0xAD, "return_to_launcher", "LDA abs"),
         (0x140, 0xAD, "switch_app", "LDA abs"),
-        (0x160, 0x8D, "debug_log_step", "STA abs"),
+        (0x160, 0x18, "reu_setup_logical", "CLC"),
         (0x1A0, 0x8D, "reu_setup", "STA abs"),
         (0x1C0, 0xC9, "set_bitmap", "CMP imm"),
         (0x1E0, 0x48, "log_byte", "PHA"),
@@ -600,17 +601,20 @@ def main():
     reu = list(shim[0x1A0:0x1A0 + 3])
     all_ok &= check("$C9A0 reu_setup", reu == [0x8D, 0x06, 0xDF],
                     f"{' '.join(f'{b:02X}' for b in reu)} = STA $DF06")
+    reu_logical = list(shim[0x160:0x160 + 6])
+    all_ok &= check("$C960 logical setup", reu_logical == [0x18, 0x6D, 0x3B, 0xC8, 0x69, 0x01],
+                    f"{' '.join(f'{b:02X}' for b in reu_logical)} = CLC; ADC $C83B; ADC #$01")
     reu_len = list(shim[0x1A0 + 0x18:0x1A0 + 0x1D])
     all_ok &= check("$C9B5 transfer length", reu_len == [0xA9, 0xB6, 0x8D, 0x08, 0xDF],
                     f"{' '.join(f'{b:02X}' for b in reu_len)} = LDA #$B6; STA $DF08")
 
     stash = list(shim[0xE0:0xE0 + 3])
-    all_ok &= check("$C8E0 stash→reu_setup", stash == [0x20, 0xA0, 0xC9],
-                    f"{' '.join(f'{b:02X}' for b in stash)} = JSR $C9A0")
+    all_ok &= check("$C8E0 stash→reu_setup_logical", stash == [0x20, 0x60, 0xC9],
+                    f"{' '.join(f'{b:02X}' for b in stash)} = JSR $C960")
 
     fetch = list(shim[0xF0:0xF0 + 3])
-    all_ok &= check("$C8F0 fetch→reu_setup", fetch == [0x20, 0xA0, 0xC9],
-                    f"{' '.join(f'{b:02X}' for b in fetch)} = JSR $C9A0")
+    all_ok &= check("$C8F0 fetch→reu_setup_logical", fetch == [0x20, 0x60, 0xC9],
+                    f"{' '.join(f'{b:02X}' for b in fetch)} = JSR $C960")
 
     stash_cmd = list(shim[0xE3:0xE3 + 5])
     all_ok &= check("$C8E3 STASH cmd", stash_cmd == [0xA9, 0x90, 0x8D, 0x01, 0xDF],
