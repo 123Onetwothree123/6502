@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.2.3
+
+### Release Packaging, System Info, Cartridge, THEC64 Staging
+
+- Published the `0.2.3` release artifact set under `Releases/0.2.3/`, with
+  regenerated per-profile `help.md`, `helpme.md`, manifests, boot PRGs, and
+  media images for the public D81, dual-D71, dual-D64, solo-D64, debug, and
+  EasyFlash profiles.
+- Added the `system info` app to the full-content and relevant subset catalogs,
+  giving ReadyOS an in-system hardware/status view with system, Ultimate, and
+  drive tabs instead of relying only on external emulator or hardware menus.
+- Expanded `system info` hardware probing for C64 Ultimate / Ultimate 64 style
+  setups, including UCI detection, Ultimate model details, turbo/CPU speed
+  display, SoftIEC and drive information, HTTP target visibility, network
+  interface data, ROM/character-set identity, video timing, REU size, cartridge
+  visibility, and drive status scanning for devices `8` through `11`.
+- Added the EasyFlash cartridge profile to release-all packaging and shipped
+  `precog-easyflash` with the cartridge image, raw EasyFlash binary, layout
+  metadata, manifest, and runtime data disk.
+- Hardened and documented the EasyFlash cartridge boot path as a
+  preload-and-snapshot pipeline: the cartridge loader stages launcher, app, and
+  ReadyShell overlay payloads from EasyFlash into REU, restores the launcher
+  snapshot from REU bank `0`, and then runs the normal RAM/REU launcher path.
+- Added an early EasyFlash REU-required guard and clearer cartridge boot
+  progress signaling, including border-color stage cues for cart payload reads,
+  REU snapshot work, shim setup, final launcher restore, and the explicit
+  REU-missing return-to-BASIC path.
+- Fixed the EasyFlash app table/release artifact drift that could leave the
+  cartridge SKU out of sync with the generated launcher catalog.
+- Added experimental THEC64 Mini/Maxi staging folders built from the `0.2.3`
+  D81 and EasyFlash artifacts, with `M6TPRM` filenames and matching CJM files
+  that request C64 PAL mode plus 16 MB REU for compatibility testing outside
+  the main build integration path.
+
 ## 0.2
 
 ### ReadyShell, Apps, Documentation, Release Sync
