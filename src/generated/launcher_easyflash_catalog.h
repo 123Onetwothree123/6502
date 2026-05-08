@@ -3,6 +3,7 @@
 #define READYOS_EASYFLASH_VARIANT_NAME "precog easyflash"
 #define READYOS_EASYFLASH_VARIANT_BOOT_NAME "precog cartridge (beta)"
 #define READYOS_EASYFLASH_RUNAPPFIRST ""
+#define READYOS_EASYFLASH_REU_BANK_SKIP 32
 #define READYOS_EASYFLASH_APP_COUNT 17
 
 static const unsigned char readyos_easyflash_app_banks[READYOS_EASYFLASH_APP_COUNT] = {
