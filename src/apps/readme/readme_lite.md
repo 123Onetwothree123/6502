@@ -1,19 +1,19 @@
-## ReadyOS PRECOG 0.2
+## ReadyOS PRECOG 0.2.3
 
 The goal is **fast app switching** for Commodore 64 Ultimate use,
 tuned to stay usable at both 1MHz and 48MHz while remaining
 C64-class practical.
 
 Current snapshot:
-- Base release: **0.2**
+- Base release: **0.2.3**
 - Runtime target: clean behavior from stock-speed C64 use up through
   Ultimate turbo workflows
 - Media layout: profile-based release media under `releases/<version>/<profile>/` with external `helpme.md`
   instructions for the selected build
-- Local artifact filenames may include an internal trailing build letter
-  such as `0.2c`; the public release line is still **0.2**
+- Release-candidate artifacts use the plain **0.2.3** version stamp.
+  Local development builds may still include an internal trailing letter.
 - New since 0.1.5: **quicknotes**, **simple files**, **simple cells**,
-  **sidetris**, and **deminer**
+  **sidetris**, **deminer**, **system info**, and **EasyFlash**
 
 ---
 
@@ -156,6 +156,7 @@ Recent additions:
 - Simple Cells for spreadsheet-style work.
 - Deminer for a fast puzzle/game app that still respects ReadyOS
   suspend/resume flow.
+- System Info for checking machine, REU, Ultimate, and drive status.
 
 Disk layout:
 - The exact disk image names depend on the selected build profile.
@@ -296,6 +297,11 @@ Multi-item clipboard history with preview, import, and clear.
 ### REU Viewer
 
 Live map view for REU usage and allocation categories.
+
+### System Info
+
+Read-only hardware status for the current machine, REU, cartridge
+visibility, Ultimate UCI details, and drives `8` through `11`.
 
 ### Task List
 

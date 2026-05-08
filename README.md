@@ -5,9 +5,9 @@ Commodore 64 setup. Its long-term center of gravity is the new Commodore 64
 Ultimate and related Ultimate-family hardware, but it is intended to support a
 wide range of C64 setups that have a reasonably large REU. That includes VICE,
 Ultimate-family hardware, and other practical REU-capable modern paths. PRECOG
-`0.2.1` is the current public release line.
+`0.2.3` is the current release-candidate line.
 
-The current `0.2.1` release is still comparatively generic rather than being
+The current `0.2.3` release candidate is still comparatively generic rather than being
 explicitly tailored to the new C64 Ultimate. The next release is expected to
 push further in that Ultimate-first direction while still trying to stay usable
 on other REU-capable C64 setups.
@@ -80,12 +80,12 @@ Boot note:
 
 ## Current Status
 
-- Base release: `0.2.1`
+- Base release: `0.2.3`
 - Local builds use the existing rolling suffix flow for artifact filenames only
 - Builds release media per profile
-- Currently includes `16` apps with `24` app slots reserved in the REU
+- Currently includes `17` apps with `24` app slots reserved in the REU
 
-## What's New In 0.2.1
+## What's New In 0.2.3
 
 - New `precog-easyflash` cartridge SKU for VICE and Ultimate-family setups.
   It boots from an EasyFlash `CRT`, keeps a companion `D64` on drive `8`, and
@@ -102,6 +102,8 @@ Boot note:
 - A small launcher progress-display bug was fixed in the normal load-all-to-REU
   path so the on-screen X/Y preload counter stays correct while the standard
   disk variants are filling app snapshots into the REU.
+- New `system info` app reports machine, ROM, video, REU, cartridge visibility,
+  Ultimate UCI status, and drive status for devices `8` through `11`.
 
 ## Release Variants
 
@@ -243,6 +245,7 @@ Real C64 versus emulator key forms:
 | 9 | `hexview` | hex viewer | Memory browser with PETSCII and screen-code views |
 | 9 | `clipmgr` | clipboard | Multi-item clipboard manager with preview and file import/export |
 | 9 | `reuviewer` | reu viewer | Visual 256-bank REU map |
+| 9 | `sysinfo` | system info | Read-only machine, REU, Ultimate, cartridge, and drive status |
 | 9 | `tasklist` | task list | Hierarchical outliner with notes, search, and file persistence |
 | 9 | `simplefiles` | simple files | Dual-pane file manager with copy, rename, delete, and SEQ previewing |
 | 9 | `simplecells` | simple cells (alpha) | Single-sheet spreadsheet with formulas, formatting, and save/load |
