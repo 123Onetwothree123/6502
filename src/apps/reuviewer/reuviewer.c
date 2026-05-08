@@ -29,10 +29,15 @@
 #define CHAR_CLIP   0x03  /* 'C' screen code */
 #define CHAR_ALLOC  0x15  /* 'U' screen code (user/alloc) */
 #define CHAR_RSVD   0x12  /* 'R' screen code (reserved app slot) */
+#define CHAR_LAUNCH 0x0C  /* 'L' screen code */
+#define CHAR_GLOBAL 0x07  /* 'G' screen code */
+#define CHAR_SKIP   0x18  /* 'X' screen code */
+#define CHAR_UNAV   0x2D  /* '-' screen code */
 #define CHAR_RSC    0x13  /* 'S' screen code */
 #define CHAR_RSD    0x04  /* 'D' screen code */
 
 #define SHIM_CURRENT_BANK ((unsigned char*)0xC834)
+#define REU_TEST_OFF 0xFFF0u
 
 /*---------------------------------------------------------------------------
  * Static variables
@@ -41,6 +46,7 @@
 static unsigned char running;
 static unsigned char cursor_x;  /* 0-15 in grid */
 static unsigned char cursor_y_pos;  /* 0-15 in grid */
+static unsigned int reu_physical_banks;
 
 typedef struct {
     unsigned char cursor_x;
@@ -49,6 +55,7 @@ typedef struct {
 
 static ReuViewerResumeV1 resume_blob;
 static unsigned char resume_ready;
+static unsigned char probe_value;
 
 static void resume_save_state(void) {
     if (!resume_ready) {
@@ -80,6 +87,48 @@ static unsigned char resume_restore_state(void) {
     return 1;
 }
 
+static void reu_stash_probe_byte(unsigned char bank, unsigned char value) {
+    probe_value = value;
+    reu_dma_stash((unsigned int)&probe_value, bank, REU_TEST_OFF, 1u);
+}
+
+static unsigned char reu_fetch_probe_byte(unsigned char bank) {
+    probe_value = 0u;
+    reu_dma_fetch((unsigned int)&probe_value, bank, REU_TEST_OFF, 1u);
+    return probe_value;
+}
+
+static unsigned int reu_detect_physical_banks(void) {
+    unsigned char base_bank;
+    unsigned char base_orig;
+    unsigned char cand_orig;
+    unsigned char got;
+    unsigned int bank;
+
+    base_bank = *SHIM_REU_BANK_SKIP;
+    base_orig = reu_fetch_probe_byte(base_bank);
+    reu_stash_probe_byte(base_bank, 0x5Au);
+
+    for (bank = (unsigned int)base_bank + 1u; bank < 256u; ++bank) {
+        cand_orig = reu_fetch_probe_byte((unsigned char)bank);
+        reu_stash_probe_byte((unsigned char)bank, 0xC3u);
+        got = reu_fetch_probe_byte(base_bank);
+        reu_stash_probe_byte((unsigned char)bank, cand_orig);
+        if (got == 0xC3u) {
+            reu_stash_probe_byte(base_bank, base_orig);
+            return (unsigned int)(bank - base_bank);
+        }
+    }
+
+    reu_stash_probe_byte(base_bank, base_orig);
+    return 256u;
+}
+
+static unsigned char bank_is_unavailable(unsigned char bank) {
+    return (unsigned char)(reu_physical_banks < 256u &&
+                           (unsigned int)bank >= reu_physical_banks);
+}
+
 /*---------------------------------------------------------------------------
  * Drawing
  *---------------------------------------------------------------------------*/
@@ -109,50 +158,38 @@ static void draw_summary(void) {
     rsd_count = reu_count_type(REU_RS_DEBUG);
     rs_count = (unsigned char)(rsc_count + rsd_count);
 
-    tui_puts(1, TITLE_Y + 1, "256 BANKS", TUI_COLOR_WHITE);
+    tui_puts(1, TITLE_Y + 1, "PHYS:", TUI_COLOR_WHITE);
+    tui_print_uint(6, TITLE_Y + 1, reu_physical_banks, TUI_COLOR_WHITE);
 
-    tui_puts(12, TITLE_Y + 1, "F:", TUI_COLOR_GRAY2);
-    tui_print_uint(14, TITLE_Y + 1, free_count, TUI_COLOR_GRAY2);
+    tui_puts(12, TITLE_Y + 1, "SK:", TUI_COLOR_ORANGE);
+    tui_print_uint(15, TITLE_Y + 1, *SHIM_REU_BANK_SKIP, TUI_COLOR_ORANGE);
 
-    tui_puts(19, TITLE_Y + 1, "A:", TUI_COLOR_CYAN);
-    tui_print_uint(21, TITLE_Y + 1, app_count, TUI_COLOR_CYAN);
+    tui_puts(20, TITLE_Y + 1, "F:", TUI_COLOR_GRAY2);
+    tui_print_uint(22, TITLE_Y + 1, free_count, TUI_COLOR_GRAY2);
 
-    tui_puts(25, TITLE_Y + 1, "C:", TUI_COLOR_YELLOW);
-    tui_print_uint(27, TITLE_Y + 1, clip_count, TUI_COLOR_YELLOW);
+    tui_puts(27, TITLE_Y + 1, "A:", TUI_COLOR_CYAN);
+    tui_print_uint(29, TITLE_Y + 1, app_count, TUI_COLOR_CYAN);
 
-    tui_puts(31, TITLE_Y + 1, "U:", TUI_COLOR_LIGHTGREEN);
-    tui_print_uint(33, TITLE_Y + 1, alloc_count, TUI_COLOR_LIGHTGREEN);
-
-    tui_puts(36, TITLE_Y + 1, "R:", TUI_COLOR_LIGHTRED);
-    tui_print_uint(38, TITLE_Y + 1, rsv_count, TUI_COLOR_LIGHTRED);
+    tui_puts(34, TITLE_Y + 1, "U:", TUI_COLOR_LIGHTGREEN);
+    tui_print_uint(36, TITLE_Y + 1, alloc_count, TUI_COLOR_LIGHTGREEN);
 
     tui_clear_line(TITLE_Y + 2, 0, 40, TUI_COLOR_WHITE);
     tui_puts(1, TITLE_Y + 2, "RS:", TUI_COLOR_GRAY2);
     tui_print_uint(4, TITLE_Y + 2, rs_count, TUI_COLOR_WHITE);
-    tui_puts(8, TITLE_Y + 2, "S:", TUI_COLOR_LIGHTBLUE);
-    tui_print_uint(10, TITLE_Y + 2, rsc_count, TUI_COLOR_LIGHTBLUE);
-    tui_puts(16, TITLE_Y + 2, "D:", TUI_COLOR_ORANGE);
-    tui_print_uint(18, TITLE_Y + 2, rsd_count, TUI_COLOR_ORANGE);
+    tui_puts(8, TITLE_Y + 2, "R:", TUI_COLOR_LIGHTRED);
+    tui_print_uint(10, TITLE_Y + 2, rsv_count, TUI_COLOR_LIGHTRED);
+    tui_puts(15, TITLE_Y + 2, "C:", TUI_COLOR_YELLOW);
+    tui_print_uint(17, TITLE_Y + 2, clip_count, TUI_COLOR_YELLOW);
+    tui_puts(22, TITLE_Y + 2, "S:", TUI_COLOR_LIGHTBLUE);
+    tui_print_uint(24, TITLE_Y + 2, rsc_count, TUI_COLOR_LIGHTBLUE);
+    tui_puts(29, TITLE_Y + 2, "D:", TUI_COLOR_ORANGE);
+    tui_print_uint(31, TITLE_Y + 2, rsd_count, TUI_COLOR_ORANGE);
 }
 
 static void draw_legend(void) {
     tui_clear_line(3, 0, 40, TUI_COLOR_GRAY3);
 
-    tui_putc(0, 3, CHAR_FREE, TUI_COLOR_GRAY2);
-    tui_puts(1, 3, "F", TUI_COLOR_GRAY3);
-    tui_putc(4, 3, CHAR_APP, TUI_COLOR_CYAN);
-    tui_puts(5, 3, "A", TUI_COLOR_GRAY3);
-    tui_putc(8, 3, CHAR_CLIP, TUI_COLOR_YELLOW);
-    tui_puts(9, 3, "C", TUI_COLOR_GRAY3);
-    tui_putc(12, 3, CHAR_ALLOC, TUI_COLOR_LIGHTGREEN);
-    tui_puts(13, 3, "U", TUI_COLOR_GRAY3);
-    tui_putc(16, 3, CHAR_RSVD, TUI_COLOR_LIGHTRED);
-    tui_puts(17, 3, "R", TUI_COLOR_GRAY3);
-    tui_putc(20, 3, CHAR_RSC, TUI_COLOR_LIGHTBLUE);
-    tui_puts(21, 3, "S", TUI_COLOR_GRAY3);
-    tui_putc(24, 3, CHAR_RSD, TUI_COLOR_ORANGE);
-    tui_puts(25, 3, "D", TUI_COLOR_GRAY3);
-    tui_puts(36, 3, "RS", TUI_COLOR_GRAY3);
+    tui_puts(0, 3, ".F A C U R L G X - S D", TUI_COLOR_GRAY3);
 }
 
 static void draw_grid(void) {
@@ -182,10 +219,14 @@ static void draw_grid(void) {
 
         for (col = 0; col < GRID_COLS; ++col) {
             bank = row * 16 + col;
-            type = reu_bank_type(bank);
             screen_x = 4 + col * 2;
 
-            switch (type) {
+            if (bank_is_unavailable(bank)) {
+                ch = CHAR_UNAV;
+                color = TUI_COLOR_GRAY3;
+            } else {
+                type = reu_bank_type(bank);
+                switch (type) {
                 case REU_APP_STATE:
                     ch = CHAR_APP;
                     color = TUI_COLOR_CYAN;
@@ -202,6 +243,18 @@ static void draw_grid(void) {
                     ch = CHAR_RSVD;
                     color = TUI_COLOR_LIGHTRED;
                     break;
+                case REU_LAUNCHER:
+                    ch = CHAR_LAUNCH;
+                    color = TUI_COLOR_WHITE;
+                    break;
+                case REU_GLOBAL:
+                    ch = CHAR_GLOBAL;
+                    color = TUI_COLOR_YELLOW;
+                    break;
+                case REU_SKIPPED:
+                    ch = CHAR_SKIP;
+                    color = TUI_COLOR_ORANGE;
+                    break;
                 case REU_RS_CACHE:
                     ch = CHAR_RSC;
                     color = TUI_COLOR_LIGHTBLUE;
@@ -214,6 +267,7 @@ static void draw_grid(void) {
                     ch = CHAR_FREE;
                     color = TUI_COLOR_GRAY2;
                     break;
+                }
             }
 
             offset = (unsigned int)screen_y * 40 + screen_x;
@@ -232,16 +286,17 @@ static void draw_grid(void) {
 
 static void draw_detail(void) {
     unsigned char bank;
+    unsigned char logical;
     unsigned char type;
     const char *type_str;
 
     bank = cursor_y_pos * 16 + cursor_x;
-    type = reu_bank_type(bank);
+    type = bank_is_unavailable(bank) ? REU_UNAVAIL : reu_bank_type(bank);
 
     tui_clear_line(DETAIL_Y, 0, 40, TUI_COLOR_WHITE);
     tui_clear_line(DETAIL_Y + 1, 0, 40, TUI_COLOR_WHITE);
 
-    tui_puts(1, DETAIL_Y, "BANK ", TUI_COLOR_WHITE);
+    tui_puts(1, DETAIL_Y, "PHYS ", TUI_COLOR_WHITE);
     tui_print_hex8(6, DETAIL_Y, bank, TUI_COLOR_CYAN);
 
     tui_puts(12, DETAIL_Y, "TYPE: ", TUI_COLOR_WHITE);
@@ -252,15 +307,27 @@ static void draw_detail(void) {
         case REU_CLIPBOARD: type_str = "CLIPBOARD"; break;
         case REU_APP_ALLOC: type_str = "APP ALLOC"; break;
         case REU_RESERVED:  type_str = "APP SLOT RSV"; break;
+        case REU_LAUNCHER:  type_str = "LAUNCHER"; break;
+        case REU_GLOBAL:    type_str = "READYOS GLOBAL"; break;
+        case REU_SKIPPED:   type_str = "SKIPPED"; break;
+        case REU_UNAVAIL:   type_str = "UNAVAILABLE"; break;
         case REU_RS_CACHE:  type_str = "RS CACHE"; break;
         case REU_RS_DEBUG:  type_str = "RS DEBUG/PROBE"; break;
         default:            type_str = "UNKNOWN"; break;
     }
     tui_puts(18, DETAIL_Y, type_str, TUI_COLOR_YELLOW);
 
-    /* Show bank number in decimal too */
-    tui_puts(1, DETAIL_Y + 1, "DECIMAL: ", TUI_COLOR_GRAY3);
-    tui_print_uint(10, DETAIL_Y + 1, bank, TUI_COLOR_WHITE);
+    tui_puts(1, DETAIL_Y + 1, "DEC: ", TUI_COLOR_GRAY3);
+    tui_print_uint(6, DETAIL_Y + 1, bank, TUI_COLOR_WHITE);
+    tui_puts(12, DETAIL_Y + 1, "LOG: ", TUI_COLOR_GRAY3);
+    if (!bank_is_unavailable(bank) &&
+        bank >= (unsigned char)(*SHIM_REU_BANK_SKIP + 1u) &&
+        bank <= (unsigned char)(*SHIM_REU_BANK_SKIP + 24u)) {
+        logical = (unsigned char)(bank - *SHIM_REU_BANK_SKIP - 1u);
+        tui_print_hex8(17, DETAIL_Y + 1, logical, TUI_COLOR_CYAN);
+    } else {
+        tui_puts(17, DETAIL_Y + 1, "--", TUI_COLOR_GRAY3);
+    }
 }
 
 static void draw_help(void) {
@@ -272,7 +339,8 @@ static void draw_status(void) {
     unsigned char free_count = reu_count_free();
     tui_puts_n(0, STATUS_Y, "FREE: ", 6, TUI_COLOR_GRAY3);
     tui_print_uint(6, STATUS_Y, free_count, TUI_COLOR_WHITE);
-    tui_puts(10, STATUS_Y, "/ 256 BANKS", TUI_COLOR_GRAY3);
+    tui_puts(10, STATUS_Y, "/ PHYS ", TUI_COLOR_GRAY3);
+    tui_print_uint(17, STATUS_Y, reu_physical_banks, TUI_COLOR_GRAY3);
 }
 
 static void reuviewer_draw(void) {
@@ -363,6 +431,7 @@ int main(void) {
 
     tui_init();
     reu_mgr_init();
+    reu_physical_banks = reu_detect_physical_banks();
 
     resume_ready = 0;
     bank = *SHIM_CURRENT_BANK;
