@@ -3,7 +3,7 @@
 
 const char *const readme_page_line_text[README_PAGE_COUNT][README_LINES_PER_PAGE] = {
     {
-        "ReadyOS PRECOG 0.2.3",
+        "ReadyOS PRECOG 0.2.4",
         "",
         "The goal is ~Bfast app switching~B for",
         "Commodore 64 Ultimate use,",
@@ -12,7 +12,7 @@ const char *const readme_page_line_text[README_PAGE_COUNT][README_LINES_PER_PAGE
         "C64-class practical.",
         "",
         "Current snapshot:",
-        "* Base release: ~B0.2.3~B",
+        "* Base release: ~B0.2.4~B",
         "* Runtime target: clean behavior from",
         "  stock-speed C64 use up through",
         "Ultimate turbo workflows",
@@ -23,8 +23,8 @@ const char *const readme_page_line_text[README_PAGE_COUNT][README_LINES_PER_PAGE
         "instructions for the selected build",
     },
     {
-        "* Release-candidate artifacts use the",
-        "  plain ~B0.2.3~B version stamp.",
+        "* Development artifacts use the plain",
+        "  ~B0.2.4~B version stamp.",
         "Local development builds may still",
         "include an internal trailing letter.",
         "* New since 0.1.5: ~Bquicknotes~B, ~Bsimple~B",

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.4
+
+### Development Line
+
+- Started the `0.2.4` development line from the `0.2.3` release-candidate
+  baseline.
+
 ## 0.2.3
 
 ### Release Packaging, System Info, Cartridge, THEC64 Staging
