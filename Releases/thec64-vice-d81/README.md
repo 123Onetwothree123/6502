@@ -4,8 +4,8 @@ This folder is an experimental THEC64 Mini/Maxi staging copy for compatibility t
 
 Files:
 
-- `readyos-v0.2.3-d81_M6TPRM.d81`
-- `readyos-v0.2.3-d81_M6TPRM.cjm`
+- `readyos-v0.2.4-d81_M6TPRM.d81`
+- `readyos-v0.2.4-d81_M6TPRM.cjm`
 
 The filename flags request C64, PAL, and 16 MB REU:
 
