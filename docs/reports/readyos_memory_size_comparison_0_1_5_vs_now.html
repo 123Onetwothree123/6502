@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ReadyOS Memory/Size Comparison (0.1.5 vs 0.1.8)</title>
+  <title>ReadyOS Memory/Size Comparison (0.1.5 vs 0.2.4)</title>
   <style>
     :root {
       --bg: #f4f7fb;
@@ -82,10 +82,10 @@
 </head>
 <body>
 <header>
-  <h1>ReadyOS Memory/Size Comparison: 0.1.5 vs 0.1.8</h1>
+  <h1>ReadyOS Memory/Size Comparison: 0.1.5 vs 0.2.4</h1>
   <p>
     Comparative artifact report for the old 0.1.5-era baseline versus the
-    current 0.1.8 runtime. The numeric tables below remain artifact-driven, but
+    current 0.2.4 runtime. The numeric tables below remain artifact-driven, but
     they now distinguish between the old comparable subset and the current-only
     apps that were added after that baseline. Architectural notes in this
     report have also been updated to match the current launcher + shim + REU
@@ -133,7 +133,7 @@
   </section>
 
   <section>
-    <h2>Current 0.1.8 Memory Contract Notes</h2>
+    <h2>Current 0.2.4 Memory Contract Notes</h2>
     <ul>
       <li>App runtime window: <code>0x1000-0xC5FF</code> (46592 bytes).</li>
       <li>REU metadata/system RAM: <code>0xC600-0xC7FF</code>.</li>
@@ -143,7 +143,7 @@
       <li>Clipboard metadata lives in RAM; active clipboard payloads allocate one dynamic REU bank per item rather than using one packed shared bank.</li>
       <li>Bitmap-tracked namespace: logical banks <code>0-23</code>; logical apps <code>1-23</code> map to physical <code>Start+3..Start+25</code>.</li>
       <li>Dynamic allocator start: physical <code>Start+26</code>.</li>
-      <li>ReadyShell shared cache banks: <code>0x40</code> for overlays 1, 2, 3, and 5; <code>0x41</code> for overlays 4, 6, 7, and 8.</li>
+      <li>ReadyShell shared cache banks: <code>0x40</code> for overlays 1, 2, 3, and 5; <code>0x41</code> for overlays 4, 6, 7, and 8; <code>0x42</code> for overlay 9 (<code>rsedit.prg</code> prompt editor).</li>
       <li>ReadyShell REU debug bank: <code>0x43</code>.</li>
       <li>ReadyShell scratch/registry/value bank: <code>0x48</code>.</li>
       <li>Shipped media is profile-driven: <code>cfg/profiles/*.ini</code> generates the selected profile’s <code>apps.cfg</code> on drive <code>8</code>.</li>
@@ -235,10 +235,11 @@
       <code>$3B00</code>.
     </div>
     <div class="note">
-      <strong>Current ReadyShell loading model:</strong> overlays <code>1-2</code>
-      use fixed REU cache banks <code>0x40</code> and <code>0x41</code>; command-only overlays are
-      disk-loaded by default when not cached; the command registry and value arena live in bank
-      <code>0x48</code>.
+      <strong>Current ReadyShell loading model:</strong> overlays <code>1-8</code>
+      use fixed REU cache banks <code>0x40</code> and <code>0x41</code>; overlay
+      <code>9</code> (<code>rsedit.prg</code>) uses cache bank <code>0x42</code>.
+      Command-only overlays are disk-loaded by default when not cached; the
+      command registry and value arena live in bank <code>0x48</code>.
     </div>
     <ul>
       <li>launcher catalog is generated from the selected <code>cfg/profiles/*.ini</code> catalog to <code>apps.cfg</code> on drive <code>8</code></li>
@@ -251,7 +252,8 @@
   <footer>
     Current columns and current-only app rows were rechecked from the present
     tree on April 12, 2026. Architecture notes and labels have been synced to
-    the current ReadyOS 0.1.8 runtime reality.
+    the current ReadyOS 0.2.4 runtime reality, including the ReadyShell editor
+    overlay cache.
   </footer>
 </main>
 </body>

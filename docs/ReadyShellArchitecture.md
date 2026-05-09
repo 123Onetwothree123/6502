@@ -13,23 +13,29 @@ operator `|`.
 
 ## 1. End-To-End Shape
 
-ReadyShell is an overlayed C64 app with four main layers:
+ReadyShell is an overlayed C64 app with five main layers:
 
 1. Resident shell/runtime code
-2. Parse overlay
-3. Execution-core overlay
-4. External command overlays
+2. Prompt editor overlay
+3. Parse overlay
+4. Execution-core overlay
+5. External command overlays
 
 At runtime, the resident app owns the shell loop, prompt state, REPL state,
 resume hooks, and overlay orchestration. Parsing and most execution logic still
-run through the shared overlay window, but the current implementation now
-preloads all eight overlays into fixed REU cache slots during shell startup.
+run through the shared overlay window. The prompt editor also lives in that
+window now: overlay 9 is active only while ReadyShell is waiting for input, then
+parser, VM, or command overlays replace it. The current implementation preloads
+all nine overlays into fixed REU cache slots during shell startup.
 
 ```text
 user types line
     |
     v
 resident shell loop
+    |
+    +--> restore prompt editor overlay from REU
+    |       edit/read logical command line
     |
     +--> restore parser overlay from REU if needed
     |       parse source -> AST / runtime structures
@@ -47,8 +53,9 @@ resident shell loop
 ```
 
 Normal command execution no longer reloads overlays `3-8` from disk on each
-call. Disk loading is now the boot preload path and the safety fallback if a
-cache slot or metadata record is invalid.
+call, and normal prompt entry no longer keeps the editor resident. Disk loading
+is now the boot preload path and the safety fallback if a cache slot or metadata
+record is invalid.
 
 ## 2. Runtime Memory Model
 
@@ -59,8 +66,8 @@ Current release build layout:
 | Resident app window | `$1000-$C5FF` | ReadyShell-owned app RAM |
 | Overlay load bytes | `$8DFE-$8DFF` | PRG load-address bytes for overlay sidecars |
 | Overlay execution window | `$8E00-$C5FF` | Shared live window for whichever overlay is active |
-| Resident BSS | `$870C-$8902` | Resident writable state below overlays |
-| Resident heap | `$8904-$8DFD` | cc65 heap below overlay load address |
+| Resident BSS | `$8340-$8536` | Resident writable state below overlays |
+| Resident heap | `$8538-$8DFD` | cc65 heap below overlay load address |
 | High runtime area | `$CA00-$CFFF` | ReadyShell runtime state outside app snapshot |
 
 Important constraints:
@@ -85,6 +92,7 @@ Current overlays:
 | 6 | `rsfops.prg` | `DEL`, `REN`, `PUT`, `ADD` | boot-preloaded, cached in bank `0x41` |
 | 7 | `rscat.prg` | `CAT` | boot-preloaded, cached in bank `0x41` |
 | 8 | `rscopy.prg` | `COPY` | boot-preloaded, cached in bank `0x41` |
+| 9 | `rsedit.prg` | prompt drawing, cursor/edit keys, backtick continuation | boot-preloaded, cached in bank `0x42` |
 
 Fixed REU slot layout:
 
@@ -102,6 +110,10 @@ bank 0x41
   overlay 7  rscat      $417000-$41A7FF
   overlay 8  rscopy     $41A800-$41DFFF
   free tail             $41E000-$41FFFF
+
+bank 0x42
+  overlay 9  rsedit     $420000-$4237FF
+  free space            $423800-$42FFFF
 ```
 
 Each slot stores the full `0x3800` overlay window, not just the PRG payload
@@ -288,6 +300,10 @@ bank 0x40
 bank 0x41
   overlays 4, 6, 7, 8
   free tail: 8192 bytes
+
+bank 0x42
+  overlay 9
+  free space after slot: 51200 bytes
 ```
 
 Important detail:
@@ -318,6 +334,7 @@ the REU-backed value arena all live there at fixed addresses.
 
 - Resident code owns the shell loop, overlay boot/load/restore logic, generic
   external command dispatch, screen/platform glue, and REU coordination.
+- Overlay 9 owns the interactive prompt editor while waiting for input.
 - Overlay 1 owns lexing, parsing, parse support, and cleanup.
 - Overlay 2 owns runtime values, variables, formatting, pipes, command lookup,
   capability classification, and shared execution helpers.
@@ -326,10 +343,11 @@ the REU-backed value arena all live there at fixed addresses.
 
 ## 10. Current Constraints
 
-- Resident heap below the overlay load address is `1274` bytes.
-- `OVERLAY2` is still the tightest overlay and remains the next likely growth
-  bottleneck.
-- The fixed cache layout leaves `8192` bytes free at the tail of bank `0x40`
-  and another `8192` bytes free at the tail of bank `0x41`.
+- Resident heap below the overlay load address is `2246` bytes.
+- `OVERLAY6` is currently the tightest overlay, with only `3` bytes left in the
+  `$3800` live window.
+- The fixed cache layout leaves `8192` bytes free at the tail of bank `0x40`,
+  `8192` bytes free at the tail of bank `0x41`, and most of bank `0x42` free
+  after the small prompt-editor slot.
 - External commands now pay a one-time startup preload cost instead of repeated
   disk loads during each command call.

@@ -7,7 +7,7 @@ Artifact-backed report generated from the current local ReadyShell build, linker
 - Profile / disk source: `precog-d81` using `releases/0.2.4/precog-d81/readyos-v0.2.4z-d81.d81` (disk label `readyosd81`, `678` blocks free).
 - Resident ReadyShell PRG: `readyshell.prg` on disk as `readyshell`, `29505` bytes and `117` D71 blocks.
 - Overlay execution window: `$8E00-$C5FF` for `14336` bytes, with PRG load-address bytes at `$8DFE-$8DFF`.
-- Resident BSS / heap below overlays: BSS `$833F-$8535` (`503` bytes), heap `$8536-$8DFD` (`2248` bytes).
+- Resident BSS / heap below overlays: BSS `$8340-$8536` (`503` bytes), heap `$8538-$8DFD` (`2246` bytes).
 - High RAM runtime region outside the app window: `$CA00-$CFFF`.
 - REU policy split:
   - overlays 1-9 are boot-loaded during shell startup and cached into fixed full-window REU slots
@@ -21,8 +21,8 @@ Artifact-backed report generated from the current local ReadyShell build, linker
 | Resident app window | `$1000-$C5FF` | `46592` | ReadyOS app-owned RAM window for ReadyShell. |
 | Overlay load address bytes | `$8DFE-$8DFF` | `2` | PRG load address emitted ahead of each overlay sidecar file. |
 | Overlay execution window | `$8E00-$C5FF` | `14336` | Shared live area for whichever overlay is active. |
-| Resident BSS | `$833F-$8535` | `503` | Resident writable data below the overlay load address. |
-| Resident heap | `$8536-$8DFD` | `2248` | cc65 heap carved below the overlay load address. |
+| Resident BSS | `$8340-$8536` | `503` | Resident writable data below the overlay load address. |
+| Resident heap | `$8538-$8DFD` | `2246` | cc65 heap carved below the overlay load address. |
 | High-RAM runtime | `$CA00-$CFFF` | `1536` | Fixed ReadyShell runtime state outside the app snapshot window. |
 
 ## REU Layout And Loading Model
@@ -335,7 +335,7 @@ Resident ReadyShell dispatcher
 
 - Overlay 2 is effectively full: `14033` of `14336` bytes (`97.9%`).
 - Overlay 1 is also large at `13005` bytes (`90.7%`).
-- The resident heap below the overlay load address is only `2248` bytes, so large transient work must lean on overlays and REU-backed storage.
+- The resident heap below the overlay load address is only `2246` bytes, so large transient work must lean on overlays and REU-backed storage.
 - ReadyShell now uses three fixed REU cache banks: `0x40` for overlays `1`, `2`, `3`, and `5`; `0x41` for overlays `4`, `6`, `7`, and `8`; and `0x42` for overlay `9`.
 - Bank `0x40` leaves `8192` bytes free; bank `0x41` leaves `8192` bytes free; bank `0x42` leaves `51200` bytes free.
 - External commands now pay a one-time boot preload cost instead of a repeated disk-load cost during each command call.

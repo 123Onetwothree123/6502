@@ -171,16 +171,19 @@
   <section>
     <h2>System Shape</h2>
     <p>
-      ReadyShell is an overlayed C64 app with resident control code, a parse
-      overlay, an execution-core overlay, and external command overlays. The
-      resident shell owns orchestration; parsing and most execution live in the
-      shared overlay window, and all eight overlays are preloaded into fixed REU
-      slots during shell startup.
+      ReadyShell is an overlayed C64 app with resident control code, a prompt
+      editor overlay, a parse overlay, an execution-core overlay, and external
+      command overlays. The resident shell owns orchestration; prompt editing,
+      parsing, and most execution live in the shared overlay window, and all
+      nine overlays are preloaded into fixed REU slots during shell startup.
     </p>
     <pre>user types line
     |
     v
 resident shell loop
+    |
+    +--&gt; restore prompt editor overlay from REU
+    |       edit/read logical command line
     |
     +--&gt; restore parser overlay from REU if needed
     |       parse source -&gt; AST / runtime structures
@@ -211,8 +214,8 @@ resident shell loop
           <tr><td>Resident app window</td><td><code>$1000-$C5FF</code></td><td>ReadyShell-owned app RAM</td></tr>
           <tr><td>Overlay load bytes</td><td><code>$8DFE-$8DFF</code></td><td>Overlay PRG load-address bytes</td></tr>
           <tr><td>Overlay execution window</td><td><code>$8E00-$C5FF</code></td><td>Shared live overlay window</td></tr>
-          <tr><td>Resident BSS</td><td><code>$870C-$8902</code></td><td>Resident writable state</td></tr>
-          <tr><td>Resident heap</td><td><code>$8904-$8DFD</code></td><td>cc65 heap below overlay load</td></tr>
+          <tr><td>Resident BSS</td><td><code>$8340-$8536</code></td><td>Resident writable state</td></tr>
+          <tr><td>Resident heap</td><td><code>$8538-$8DFD</code></td><td>cc65 heap below overlay load</td></tr>
           <tr><td>High runtime area</td><td><code>$CA00-$CFFF</code></td><td>Resident runtime state outside app snapshot</td></tr>
         </tbody>
       </table>
@@ -236,6 +239,7 @@ resident shell loop
           <tr><td>6</td><td><code>rsfops.prg</code></td><td><code>DEL</code>, <code>REN</code>, <code>PUT</code>, <code>ADD</code></td><td>boot-preloaded, bank <code>0x41</code></td></tr>
           <tr><td>7</td><td><code>rscat.prg</code></td><td><code>CAT</code></td><td>boot-preloaded, bank <code>0x41</code></td></tr>
           <tr><td>8</td><td><code>rscopy.prg</code></td><td><code>COPY</code></td><td>boot-preloaded, bank <code>0x41</code></td></tr>
+          <tr><td>9</td><td><code>rsedit.prg</code></td><td>prompt editor, cursor/edit keys, continuation</td><td>boot-preloaded, bank <code>0x42</code></td></tr>
         </tbody>
       </table>
     </div>
@@ -401,7 +405,15 @@ bank 0x41
 | OVERLAY8 rscopy slot                   |
 +----------------------------------------+ $41E000
 | free tail (8192 bytes)                 |
-+----------------------------------------+ $41FFFF</pre>
++----------------------------------------+ $41FFFF
+
+bank 0x42
+
++----------------------------------------+ $420000
+| OVERLAY9 rsedit slot                   |
++----------------------------------------+ $423800
+| free space after editor slot           |
++----------------------------------------+ $42FFFF</pre>
       <p class="note">
         These are full-window snapshots, not just file payloads, so writable
         overlay data survives switching.
@@ -426,6 +438,7 @@ bank 0x48
     <h2>Responsibilities</h2>
     <ul>
       <li>Resident code owns the shell loop, overlay boot/load/restore logic, generic external command dispatch, screen/platform glue, and REU coordination.</li>
+      <li>Overlay 9 owns the interactive prompt editor while waiting for input.</li>
       <li>Overlay 1 owns lexing, parsing, parse support, and cleanup.</li>
       <li>Overlay 2 owns runtime values, variables, formatting, pipes, command lookup, capability classification, and shared execution helpers.</li>
       <li>Command overlays own command-specific disk logic, serialization logic, and overlay-local dispatchers.</li>
@@ -435,9 +448,9 @@ bank 0x48
   <section>
     <h2>Current Constraints</h2>
     <ul>
-      <li>Resident heap below the overlay load address is <code>1274</code> bytes.</li>
-      <li><code>OVERLAY2</code> is still the tightest overlay and remains the next likely growth bottleneck.</li>
-      <li>Each fixed cache bank leaves <code>8192</code> bytes of free tail after the current slot layout.</li>
+      <li>Resident heap below the overlay load address is <code>2246</code> bytes.</li>
+      <li><code>OVERLAY6</code> is currently the tightest overlay, with only <code>3</code> bytes left in the <code>$3800</code> live window.</li>
+      <li>Cache banks <code>0x40</code> and <code>0x41</code> each leave <code>8192</code> bytes of free tail; bank <code>0x42</code> holds the small prompt editor overlay and remains mostly free.</li>
       <li>External commands now pay a one-time startup preload cost instead of repeated disk loads during each command call.</li>
     </ul>
   </section>
