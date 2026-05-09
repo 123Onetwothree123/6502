@@ -9,7 +9,9 @@ Primary runtime capture source:
 - Screen buffer: `$0400-$07E7`
 - Boot preload markers: `$C007-$C00C`
 - Shim data: `$C820-$C83F`
-- Shim debug ring: `$C980-$C99F`
+- Historical shim debug ring storage: `$C980-$C99F`; overlaps current
+  `$C960-$C99F` logical REU setup code and must not be treated as active
+  persistent debug storage.
 - ReadyShell RAM ring: `$C7A0-$C7DF` with head at `$C7F0`
 - REU registers: `$DF00-$DF08`
 - ReadyShell overlay window base:
@@ -20,7 +22,8 @@ Primary runtime capture source:
 - ReadyShell REU ring head: `0x43F000`
 - ReadyShell REU ring payload: `0x43F010`, length `0x0200`
 - Overlay cache previews: `0x400000`, `0x410000`
-- Fixed ReadyShell-owned REU banks: `0x40`, `0x41`, `0x43` (parser cache, VM cache, debug/probe)
+- Fixed ReadyShell-owned REU banks: `0x40`, `0x41`, `0x43`, `0x48`
+  (overlay caches, debug/probe, scratch/registry/value arena)
 
 ## Existing probes/tools
 - `tools/vice_readyshell_automation.py` (captures manifest/trace/state)

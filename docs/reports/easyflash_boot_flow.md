@@ -427,11 +427,15 @@ This is also the reason you may briefly see text/color flashes late in boot:
 - then KERNAL text-mode init clears/changes it very quickly,
 - and then the launcher appears.
 
+## Current REU Physical Placement
+
+`Start` means physical REU bank `READYOS_REU_BANK_SKIP`. `Start+0` is system/global, `Start+1` is launcher logical bank `0`, `Start+2` is reserved for future launcher overlays, logical app bank `N` maps to `Start+2+N`, and dynamic allocation begins at `Start+26`.
+
 ## Stage 13: Restore Launcher Snapshot and Handoff
 
 At the end of boot:
 
-1. The loader fetches REU bank `0` back into `$1000-$C5FF`.
+1. The loader fetches logical launcher bank `0` (physical `Start+1`) back into `$1000-$C5FF`.
 2. It disables unwanted interrupt sources.
 3. It jumps to `$1000`.
 

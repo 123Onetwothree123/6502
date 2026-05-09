@@ -212,6 +212,14 @@
         On screen, this SKU now identifies itself during boot as <code>precog cartridge (beta)</code>. The release
         folder and artifact names still remain <code>precog-easyflash</code>.
       </div>
+
+      <div class="note">
+        <strong>ReadyOS REU physical placement:</strong> <code>Start</code> is
+        <code>READYOS_REU_BANK_SKIP</code>. <code>Start+0</code> is system/global,
+        <code>Start+1</code> is launcher logical bank 0, <code>Start+2</code> is
+        reserved for future launcher overlays, app logical bank <code>N</code> maps
+        to <code>Start+2+N</code>, and dynamic allocation begins at <code>Start+26</code>.
+      </div>
     </section>
 
     <section>
@@ -222,8 +230,8 @@
         </thead>
         <tbody>
           <tr><td><code>0</code></td><td>Boot bank</td><td>ROMH stub starts here and pulls in the main loader</td></tr>
-          <tr><td><code>1-2</code></td><td>Launcher payload</td><td>Copied to <code>$1000</code>, then stashed to REU bank 0</td></tr>
-          <tr><td><code>3-34</code></td><td>16 application payloads</td><td>Copied one at a time to RAM, then snapshotted to REU banks 1-16</td></tr>
+          <tr><td><code>1-2</code></td><td>Launcher payload</td><td>Copied to <code>$1000</code>, then stashed to logical launcher bank <code>0</code> (physical <code>Start+1</code>)</td></tr>
+          <tr><td><code>3-34</code></td><td>16 application payloads</td><td>Copied one at a time to RAM, then snapshotted to logical app banks 1-16 (physical <code>Start+3..Start+18</code>)</td></tr>
           <tr><td><code>35-42</code></td><td>8 ReadyShell overlays</td><td>Staged through RAM, then stashed to REU banks 64 and 65 at fixed offsets</td></tr>
           <tr><td><code>43-63</code></td><td>Unused</td><td>Free in the current image</td></tr>
         </tbody>
@@ -353,7 +361,7 @@ $C80F  switch app</pre>
         <div class="step">
           <h3>Stage 7: Preload launcher snapshot</h3>
           <p>The launcher payload is copied from cart banks <code>1-2</code> into RAM at <code>$1000</code>, then the
-          full app window <code>$1000-$C5FF</code> is stashed into REU bank <code>0</code>.</p>
+          full app window <code>$1000-$C5FF</code> is stashed into logical launcher bank <code>0</code> (physical <code>Start+1</code>).</p>
           <p>The key nuance is that the cart payload is much smaller than the REU snapshot. The system stores a full
           runtime RAM image shape, not just the raw on-cartridge bytes.</p>
           <p>The border switches to yellow for cart-to-RAM copy, then orange for the REU stash.</p>
@@ -362,7 +370,7 @@ $C80F  switch app</pre>
         <div class="step">
           <h3>Stage 8: Preload 16 application snapshots</h3>
           <p>For each app, the loader clears <code>$1000-$C5FF</code>, selects that app's cart bank, copies the app
-          payload into RAM, then stashes the full <code>$B600</code>-byte window to the assigned REU bank. It also marks
+          payload into RAM, then stashes the full <code>$B600</code>-byte window to the assigned logical app REU bank, which maps to physical <code>Start+2+N</code>. It also marks
           the app as present in the shim bitmap at <code>$C836-$C838</code>.</p>
           <p>During this loop, the border repeatedly alternates between yellow for cart reads and orange for REU stash work.</p>
         </div>
@@ -396,7 +404,7 @@ $C80F  switch app</pre>
 
         <div class="step">
           <h3>Stage 13: Restore launcher and hand off</h3>
-          <p>The loader fetches REU bank <code>0</code> back into <code>$1000-$C5FF</code> and finally jumps to
+          <p>The loader fetches logical launcher bank <code>0</code> (physical <code>Start+1</code>) back into <code>$1000-$C5FF</code> and finally jumps to
           <code>$1000</code>. That is the handoff from boot asm to the C launcher.</p>
           <p>The border switches to orange for the final restore, then light green for the last handoff into launcher code.</p>
         </div>
@@ -474,7 +482,7 @@ repeat until payload length is satisfied</pre>
 3. RAM loader preloads launcher, apps, and overlays from EasyFlash
 4. RAM loader stashes those runtime windows into REU snapshots
 5. Machine state is normalized for normal text-mode execution
-6. Launcher snapshot is restored from REU bank 0 into $1000-$C5FF
+6. Launcher snapshot is restored from logical bank 0 (physical Start+1) into $1000-$C5FF
 7. Control jumps to $1000 and the C launcher begins</pre>
       <div class="ok">
         The large cold-boot delay is the price paid to make later launches effectively instant.

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ReadyOS SHIM Architecture Report (0.2)</title>
+  <title>ReadyOS SHIM Architecture Report (0.2.4)</title>
   <style>
     :root {
       --bg: #0c141b;
@@ -206,16 +206,16 @@
 </head>
 <body>
   <header>
-    <h1>ReadyOS SHIM Architecture: 0.2 Runtime Reality</h1>
+    <h1>ReadyOS SHIM Architecture: 0.2.4 Runtime Reality</h1>
     <p class="sub">
-      Implementation-backed private report for the active launcher + shim + REU
+      Implementation-backed report for the active launcher + shim + REU
       model. This canonical report is intentionally fuller than the short
       summary docs: it keeps the resident-byte map, the annotated shim routine
       walkthrough, the profile-driven catalog/release context, and the
       ABI-vs-implementation nuances that are easy to lose in condensed
       summaries. This report preserves the previous local snapshot values and
-      adds the current map-backed values from the same public <span class="mono">0.2</span>
-      release line after the ReadyShell overlay normalization. Runtime debug
+      adds current <span class="mono">0.2.4</span> map-backed values after
+      the reserved launcher-overlay REU bank change. Runtime debug
       suffix letters are intentionally not used as documentation versions.
     </p>
   </header>
@@ -224,25 +224,39 @@
     <section>
       <h2>Executive Snapshot</h2>
       <div class="cards">
-        <div class="card"><div class="k">Release</div><div class="v mono">0.2 snapshot + current addenda</div></div>
+        <div class="card"><div class="k">Release</div><div class="v mono">0.2.4</div></div>
         <div class="card"><div class="k">SHIM Window</div><div class="v mono">$C800-$C9FF</div></div>
         <div class="card"><div class="k">SHIM Size</div><div class="v mono">512 bytes</div></div>
         <div class="card"><div class="k">App Window</div><div class="v mono">$1000-$C5FF</div></div>
         <div class="card"><div class="k">Snapshot Size</div><div class="v mono">$B600</div></div>
       </div>
       <div class="notice">
-        <strong>Important correction:</strong> in the current runtime, REU bank
-        <span class="mono">0</span> is launcher-owned. Shared system metadata
-        such as the allocation table, clipboard metadata, hotkey bindings, and
-        shim globals live in C64 RAM at <span class="mono">$C600-$C9FF</span>,
-        not inside REU bank <span class="mono">0</span>.
-      </div>
-      <div class="notice">
-        <strong>Current drift note:</strong> the measured BSS/headroom values
-        below now preserve the previous local snapshot and add current
-        <span class="mono">0.2</span> <span class="mono">obj/*.map</span>
-        values where ReadyShell,
-        Tasklist, SimpleCells, QuickNotes, and Simple Files moved.
+        <strong>What changed from 0.2.3 to 0.2.4:</strong>
+        <p>
+          ReadyOS has a physical REU start bank called <span class="mono">Start</span>
+          (<span class="mono">READYOS_REU_BANK_SKIP</span>). The fixed ReadyOS
+          region now uses the first three banks relative to that start point:
+          <span class="mono">Start+0</span> for system/global state,
+          <span class="mono">Start+1</span> for the launcher snapshot/resume bank,
+          and <span class="mono">Start+2</span> for the future launcher overlay bank.
+        </p>
+        <p>
+          Only after those three ReadyOS/launcher banks do the catalog app slots
+          begin. App-visible logical app slots are still numbered
+          <span class="mono">1..23</span>, but their physical backing starts at
+          <span class="mono">Start+3</span>: app slot <span class="mono">1</span>
+          is <span class="mono">Start+3</span>, app slot <span class="mono">2</span>
+          is <span class="mono">Start+4</span>, and app slot
+          <span class="mono">23</span> is <span class="mono">Start+25</span>.
+          Dynamic allocation begins after that at <span class="mono">Start+26</span>.
+        </p>
+        <p>
+          The shim now performs that mapping in <span class="mono">$C960-$C99F</span>
+          via <span class="mono">reu_setup_logical</span>. The old
+          <span class="mono">$C818</span>/<span class="mono">log_byte</span>
+          diagnostic path remains only as a legacy entry until its ring storage
+          moves away from active code bytes.
+        </p>
       </div>
     </section>
 
@@ -299,7 +313,7 @@
       <div class="layout">
         <div class="page">
           <h3 style="margin-top:0;">Page 1: <span class="mono">$C800-$C8FF</span></h3>
-          <div class="bar"><strong class="mono">$C800-$C81F</strong><br/>jump/helper entries including <span class="mono">$C818</span> log-byte helper jump</div>
+          <div class="bar"><strong class="mono">$C800-$C81F</strong><br/>jump/helper entries including legacy <span class="mono">$C818</span> log-byte helper jump</div>
           <div class="bar"><strong class="mono">$C820-$C83F</strong><br/>shim data ABI: target bank, filename, load end, current bank, last saved, bitmap bytes, storage drive, log index</div>
           <div class="bar"><strong class="mono">$C840-$C85F</strong><br/><span class="mono">load_disk</span></div>
           <div class="bar"><strong class="mono">$C860-$C87F</strong><br/><span class="mono">load_reu</span></div>
@@ -311,10 +325,10 @@
           <h3 style="margin-top:0;">Page 2: <span class="mono">$C900-$C9FF</span></h3>
           <div class="bar"><strong class="mono">$C900-$C93F</strong><br/><span class="mono">return_to_launcher</span></div>
           <div class="bar"><strong class="mono">$C940-$C95F</strong><br/><span class="mono">switch_app</span></div>
-          <div class="bar"><strong class="mono">$C960-$C99F</strong><br/><span class="mono">debug_log_step</span> + padding</div>
-          <div class="bar"><strong class="mono">$C9A0-$C9BF</strong><br/><span class="mono">reu_setup</span></div>
+          <div class="bar"><strong class="mono">$C960-$C99F</strong><br/><span class="mono">reu_setup_logical</span> maps logical to physical REU banks</div>
+          <div class="bar"><strong class="mono">$C9A0-$C9BF</strong><br/><span class="mono">reu_setup</span> direct physical-bank helper</div>
           <div class="bar"><strong class="mono">$C9C0-$C9DF</strong><br/><span class="mono">set_bitmap</span></div>
-          <div class="bar"><strong class="mono">$C9E0-$C9FF</strong><br/><span class="mono">log_byte</span> ring writer</div>
+          <div class="bar"><strong class="mono">$C9E0-$C9FF</strong><br/><span class="mono">log_byte</span> legacy helper; unsafe until ring moves</div>
         </div>
       </div>
 
@@ -328,11 +342,11 @@
               <tr><td class="mono">$C803</td><td>load REU + run</td><td>fetch snapshot image and jump to <span class="mono">$1000</span></td></tr>
               <tr><td class="mono">$C806</td><td>run app</td><td>direct jump to <span class="mono">$1000</span></td></tr>
               <tr><td class="mono">$C809</td><td>preload</td><td>load app to REU and return to launcher caller</td></tr>
-              <tr><td class="mono">$C80C</td><td>return to launcher</td><td>stash current app and restore bank <span class="mono">0</span></td></tr>
+              <tr><td class="mono">$C80C</td><td>return to launcher</td><td>stash current app and restore the launcher bank at <span class="mono">Start+1</span></td></tr>
               <tr><td class="mono">$C80F</td><td>switch app</td><td>stash current app and fetch target app</td></tr>
               <tr><td class="mono">$C812</td><td>reserved helper slot</td><td>currently a placeholder jump slot in the resident shim, not a live stash helper</td></tr>
               <tr><td class="mono">$C815</td><td>fetch helper</td><td>helper entry into REU fetch path</td></tr>
-              <tr><td class="mono">$C818</td><td>log-byte helper</td><td>helper entry into shim debug ring</td></tr>
+              <tr><td class="mono">$C818</td><td>legacy log-byte helper</td><td>retained ABI-shaped entry; unsafe until the ring moves away from active <span class="mono">$C980-$C99F</span> code bytes</td></tr>
             </tbody>
           </table>
         </div>
@@ -341,18 +355,19 @@
           <table>
             <thead><tr><th>Address</th><th>Field</th><th>Active use</th></tr></thead>
             <tbody>
-              <tr><td class="mono">$C820</td><td><span class="mono">target_bank</span></td><td>preload / switch / fetch target bank</td></tr>
+              <tr><td class="mono">$C820</td><td><span class="mono">target_bank</span></td><td>preload / switch / fetch target logical bank</td></tr>
               <tr><td class="mono">$C821</td><td><span class="mono">filename_len</span></td><td>launcher-written filename metadata</td></tr>
               <tr><td class="mono">$C822-$C823</td><td><span class="mono">app_size</span> scratch</td><td>launcher scratch / optional convenience field; resident shim does not read it</td></tr>
               <tr><td class="mono">$C824-$C82F</td><td><span class="mono">filename[12]</span></td><td>12-byte app token buffer for disk load paths</td></tr>
               <tr><td class="mono">$C830-$C831</td><td><span class="mono">load_end</span></td><td>actual KERNAL <span class="mono">LOAD</span> end address captured by preload</td></tr>
               <tr><td class="mono">$C832-$C833</td><td>unused</td><td>reserved padding</td></tr>
-              <tr><td class="mono">$C834</td><td><span class="mono">current_bank</span></td><td>read directly by apps and TUI helpers</td></tr>
+              <tr><td class="mono">$C834</td><td><span class="mono">current_bank</span></td><td>currently running logical bank; read directly by apps and TUI helpers</td></tr>
               <tr><td class="mono">$C835</td><td><span class="mono">last_saved</span></td><td>recovery hint for interrupted return path</td></tr>
-              <tr><td class="mono">$C836-$C838</td><td>bitmap lo/hi/xhi</td><td>loaded-state bits for banks <span class="mono">0-23</span></td></tr>
+              <tr><td class="mono">$C836-$C838</td><td>bitmap lo/hi/xhi</td><td>loaded-state bits for the launcher bank plus app slots <span class="mono">1..23</span></td></tr>
               <tr><td class="mono">$C839</td><td><span class="mono">storage_drive</span></td><td>shared file-dialog default drive</td></tr>
-              <tr><td class="mono">$C83A</td><td><span class="mono">log_index</span></td><td>head byte for shim-local ring at <span class="mono">$C980-$C99F</span></td></tr>
-              <tr><td class="mono">$C83B-$C83F</td><td>reserved</td><td>unused padding</td></tr>
+              <tr><td class="mono">$C83A</td><td><span class="mono">log_index</span></td><td>legacy ring head; <span class="mono">$C980-$C99F</span> is no longer safe ring storage</td></tr>
+              <tr><td class="mono">$C83B</td><td><span class="mono">reu_bank_skip</span></td><td>compiled physical REU bank offset for the ReadyOS region</td></tr>
+              <tr><td class="mono">$C83C-$C83F</td><td>reserved</td><td>unused padding</td></tr>
               <tr><td class="mono">$C84D</td><td>device immediate</td><td><span class="mono">load_disk</span> launcher-patched drive byte</td></tr>
               <tr><td class="mono">$C89C</td><td>device immediate</td><td><span class="mono">preload</span> launcher-patched drive byte</td></tr>
             </tbody>
@@ -370,186 +385,333 @@
     <section>
       <h2>Annotated Resident Shim Walkthrough</h2>
       <p class="small muted">
-        This is the full functional resident shim walkthrough: jump block, data
-        block, and every live routine. Padding bytes are omitted, but no active
-        resident behavior is skipped.
+        This is a complete report-local annotation of the resident shim byte image.
+        The comments here use the clearer 0.2.4 Start-relative terminology; the
+        emitted byte sequence is checked against <span class="mono">src/boot/readyos_shim.inc</span>
+        and still covers the jump table, every data ABI byte, all live routines,
+        and all padding bytes in the 512-byte <span class="mono">$C800-$C9FF</span> image.
       </p>
-      <pre class="mono">; ------------------------------------------------------------
-; Jump / helper block at $C800-$C81F
-; ------------------------------------------------------------
-$C800: JMP $C840   ; load_disk: disk LOAD then jump to $1000
-$C803: JMP $C860   ; load_reu: fetch from target bank then jump to $1000
-$C806: JMP $1000   ; run current image directly
-$C809: JMP $C880   ; preload: stash launcher, load app, stash app, restore launcher
-$C80C: JMP $C900   ; return_to_launcher
-$C80F: JMP $C940   ; switch_app
-$C812: JMP $C8C0   ; reserved placeholder slot in current shim image
-$C815: JMP $C8F0   ; fetch_bank helper
-$C818: JMP $C9E0   ; log_byte helper
+      <pre class="mono">;-----------------------------------------------------------------------------
+; Shared ReadyOS shim image ($C800-$C9FF, 512 bytes)
+; This file is the canonical shim byte layout used by both the disk boot path
+; and the EasyFlash cartridge flavor. Keep it identical across all variants.
+;-----------------------------------------------------------------------------
 
-; ------------------------------------------------------------
-; Data ABI at $C820-$C83F
-; ------------------------------------------------------------
-$C820: target_bank
-$C821: filename_len
-$C822-$C823: launcher scratch / optional app_size convenience (ignored by resident shim)
-$C824-$C82F: filename[12]
-$C830-$C831: load_end (captured from KERNAL LOAD X/Y)
-$C834: current_bank
-$C835: last_saved
-$C836-$C838: reu_bitmap low/high/xhi
-$C839: storage_drive
-$C83A: log_index
-$C83B-$C83F: reserved
+;-----------------------------------------------------------------------------
+; Page 1: $C800-$C8FF - Jump table, data, and helper routines
+;-----------------------------------------------------------------------------
 
-; ------------------------------------------------------------
-; load_disk at $C840-$C85F
-; ------------------------------------------------------------
-$C840: LDA $C821             ; filename length
-$C843: LDX #$24 / LDY #$C8   ; filename buffer at $C824
-$C848: JSR $FFBD             ; SETNAM
-$C84B: LDA #$00
-$C84D: LDX #$08              ; patched device immediate
-$C84F: LDY #$01
-$C851: JSR $FFBA             ; SETLFS
-$C854: LDA #$00
-$C856: JSR $FFD5             ; LOAD
-$C859: JMP $1000
+; $C800-$C817: Jump Table (24 bytes, 8 entries)
+jt_load_disk    = $C800     ; Load from disk, run
+jt_load_reu     = $C803     ; Fetch from REU, run
+jt_run_app      = $C806     ; Just run app
+jt_preload      = $C809     ; Preload to REU, return
+jt_return       = $C80C     ; Return to launcher
+jt_switch       = $C80F     ; Switch to another app
+jt_stash_cur    = $C812     ; Helper: stash current app
+jt_fetch_bank   = $C815     ; Helper: fetch from bank in A
 
-; ------------------------------------------------------------
-; load_reu at $C860-$C87F
-; ------------------------------------------------------------
-$C860: LDA $C820             ; target bank
-$C863: JSR $C8F0             ; fetch_bank
-$C866: JMP $1000
+.byte $4C, $40, $C8         ; $C800: JMP load_disk ($C840)
+.byte $4C, $60, $C8         ; $C803: JMP load_reu ($C860)
+.byte $4C, $00, $10         ; $C806: JMP $1000 (run app)
+.byte $4C, $80, $C8         ; $C809: JMP preload ($C880)
+.byte $4C, $00, $C9         ; $C80C: JMP return_to_launcher ($C900)
+.byte $4C, $40, $C9         ; $C80F: JMP switch_app ($C940)
+.byte $4C, $C0, $C8         ; $C812: JMP stash_current ($C8C0) - placeholder
+.byte $4C, $F0, $C8         ; $C815: JMP fetch_bank ($C8F0)
 
-; ------------------------------------------------------------
-; preload at $C880-$C8DF
-; ------------------------------------------------------------
-$C880: LDA #$AA / STA $C007  ; debug marker: entered preload
-$C885: LDA #$00 / JSR $C8E0  ; stash launcher image to bank 0
-$C88A: LDA #$BB / STA $C008  ; launcher stashed
-$C88F: LDA $C821             ; filename_len
-$C892: LDX #$24 / LDY #$C8   ; filename buffer
-$C897: JSR $FFBD             ; SETNAM
-$C899: LDA #$00
-$C89B: LDX #$08              ; patched device immediate
-$C89D: LDY #$01
-$C89F: JSR $FFBA             ; SETLFS
-$C8A2: LDA #$CC / STA $C009  ; about to LOAD
-$C8A7: LDA #$00
-$C8A9: JSR $FFD5             ; LOAD into $1000
-$C8AC: STX $C830 / STY $C831 ; save real KERNAL end address
-$C8B2: LDA $C820 / JSR $C8E0 ; stash loaded app into target bank
-$C8B8: LDA #$EE / STA $C00B  ; app stashed
-$C8BD: LDA $C820 / JSR $C9C0 ; set bitmap for target bank
-$C8C3: LDA #$00 / JSR $C8F0  ; fetch launcher bank 0 back
-$C8C8: LDA #$FF / STA $C00C  ; launcher restored
-$C8CD: RTS
+; $C818: JMP log_byte ($C9E0)
+; Legacy diagnostic entry. The old $C980-$C99F ring now overlaps active
+; reu_setup_logical bytes, so callers must not use this unless the ring moves.
+.byte $4C, $E0, $C9         ; $C818: JMP log_byte
+.byte $00,$00,$00,$00,$00   ; $C81B-$C81F: Padding
 
-; ------------------------------------------------------------
-; stash_to_bank at $C8E0-$C8EF
-; fetch_bank   at $C8F0-$C8FF
-; ------------------------------------------------------------
-$C8E0: JSR $C9A0             ; reu_setup: bank in A, addr=$1000, len=$B600
-$C8E3: LDA #$90 / STA $DF01  ; STASH command
-$C8E8: RTS
+; $C820-$C83F: Data Area (32 bytes)
+; $C820: target_bank - logical bank to load/switch to
+; $C821: filename_len
+; $C822-$C823: unused
+; $C824-$C82F: filename (12 bytes)
+; $C830: load_end_lo (KERNAL LOAD end addr low byte, saved by preload)
+; $C831: load_end_hi (KERNAL LOAD end addr high byte, saved by preload)
+; $C832-$C833: unused
+; $C834: current_bank - currently running logical bank
+; $C835: last_saved
+; $C836: reu_bitmap_lo (logical banks 0-7)
+; $C837: reu_bitmap_hi (logical banks 8-15)
+; $C838: reu_bitmap_xhi (logical banks 16-23)
+; $C839: storage_drive - shim-global default storage drive for D8/D9 app dialogs
+;        This persists across app switches and is shared by apps that use the
+;        common file-dialog default-drive contract.
+; $C83A: log_index - legacy debug byte ring head
+; $C83B: reu_bank_skip - physical 64K banks reserved before ReadyOS bank start
+; $C83C-$C83F: reserved
 
-$C8F0: JSR $C9A0
-$C8F3: LDA #$91 / STA $DF01  ; FETCH command
-$C8F8: RTS
+.byte $00                   ; $C820: target_bank
+.byte $08                   ; $C821: filename_len
+.byte $00, $00              ; $C822-$C823: unused
+.byte &quot;LAUNCHER    &quot;        ; $C824-$C82F: filename (12 bytes)
+.byte $00,$00               ; $C830-$C831: load_end_lo, load_end_hi
+.byte $00,$00               ; $C832-$C833: unused
+.byte $00                   ; $C834: current_bank
+.byte $FF                   ; $C835: last_saved
+.byte $00                   ; $C836: reu_bitmap_lo
+.byte $00                   ; $C837: reu_bitmap_hi
+.byte $00                   ; $C838: reu_bitmap_xhi
+.byte $08                   ; $C839: storage_drive (default drive 8)
+.byte $00                   ; $C83A: log_index (legacy debug buffer)
+.byte READYOS_REU_BANK_SKIP ; $C83B: reu_bank_skip (compiled into boot image)
+.byte $00,$00,$00,$00       ; $C83C-$C83F: reserved
 
-; ------------------------------------------------------------
-; return_to_launcher at $C900-$C93F
-; ------------------------------------------------------------
-$C900: LDA $C834 / JSR $C8E0 ; stash current app image
-$C906: LDA $C834 / JSR $C9C0 ; set bitmap bit
-$C90C: LDA $C834 / STA $C835 ; remember last_saved
-$C912: LDA #$00 / JSR $C8F0  ; fetch launcher from bank 0
-$C917: LDA #$00 / STA $C834  ; current=launcher
-$C91C: JMP $1000
+;-----------------------------------------------------------------------------
+; $C840: load_disk - Load app from disk and run (32 bytes)
+;-----------------------------------------------------------------------------
+.byte $AD, $21, $C8         ; LDA $C821 (filename len)
+.byte $A2, $24              ; LDX #$24
+.byte $A0, $C8              ; LDY #$C8 (filename at $C824)
+.byte $20, $BD, $FF         ; JSR $FFBD (SETNAM)
+.byte $A9, $00              ; LDA #0
+.byte $A2, $08              ; LDX #8
+.byte $A0, $01              ; LDY #1
+.byte $20, $BA, $FF         ; JSR $FFBA (SETLFS)
+.byte $A9, $00              ; LDA #0
+.byte $20, $D5, $FF         ; JSR $FFD5 (LOAD)
+.byte $4C, $00, $10         ; JMP $1000
+.byte $00,$00,$00,$00,$00   ; Padding to $C860
 
-; ------------------------------------------------------------
-; switch_app at $C940-$C95F
-; ------------------------------------------------------------
-$C940: LDA $C834 / JSR $C8E0 ; stash current app
-$C946: LDA $C834 / JSR $C9C0 ; bitmap update
-$C94C: LDA $C820 / JSR $C8F0 ; fetch target app
-$C952: LDA $C820 / STA $C834 ; current=target
-$C958: JMP $1000
+;-----------------------------------------------------------------------------
+; $C860: load_reu - Fetch app from REU and run (32 bytes)
+;-----------------------------------------------------------------------------
+.byte $AD, $20, $C8         ; LDA $C820 (target bank)
+.byte $20, $F0, $C8         ; JSR fetch_bank ($C8F0)
+.byte $4C, $00, $10         ; JMP $1000
+.byte $00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00
 
-; ------------------------------------------------------------
-; debug_log_step at $C960-$C99F
-; ------------------------------------------------------------
-$C960: STA $D020             ; border color breadcrumb
-$C963: STA $01F0             ; stack-page breadcrumb
-$C966: STA $0400             ; top-left screen breadcrumb
-$C969: CLC / ADC #$30
-$C96C: STA $0400             ; visible digit
-$C96F: RTS
+;-----------------------------------------------------------------------------
+; $C880: preload - Load to REU, return to launcher
+; Called via JSR $C809
+; DEBUG: writes markers to $C007-$C00C
+;-----------------------------------------------------------------------------
+.byte $A9, $AA              ; LDA #$AA (170 = &quot;preload entered&quot;)
+.byte $8D, $07, $C0         ; STA $C007
 
-; ------------------------------------------------------------
-; reu_setup at $C9A0-$C9BF
-; ------------------------------------------------------------
-$C9A0: STA $DF06             ; bank number
-$C9A3: LDA #$00 / STA $DF02  ; C64 low byte = $00
-$C9A8: LDA #$10 / STA $DF03  ; C64 high byte = $10 => $1000
-$C9AD: LDA #$00 / STA $DF04/$DF05/$DF07
-$C9B4: LDA #$B6 / STA $DF08  ; length high => $B600 bytes total
-$C9B9: RTS
+.byte $A9, $00              ; LDA #0 (select launcher bank at Start+1)
+.byte $20, $E0, $C8         ; JSR stash_to_bank ($C8E0)
 
-; ------------------------------------------------------------
-; set_bitmap at $C9C0-$C9DF
-; ------------------------------------------------------------
-$C9C0: CMP #$18              ; only banks 0-23 tracked
-$C9C2: BCS done
-$C9C4: TAX
-$C9C5: AND #$07              ; bit index in byte
-$C9C7: TAY
-$C9C8: TXA
-$C9C9: LSR / LSR / LSR       ; byte offset 0..2
-$C9CC: TAX
-$C9CD: LDA #$01
-$C9CF: DEY / BMI store_bit   ; shift into target bit position
-$C9D3: ASL A / BPL $C9CF
-$C9D7: ORA $C836,X
-$C9DA: STA $C836,X
-$C9DD: RTS
+.byte $A9, $BB              ; LDA #$BB (187 = &quot;launcher stashed&quot;)
+.byte $8D, $08, $C0         ; STA $C008
 
-; ------------------------------------------------------------
-; log_byte at $C9E0-$C9FF
-; ------------------------------------------------------------
-$C9E0: PHA
-$C9E1: STX $00FC             ; preserve X
-$C9E4: LDX $C83A             ; ring head
-$C9E7: PLA
-$C9E8: STA $C980,X           ; write into shim-local ring
-$C9EB: INX / CPX #$20
-$C9EF: BNE keep
-$C9F1: LDX #$00              ; wrap at 32 bytes
-$C9F3: STX $C83A
-$C9F6: LDX $00FC             ; restore X
-$C9F9: RTS</pre>
+.byte $AD, $21, $C8         ; LDA $C821 (len)
+.byte $A2, $24              ; LDX #$24
+.byte $A0, $C8              ; LDY #$C8 (filename at $C824)
+.byte $20, $BD, $FF         ; JSR SETNAM
+
+.byte $A9, $00              ; LDA #0
+.byte $A2, $08              ; LDX #8
+.byte $A0, $01              ; LDY #1
+.byte $20, $BA, $FF         ; JSR SETLFS
+
+.byte $A9, $CC              ; LDA #$CC (204 = &quot;about to LOAD&quot;)
+.byte $8D, $09, $C0         ; STA $C009
+
+.byte $A9, $00              ; LDA #0
+.byte $20, $D5, $FF         ; JSR LOAD
+
+.byte $8E, $30, $C8         ; STX $C830 (end addr lo)
+.byte $8C, $31, $C8         ; STY $C831 (end addr hi)
+
+.byte $AD, $20, $C8         ; LDA $C820 (target bank)
+.byte $20, $E0, $C8         ; JSR stash_to_bank ($C8E0)
+
+.byte $A9, $EE              ; LDA #$EE (238 = &quot;app stashed&quot;)
+.byte $8D, $0B, $C0         ; STA $C00B
+
+.byte $AD, $20, $C8         ; LDA $C820 (target bank)
+.byte $20, $C0, $C9         ; JSR set_bitmap ($C9C0)
+
+.byte $A9, $00              ; LDA #0 (select launcher bank at Start+1)
+.byte $20, $F0, $C8         ; JSR fetch_bank ($C8F0)
+
+.byte $A9, $FF              ; LDA #$FF (255 = &quot;launcher restored&quot;)
+.byte $8D, $0C, $C0         ; STA $C00C
+
+.byte $60                   ; RTS
+
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00
+
+;-----------------------------------------------------------------------------
+; $C8E0: stash_to_bank - Stash $1000-$C5FF to logical REU bank in A (16 bytes)
+;-----------------------------------------------------------------------------
+.byte $20, $60, $C9         ; JSR reu_setup_logical ($C960)
+.byte $A9, $90              ; LDA #$90 (STASH command)
+.byte $8D, $01, $DF         ; STA $DF01 - execute transfer
+.byte $60                   ; RTS
+.byte $00,$00,$00,$00,$00,$00,$00
+
+;-----------------------------------------------------------------------------
+; $C8F0: fetch_bank - Fetch logical REU bank in A to $1000-$C5FF (16 bytes)
+;-----------------------------------------------------------------------------
+.byte $20, $60, $C9         ; JSR reu_setup_logical ($C960)
+.byte $A9, $91              ; LDA #$91 (FETCH command)
+.byte $8D, $01, $DF         ; STA $DF01 - execute transfer
+.byte $60                   ; RTS
+.byte $00,$00,$00,$00,$00,$00,$00
+
+;-----------------------------------------------------------------------------
+; Page 2: $C900-$C9FF - Main routines
+;-----------------------------------------------------------------------------
+
+;-----------------------------------------------------------------------------
+; $C900: return_to_launcher (64 bytes)
+;-----------------------------------------------------------------------------
+.byte $AD, $34, $C8         ; LDA $C834 (current logical bank)
+.byte $20, $E0, $C8         ; JSR stash_to_bank ($C8E0)
+.byte $AD, $34, $C8         ; LDA $C834 (current logical bank)
+.byte $20, $C0, $C9         ; JSR set_bitmap ($C9C0)
+.byte $AD, $34, $C8         ; LDA $C834
+.byte $8D, $35, $C8         ; STA $C835
+.byte $A9, $00              ; LDA #0 (select launcher bank at Start+1)
+.byte $20, $F0, $C8         ; JSR fetch_bank ($C8F0)
+.byte $A9, $00              ; LDA #0 (select launcher bank at Start+1)
+.byte $8D, $34, $C8         ; STA $C834
+.byte $4C, $00, $10         ; JMP $1000
+.byte $00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00
+.byte $00
+
+;-----------------------------------------------------------------------------
+; $C940: switch_app (64 bytes)
+;-----------------------------------------------------------------------------
+.byte $AD, $34, $C8         ; LDA $C834 (current logical bank)
+.byte $20, $E0, $C8         ; JSR stash_to_bank ($C8E0)
+.byte $AD, $34, $C8         ; LDA $C834 (current logical bank)
+.byte $20, $C0, $C9         ; JSR set_bitmap ($C9C0)
+.byte $AD, $20, $C8         ; LDA $C820 (target logical bank)
+.byte $20, $F0, $C8         ; JSR fetch_bank ($C8F0)
+.byte $AD, $20, $C8         ; LDA $C820
+.byte $8D, $34, $C8         ; STA $C834
+.byte $4C, $00, $10         ; JMP $1000
+.byte $00,$00,$00,$00,$00
+
+;-----------------------------------------------------------------------------
+; $C960: reu_setup_logical - Map logical bank to physical, then setup REU regs
+;
+; Physical ReadyOS region layout:
+;   Start+0: system/global bank
+;   Start+1: launcher snapshot/resume bank
+;   Start+2: reserved launcher overlay bank
+;   Start+3..Start+25: physical backing banks for app slots 1..23
+;-----------------------------------------------------------------------------
+.byte $C9, $00              ; CMP #0 (select launcher bank at Start+1?)
+.byte $D0, $09              ; BNE app_bank
+.byte $AD, $3B, $C8         ; LDA $C83B (reu_bank_skip)
+.byte $18                   ; CLC
+.byte $69, $01              ; ADC #$01 (launcher is Start+1)
+.byte $4C, $74, $C9         ; JMP store_physical_bank
+.byte $18                   ; app_bank: CLC
+.byte $6D, $3B, $C8         ; ADC $C83B (logical app bank + skip)
+.byte $18                   ; CLC
+.byte $69, $02              ; ADC #$02 (global + launcher overlay reserve)
+.byte $8D, $06, $DF         ; STA $DF06 (physical bank)
+.byte $A9, $00              ; LDA #$00
+.byte $8D, $02, $DF         ; STA $DF02 (C64 addr lo = $00)
+.byte $A9, $10              ; LDA #$10
+.byte $8D, $03, $DF         ; STA $DF03 (C64 addr hi = $10, so $1000)
+.byte $A9, $00              ; LDA #$00
+.byte $8D, $04, $DF         ; STA $DF04 (REU addr lo)
+.byte $8D, $05, $DF         ; STA $DF05 (REU addr hi)
+.byte $8D, $07, $DF         ; STA $DF07 (len lo = $00)
+.byte $A9, $B6              ; LDA #$B6
+.byte $8D, $08, $DF         ; STA $DF08 (len hi = $B6, so $B600 bytes)
+.byte $60                   ; RTS
+
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+
+;-----------------------------------------------------------------------------
+; $C9A0: reu_setup - Set up REU registers for a physical bank in A
+;-----------------------------------------------------------------------------
+.byte $8D, $06, $DF         ; STA $DF06 (bank)
+.byte $A9, $00              ; LDA #$00
+.byte $8D, $02, $DF         ; STA $DF02 (C64 addr lo = $00)
+.byte $A9, $10              ; LDA #$10
+.byte $8D, $03, $DF         ; STA $DF03 (C64 addr hi = $10, so $1000)
+.byte $A9, $00              ; LDA #$00
+.byte $8D, $04, $DF         ; STA $DF04 (REU addr lo)
+.byte $8D, $05, $DF         ; STA $DF05 (REU addr hi)
+.byte $8D, $07, $DF         ; STA $DF07 (len lo = $00)
+.byte $A9, $B6              ; LDA #$B6
+.byte $8D, $08, $DF         ; STA $DF08 (len hi = $B6, so $B600 bytes)
+.byte $60                   ; RTS
+.byte $00,$00
+
+;-----------------------------------------------------------------------------
+; $C9C0: set_bitmap - Set bit for bank in A in reu_bitmap ($C836-$C838)
+;-----------------------------------------------------------------------------
+.byte $C9, $18              ; CMP #$18 (only logical banks 0-23 are tracked)
+.byte $B0, $17              ; BCS done
+.byte $AA                   ; TAX - preserve full bank
+.byte $29, $07              ; AND #$07 - bit index within byte
+.byte $A8                   ; TAY - Y = bit index
+.byte $8A                   ; TXA - restore full bank
+.byte $4A                   ; LSR A
+.byte $4A                   ; LSR A
+.byte $4A                   ; LSR A
+.byte $AA                   ; TAX - X = byte offset 0..2
+.byte $A9, $01              ; LDA #$01
+.byte $88                   ; DEY
+.byte $30, $03              ; BMI store_bit
+.byte $0A                   ; ASL A
+.byte $10, $FA              ; BPL shift_loop
+.byte $1D, $36, $C8         ; ORA $C836,X
+.byte $9D, $36, $C8         ; STA $C836,X
+.byte $60                   ; RTS
+.byte $00,$00,$00,$00
+
+;-----------------------------------------------------------------------------
+; $C9E0: log_byte - Legacy debug marker writer
+; WARNING: $C980-$C99F now overlaps active reu_setup_logical code bytes.
+; This entry is kept for ABI shape only; do not call it unless the ring moves.
+;-----------------------------------------------------------------------------
+.byte $48                   ; PHA - save the byte to log
+.byte $8E, $FC, $00         ; STX $00FC - save X to ZP temp
+.byte $AE, $3A, $C8         ; LDX $C83A - get log_index
+.byte $68                   ; PLA - get byte back
+.byte $9D, $80, $C9         ; STA $C980,X - write to buffer
+.byte $E8                   ; INX - increment index
+.byte $E0, $20              ; CPX #$20 - wrap at 32
+.byte $D0, $02              ; BNE +2 (skip reset)
+.byte $A2, $00              ; LDX #$00 - reset to 0
+.byte $8E, $3A, $C8         ; STX $C83A - store new index
+.byte $AE, $FC, $00         ; LDX $00FC - restore X
+.byte $60                   ; RTS
+.byte $00,$00,$00,$00,$00,$00,$00
+</pre>
     </section>
 
     <section>
       <h2>REU Ownership and Clipboard Accuracy</h2>
       <div class="grid-2">
         <div>
-          <h3>Current REU schema</h3>
+          <h3>Current REU layout relative to Start</h3>
           <table>
             <thead><tr><th>Bank(s)</th><th>Role</th></tr></thead>
             <tbody>
-              <tr><td class="mono">0</td><td>launcher snapshot + launcher resume tail</td></tr>
-              <tr><td class="mono">0-23</td><td>bitmap-tracked app-slot namespace</td></tr>
-              <tr><td class="mono">24+</td><td>dynamic allocator pool</td></tr>
+              <tr><td class="mono">Start+0</td><td>ReadyOS system/global bank</td></tr>
+              <tr><td class="mono">Start+1</td><td>launcher snapshot/resume bank</td></tr>
+              <tr><td class="mono">Start+2</td><td>launcher overlay reserve bank</td></tr>
+              <tr><td class="mono">Start+3..Start+25</td><td>catalog app slots: logical app slot 1 begins at Start+3, through logical app slot 23 at Start+25</td></tr>
+              <tr><td class="mono">Start+26+</td><td>dynamic allocator pool; after ReadyOS, launcher, and fixed app slots</td></tr>
               <tr><td class="mono">$40</td><td>ReadyShell overlay cache bank for overlays 1, 2, 3, and 5</td></tr>
               <tr><td class="mono">$41</td><td>ReadyShell overlay cache bank for overlays 4, 6, 7, and 8</td></tr>
               <tr><td class="mono">$43</td><td>ReadyShell REU debug ring</td></tr>
               <tr><td class="mono">$48</td><td>ReadyShell scratch, registry, metadata, and value arena</td></tr>
             </tbody>
           </table>
-          <h3>Bank 0 split</h3>
+          <h3>Logical bank 0 split</h3>
           <table>
             <thead><tr><th>Offset</th><th>Meaning</th></tr></thead>
             <tbody>
@@ -563,7 +725,7 @@ $C9F9: RTS</pre>
           <ul class="small">
             <li><strong>Clipboard metadata in RAM:</strong> <span class="mono">$C702</span> count, <span class="mono">$C710</span> table.</li>
             <li><strong>Per-item table layout:</strong> each item stores REU bank id, type, and size.</li>
-            <li><strong>Allocator behavior:</strong> <span class="mono">clip_copy()</span> calls <span class="mono">reu_alloc_bank(REU_CLIPBOARD)</span>, so payload banks come from the dynamic pool starting at <span class="mono">24</span>.</li>
+            <li><strong>Allocator behavior:</strong> <span class="mono">clip_copy()</span> calls <span class="mono">reu_alloc_bank(REU_CLIPBOARD)</span>, so payload banks come from the dynamic pool starting at <span class="mono">Start+26</span>.</li>
             <li><strong>Legacy symbolic contract:</strong> some older headers/spec fields still name bank <span class="mono">1</span> as a clipboard bank, but active payload storage is not single-bank packed there.</li>
           </ul>
         </div>
@@ -584,37 +746,78 @@ tail end              = $10000</pre>
       <h2>`apps.cfg` and Launcher Lifecycle</h2>
       <div class="grid-2">
         <div>
-          <h3>Catalog reality</h3>
+          <h3>Disk-based SKUs</h3>
           <ul>
             <li>Human-edited source: selected <span class="mono">cfg/profiles/&lt;profile&gt;.ini</span> catalog</li>
             <li>Generator/orchestrator: <span class="mono">build_support/readyos_profiles.py</span></li>
             <li>Disk payload: <span class="mono">apps.cfg</span> on drive <span class="mono">8</span></li>
-            <li>Runtime consumer: launcher only</li>
-            <li>Read mode: <span class="mono">apps.cfg,s,r</span></li>
+            <li>Boot loader: <span class="mono">src/boot/boot_asm.s</span>, linked as the normal disk boot path</li>
+            <li>Launcher app: <span class="mono">src/apps/launcher/launcher.c</span>, with <span class="mono">READYOS_LAUNCHER_VARIANT_EASYFLASH=0</span></li>
+            <li>Disk-only launcher code includes the file dialog and storage-device helpers, guarded by <span class="mono">#if !READYOS_LAUNCHER_VARIANT_EASYFLASH</span></li>
+            <li>Catalog read mode: <span class="mono">apps.cfg,s,r</span></li>
             <li>Parsed fields: drive, PRG token, display label, optional hotkey slot, description</li>
-            <li>Assigned by launcher, not disk: REU bank identity</li>
+            <li>Assigned at runtime by the launcher: app slot identity and REU preload state</li>
           </ul>
         </div>
         <div>
-          <h3>Reload behavior</h3>
+          <h3>Disk lifecycle</h3>
           <div class="flow">
             <strong>Cold / invalid-resume path</strong><br/>
-            launcher starts → tries bank 0 resume payload → failure →
+            launcher starts → tries launcher-bank resume payload → failure →
             parse <span class="mono">apps.cfg</span> from disk → validate →
             save fresh <span class="mono">LauncherResumeV1</span>
           </div>
           <div class="flow">
             <strong>Normal return path</strong><br/>
-            app returns via shim → bank 0 launcher image restored →
-            launcher restarts → launcher restores cached state from bank 0 tail
+            app returns via shim → launcher image restored from the launcher
+            snapshot bank at <span class="mono">Start+1</span> →
+            launcher restarts → restores cached state from launcher bank tail
             → <span class="mono">apps.cfg</span> usually not reread
           </div>
         </div>
       </div>
+
+      <div class="grid-2">
+        <div>
+          <h3>Cartridge / EasyFlash SKU</h3>
+          <ul>
+            <li>Human-edited source: <span class="mono">cfg/flavors/readyos_easyflash.ini</span></li>
+            <li>Catalog generator: <span class="mono">build_support/readyos_easyflash.py catalog-header</span></li>
+            <li>Generated launcher catalog: <span class="mono">src/generated/launcher_easyflash_catalog.h</span></li>
+            <li>Generated boot/shim REU config: <span class="mono">src/generated/readyos_easyflash_reu_config.inc</span></li>
+            <li>Generated cartridge layout: <span class="mono">src/generated/easyflash_layout.inc</span> and <span class="mono">obj/easyflash_layout.json</span></li>
+            <li>Custom booter: <span class="mono">src/boot/boot_easyflash_asm.s</span> plus <span class="mono">src/boot/easyflash_shim.s</span></li>
+            <li>Launcher app: <span class="mono">src/apps/launcher/launcher_easyflash.c</span>, which defines <span class="mono">READYOS_LAUNCHER_VARIANT_EASYFLASH=1</span> and includes <span class="mono">launcher.c</span></li>
+            <li>ReadyShell cartridge build: <span class="mono">bin/readyshell_easyflash.prg</span> with <span class="mono">RS_C64_OVERLAY_PRELOADED=1</span></li>
+          </ul>
+        </div>
+        <div>
+          <h3>Cartridge lifecycle</h3>
+          <div class="flow">
+            <strong>Before launcher menu</strong><br/>
+            the EasyFlash booter copies the shim, restores the EasyFlash
+            launcher payload into the launcher snapshot bank, and preloads the
+            cartridge catalog apps plus the ReadyShell overlay cache into REU.
+          </div>
+          <div class="flow">
+            <strong>Launcher catalog path</strong><br/>
+            the EasyFlash launcher does not open <span class="mono">apps.cfg</span>.
+            It consumes generated arrays such as
+            <span class="mono">READYOS_EASYFLASH_APP_COUNT</span>,
+            <span class="mono">readyos_easyflash_prgs</span>,
+            <span class="mono">readyos_easyflash_labels</span>,
+            <span class="mono">readyos_easyflash_descs</span>,
+            <span class="mono">readyos_easyflash_default_slots</span>, and
+            <span class="mono">readyos_easyflash_app_banks</span>.
+          </div>
+        </div>
+      </div>
+
       <div class="ok">
-        Boot never parses <span class="mono">apps.cfg</span>. Boot only
-        installs the shim, initializes metadata RAM, loads launcher, and jumps
-        to <span class="mono">$1000</span>.
+        Disk boot never parses <span class="mono">apps.cfg</span>; the disk
+        launcher does. Cartridge boot never depends on <span class="mono">apps.cfg</span>
+        at runtime; its app catalog, physical preload plan, and ReadyShell
+        overlay preload plan are generated into the EasyFlash build.
       </div>
       <div class="notice">
         <strong>Current release matrix:</strong> there are seven active profiles.
@@ -629,9 +832,8 @@ tail end              = $10000</pre>
       <p class="small muted">
         The first table preserves the previous local snapshot that originally
         backed this report. The second table is the current
-        <span class="mono">0.2</span> addendum rechecked from
-        <span class="mono">obj/*.map</span> after the ReadyShell overlay
-        normalization. These rows now report exact linked runtime ends,
+        <span class="mono">0.2.4</span> audit regenerated from the linker
+        <span class="mono">Segment list</span> in <span class="mono">obj/*.map</span>. These rows report exact linked runtime ends,
         exact raw headroom to <span class="mono">$C5FF</span>, and the
         even-aligned writable slack left after <span class="mono">BSS</span>.
       </p>
@@ -641,43 +843,32 @@ tail end              = $10000</pre>
           <table>
             <thead><tr><th>App</th><th>Runtime end</th><th>BSS bytes</th><th>Headroom</th></tr></thead>
             <tbody>
-              <tr><td class="mono">dizzy</td><td class="mono">$BB38</td><td class="mono">6327</td><td class="mono">2759</td></tr>
-              <tr><td class="mono">tasklist</td><td class="mono">$AA3F</td><td class="mono">8944</td><td class="mono">7104</td></tr>
-              <tr><td class="mono">calcplus</td><td class="mono">$A637</td><td class="mono">1321</td><td class="mono">8136</td></tr>
-              <tr><td class="mono">cal26</td><td class="mono">$A048</td><td class="mono">4803</td><td class="mono">9655</td></tr>
-              <tr><td class="mono">simplecells</td><td class="mono">$9EE0</td><td class="mono">2142</td><td class="mono">10015</td></tr>
+              <tr><td class="mono">launcher</td><td class="mono">$C33A</td><td class="mono">1231</td><td class="mono">49</td><td class="mono">5141</td><td class="mono">708</td><td class="mono">709</td></tr>
+              <tr><td class="mono">dizzy</td><td class="mono">$BED5</td><td class="mono">1225</td><td class="mono">132</td><td class="mono">6327</td><td class="mono">1834</td><td class="mono">1834</td></tr>
+              <tr><td class="mono">tasklist</td><td class="mono">$AE64</td><td class="mono">821</td><td class="mono">151</td><td class="mono">8927</td><td class="mono">6042</td><td class="mono">6043</td></tr>
+              <tr><td class="mono">calcplus</td><td class="mono">$AC00</td><td class="mono">1173</td><td class="mono">158</td><td class="mono">1321</td><td class="mono">6654</td><td class="mono">6655</td></tr>
+              <tr><td class="mono">cal26</td><td class="mono">$A3EA</td><td class="mono">1869</td><td class="mono">324</td><td class="mono">4803</td><td class="mono">8724</td><td class="mono">8725</td></tr>
+              <tr><td class="mono">simplecells</td><td class="mono">$A2A8</td><td class="mono">1722</td><td class="mono">238</td><td class="mono">2142</td><td class="mono">9046</td><td class="mono">9047</td></tr>
+              <tr><td class="mono">quicknotes</td><td class="mono">$A0EB</td><td class="mono">944</td><td class="mono">222</td><td class="mono">6031</td><td class="mono">9492</td><td class="mono">9492</td></tr>
+              <tr><td class="mono">editor</td><td class="mono">$9859</td><td class="mono">830</td><td class="mono">134</td><td class="mono">9880</td><td class="mono">11686</td><td class="mono">11686</td></tr>
+              <tr><td class="mono">simplefiles</td><td class="mono">$94A2</td><td class="mono">1229</td><td class="mono">62</td><td class="mono">4397</td><td class="mono">12636</td><td class="mono">12637</td></tr>
+              <tr><td class="mono">clipmgr</td><td class="mono">$9142</td><td class="mono">842</td><td class="mono">46</td><td class="mono">1062</td><td class="mono">13500</td><td class="mono">13501</td></tr>
+              <tr><td class="mono">deminer</td><td class="mono">$6F68</td><td class="mono">747</td><td class="mono">46</td><td class="mono">4276</td><td class="mono">22166</td><td class="mono">22167</td></tr>
+              <tr><td class="mono">readme</td><td class="mono">$6D23</td><td class="mono">13216</td><td class="mono">46</td><td class="mono">48</td><td class="mono">22748</td><td class="mono">22748</td></tr>
+              <tr><td class="mono">game2048</td><td class="mono">$565B</td><td class="mono">304</td><td class="mono">46</td><td class="mono">1203</td><td class="mono">28580</td><td class="mono">28580</td></tr>
+              <tr><td class="mono">sysinfo</td><td class="mono">$50B9</td><td class="mono">1064</td><td class="mono">47</td><td class="mono">277</td><td class="mono">30022</td><td class="mono">30022</td></tr>
+              <tr><td class="mono">reuviewer</td><td class="mono">$49CD</td><td class="mono">346</td><td class="mono">46</td><td class="mono">54</td><td class="mono">31794</td><td class="mono">31794</td></tr>
+              <tr><td class="mono">hexview</td><td class="mono">$47AC</td><td class="mono">498</td><td class="mono">46</td><td class="mono">101</td><td class="mono">32338</td><td class="mono">32339</td></tr>
             </tbody>
           </table>
           <p class="small muted">
-            Superseded current-reality rows from this snapshot are retained for
-            historical comparison; the current rows below should be used for
-            acceptance and headroom decisions.
-          </p>
-          <h3>Current normal app images (0.2 addendum)</h3>
-          <table>
-            <thead><tr><th>App</th><th>Runtime end</th><th>RODATA</th><th>DATA</th><th>BSS</th><th>Aligned writable slack</th><th>Raw headroom</th></tr></thead>
-            <tbody>
-              <tr><td class="mono">dizzy</td><td class="mono">$BEAE</td><td class="mono">1225</td><td class="mono">132</td><td class="mono">6327</td><td class="mono">1872</td><td class="mono">1873</td></tr>
-              <tr><td class="mono">tasklist</td><td class="mono">$AD10</td><td class="mono">821</td><td class="mono">151</td><td class="mono">8927</td><td class="mono">6382</td><td class="mono">6383</td></tr>
-              <tr><td class="mono">calcplus</td><td class="mono">$A9AD</td><td class="mono">1173</td><td class="mono">158</td><td class="mono">1321</td><td class="mono">7250</td><td class="mono">7250</td></tr>
-              <tr><td class="mono">cal26</td><td class="mono">$A291</td><td class="mono">1869</td><td class="mono">324</td><td class="mono">4803</td><td class="mono">9070</td><td class="mono">9070</td></tr>
-              <tr><td class="mono">simplecells</td><td class="mono">$A14F</td><td class="mono">1722</td><td class="mono">238</td><td class="mono">2142</td><td class="mono">9392</td><td class="mono">9392</td></tr>
-              <tr><td class="mono">quicknotes</td><td class="mono">$9F97</td><td class="mono">944</td><td class="mono">222</td><td class="mono">6031</td><td class="mono">9832</td><td class="mono">9832</td></tr>
-              <tr><td class="mono">launcher</td><td class="mono">$9F51</td><td class="mono">761</td><td class="mono">49</td><td class="mono">4717</td><td class="mono">9902</td><td class="mono">9902</td></tr>
-              <tr><td class="mono">editor</td><td class="mono">$96E7</td><td class="mono">830</td><td class="mono">134</td><td class="mono">9880</td><td class="mono">12056</td><td class="mono">12056</td></tr>
-              <tr><td class="mono">simplefiles</td><td class="mono">$948C</td><td class="mono">1229</td><td class="mono">62</td><td class="mono">4397</td><td class="mono">12658</td><td class="mono">12659</td></tr>
-              <tr><td class="mono">clipmgr</td><td class="mono">$8EEF</td><td class="mono">842</td><td class="mono">46</td><td class="mono">1062</td><td class="mono">14096</td><td class="mono">14096</td></tr>
-              <tr><td class="mono">deminer</td><td class="mono">$6F41</td><td class="mono">747</td><td class="mono">46</td><td class="mono">4276</td><td class="mono">22206</td><td class="mono">22206</td></tr>
-              <tr><td class="mono">readme</td><td class="mono">$5D2B</td><td class="mono">9241</td><td class="mono">46</td><td class="mono">48</td><td class="mono">26836</td><td class="mono">26836</td></tr>
-              <tr><td class="mono">game2048</td><td class="mono">$52F0</td><td class="mono">197</td><td class="mono">46</td><td class="mono">1203</td><td class="mono">29454</td><td class="mono">29455</td></tr>
-              <tr><td class="mono">hexview</td><td class="mono">$4559</td><td class="mono">498</td><td class="mono">46</td><td class="mono">101</td><td class="mono">32934</td><td class="mono">32934</td></tr>
-              <tr><td class="mono">reuviewer</td><td class="mono">$44D9</td><td class="mono">283</td><td class="mono">46</td><td class="mono">51</td><td class="mono">33062</td><td class="mono">33062</td></tr>
-            </tbody>
-          </table>
-          <p class="small muted">
-            <strong>Aligned writable slack</strong> is the even-aligned free
-            space after <span class="mono">BSS</span> and below the ReadyOS
-            snapshot ceiling. <strong>Raw headroom</strong> is the exact gap
+            <strong>Measurement method:</strong> runtime end is the highest end address among
+            <span class="mono">STARTUP</span>, <span class="mono">CODE</span>,
+            <span class="mono">RODATA</span>, <span class="mono">DATA</span>,
+            <span class="mono">INIT</span>, <span class="mono">ONCE</span>, and
+            <span class="mono">BSS</span> in each linker map. <strong>Aligned writable slack</strong>
+            is the even-aligned free span after that runtime end and below the
+            ReadyOS snapshot ceiling. <strong>Raw headroom</strong> is the exact byte gap
             from the linked runtime end to <span class="mono">$C5FF</span>.
             <span class="mono">readyshell</span> is intentionally omitted from
             this normal-app table because it uses the overlay linker contract
@@ -701,8 +892,8 @@ tail end              = $10000</pre>
             <li><strong>Simple Files / Simple Cells:</strong> those apps use dedicated linker configs with an explicit <span class="mono">__STACKSIZE__ = $0070</span> reserve below <span class="mono">$C600</span>, so their slack figures include a deliberate stack guardrail and are not unconstrained heap.</li>
             <li><strong>Overlay app:</strong> <span class="mono">readyshell</span> uses <span class="mono">cfg/ready_app_overlay.cfg</span>, not the normal app linker contract.</li>
             <li><strong>Historical resident ReadyShell image:</strong> the previous local snapshot ended at <span class="mono">$9B74</span>, with a much smaller resident image. Those values are retained only for historical comparison.</li>
-            <li><strong>Current resident ReadyShell image:</strong> the current <span class="mono">0.2</span> map has <span class="mono">RODATA 1122</span>, <span class="mono">DATA 71</span>, resident <span class="mono">BSS $8769-$895F</span> (<span class="mono">503</span> bytes), resident heap <span class="mono">$8960-$8DFD</span> (<span class="mono">1182</span> bytes), and overlay load-address bytes at <span class="mono">$8DFE-$8DFF</span>.</li>
-            <li><strong>True current ReadyShell limit:</strong> overlay payload fit is tighter than the resident heap gap. Current overlay1 is <span class="mono">$8E00-$C0CC</span> and leaves <span class="mono">1331</span> bytes; overlay2 leaves <span class="mono">303</span> bytes; overlay3 leaves <span class="mono">6593</span> bytes; overlay4 leaves <span class="mono">3182</span> bytes; overlay5 leaves <span class="mono">5366</span> bytes; overlay6 leaves <span class="mono">1103</span> bytes; overlay7 leaves <span class="mono">7881</span> bytes; overlay8 leaves <span class="mono">7737</span> bytes.</li>
+            <li><strong>Current resident ReadyShell image:</strong> the current <span class="mono">0.2.4</span> map has <span class="mono">RODATA 1050</span>, <span class="mono">DATA 71</span>, resident <span class="mono">BSS $8780-$8976</span> (<span class="mono">503</span> bytes), resident heap <span class="mono">$8978-$8DFD</span> (<span class="mono">1158</span> bytes), and overlay load-address bytes at <span class="mono">$8DFE-$8DFF</span>.</li>
+            <li><strong>True current ReadyShell limit:</strong> overlay payload fit is tighter than the resident heap gap. Current overlay1 is <span class="mono">$8E00-$C0CC</span> and leaves <span class="mono">1331</span> bytes; overlay2 leaves <span class="mono">303</span> bytes; overlay3 leaves <span class="mono">3064</span> bytes; overlay4 leaves <span class="mono">2452</span> bytes; overlay5 leaves <span class="mono">4131</span> bytes; overlay6 leaves <span class="mono">3</span> bytes; overlay7 leaves <span class="mono">6258</span> bytes; overlay8 leaves <span class="mono">7737</span> bytes.</li>
             <li><strong>Overlay guardrail:</strong> release overlay size is <span class="mono">$3800</span> and debug overlay size is <span class="mono">$3B00</span>. The old explicit-C-stack-reserve wording is retained as historical shorthand, but current safety depends on ONCE/BSS ending below <span class="mono">__OVERLAY_LOADADDR__</span>, overlays loading at <span class="mono">$8E00</span>, and ReadyShell stack relocation being handled separately.</li>
           </ul>
         </div>
@@ -716,33 +907,33 @@ tail end              = $10000</pre>
           <h3>Preload sandwich</h3>
           <div class="flow">1. Launcher writes target bank, filename, and drive into shim bytes.</div>
           <div class="flow">2. Launcher calls <span class="mono">JSR $C809</span>.</div>
-          <div class="flow">3. Shim stashes launcher image to bank <span class="mono">0</span>.</div>
+          <div class="flow">3. Shim stashes launcher image to the launcher bank at <span class="mono">Start+1</span>.</div>
           <div class="flow">4. Shim KERNAL-loads target app into <span class="mono">$1000</span>.</div>
           <div class="flow">5. Shim saves real load end to <span class="mono">$C830-$C831</span>.</div>
-          <div class="flow">6. Shim stashes loaded app to target bank, sets bitmap, restores launcher, and <span class="mono">RTS</span>es.</div>
+          <div class="flow">6. Shim stashes loaded app to target logical bank, sets bitmap, restores launcher, and <span class="mono">RTS</span>es.</div>
         </div>
         <div>
           <h3>Return to launcher</h3>
           <div class="flow">1. App jumps to <span class="mono">$C80C</span> through TUI helper.</div>
           <div class="flow">2. Shim stashes current app to its bank.</div>
           <div class="flow">3. Shim updates bitmap and records <span class="mono">last_saved</span>.</div>
-          <div class="flow">4. Shim fetches launcher bank <span class="mono">0</span>.</div>
+          <div class="flow">4. Shim fetches the launcher bank at <span class="mono">Start+1</span>.</div>
           <div class="flow">5. Shim sets <span class="mono">current_bank = 0</span> and jumps to <span class="mono">$1000</span>.</div>
-          <div class="flow">6. Launcher restarts and usually restores cached menu/catalog state from the bank 0 tail.</div>
+          <div class="flow">6. Launcher restarts and usually restores cached menu/catalog state from the launcher bank tail.</div>
         </div>
       </div>
       <div class="grid-2">
         <div>
           <h3>Launch from REU</h3>
           <div class="flow">1. Launcher saves <span class="mono">LauncherResumeV1</span>.</div>
-          <div class="flow">2. Launcher stashes itself to bank <span class="mono">0</span>.</div>
+          <div class="flow">2. Launcher stashes itself to the launcher bank at <span class="mono">Start+1</span>.</div>
           <div class="flow">3. Launcher writes target scratch bytes and sets <span class="mono">current_bank</span>.</div>
           <div class="flow">4. Launcher jumps to <span class="mono">$C803</span>.</div>
         </div>
         <div>
           <h3>Launch from disk</h3>
           <div class="flow">1. Launcher saves <span class="mono">LauncherResumeV1</span>.</div>
-          <div class="flow">2. Launcher stashes itself to bank <span class="mono">0</span>.</div>
+          <div class="flow">2. Launcher stashes itself to the launcher bank at <span class="mono">Start+1</span>.</div>
           <div class="flow">3. Launcher writes filename and patched drive bytes.</div>
           <div class="flow">4. Launcher sets <span class="mono">current_bank</span>.</div>
           <div class="flow">5. Launcher jumps to <span class="mono">$C800</span>.</div>
@@ -756,7 +947,7 @@ tail end              = $10000</pre>
         <thead><tr><th>Topic</th><th>Reality</th></tr></thead>
         <tbody>
           <tr><td>Resume header</td><td>16-byte <span class="mono">RSM1</span> header with app id, schema, seq, and payload length</td></tr>
-          <tr><td>Launcher resume</td><td><span class="mono">LauncherResumeV1</span> stores parsed catalog plus menu position in bank <span class="mono">0</span> tail</td></tr>
+          <tr><td>Launcher resume</td><td><span class="mono">LauncherResumeV1</span> stores parsed catalog plus menu position in the launcher bank tail at physical <span class="mono">Start+1</span></td></tr>
           <tr><td>Snapshot vs resume</td><td>snapshot restores raw runnable image; resume tail restores validated high-level state</td></tr>
           <tr><td>Tasklist</td><td>uses shared <span class="mono">resume_state</span> with segment-based save/load helpers</td></tr>
         </tbody>
@@ -772,10 +963,9 @@ tail end              = $10000</pre>
             <thead><tr><th>Location</th><th>Meaning</th></tr></thead>
             <tbody>
               <tr><td class="mono">$C83A</td><td>shim log head</td></tr>
-              <tr><td class="mono">$C980-$C99F</td><td>shim-local 32-byte debug ring</td></tr>
-              <tr><td class="mono">$C960</td><td><span class="mono">debug_log_step</span> crash breadcrumb helper</td></tr>
-              <tr><td class="mono">$01F0</td><td>stack-page breadcrumb used by <span class="mono">debug_log_step</span></td></tr>
-              <tr><td class="mono">$0400</td><td>screen breadcrumb used by <span class="mono">debug_log_step</span></td></tr>
+              <tr><td class="mono">$C980-$C99F</td><td>legacy 32-byte debug ring address range; currently overlaps active shim code</td></tr>
+              <tr><td class="mono">$C960-$C99F</td><td><span class="mono">reu_setup_logical</span>; this replaced the old crash breadcrumb helper slot</td></tr>
+              <tr><td class="mono">$C980-$C99F</td><td>legacy ring address range; not safe scratch because it overlaps active <span class="mono">reu_setup_logical</span> bytes</td></tr>
             </tbody>
           </table>
         </div>
@@ -811,16 +1001,16 @@ tail end              = $10000</pre>
       </ol>
       <ul class="small">
         <li>Older standalone shim modules under <span class="mono">src/shim/</span> are historical reference only.</li>
-        <li><span class="mono">src/shim/reu.h</span> still carries some legacy symbolic bank naming; docs must not mistake that for active clipboard payload behavior.</li>
+        <li><span class="mono">src/shim/reu.h</span> still carries some legacy symbolic bank naming; docs must not mistake that for active clipboard payload behavior or current skipped physical-bank placement.</li>
         <li>Some older high-level banner comments near the top of <span class="mono">boot_asm.s</span> are historical shorthand; the explicit inline shim byte-map comments and verified runtime constants below them are the authoritative in-file documentation.</li>
       </ul>
     </section>
   </main>
 
   <footer>
-    Updated for the ReadyOS 0.2 private documentation sync. The original
-    snapshot values are preserved; current map-backed addenda use the public
-    0.2 version label. Older shim report variants in this directory are
+    Updated for the ReadyOS 0.2.4 documentation sync. The original
+    snapshot values are preserved for historical comparison; current map-backed values use the public
+    0.2.4 version label. Older shim report variants in this directory are
     historical snapshots only.
   </footer>
 </body>

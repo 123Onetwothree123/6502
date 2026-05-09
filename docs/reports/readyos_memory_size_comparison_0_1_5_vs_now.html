@@ -104,15 +104,24 @@
       <div class="card"><div class="k">Shim contract</div><div class="v">0xC800-0xC9FF</div><div class="small">512 B resident</div></div>
     </div>
     <div class="ok">
-      <strong>Current 0.1.8 runtime reality:</strong> the active app window is
+      <strong>Current ReadyOS runtime reality:</strong> the active app window is
       <code>$1000-$C5FF</code>, shared metadata lives in
       <code>$C600-$C7FF</code>, and the resident shim lives in
       <code>$C800-$C9FF</code>.
     </div>
     <div class="note">
-      <strong>Bank 0 correction:</strong> in current runtime terms, REU bank
-      <code>0</code> is launcher-owned. It is not a generic “system metadata
-      bank”; shared allocator and clipboard metadata are in C64 RAM.
+      <strong>Bank 0 correction:</strong> in current runtime terms, logical REU bank
+      <code>0</code> is launcher-owned and maps to physical <code>Start+1</code>.
+      Physical <code>Start+0</code> is system/global. Shared allocator and clipboard
+      metadata are in C64 RAM, not in the launcher REU bank.
+    </div>
+    <div class="note">
+      <strong>Current REU physical placement:</strong> <code>Start</code> is
+      <code>READYOS_REU_BANK_SKIP</code>; <code>Start+0</code> is system/global,
+      <code>Start+1</code> is launcher logical bank <code>0</code>,
+      <code>Start+2</code> is reserved for future launcher overlays, app logical
+      bank <code>N</code> maps to <code>Start+2+N</code>, and dynamic allocation begins
+      at <code>Start+26</code>.
     </div>
     <div class="note">
       <strong>Comparison scope correction:</strong> the historical 0.1.5 table
@@ -130,11 +139,11 @@
       <li>REU metadata/system RAM: <code>0xC600-0xC7FF</code>.</li>
       <li>Shared hotkey bindings: <code>0xC7E0-0xC7E8</code>.</li>
       <li>Shim resident window: <code>0xC800-0xC9FF</code>.</li>
-      <li>Bank <code>0</code> split: snapshot <code>0x0000-0xB5FF</code>, resume tail <code>0xB600-0xFFFF</code>.</li>
+      <li>Logical bank <code>0</code> split: snapshot <code>0x0000-0xB5FF</code>, resume tail <code>0xB600-0xFFFF</code>; physical storage is <code>Start+1</code>.</li>
       <li>Clipboard metadata lives in RAM; active clipboard payloads allocate one dynamic REU bank per item rather than using one packed shared bank.</li>
-      <li>Bitmap-tracked app-slot namespace: banks <code>0-23</code>.</li>
-      <li>Dynamic allocator start: bank <code>24</code>.</li>
-      <li>ReadyShell shared cache bank: <code>0x40</code> (core overlays 1-2).</li>
+      <li>Bitmap-tracked namespace: logical banks <code>0-23</code>; logical apps <code>1-23</code> map to physical <code>Start+3..Start+25</code>.</li>
+      <li>Dynamic allocator start: physical <code>Start+26</code>.</li>
+      <li>ReadyShell shared cache banks: <code>0x40</code> for overlays 1, 2, 3, and 5; <code>0x41</code> for overlays 4, 6, 7, and 8.</li>
       <li>ReadyShell REU debug bank: <code>0x43</code>.</li>
       <li>ReadyShell scratch/registry/value bank: <code>0x48</code>.</li>
       <li>Shipped media is profile-driven: <code>cfg/profiles/*.ini</code> generates the selected profile’s <code>apps.cfg</code> on drive <code>8</code>.</li>
@@ -227,14 +236,14 @@
     </div>
     <div class="note">
       <strong>Current ReadyShell loading model:</strong> overlays <code>1-2</code>
-      share REU cache bank <code>0x40</code>; command-only overlays are
-      disk-loaded by default; the command registry and value arena live in bank
+      use fixed REU cache banks <code>0x40</code> and <code>0x41</code>; command-only overlays are
+      disk-loaded by default when not cached; the command registry and value arena live in bank
       <code>0x48</code>.
     </div>
     <ul>
       <li>launcher catalog is generated from the selected <code>cfg/profiles/*.ini</code> catalog to <code>apps.cfg</code> on drive <code>8</code></li>
       <li>launcher catalog is read from <code>apps.cfg</code> by launcher only</li>
-      <li>launcher usually restores cached catalog state from bank <code>0</code> resume tail rather than rereading disk on app return</li>
+      <li>launcher usually restores cached catalog state from logical bank <code>0</code> resume tail rather than rereading disk on app return</li>
       <li>loaded-state tracking uses shim bitmap bytes at <code>$C836-$C838</code></li>
     </ul>
   </section>

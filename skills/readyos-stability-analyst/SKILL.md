@@ -14,13 +14,13 @@ Use this skill when the user asks to diagnose ReadyOS crashes/hangs, REU DMA reg
 - "stability report" or "pre-merge stability check"
 
 ## Hard Rules
-- Treat `MEMORY_MAP.md` + `tools/memory_map_spec.json` as canonical contract.
+- Treat `MEMORY_MAP.md` + `build_support/memory_map_spec.json` as canonical contract.
 - Hard-fail if critical contract checks drift (`verify_memory_map` / `verify_resume_contract`).
 - Use artifact-first workflow; run live capture only if artifacts are missing or contradictory.
 - Keep ReadyShell overlay profile explicit in reports:
   - release/default: `READYSHELL_PARSE_TRACE_DEBUG=0` (`READYSHELL_OVERLAYSIZE=0x3800`, `__OVERLAYSTART__=0x8E00`)
   - debug trace: `READYSHELL_PARSE_TRACE_DEBUG=1` (`READYSHELL_OVERLAYSIZE=0x3B00`, `__OVERLAYSTART__=0x8B00`)
-- Treat REU banks `0x40`, `0x41`, and `0x43` as ReadyShell-owned fixed banks (parser cache, VM cache, debug/probe), not dynamic pool.
+- Treat REU banks `0x40`, `0x41`, `0x43`, and `0x48` as ReadyShell-owned fixed banks (overlay caches, debug/probe, scratch/registry/value arena), not dynamic pool.
 - For CAL26 REL debugging, use `xrelchk` harness discipline.
 - Do not use `src/apps/dizzy/dizzy.c` as REL behavior reference.
 
@@ -35,8 +35,8 @@ Profile control (when reproducing profile-sensitive overlay issues):
 - release/default build: `make -j1 READYSHELL_PARSE_TRACE_DEBUG=0`
 - debug trace build: `make -j1 READYSHELL_PARSE_TRACE_DEBUG=1`
 - explicit profile verification:
-  - `READYSHELL_PARSE_TRACE_DEBUG=0 python3 tools/verify_memory_map.py`
-  - `READYSHELL_PARSE_TRACE_DEBUG=1 python3 tools/verify_memory_map.py`
+  - `READYSHELL_PARSE_TRACE_DEBUG=0 python3 build_support/verify_memory_map.py`
+  - `READYSHELL_PARSE_TRACE_DEBUG=1 python3 build_support/verify_memory_map.py`
 
 3. Inspect generated outputs:
 - `docs/stability/reports/*_report.json`
