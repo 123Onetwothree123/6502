@@ -56,6 +56,7 @@ READYSHELL_OVERLAY_PRGS = [
     ("readyshell.fops", "rsfops.prg"),
     ("readyshell.cat", "rscat.prg"),
     ("readyshell.copy", "rscopy.prg"),
+    ("readyshell.edit", "rsedit.prg"),
 ]
 
 APP_LOAD_START = 0x1000

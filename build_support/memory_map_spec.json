@@ -16,6 +16,7 @@
       "shared_cache_bank": "0x400000",
       "overlay1": "0x400000",
       "overlay2": "0x403800",
+      "overlay9": "0x420000",
       "debug_head": "0x43F000",
       "debug_data": "0x43F010"
     }
@@ -39,6 +40,7 @@
     "bank_app_count": 23,
     "bank_rs_cache": 64,
     "bank_rs_cache2": 65,
+    "bank_rs_cache3": 66,
     "bank_rs_debug": 67,
     "bank_rs_scratch": 72
   },

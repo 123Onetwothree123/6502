@@ -78,6 +78,7 @@ try {
                 @((Assert-RepoFile 'obj/rsfops.prg'), 'rsfops'),
                 @((Assert-RepoFile 'obj/rscat.prg'), 'rscat'),
                 @((Assert-RepoFile 'obj/rscopy.prg'), 'rscopy'),
+                @((Assert-RepoFile 'obj/rsedit.prg'), 'rsedit'),
                 @((Assert-RepoFile 'obj/apps_cfg_petscii.seq'), 'apps.cfg,s'),
                 @((Assert-RepoFile 'obj/editor_help.seq'), 'editor help,s')
             )

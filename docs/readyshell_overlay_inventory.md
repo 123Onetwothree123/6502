@@ -1,17 +1,17 @@
-# ReadyShell Overlay Inventory Report (v0.2D)
+# ReadyShell Overlay Inventory Report (v0.2.4A)
 
-Artifact-backed report generated from the current local ReadyShell build, linker map, and D71 disk image.
+Artifact-backed report generated from the current local ReadyShell build, linker map, and D81 disk image.
 
 ## Executive Summary
 
-- Profile / disk source: `precog-dual-d71` using `releases/0.2/precog-dual-d71/readyos-v0.2d-dual-d71_1.d71` (disk label `readyos`, `59` blocks free).
-- Resident ReadyShell PRG: `readyshell.prg` on disk as `readyshell`, `30478` bytes and `120` D71 blocks.
+- Profile / disk source: `precog-d81` using `releases/0.2.4/precog-d81/readyos-v0.2.4z-d81.d81` (disk label `readyosd81`, `678` blocks free).
+- Resident ReadyShell PRG: `readyshell.prg` on disk as `readyshell`, `29505` bytes and `117` D71 blocks.
 - Overlay execution window: `$8E00-$C5FF` for `14336` bytes, with PRG load-address bytes at `$8DFE-$8DFF`.
-- Resident BSS / heap below overlays: BSS `$870C-$8902` (`503` bytes), heap `$8904-$8DFD` (`1274` bytes).
+- Resident BSS / heap below overlays: BSS `$833F-$8535` (`503` bytes), heap `$8536-$8DFD` (`2248` bytes).
 - High RAM runtime region outside the app window: `$CA00-$CFFF`.
 - REU policy split:
-  - overlays 1-8 are boot-loaded during shell startup and cached into fixed full-window REU slots
-  - bank `0x40` holds overlays `1`, `2`, `3`, and `5`; bank `0x41` holds overlays `4`, `6`, `7`, and `8`
+  - overlays 1-9 are boot-loaded during shell startup and cached into fixed full-window REU slots
+  - bank `0x40` holds overlays `1`, `2`, `3`, and `5`; bank `0x41` holds overlays `4`, `6`, `7`, and `8`; bank `0x42` holds overlay `9`
   - bank 0x48 is shared for the external-command registry, overlay metadata, pause state, command handoff scratch, and the REU-backed ReadyShell value arena
 
 ## Runtime Memory Map
@@ -21,8 +21,8 @@ Artifact-backed report generated from the current local ReadyShell build, linker
 | Resident app window | `$1000-$C5FF` | `46592` | ReadyOS app-owned RAM window for ReadyShell. |
 | Overlay load address bytes | `$8DFE-$8DFF` | `2` | PRG load address emitted ahead of each overlay sidecar file. |
 | Overlay execution window | `$8E00-$C5FF` | `14336` | Shared live area for whichever overlay is active. |
-| Resident BSS | `$870C-$8902` | `503` | Resident writable data below the overlay load address. |
-| Resident heap | `$8904-$8DFD` | `1274` | cc65 heap carved below the overlay load address. |
+| Resident BSS | `$833F-$8535` | `503` | Resident writable data below the overlay load address. |
+| Resident heap | `$8536-$8DFD` | `2248` | cc65 heap carved below the overlay load address. |
 | High-RAM runtime | `$CA00-$CFFF` | `1536` | Fixed ReadyShell runtime state outside the app snapshot window. |
 
 ## REU Layout And Loading Model
@@ -41,6 +41,9 @@ Artifact-backed report generated from the current local ReadyShell build, linker
 | Overlay 7 command slot | `$417000-$41A7FF` | `14336` | Full overlay-window snapshot for overlay 7. |
 | Overlay 8 command slot | `$41A800-$41DFFF` | `14336` | Full overlay-window snapshot for overlay 8. |
 | Cache bank 2 free tail | `$41E000-$41FFFF` | `8192` | Unused tail after the four fixed slots in bank 0x41. |
+| Shared cache bank 3 | `$420000-$42FFFF` | `65536` | Fixed ReadyShell cache bank holding overlay 9, the prompt editor. |
+| Overlay 9 editor slot | `$420000-$4237FF` | `14336` | Full overlay-window snapshot for overlay 9. |
+| Cache bank 3 free tail | `$423800-$42FFFF` | `51200` | Unused tail after the editor slot in bank 0x42. |
 | Debug trace ring | `$43F000-$43F20F` | `528` | Overlay debug markers and verification state. |
 | Command scratch | `$480000-$487FFF` | `32768` | Inter-overlay handoff area for command frames and streaming state. |
 | Command registry header | `$488010-$488017` | `8` | REU-backed external-command registry header. |
@@ -99,6 +102,17 @@ REU bank 0x41
 | free tail                              |
 | 0x2000 bytes                           |
 +----------------------------------------+ $41FFFF
+
+REU bank 0x42
+
++----------------------------------------+ $420000
+| overlay 9 prompt editor slot           |
+| full overlay-window image: 0x3800      |
+| active file: rsedit.prg                |
++----------------------------------------+ $423800
+| free tail                              |
+| 0xc800 bytes                           |
++----------------------------------------+ $42FFFF
 ```
 
 ## Command Scratch And Value Arena Usage
@@ -123,7 +137,7 @@ REU bank 0x41
 - Registry capacity check: `rs_cmd_registry.c` seeds `10` external command descriptors into `16` reserved descriptor slots and `6` overlay-state rows into `6` reserved state slots.
 - Metadata-page packing check: the full ReadyShell metadata block fits inside `$488000-$4880FF`. Header uses `$488010-$488017`, descriptor rows reserve `$488020-$48807F` with live rows ending at `$48805B`, state rows reserve `$488080-$4880EB` with live rows ending at `$4880EB`, shared metadata uses `$4880F0-$4880FB`, and the pause flag sits at `$4880FC`.
 - Non-overlap check: command scratch ends at `$487FFF` and REU heap metadata begins at `$488000`; the state table ends at `$4880EB` and shared metadata begins at `$4880F0`; shared metadata ends at `$4880FB` and the pause flag is `$4880FC`; the value arena begins at `$488100`.
-- Cache-slot audit: ReadyShell caches overlays 1-8. Bank `0x40` carries overlays `1`, `2`, `3`, and `5`; bank `0x41` carries overlays `4`, `6`, `7`, and `8`. Every slot is a full `14336`-byte overlay-window snapshot.
+- Cache-slot audit: ReadyShell caches overlays 1-9. Bank `0x40` carries overlays `1`, `2`, `3`, and `5`; bank `0x41` carries overlays `4`, `6`, `7`, and `8`; bank `0x42` carries overlay `9`. Every slot is a full `14336`-byte overlay-window snapshot.
 - Command-source audit: `DRVI` builds output only in overlay-local RAM; `LST` writes 28-byte directory records into shared scratch; `LDV` streams RSV1 payloads into scratch and materializes persistent values into the REU heap arena; `STV` serializes into scratch and dereferences pointer-backed values from the arena; `DEL` and `REN` issue direct DOS commands without REU staging; `PUT` and `ADD` use scratch metadata plus a text spool; `CAT` uses a scratch record table plus line-data spool; `COPY` stays overlay-local with `g_copy_buf[128]`.
 
 ## Overlay Inventory
@@ -138,6 +152,7 @@ REU bank 0x41
 | 6 | File Delete / Rename / Write | `rsfops.prg` | `rsfops` | `14335` | `57` | `14333` | `100.0%` | bank `0x41` slot `$413800-$416FFF` | DEL, REN, PUT, ADD |
 | 7 | File Read | `rscat.prg` | `rscat` | `8080` | `32` | `8078` | `56.3%` | bank `0x41` slot `$417000-$41A7FF` | CAT |
 | 8 | File Copy | `rscopy.prg` | `rscopy` | `6601` | `26` | `6599` | `46.0%` | bank `0x41` slot `$41A800-$41DFFF` | COPY |
+| 9 | Prompt Editor | `rsedit.prg` | `rsedit` | `2004` | `8` | `2002` | `14.0%` | bank `0x42` slot `$420000-$4237FF` | None directly; prompt/input phase support. |
 
 ## Command Topology
 
@@ -170,7 +185,7 @@ Resident ReadyShell dispatcher
 ```
 
 - `DRVI` and `LST` co-reside in `rsdrvilst`, so both commands restore the same cached overlay image.
-- All overlays 1-8 are REU-cached today; overlays `3-8` are no longer reloaded from disk on repeat command calls inside the same session.
+- All overlays 1-9 are REU-cached today; overlays `3-9` are no longer reloaded from disk on repeat command or prompt calls inside the same session.
 
 ## Resident Program
 
@@ -181,8 +196,8 @@ Resident ReadyShell dispatcher
 - Resident asm/runtime support: `rs_runtime_c64.s`
 - Command role: Resident app shell loop plus vm/overlay runtime. Command tokens resolved here, then dispatched to overlay 2 or command overlays.
 - Current linker-visible resident footprint:
-  - `CODE` `0x7224`
-  - `RODATA` `0x041A`
+  - `CODE` `0x6E64`
+  - `RODATA` `0x040D`
   - `DATA` `0x0047`
   - `INIT` `0x001C`
   - `ONCE` `0x0038`
@@ -302,12 +317,26 @@ Resident ReadyShell dispatcher
 - REU policy: Boot-loaded from disk during shell startup, then restored from bank `0x41` slot `$41A800-$41DFFF` as a full `0x3800`-byte overlay-window snapshot.
 - RAM notes: Uses an overlay-local 128-byte transfer buffer plus direct DOS copy or streamed file I/O. It does not use the shared REU scratch or value arena.
 
+### Overlay 9: Prompt Editor
+
+- Purpose: Interactive prompt input, cursor editing, key normalization, and backtick logical-line continuation.
+- Build PRG: `rsedit.prg`
+- Disk staging PRG: `obj/rsedit.prg`
+- Disk filename: `rsedit`
+- Source files: `rs_edit_c64.c`
+- Commands: None directly; prompt/input phase support.
+- Runtime bytes in overlay window: `2002` at `$8E00-$95D1`
+- Window share: `14.0%` used, `12334` bytes free
+- Disk footprint: `2004` bytes, `8` D71 blocks
+- REU policy: Boot-loaded from disk during shell startup, then restored from bank `0x42` slot `$420000-$4237FF` as a full `0x3800`-byte overlay-window snapshot.
+- RAM notes: Keeps the editable physical-line buffer overlay-local; the final logical command line remains resident in g_line.
+
 ## Observations
 
 - Overlay 2 is effectively full: `14033` of `14336` bytes (`97.9%`).
 - Overlay 1 is also large at `13005` bytes (`90.7%`).
-- The resident heap below the overlay load address is only `1274` bytes, so large transient work must lean on overlays and REU-backed storage.
-- ReadyShell now uses two fixed REU cache banks: `0x40` for overlays `1`, `2`, `3`, and `5`, and `0x41` for overlays `4`, `6`, `7`, and `8`.
-- Bank `0x40` leaves `8192` bytes free at the tail; bank `0x41` leaves `8192` bytes free.
+- The resident heap below the overlay load address is only `2248` bytes, so large transient work must lean on overlays and REU-backed storage.
+- ReadyShell now uses three fixed REU cache banks: `0x40` for overlays `1`, `2`, `3`, and `5`; `0x41` for overlays `4`, `6`, `7`, and `8`; and `0x42` for overlay `9`.
+- Bank `0x40` leaves `8192` bytes free; bank `0x41` leaves `8192` bytes free; bank `0x42` leaves `51200` bytes free.
 - External commands now pay a one-time boot preload cost instead of a repeated disk-load cost during each command call.
 - Overlay 2 carries the shared formatting buffers, so its footprint reflects both command support code and the text-rendering scratch it owns.

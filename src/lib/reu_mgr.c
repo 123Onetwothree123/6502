@@ -76,6 +76,7 @@ static void reu_sync_from_bitmap(void) {
 static void reu_apply_fixed_system_banks(void) {
     REU_ALLOC_TABLE[REU_BANK_RS_CACHE] = REU_RS_CACHE;
     REU_ALLOC_TABLE[REU_BANK_RS_CACHE2] = REU_RS_CACHE;
+    REU_ALLOC_TABLE[REU_BANK_RS_CACHE3] = REU_RS_CACHE;
     REU_ALLOC_TABLE[REU_BANK_RS_DEBUG] = REU_RS_DEBUG;
     REU_ALLOC_TABLE[REU_BANK_RS_SCRATCH] = REU_RS_SCRATCH;
 }
@@ -96,6 +97,7 @@ static unsigned char reu_fixed_bank_type(unsigned char bank) {
     switch (bank) {
         case REU_BANK_RS_CACHE: return REU_RS_CACHE;
         case REU_BANK_RS_CACHE2: return REU_RS_CACHE;
+        case REU_BANK_RS_CACHE3: return REU_RS_CACHE;
         case REU_BANK_RS_DEBUG: return REU_RS_DEBUG;
         case REU_BANK_RS_SCRATCH: return REU_RS_SCRATCH;
         default:                return 0xFF;

@@ -12,11 +12,14 @@ typedef void (*RSOverlayProgressFn)(unsigned char stage, void* user);
 #define RS_OVERLAY_PHASE_CMD6   6u
 #define RS_OVERLAY_PHASE_CMD7   7u
 #define RS_OVERLAY_PHASE_CMD8   8u
+#define RS_OVERLAY_PHASE_EDIT   9u
 
 int rs_overlay_boot(void);
 int rs_overlay_boot_with_progress(RSOverlayProgressFn progress, void* user);
 int rs_overlay_prepare_parse(void);
 int rs_overlay_prepare_exec(void);
+int rs_overlay_prepare_edit(void);
+int rs_overlay_read_logical_line(char* out, unsigned short max);
 int rs_overlay_active(void);
 int rs_overlay_is_phase_ready(unsigned char phase);
 unsigned char rs_overlay_last_rc(void);

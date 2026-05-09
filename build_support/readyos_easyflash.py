@@ -34,10 +34,11 @@ APP_SNAPSHOT_SIZE = 0xB600
 READYSHELL_OVL_LOAD = 0x8E00
 READYSHELL_OVL_SLOT_LEN = 0x3800
 READYSHELL_OVL_META_OFF = 0x4880F0
-READYSHELL_OVL_META_VERSION = 2
-READYSHELL_OVL_META_VALID_MASK = 0xFF
+READYSHELL_OVL_META_VERSION = 3
+READYSHELL_OVL_META_VALID_MASK = 0x01FF
 READYSHELL_CACHE_BANK = 0x40
 READYSHELL_CACHE_BANK2 = 0x41
+READYSHELL_CACHE_BANK3 = 0x42
 REU_BANK_SKIP_MAX = 39
 
 OVERLAY_SPECS = (
@@ -49,6 +50,7 @@ OVERLAY_SPECS = (
     ("rsfops", "bin/rsfops.prg", READYSHELL_CACHE_BANK2, 0x3800, 0x20),
     ("rscat", "bin/rscat.prg", READYSHELL_CACHE_BANK2, 0x7000, 0x40),
     ("rscopy", "bin/rscopy.prg", READYSHELL_CACHE_BANK2, 0xA800, 0x80),
+    ("rsedit", "bin/rsedit.prg", READYSHELL_CACHE_BANK3, 0x0000, 0x100),
 )
 
 REPORT_SYMBOLS = "123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
@@ -306,7 +308,7 @@ def layout_inc_text(layout: Dict[str, object]) -> str:
             f"<${int(entry['load_addr']):04X}, >${int(entry['load_addr']):04X}, "
             f"<${int(entry['payload_len']):04X}, >${int(entry['payload_len']):04X}, "
             f"<${int(entry['checksum16']):04X}, >${int(entry['checksum16']):04X}, "
-            f"{int(entry['reu_bank'])}, <${int(entry['reu_off']):04X}, >${int(entry['reu_off']):04X}, {int(entry['valid_bit'])}"
+            f"{int(entry['reu_bank'])}, <${int(entry['reu_off']):04X}, >${int(entry['reu_off']):04X}, {int(entry['valid_bit']) & 0xFF}"
         )
     lines.append("")
     return "\n".join(lines)

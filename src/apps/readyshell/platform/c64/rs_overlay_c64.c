@@ -1,4 +1,5 @@
 #include "../rs_overlay.h"
+#include "../rs_edit.h"
 #include "../rs_platform.h"
 #include "../rs_memcfg.h"
 #include "../../core/rs_cmd_overlay.h"
@@ -21,7 +22,7 @@
 #include <string.h>
 
 #define RS_OVERLAY_UNIT 8u
-#define RS_OVERLAY_COUNT 8u
+#define RS_OVERLAY_COUNT 9u
 #define RS_REU_DBG_HEAD_OFF 0x43F000ul
 #define RS_REU_DBG_DATA_OFF 0x43F010ul
 #define RS_REU_DBG_DATA_LEN 0x0200u
@@ -29,6 +30,7 @@
 #define RS_REU_OVL_CACHE_BASE2 0x410000ul
 #define RS_REU_OVL_CACHE_PARSE_OFF (RS_REU_OVL_CACHE_BASE + (unsigned long)RS_REU_OVL_CACHE_PARSE_REL)
 #define RS_REU_OVL_CACHE_EXEC_OFF  (RS_REU_OVL_CACHE_BASE + (unsigned long)RS_REU_OVL_CACHE_EXEC_REL)
+#define RS_REU_OVL_CACHE_EDIT_OFF  (((unsigned long)RS_REU_OVL_CACHE_BANK3 << 16u) + (unsigned long)RS_REU_OVL_CACHE_EDIT_REL)
 #define RS_RAM_DBG_HEAD      (*(unsigned char*)0xC7F0)
 #define RS_RAM_DBG_BASE      ((unsigned char*)0xC7A0)
 #define RS_RAM_DBG_LEN       0x40u
@@ -143,6 +145,7 @@ extern unsigned char _OVERLAY5_SIZE__[];
 extern unsigned char _OVERLAY6_SIZE__[];
 extern unsigned char _OVERLAY7_SIZE__[];
 extern unsigned char _OVERLAY8_SIZE__[];
+extern unsigned char _OVERLAY9_SIZE__[];
 
 extern int rs_vmovl_overlay3(unsigned char handler, RSCommandFrame* frame);
 extern int rs_vmovl_overlay4(unsigned char handler, RSCommandFrame* frame);
@@ -269,24 +272,25 @@ static void rs_overlay_meta_clear(void) {
   (void)rs_reu_write(RS_REU_OVL_CACHE_META_OFF, g_overlay_meta_buf, sizeof(g_overlay_meta_buf));
 }
 
-static void rs_overlay_meta_write(unsigned char valid_mask) {
+static void rs_overlay_meta_write(unsigned short valid_mask) {
   g_overlay_meta_buf[0] = 'O';
   g_overlay_meta_buf[1] = 'V';
   g_overlay_meta_buf[2] = RS_REU_OVL_CACHE_META_VERSION;
-  g_overlay_meta_buf[3] = valid_mask;
+  g_overlay_meta_buf[3] = (unsigned char)(valid_mask & 0xFFu);
   g_overlay_meta_buf[4] = RS_REU_OVL_CACHE_BANK;
   g_overlay_meta_buf[5] = RS_REU_OVL_CACHE_BANK2;
   g_overlay_meta_buf[6] = (unsigned char)(RS_REU_OVL_CACHE_SLOT_LEN & 0xFFu);
   g_overlay_meta_buf[7] = (unsigned char)((RS_REU_OVL_CACHE_SLOT_LEN >> 8u) & 0xFFu);
-  g_overlay_meta_buf[8] = 0u;
-  g_overlay_meta_buf[9] = 0u;
+  g_overlay_meta_buf[8] = (unsigned char)((valid_mask >> 8u) & 0xFFu);
+  g_overlay_meta_buf[9] = RS_REU_OVL_CACHE_BANK3;
   g_overlay_meta_buf[10] = 0u;
   g_overlay_meta_buf[11] = 0u;
   (void)rs_reu_write(RS_REU_OVL_CACHE_META_OFF, g_overlay_meta_buf, sizeof(g_overlay_meta_buf));
 }
 
-static int rs_overlay_meta_read(unsigned char needed_mask) {
+static int rs_overlay_meta_read(unsigned short needed_mask) {
   unsigned short slot_len;
+  unsigned short valid_mask;
 
   memset(g_overlay_meta_buf, 0, sizeof(g_overlay_meta_buf));
   if (rs_reu_read(RS_REU_OVL_CACHE_META_OFF, g_overlay_meta_buf, sizeof(g_overlay_meta_buf)) != 0) {
@@ -299,7 +303,12 @@ static int rs_overlay_meta_read(unsigned char needed_mask) {
       g_overlay_meta_buf[5] != RS_REU_OVL_CACHE_BANK2) {
     return -1;
   }
-  if ((g_overlay_meta_buf[3] & needed_mask) != needed_mask) {
+  if (g_overlay_meta_buf[9] != RS_REU_OVL_CACHE_BANK3) {
+    return -1;
+  }
+  valid_mask = (unsigned short)g_overlay_meta_buf[3] |
+               ((unsigned short)g_overlay_meta_buf[8] << 8u);
+  if ((valid_mask & needed_mask) != needed_mask) {
     return -1;
   }
 
@@ -311,11 +320,11 @@ static int rs_overlay_meta_read(unsigned char needed_mask) {
   return 0;
 }
 
-static unsigned char rs_overlay_valid_bit(unsigned char overlay_num) {
+static unsigned short rs_overlay_valid_bit(unsigned char overlay_num) {
   if (overlay_num == 0u || overlay_num > RS_OVERLAY_COUNT) {
     return 0u;
   }
-  return (unsigned char)(1u << (overlay_num - 1u));
+  return (unsigned short)(1u << (overlay_num - 1u));
 }
 
 static unsigned short rs_overlay_size_for_num(unsigned char overlay_num) {
@@ -328,6 +337,7 @@ static unsigned short rs_overlay_size_for_num(unsigned char overlay_num) {
     case 6u: return (unsigned short)(unsigned)_OVERLAY6_SIZE__;
     case 7u: return (unsigned short)(unsigned)_OVERLAY7_SIZE__;
     case 8u: return (unsigned short)(unsigned)_OVERLAY8_SIZE__;
+    case 9u: return (unsigned short)(unsigned)_OVERLAY9_SIZE__;
     default: return 0u;
   }
 }
@@ -405,21 +415,22 @@ static int rs_overlay_sync_preloaded_registry(void) {
 
 int rs_overlay_boot_with_progress(RSOverlayProgressFn progress, void* user) {
   RSExternalOverlayState state;
-  unsigned char valid_mask;
+  unsigned short valid_mask;
   unsigned char overlay_index;
   unsigned char overlay_num;
   unsigned long cache_off;
   int reu_ok;
 #if !RS_C64_OVERLAY_PRELOADED
-  const unsigned char preload_mask =
-      (unsigned char)(RS_REU_OVL_CACHE_VALID_PARSE |
-                      RS_REU_OVL_CACHE_VALID_EXEC |
-                      RS_REU_OVL_CACHE_VALID_CMD3 |
-                      RS_REU_OVL_CACHE_VALID_CMD4 |
-                      RS_REU_OVL_CACHE_VALID_CMD5 |
-                      RS_REU_OVL_CACHE_VALID_CMD6 |
-                      RS_REU_OVL_CACHE_VALID_CMD7 |
-                      RS_REU_OVL_CACHE_VALID_CMD8);
+  const unsigned short preload_mask =
+      RS_REU_OVL_CACHE_VALID_PARSE |
+      RS_REU_OVL_CACHE_VALID_EXEC |
+      RS_REU_OVL_CACHE_VALID_CMD3 |
+      RS_REU_OVL_CACHE_VALID_CMD4 |
+      RS_REU_OVL_CACHE_VALID_CMD5 |
+      RS_REU_OVL_CACHE_VALID_CMD6 |
+      RS_REU_OVL_CACHE_VALID_CMD7 |
+      RS_REU_OVL_CACHE_VALID_CMD8 |
+      RS_REU_OVL_CACHE_VALID_EDIT;
 #endif
 
   /* Clear any stale logical files/channels left by autostart. */
@@ -529,6 +540,20 @@ int rs_overlay_boot_with_progress(RSOverlayProgressFn progress, void* user) {
     return -1;
   }
   valid_mask |= rs_overlay_valid_bit(2u);
+
+  if (rs_overlay_load_disk(9u, "0:rsedit,p") != 0) {
+    g_overlay_loaded = 0;
+    rs_overlay_clear_phase();
+    return -1;
+  }
+  if (rs_overlay_cache_slot(9u, RS_REU_OVL_CACHE_EDIT_OFF) != 0) {
+    g_overlay_last_rc = RS_OVL_RC_REU_CACHE;
+    rs_overlay_dbg_put('!');
+    rs_overlay_dbg_put('Y');
+    return -1;
+  }
+  valid_mask |= rs_overlay_valid_bit(9u);
+
   rs_overlay_meta_write(valid_mask);
   rs_overlay_set_phase(RS_OVERLAY_PHASE_EXEC);
   g_overlay_loaded = 1;
@@ -608,11 +633,65 @@ int rs_overlay_prepare_exec(void) {
   return -1;
 }
 
+int rs_overlay_prepare_edit(void) {
+  rs_overlay_dbg_put('I');
+  if (!g_overlay_loaded) {
+    g_overlay_last_rc = RS_OVL_RC_NOT_BOOTED;
+    rs_overlay_clear_phase();
+    rs_overlay_dbg_put('!');
+    return -1;
+  }
+  if (!g_overlay_cached_reu) {
+    g_overlay_last_rc = RS_OVL_RC_REU_REQUIRED;
+    rs_overlay_clear_phase();
+    rs_overlay_dbg_put('!');
+    return -1;
+  }
+#if !RS_C64_OVERLAY_PRELOADED
+  if (rs_overlay_meta_read(RS_REU_OVL_CACHE_VALID_EDIT) != 0) {
+    g_overlay_cached_reu = 0;
+    g_overlay_last_rc = RS_OVL_RC_REU_REQUIRED;
+    rs_overlay_clear_phase();
+    rs_overlay_dbg_put('!');
+    return -1;
+  }
+#endif
+  rs_overlay_dbg_put('R');
+  if (rs_overlay_fetch_slot(9u, RS_OVERLAY_PHASE_EDIT, RS_REU_OVL_CACHE_EDIT_OFF) == 0) {
+    rs_overlay_dbg_put('i');
+    return 0;
+  }
+  g_overlay_last_rc = RS_OVL_RC_REU_CMD;
+  rs_overlay_dbg_put('!');
+  return -1;
+}
+
+int rs_overlay_read_logical_line(char* out, unsigned short max) {
+  int rc;
+  if (!out || max == 0u) {
+    return -1;
+  }
+  if (rs_overlay_prepare_edit() != 0 ||
+      !rs_overlay_is_phase_ready(RS_OVERLAY_PHASE_EDIT)) {
+    return -1;
+  }
+  rs_overlay_window_enter();
+  /*
+   * The parser/VM overlays run with IRQs held off, but the prompt editor waits
+   * on the KERNAL keyboard path. Keep RAM visible under BASIC for overlay code
+   * while allowing the normal IRQ keyboard scanner to keep updating GETIN.
+   */
+  __asm__("cli");
+  rc = rs_vmovl_overlay9(out, max);
+  rs_overlay_window_leave();
+  return rc;
+}
+
 static int rs_overlay_prepare_command(const RSExternalCmdDescriptor* desc) {
   RSExternalOverlayState state;
   unsigned char overlay_num;
   unsigned long cache_off;
-  unsigned char valid_bit;
+  unsigned short valid_bit;
 
   rs_overlay_dbg_put('D');
   if (!g_overlay_loaded) {
@@ -753,6 +832,16 @@ int rs_overlay_prepare_parse(void) {
 
 int rs_overlay_prepare_exec(void) {
   return 0;
+}
+
+int rs_overlay_prepare_edit(void) {
+  return 0;
+}
+
+int rs_overlay_read_logical_line(char* out, unsigned short max) {
+  (void)out;
+  (void)max;
+  return -1;
 }
 
 int rs_overlay_command_call(RSCommandId id, unsigned char op, RSCommandFrame* frame) {

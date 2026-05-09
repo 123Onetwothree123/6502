@@ -9,6 +9,7 @@
 #include "core/rs_token.h"
 #include "core/rs_ui_state.h"
 #include "core/rs_vm.h"
+#include "platform/rs_edit.h"
 #include "platform/rs_overlay.h"
 #include "platform/rs_platform.h"
 #include "../../lib/resume_state.h"
@@ -37,14 +38,6 @@
 #define PAUSE_TEXT "PAUSED - PRESS ANY KEY"
 
 /* Key codes */
-#define KEY_RETURN 13
-#define KEY_LEFT 157
-#define KEY_RIGHT 29
-#define KEY_DEL 20
-#define KEY_NEXT_APP TUI_KEY_NEXT_APP
-#define KEY_PREV_APP TUI_KEY_PREV_APP
-#define KEY_RUNSTOP TUI_KEY_RUNSTOP
-
 /* Shim ABI */
 #define SHIM_CURRENT_BANK (*(unsigned char*)0xC834)
 
@@ -184,72 +177,6 @@ static unsigned char ascii_to_screen(unsigned char ascii) {
         case '_': return 100;
         default: return 32;
     }
-}
-
-static unsigned char shell_normalize_input_key(unsigned char key) {
-    /*
-     * Normalize C64/PETSCII variants that users expect to behave as pipeline
-     * input. Keep this as a switch table to avoid optimizer surprises on
-     * chained comparisons with high-bit PETSCII values.
-     */
-    switch (key) {
-        case '!':
-        case '^':
-        case CH_LIRA:
-        case CH_PI:
-        case CH_VLINE:
-        case CH_CURS_UP:
-        case 0x01: /* seen on some host-keyboard layouts for Shift+1 */
-        case 0x81:
-        case 0xA1:
-        case 0xC1:
-        case 0xD1:
-            return '|';
-        default:
-            break;
-    }
-    return key;
-}
-
-/*
- * Reference-style input acceptance:
- * - Decide insertability from raw key first.
- * - Then apply substitutions (! -> | and C64 variants).
- *
- * This avoids rejecting normalized C64 pipe byte ($DD), which is outside
- * ASCII 32..126 but is still the correct target-char representation.
- */
-static unsigned char shell_key_to_insert_char(unsigned char raw,
-                                              unsigned char *out_char,
-                                              unsigned char *out_norm) {
-    unsigned char accepted;
-    unsigned char normalized;
-
-    accepted = 0;
-    if (raw >= 32 && raw <= 126) {
-        accepted = 1;
-    } else {
-        switch (raw) {
-            case CH_CURS_UP:
-            case CH_PI:
-            case CH_VLINE:
-            case 0x81:
-            case 0xA1:
-            case 0xC1:
-            case 0xD1:
-                accepted = 1;
-                break;
-            default:
-                break;
-        }
-    }
-
-    normalized = shell_normalize_input_key(raw);
-    if (out_norm) *out_norm = normalized;
-    if (!accepted) return 0;
-
-    if (out_char) *out_char = normalized;
-    return 1;
 }
 
 static void put_char(unsigned char x, unsigned char y, unsigned char ch, unsigned char color) {
@@ -445,6 +372,34 @@ static void shell_write_line(const char *s) {
     shell_write_line_color(s, C_WHITE);
 }
 
+unsigned char rs_shell_cursor_y(void) {
+    return g_cursor_y;
+}
+
+void rs_shell_put_char(unsigned char x, unsigned char y, unsigned char ch, unsigned char color) {
+    put_char(x, y, ch, color);
+}
+
+void rs_shell_put_ascii(unsigned char x, unsigned char y, unsigned char ch, unsigned char color) {
+    put_ascii(x, y, ch, color);
+}
+
+void rs_shell_clear_line(unsigned char y, unsigned char color) {
+    clear_line(y, color);
+}
+
+void rs_shell_draw_text(unsigned char x, unsigned char y, const char *s, unsigned char color) {
+    draw_text(x, y, s, color);
+}
+
+void rs_shell_newline(void) {
+    shell_newline();
+}
+
+void rs_shell_write_line(const char *s) {
+    shell_write_line(s);
+}
+
 static int shell_writer(void *user, const char *line) {
     unsigned char color;
     (void)user;
@@ -549,6 +504,18 @@ static void shell_nav_switch(unsigned char bank) {
     tui_switch_to_app(bank);
 }
 
+void rs_shell_nav_to_launcher(void) {
+    shell_nav_to_launcher();
+}
+
+void rs_shell_nav_next_app(void) {
+    shell_nav_switch(tui_get_next_app(SHIM_CURRENT_BANK));
+}
+
+void rs_shell_nav_prev_app(void) {
+    shell_nav_switch(tui_get_prev_app(SHIM_CURRENT_BANK));
+}
+
 static void shell_draw_chrome(void) {
     unsigned char row;
 
@@ -563,215 +530,6 @@ static void shell_draw_chrome(void) {
 
     g_cursor_y = BODY_TOP;
     g_cursor_x = 0;
-}
-
-static void shell_draw_prompt(const char *buf, unsigned char len, unsigned char pos) {
-    unsigned char col;
-    unsigned char c;
-
-    (void)pos;
-
-    clear_line(g_cursor_y, C_WHITE);
-    draw_text(0, g_cursor_y, PROMPT_TEXT, C_YELLOW);
-
-    for (col = 0; col < INPUT_COLS; ++col) {
-        if (col < len) c = (unsigned char)buf[col];
-        else c = ' ';
-        put_ascii((unsigned char)(PROMPT_LEN + col), g_cursor_y, c, C_WHITE);
-    }
-}
-
-static void shell_redraw_input_tail(const char *buf,
-                                    unsigned char len,
-                                    unsigned char from,
-                                    unsigned char erase_one) {
-    unsigned char to;
-    unsigned char col;
-    unsigned char c;
-
-    if (from >= INPUT_COLS) return;
-
-    to = len;
-    if (erase_one && to < INPUT_COLS) {
-        ++to;
-    }
-    if (to > INPUT_COLS) {
-        to = INPUT_COLS;
-    }
-
-    for (col = from; col < to; ++col) {
-        if (col < len) c = (unsigned char)buf[col];
-        else c = ' ';
-        put_ascii((unsigned char)(PROMPT_LEN + col), g_cursor_y, c, C_WHITE);
-    }
-}
-
-static void shell_draw_cursor_cell(const char *buf, unsigned char len, unsigned char pos, unsigned char on) {
-    unsigned char c;
-    unsigned char screen;
-
-    if (pos >= INPUT_COLS) return;
-
-    if (pos < len) c = (unsigned char)buf[pos];
-    else c = ' ';
-
-    screen = ascii_to_screen(c);
-    if (on) screen |= 0x80;
-    put_char((unsigned char)(PROMPT_LEN + pos), g_cursor_y, screen, C_WHITE);
-}
-
-static int shell_read_physical_line(char *out, unsigned char maxlen) {
-    unsigned char len;
-    unsigned char pos;
-    unsigned char key;
-    unsigned char raw_key;
-    unsigned char i;
-    unsigned char bank;
-    unsigned char insert_mode;
-    unsigned char insert_ch;
-    unsigned char accepted;
-
-    len = 0;
-    pos = 0;
-    insert_mode = 1;
-    out[0] = 0;
-    (void)kbrepeat(KBREPEAT_NONE);
-    /* Ensure keyboard is the active input stream before we block in cgetc(). */
-    cbm_k_clrch();
-    shell_draw_prompt(out, len, pos);
-    shell_draw_cursor_cell(out, len, pos, 1);
-
-    for (;;) {
-        key = (unsigned char)cgetc();
-        if (key == 0) continue;
-        raw_key = key;
-        shell_draw_cursor_cell(out, len, pos, 0);
-
-        if (key == 2) {
-            shell_nav_to_launcher();
-        }
-        if (key == KEY_NEXT_APP) {
-            bank = tui_get_next_app(SHIM_CURRENT_BANK);
-            shell_nav_switch(bank);
-        }
-        if (key == KEY_PREV_APP) {
-            bank = tui_get_prev_app(SHIM_CURRENT_BANK);
-            shell_nav_switch(bank);
-        }
-        if (key == KEY_RUNSTOP) {
-            shell_nav_to_launcher();
-        }
-
-        if (key == KEY_RETURN) {
-            out[len] = 0;
-            shell_newline();
-            return len;
-        }
-
-        if (key == KEY_LEFT || key == CH_CURS_LEFT) {
-            if (pos > 0) {
-                --pos;
-            }
-            shell_draw_cursor_cell(out, len, pos, 1);
-            continue;
-        }
-        if (key == KEY_RIGHT || key == CH_CURS_RIGHT) {
-            if (pos < len) {
-                ++pos;
-            }
-            shell_draw_cursor_cell(out, len, pos, 1);
-            continue;
-        }
-        if (key == CH_INS) {
-            insert_mode = (unsigned char)!insert_mode;
-            shell_draw_cursor_cell(out, len, pos, 1);
-            continue;
-        }
-
-        if (key == KEY_DEL || key == 8 || key == 127) {
-            if (pos > 0 && len > 0) {
-                --pos;
-                i = pos;
-                while (i < len) {
-                    out[i] = out[i + 1];
-                    ++i;
-                }
-                --len;
-                shell_redraw_input_tail(out, len, pos, 1);
-            }
-            shell_draw_cursor_cell(out, len, pos, 1);
-            continue;
-        }
-
-        insert_ch = 0;
-        accepted = shell_key_to_insert_char(raw_key, &insert_ch, 0);
-
-        if (accepted) {
-            if (len < maxlen) {
-                if (insert_mode && pos < len) {
-                    i = len;
-                    while (i > pos) {
-                        out[i] = out[i - 1];
-                        --i;
-                    }
-                    out[pos] = (char)insert_ch;
-                    ++len;
-                    ++pos;
-                } else {
-                    out[pos] = (char)insert_ch;
-                    if (pos == len) {
-                        ++len;
-                    }
-                    ++pos;
-                }
-                out[len] = 0;
-                shell_redraw_input_tail(out, len, (unsigned char)(pos == 0 ? 0 : (pos - 1)), 0);
-            }
-            shell_draw_cursor_cell(out, len, pos, 1);
-            continue;
-        }
-
-        shell_draw_cursor_cell(out, len, pos, 1);
-    }
-}
-
-static int shell_append(char *dst, unsigned short max, const char *src) {
-    unsigned short cur;
-    unsigned short len;
-
-    cur = (unsigned short)strlen(dst);
-    len = (unsigned short)strlen(src);
-    if ((unsigned long)cur + (unsigned long)len + 1ul > (unsigned long)max) return -1;
-    memcpy(dst + cur, src, len + 1u);
-    return 0;
-}
-
-static int shell_read_logical_line(char *out, unsigned short max) {
-    char phys[PHYSICAL_MAX + 1];
-    int n;
-    unsigned short len;
-
-    out[0] = 0;
-    for (;;) {
-        n = shell_read_physical_line(phys, PHYSICAL_MAX);
-        if (n < 0) return -1;
-
-        len = (unsigned short)strlen(phys);
-        if (len > 0 && phys[len - 1u] == '`') {
-            phys[len - 1u] = 0;
-            if (shell_append(out, max, phys) != 0) {
-                shell_write_line("ERR: COMMAND TOO LONG");
-                return -1;
-            }
-            continue;
-        }
-        if (shell_append(out, max, phys) != 0) {
-            shell_write_line("ERR: COMMAND TOO LONG");
-            return -1;
-        }
-        break;
-    }
-    return (int)strlen(out);
 }
 
 static void shell_show_help(void) {
@@ -846,7 +604,7 @@ int main(void) {
 
     for (;;) {
         signed char exec_rc;
-        if (shell_read_logical_line(g_line, sizeof(g_line)) < 0) break;
+        if (rs_overlay_read_logical_line(g_line, sizeof(g_line)) < 0) break;
 
         shell_trim(g_line);
         if (g_line[0] == 0) continue;
