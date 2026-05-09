@@ -26,7 +26,7 @@
 #define REU_MAGIC_VALUE  0xA5
 #define REU_TOTAL_BANKS  256
 
-/* Logical first app/dynamic contracts; physical dynamic base is skip + 25. */
+/* Logical first dynamic bank; physical dynamic base is skip + 26. */
 #define REU_FIRST_DYNAMIC 24
 
 /* ReadyShell fixed REU ownership (absolute offsets in 0x40xxxx-0x43xxxx range) */
@@ -41,9 +41,13 @@
 #define SHIM_REU_BITMAP_XHI ((unsigned char*)0xC838)
 #define SHIM_REU_BANK_SKIP  ((unsigned char*)0xC83B)
 
-#define REU_LOGICAL_TO_PHYSICAL(bank) ((unsigned char)(*SHIM_REU_BANK_SKIP + 1u + (unsigned char)(bank)))
-#define REU_FIRST_DYNAMIC_PHYSICAL()  ((unsigned char)(*SHIM_REU_BANK_SKIP + 25u))
 #define REU_READYOS_GLOBAL_PHYSICAL() ((unsigned char)(*SHIM_REU_BANK_SKIP))
+#define REU_LAUNCHER_PHYSICAL()       ((unsigned char)(*SHIM_REU_BANK_SKIP + 1u))
+#define REU_LAUNCHER_OVERLAY_PHYSICAL() ((unsigned char)(*SHIM_REU_BANK_SKIP + 2u))
+#define REU_LOGICAL_TO_PHYSICAL(bank) \
+    ((unsigned char)(*SHIM_REU_BANK_SKIP + \
+     (((unsigned char)(bank) == 0u) ? 1u : (2u + (unsigned char)(bank)))))
+#define REU_FIRST_DYNAMIC_PHYSICAL()  ((unsigned char)(*SHIM_REU_BANK_SKIP + 26u))
 
 /* Initialize REU manager (safe to call multiple times) */
 void reu_mgr_init(void);

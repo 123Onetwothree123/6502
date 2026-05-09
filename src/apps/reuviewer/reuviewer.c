@@ -321,9 +321,9 @@ static void draw_detail(void) {
     tui_print_uint(6, DETAIL_Y + 1, bank, TUI_COLOR_WHITE);
     tui_puts(12, DETAIL_Y + 1, "LOG: ", TUI_COLOR_GRAY3);
     if (!bank_is_unavailable(bank) &&
-        bank >= (unsigned char)(*SHIM_REU_BANK_SKIP + 1u) &&
-        bank <= (unsigned char)(*SHIM_REU_BANK_SKIP + 24u)) {
-        logical = (unsigned char)(bank - *SHIM_REU_BANK_SKIP - 1u);
+        bank >= (unsigned char)(*SHIM_REU_BANK_SKIP + 3u) &&
+        bank <= (unsigned char)(*SHIM_REU_BANK_SKIP + 25u)) {
+        logical = (unsigned char)(bank - *SHIM_REU_BANK_SKIP - 2u);
         tui_print_hex8(17, DETAIL_Y + 1, logical, TUI_COLOR_CYAN);
     } else {
         tui_puts(17, DETAIL_Y + 1, "--", TUI_COLOR_GRAY3);

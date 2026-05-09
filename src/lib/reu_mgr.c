@@ -39,7 +39,8 @@ static void reu_sync_from_bitmap(void) {
     }
 
     REU_ALLOC_TABLE[REU_READYOS_GLOBAL_PHYSICAL()] = REU_GLOBAL;
-    REU_ALLOC_TABLE[REU_LOGICAL_TO_PHYSICAL(0)] = REU_LAUNCHER;
+    REU_ALLOC_TABLE[REU_LAUNCHER_PHYSICAL()] = REU_LAUNCHER;
+    REU_ALLOC_TABLE[REU_LAUNCHER_OVERLAY_PHYSICAL()] = REU_LAUNCHER;
 
     for (bank = 1; bank < 8; ++bank) {
         mask = (unsigned char)(1 << bank);
@@ -86,7 +87,10 @@ static unsigned char reu_fixed_bank_type(unsigned char bank) {
     if (bank == REU_READYOS_GLOBAL_PHYSICAL()) {
         return REU_GLOBAL;
     }
-    if (bank == REU_LOGICAL_TO_PHYSICAL(0)) {
+    if (bank == REU_LAUNCHER_PHYSICAL()) {
+        return REU_LAUNCHER;
+    }
+    if (bank == REU_LAUNCHER_OVERLAY_PHYSICAL()) {
         return REU_LAUNCHER;
     }
     switch (bank) {
@@ -157,10 +161,10 @@ void reu_free_bank(unsigned char bank) {
     if (bank < REU_FIRST_DYNAMIC_PHYSICAL()) {
         /* App slot banks are reserved; never return them to dynamic free pool. */
         REU_ALLOC_TABLE[bank] = REU_RESERVED;
-        if (bank <= *SHIM_REU_BANK_SKIP) {
+        if (bank <= REU_LAUNCHER_OVERLAY_PHYSICAL()) {
             return;
         }
-        bank = (unsigned char)(bank - *SHIM_REU_BANK_SKIP - 1u);
+        bank = (unsigned char)(bank - *SHIM_REU_BANK_SKIP - 2u);
         if (bank == 0) {
             return;
         }

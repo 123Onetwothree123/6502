@@ -816,7 +816,8 @@ preload_app_banks:
     ldy #$00
     lda (table_lo),y
     clc
-    adc #(READYOS_REU_BANK_SKIP + 1)
+    ; Logical app bank N stashes to physical Start+2+N.
+    adc #(READYOS_REU_BANK_SKIP + 2)
     sta reu_bank_zp
     iny
     lda (table_lo),y

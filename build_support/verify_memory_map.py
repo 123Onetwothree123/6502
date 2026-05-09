@@ -412,11 +412,11 @@ def main():
         ok &= check("REU total banks", reu_total == int(spec["reu_contract"]["total_banks"]), str(reu_total))
         ok &= check("REU first dynamic logical", reu_first == int(spec["reu_contract"]["first_dynamic_logical"]), str(reu_first))
         ok &= check("REU physical dynamic offset macro",
-                    "*SHIM_REU_BANK_SKIP + 25u" in reu_mgr_h,
-                    "expect skip + 25")
+                    "*SHIM_REU_BANK_SKIP + 26u" in reu_mgr_h,
+                    "expect skip + 26")
         ok &= check("REU logical-to-physical macro",
-                    "*SHIM_REU_BANK_SKIP + 1u" in reu_mgr_h,
-                    "expect skip + 1 + logical")
+                    "? 1u : (2u + (unsigned char)(bank))" in reu_mgr_h,
+                    "expect logical 0 -> skip + 1, apps -> skip + 2 + logical")
         ok &= check("SHIM_REU_BANK_SKIP address",
                     reu_skip_addr == parse_int(spec["reu_contract"]["shim_reu_bank_skip_addr"]),
                     hex(reu_skip_addr))
@@ -429,13 +429,19 @@ def main():
 
     try:
         bank_system = parse_define(ROOT / "src" / "shim" / "reu.h", "REU_BANK_SYSTEM")
-        bank_clip = parse_define(ROOT / "src" / "shim" / "reu.h", "REU_BANK_CLIPBOARD")
+        bank_launcher = parse_define(ROOT / "src" / "shim" / "reu.h", "REU_BANK_LAUNCHER")
+        bank_launcher_overlay = parse_define(ROOT / "src" / "shim" / "reu.h", "REU_BANK_LAUNCHER_OVERLAY")
         bank_base = parse_define(ROOT / "src" / "shim" / "reu.h", "REU_BANK_APP_BASE")
         bank_count = parse_define(ROOT / "src" / "shim" / "reu.h", "REU_BANK_APP_COUNT")
+        bank_free_base = parse_define(ROOT / "src" / "shim" / "reu.h", "REU_BANK_FREE_BASE")
         ok &= check("shim REU bank system", bank_system == int(spec["reu_contract"]["bank_system"]), str(bank_system))
-        ok &= check("shim REU bank clipboard", bank_clip == int(spec["reu_contract"]["bank_clipboard"]), str(bank_clip))
+        ok &= check("shim REU bank launcher", bank_launcher == int(spec["reu_contract"]["bank_launcher"]), str(bank_launcher))
+        ok &= check("shim REU bank launcher overlay", bank_launcher_overlay == int(spec["reu_contract"]["bank_launcher_overlay"]), str(bank_launcher_overlay))
         ok &= check("shim REU bank app base", bank_base == int(spec["reu_contract"]["bank_app_base"]), str(bank_base))
         ok &= check("shim REU bank app count", bank_count == int(spec["reu_contract"]["bank_app_count"]), str(bank_count))
+        ok &= check("shim REU bank free base",
+                    bank_free_base == int(spec["reu_contract"]["first_dynamic_physical_offset"]),
+                    str(bank_free_base))
     except ValueError as ex:
         ok &= check("shim/reu.h constants", False, str(ex))
 

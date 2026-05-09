@@ -7,10 +7,11 @@
 ;                (Using $C800 to avoid cc65 runtime overwriting $0800)
 ;   $1000-$C5FF: App snapshot window ($B600 / 46592 bytes)
 ;
-; REU Banks are physical = READYOS_REU_BANK_SKIP + 1 + logical.
-;   Start:   reserved ReadyOS global bank
+; REU Banks are physical = READYOS_REU_BANK_SKIP + offset.
+;   Start:   ReadyOS global bank
 ;   Start+1: logical launcher bank 0
-;   Start+2: logical app bank 1
+;   Start+2: reserved future launcher overlay bank
+;   Start+3: logical app bank 1
 ;-----------------------------------------------------------------------------
 
 .segment "LOADADDR"

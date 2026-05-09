@@ -18,7 +18,8 @@ static void reu_sync_from_bitmap(void) {
     }
 
     REU_ALLOC_TABLE[REU_READYOS_GLOBAL_PHYSICAL()] = REU_GLOBAL;
-    REU_ALLOC_TABLE[REU_LOGICAL_TO_PHYSICAL(0)] = REU_LAUNCHER;
+    REU_ALLOC_TABLE[REU_LAUNCHER_PHYSICAL()] = REU_LAUNCHER;
+    REU_ALLOC_TABLE[REU_LAUNCHER_OVERLAY_PHYSICAL()] = REU_LAUNCHER;
 
     for (bank = 1; bank < 8; ++bank) {
         mask = (unsigned char)(1 << bank);

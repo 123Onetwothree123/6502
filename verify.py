@@ -579,7 +579,7 @@ def main():
         (0x0F0, 0x20, "fetch_bank", "JSR"),
         (0x100, 0xAD, "return_to_launcher", "LDA abs"),
         (0x140, 0xAD, "switch_app", "LDA abs"),
-        (0x160, 0x18, "reu_setup_logical", "CLC"),
+        (0x160, 0xC9, "reu_setup_logical", "CMP imm"),
         (0x1A0, 0x8D, "reu_setup", "STA abs"),
         (0x1C0, 0xC9, "set_bitmap", "CMP imm"),
         (0x1E0, 0x48, "log_byte", "PHA"),
@@ -601,9 +601,22 @@ def main():
     reu = list(shim[0x1A0:0x1A0 + 3])
     all_ok &= check("$C9A0 reu_setup", reu == [0x8D, 0x06, 0xDF],
                     f"{' '.join(f'{b:02X}' for b in reu)} = STA $DF06")
-    reu_logical = list(shim[0x160:0x160 + 6])
-    all_ok &= check("$C960 logical setup", reu_logical == [0x18, 0x6D, 0x3B, 0xC8, 0x69, 0x01],
-                    f"{' '.join(f'{b:02X}' for b in reu_logical)} = CLC; ADC $C83B; ADC #$01")
+    reu_logical = list(shim[0x160:0x160 + 23])
+    expected_logical = [
+        0xC9, 0x00,             # CMP #0
+        0xD0, 0x09,             # BNE app_bank
+        0xAD, 0x3B, 0xC8,       # LDA $C83B
+        0x18,                   # CLC
+        0x69, 0x01,             # ADC #$01
+        0x4C, 0x74, 0xC9,       # JMP store_physical_bank
+        0x18,                   # app_bank: CLC
+        0x6D, 0x3B, 0xC8,       # ADC $C83B
+        0x18,                   # CLC
+        0x69, 0x02,             # ADC #$02
+        0x8D, 0x06, 0xDF,       # STA $DF06
+    ]
+    all_ok &= check("$C960 logical setup", reu_logical == expected_logical,
+                    f"{' '.join(f'{b:02X}' for b in reu_logical)} = bank0 Start+1, app banks Start+2+logical")
     reu_len = list(shim[0x1A0 + 0x18:0x1A0 + 0x1D])
     all_ok &= check("$C9B5 transfer length", reu_len == [0xA9, 0xB6, 0x8D, 0x08, 0xDF],
                     f"{' '.join(f'{b:02X}' for b in reu_len)} = LDA #$B6; STA $DF08")

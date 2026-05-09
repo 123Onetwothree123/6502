@@ -35,7 +35,7 @@ ABI_CHECKS = (
     ("storage_drive_default", 0x039, bytes([0x08])),
     ("stash_uses_logical_setup", 0x0E0, bytes.fromhex("2060c9")),
     ("fetch_uses_logical_setup", 0x0F0, bytes.fromhex("2060c9")),
-    ("logical_setup_entry", 0x160, bytes.fromhex("186d3bc86901")),
+    ("logical_setup_entry", 0x160, bytes.fromhex("c900d009ad3b")),
     ("raw_setup_entry", 0x1A0, bytes.fromhex("8d06df")),
 )
 

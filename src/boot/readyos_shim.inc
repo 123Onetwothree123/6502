@@ -203,11 +203,18 @@ jt_fetch_bank   = $C815     ; Helper: fetch from bank in A
 .byte $00,$00,$00,$00,$00
 
 ;-----------------------------------------------------------------------------
-; $C960: reu_setup_logical - Add shim skip/launcher offset, then setup REU regs
+; $C960: reu_setup_logical - Map logical bank to physical, then setup REU regs
 ;-----------------------------------------------------------------------------
+.byte $C9, $00              ; CMP #0 (logical launcher bank?)
+.byte $D0, $09              ; BNE app_bank
+.byte $AD, $3B, $C8         ; LDA $C83B (reu_bank_skip)
 .byte $18                   ; CLC
-.byte $6D, $3B, $C8         ; ADC $C83B (reu_bank_skip)
-.byte $69, $01              ; ADC #$01 (bank Start is reserved; launcher is Start+1)
+.byte $69, $01              ; ADC #$01 (launcher is Start+1)
+.byte $4C, $74, $C9         ; JMP store_physical_bank
+.byte $18                   ; app_bank: CLC
+.byte $6D, $3B, $C8         ; ADC $C83B (logical app bank + skip)
+.byte $18                   ; CLC
+.byte $69, $02              ; ADC #$02 (global + launcher overlay reserve)
 .byte $8D, $06, $DF         ; STA $DF06 (physical bank)
 .byte $A9, $00              ; LDA #$00
 .byte $8D, $02, $DF         ; STA $DF02 (C64 addr lo = $00)
@@ -221,8 +228,7 @@ jt_fetch_bank   = $C815     ; Helper: fetch from bank in A
 .byte $8D, $08, $DF         ; STA $DF08 (len hi = $B6, so $B600 bytes)
 .byte $60                   ; RTS
 
-.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 
 ;-----------------------------------------------------------------------------
 ; $C9A0: reu_setup - Set up REU registers for $B600 transfer at $1000

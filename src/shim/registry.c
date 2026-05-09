@@ -7,8 +7,8 @@
 
 #include <string.h>
 
-/* Maximum number of apps */
-#define MAX_APPS 24
+/* Maximum number of app slots backed by ReadyOS preallocation banks */
+#define MAX_APPS 23
 
 /* App status values */
 #define STATUS_FREE      0
@@ -16,9 +16,10 @@
 #define STATUS_SUSPENDED 2
 
 /* REU bank allocation */
-#define REU_BANK_SYSTEM    0
-#define REU_BANK_CLIPBOARD 1
-#define REU_BANK_APP_BASE  2
+#define REU_BANK_SYSTEM           0
+#define REU_BANK_LAUNCHER         1
+#define REU_BANK_LAUNCHER_OVERLAY 2
+#define REU_BANK_APP_BASE         3
 
 /*---------------------------------------------------------------------------
  * Registry Data Structures
@@ -64,7 +65,7 @@ void registry_init(void) {
 
 /*
  * registry_find_free - Find a free app slot
- * Returns: slot index (0-23) or 0xFF if none free
+ * Returns: slot index (0-22) or 0xFF if none free
  */
 unsigned char registry_find_free(void) {
     unsigned char i;
@@ -84,7 +85,7 @@ unsigned char registry_find_free(void) {
  * entry: Entry point function
  * flags: App flags
  *
- * Returns: app ID (0-23) or 0xFF on failure
+ * Returns: app ID (0-22) or 0xFF on failure
  */
 unsigned char registry_register(const char *name, void *entry, unsigned char flags) {
     unsigned char slot;
