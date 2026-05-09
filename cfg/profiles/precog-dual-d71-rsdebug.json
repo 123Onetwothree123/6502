@@ -5,6 +5,18 @@
   "default_run": false,
   "readyshell_parse_trace_debug": 1,
   "catalog_source": "cfg/profiles/precog-dual-d71.ini",
+  "app_manifests": [
+    {
+      "source": "cfg/profiles/precog-dual-d71-app-sidetris.txt",
+      "output": "obj/app_sidetris_dual_d71.seq",
+      "disk_name": "app.sidetris"
+    },
+    {
+      "source": "cfg/profiles/precog-dual-d71-app-deminer.txt",
+      "output": "obj/app_deminer_dual_d71.seq",
+      "disk_name": "app.deminer"
+    }
+  ],
   "boot": {
     "preboot_mode": "setd71",
     "autostart_prg": "preboot.prg"
@@ -24,7 +36,7 @@
         { "artifact": "boot.prg", "name": "boot", "type": "prg" },
         { "artifact": "launcher.prg", "name": "launcher", "type": "prg" },
         { "artifact": "quicknotes.prg", "name": "quicknotes", "type": "prg" },
-        { "artifact": "deminer.prg", "name": "deminer", "type": "prg" },
+        { "artifact": "deminer.prg", "name": "deminer", "type": "prg", "include_even_if_not_catalog": true },
         { "artifact": "cal26.prg", "name": "cal26", "type": "prg" },
         { "artifact": "dizzy.prg", "name": "dizzy", "type": "prg" },
         { "artifact": "readyshell.prg", "name": "readyshell", "type": "prg" },
@@ -37,7 +49,8 @@
         { "artifact": "obj/rscat.prg", "name": "rscat", "type": "prg" },
         { "artifact": "obj/rscopy.prg", "name": "rscopy", "type": "prg" },
         { "artifact": "obj/rsedit.prg", "name": "rsedit", "type": "prg" },
-        { "artifact": "obj/apps_cfg_petscii.seq", "name": "apps.cfg", "type": "seq" }
+        { "artifact": "obj/apps_cfg_petscii.seq", "name": "apps.cfg", "type": "seq" },
+        { "artifact": "obj/app_deminer_dual_d71.seq", "name": "app.deminer", "type": "seq" }
       ],
       "post_build": [
         { "type": "seed_cal26_rel" }
@@ -61,6 +74,8 @@
         { "artifact": "simplefiles.prg", "name": "simplefiles", "type": "prg" },
         { "artifact": "simplecells.prg", "name": "simplecells", "type": "prg" },
         { "artifact": "game2048.prg", "name": "game2048", "type": "prg" },
+        { "artifact": "sidetris.prg", "name": "sidetris", "type": "prg", "include_even_if_not_catalog": true },
+        { "artifact": "obj/app_sidetris_dual_d71.seq", "name": "app.sidetris", "type": "seq" },
         { "artifact": "readme.prg", "name": "readme", "type": "prg" }
       ]
     }

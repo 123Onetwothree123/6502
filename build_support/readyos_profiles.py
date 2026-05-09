@@ -603,6 +603,17 @@ def repo_artifact_path(rel_path: str) -> Path:
     return ROOT / rel
 
 
+def app_manifest_entries(profile: Dict[str, object]) -> List[Dict[str, object]]:
+    entries = profile.get("app_manifests")
+    if entries is None:
+        return [{
+            "source": "cfg/app_sidetris.txt",
+            "output": "obj/app_sidetris.seq",
+            "disk_name": "app.sidetris",
+        }]
+    return [dict(entry) for entry in entries]  # type: ignore[arg-type]
+
+
 def boot_prg_specs(profile: Dict[str, object], version_text: str, output_dir: Path) -> List[Dict[str, str]]:
     specs = [
         {
@@ -764,12 +775,13 @@ def ensure_generated_assets(profile: Dict[str, object],
         "--input", str(ROOT / "cfg" / "tasklist_sample.txt"),
         "--output", str(obj_dir / "tasklist_sample.seq"),
     ])
-    run([
-        sys.executable,
-        str(ROOT / "build_support" / "build_petscii_lower_seq.py"),
-        "--input", str(ROOT / "cfg" / "app_sidetris.txt"),
-        "--output", str(obj_dir / "app_sidetris.seq"),
-    ])
+    for manifest in app_manifest_entries(profile):
+        run([
+            sys.executable,
+            str(ROOT / "build_support" / "build_petscii_lower_seq.py"),
+            "--input", str(repo_artifact_path(str(manifest["source"]))),
+            "--output", str(repo_artifact_path(str(manifest["output"]))),
+        ])
 
     write_preboot(str(profile["boot"]["preboot_mode"]), BIN_DIR / "preboot.prg")
     if str(profile["boot"]["preboot_mode"]) == "setd71":
@@ -777,7 +789,9 @@ def ensure_generated_assets(profile: Dict[str, object],
 
 
 def managed_build_names(profile: Dict[str, object], apps_set: set[str]) -> set[str]:
-    managed = {"apps.cfg", "app.sidetris"}
+    managed = {"apps.cfg"}
+    for entry in app_manifest_entries(profile):
+        managed.add(str(entry["disk_name"]))
     for entry in build_owned_support_entries(None):
         managed.add(str(entry["disk_name"]))
     for entry in syncable_authoritative_entries(None):
