@@ -2,7 +2,7 @@
   "id": "precog-easyflash",
   "display_name": "precog easyflash",
   "kind": "easyflash",
-  "version_text": "0.2.4C",
+  "version_text": "0.2.4H",
   "catalog_source": "cfg/flavors/readyos_easyflash.ini",
   "artifacts": {
     "crt": "releases/0.2.4/precog-easyflash/readyos_easyflash.crt",
@@ -125,6 +125,34 @@
     },
     {
       "bank": 17,
+      "prg": "readyirc",
+      "label": "readyirc",
+      "desc": "ultimate tcp irc client",
+      "default_slot": 0
+    },
+    {
+      "bank": 18,
+      "prg": "readybasic",
+      "label": "readybasic",
+      "desc": "scoped basic v2 bridge poc",
+      "default_slot": 0
+    },
+    {
+      "bank": 19,
+      "prg": "ucitest",
+      "label": "uci tester",
+      "desc": "ultimate command interface lab",
+      "default_slot": 0
+    },
+    {
+      "bank": 20,
+      "prg": "rirc-rrnet",
+      "label": "readyirc rrnet",
+      "desc": "rr-net tcp irc client",
+      "default_slot": 0
+    },
+    {
+      "bank": 21,
       "prg": "readme",
       "label": "read.me",
       "desc": "readyos, ultimate buddy, precog poc os",
@@ -136,14 +164,14 @@
     "start_bank": 1,
     "bank_span": 2,
     "load_addr": 4096,
-    "payload_len": 22857,
-    "checksum16": 64290
+    "payload_len": 23058,
+    "checksum16": 10575
   },
   "overlays": [
     {
       "name": "rsparser",
       "artifact": "bin/rsparser.prg",
-      "start_bank": 37,
+      "start_bank": 43,
       "bank_span": 1,
       "load_addr": 36352,
       "payload_len": 13005,
@@ -155,7 +183,7 @@
     {
       "name": "rsvm",
       "artifact": "bin/rsvm.prg",
-      "start_bank": 38,
+      "start_bank": 44,
       "bank_span": 1,
       "load_addr": 36352,
       "payload_len": 14033,
@@ -167,7 +195,7 @@
     {
       "name": "rsdrvilst",
       "artifact": "bin/rsdrvilst.prg",
-      "start_bank": 39,
+      "start_bank": 45,
       "bank_span": 1,
       "load_addr": 36352,
       "payload_len": 11272,
@@ -179,7 +207,7 @@
     {
       "name": "rsldv",
       "artifact": "bin/rsldv.prg",
-      "start_bank": 40,
+      "start_bank": 46,
       "bank_span": 1,
       "load_addr": 36352,
       "payload_len": 11884,
@@ -191,7 +219,7 @@
     {
       "name": "rsstv",
       "artifact": "bin/rsstv.prg",
-      "start_bank": 41,
+      "start_bank": 47,
       "bank_span": 1,
       "load_addr": 36352,
       "payload_len": 10205,
@@ -203,7 +231,7 @@
     {
       "name": "rsfops",
       "artifact": "bin/rsfops.prg",
-      "start_bank": 42,
+      "start_bank": 48,
       "bank_span": 1,
       "load_addr": 36352,
       "payload_len": 14333,
@@ -215,7 +243,7 @@
     {
       "name": "rscat",
       "artifact": "bin/rscat.prg",
-      "start_bank": 43,
+      "start_bank": 49,
       "bank_span": 1,
       "load_addr": 36352,
       "payload_len": 8078,
@@ -227,7 +255,7 @@
     {
       "name": "rscopy",
       "artifact": "bin/rscopy.prg",
-      "start_bank": 44,
+      "start_bank": 50,
       "bank_span": 1,
       "load_addr": 36352,
       "payload_len": 6599,
@@ -239,7 +267,7 @@
     {
       "name": "rsedit",
       "artifact": "bin/rsedit.prg",
-      "start_bank": 45,
+      "start_bank": 51,
       "bank_span": 1,
       "load_addr": 36352,
       "payload_len": 2002,

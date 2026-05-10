@@ -4,14 +4,14 @@
 #define READYOS_EASYFLASH_VARIANT_BOOT_NAME "precog cartridge (beta)"
 #define READYOS_EASYFLASH_RUNAPPFIRST ""
 #define READYOS_EASYFLASH_REU_BANK_SKIP 32
-#define READYOS_EASYFLASH_APP_COUNT 17
+#define READYOS_EASYFLASH_APP_COUNT 21
 
 static const unsigned char readyos_easyflash_app_banks[READYOS_EASYFLASH_APP_COUNT] = {
-    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21
 };
 
 static const unsigned char readyos_easyflash_default_slots[READYOS_EASYFLASH_APP_COUNT] = {
-    1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
 static const char *const readyos_easyflash_prgs[READYOS_EASYFLASH_APP_COUNT] = {
@@ -31,6 +31,10 @@ static const char *const readyos_easyflash_prgs[READYOS_EASYFLASH_APP_COUNT] = {
     "sidetris",
     "deminer",
     "dizzy",
+    "readyirc",
+    "readybasic",
+    "ucitest",
+    "rirc-rrnet",
     "readme",
 };
 
@@ -51,6 +55,10 @@ static const char *const readyos_easyflash_labels[READYOS_EASYFLASH_APP_COUNT] =
     "sidetris",
     "deminer",
     "dizzy kanban",
+    "readyirc",
+    "readybasic",
+    "uci tester",
+    "readyirc rrnet",
     "read.me",
 };
 
@@ -71,5 +79,9 @@ static const char *const readyos_easyflash_descs[READYOS_EASYFLASH_APP_COUNT] = 
     "sideways tetris",
     "minesweeper-style puzzle",
     "fizzy inspired kanban app",
+    "ultimate tcp irc client",
+    "scoped basic v2 bridge poc",
+    "ultimate command interface lab",
+    "rr-net tcp irc client",
     "readyos, ultimate buddy, precog poc os",
 };
