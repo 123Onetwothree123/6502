@@ -74,7 +74,9 @@ KERNAL_MEMBOT    = $0283
 
 BASIC_START     = $1201
 BASIC_SENTINEL  = BASIC_START - 1
-BASIC_LIMIT     = $A000
+BASIC_LIMIT     = $9A00
+HIDDEN_SHADOW   = $9A00
+HIDDEN_SHADOW_SIZE = $0600
 STD_BASIC_START = $0801
 RELOC_DELTA     = BASIC_START - STD_BASIC_START
 
@@ -83,6 +85,7 @@ COLOR_RAM       = $D800
 VIC_BORDER      = $D020
 VIC_BG          = $D021
 VIC_MEM         = $D018
+CPU_DDR         = $0000
 CPU_PORT        = $0001
 
 SHIM_RETURN     = $C80C
@@ -106,6 +109,7 @@ RB_MAGIC_READY  = $52
 RB_MAGIC_RUN    = $B2
 RB_MAGIC2       = $A6
 RAM_UNDER_BASIC = $FD
+RAM_UNDER_BASIC_KEEP_KERNAL = $FE
 VIC_MEM_LOWERCASE = $16
 KEY_CTRL_B      = 2
 KEY_F2          = 137
@@ -139,6 +143,9 @@ entry:
         beq @warm
 @cold:
         sei
+        lda CPU_DDR
+        ora #$07
+        sta CPU_DDR
         lda CPU_PORT
         sta rb_entry_cpu
         and #RAM_UNDER_BASIC
@@ -159,6 +166,20 @@ entry:
         lda rb_entry_cpu
         sta CPU_PORT
 
+        lda #<__HIDDEN_LOAD__
+        sta rb_entry_src
+        lda #>__HIDDEN_LOAD__
+        sta rb_entry_src+1
+        lda #<HIDDEN_SHADOW
+        sta rb_entry_dst
+        lda #>HIDDEN_SHADOW
+        sta rb_entry_dst+1
+        lda #<__HIDDEN_SIZE__
+        sta rb_entry_len
+        lda #>__HIDDEN_SIZE__
+        sta rb_entry_len+1
+        jsr entry_copy_block
+
         lda #<__BRIDGE_LOAD__
         sta rb_entry_src
         lda #>__BRIDGE_LOAD__
@@ -176,7 +197,31 @@ entry:
         sta rb_entry_magic
         lda #RB_MAGIC2
         sta rb_entry_magic2
+        jmp rb_boot
 @warm:
+        sei
+        lda CPU_DDR
+        ora #$07
+        sta CPU_DDR
+        lda CPU_PORT
+        sta rb_entry_cpu
+        and #RAM_UNDER_BASIC
+        sta CPU_PORT
+        lda #<HIDDEN_SHADOW
+        sta rb_entry_src
+        lda #>HIDDEN_SHADOW
+        sta rb_entry_src+1
+        lda #<__HIDDEN_RUN__
+        sta rb_entry_dst
+        lda #>__HIDDEN_RUN__
+        sta rb_entry_dst+1
+        lda #<__HIDDEN_SIZE__
+        sta rb_entry_len
+        lda #>__HIDDEN_SIZE__
+        sta rb_entry_len+1
+        jsr entry_copy_block
+        lda rb_entry_cpu
+        sta CPU_PORT
         jmp rb_boot
 
 entry_copy_block:
@@ -324,6 +369,9 @@ rb_decbuf:      .res 6, 0
 
 rb_boot:
         sei
+        lda CPU_DDR
+        ora #$07
+        sta CPU_DDR
         lda #$37
         sta CPU_PORT
         lda rb_magic2
@@ -355,6 +403,7 @@ rb_cold_start:
 
 rb_resume_ready:
         jsr install_vectors
+        jsr call_hidden_restore_basic_pointers
         jsr prepare_basic_console
         jsr call_hidden_draw_default_header
         jsr position_basic_prompt
@@ -483,6 +532,106 @@ force_basic_workspace_pointers:
         sta TXTPTR+1
         rts
 
+        .segment "HIDDEN"
+
+restore_basic_program_pointers:
+        jsr set_basic_memory_bounds
+        lda BASIC_START
+        ora BASIC_START+1
+        bne :+
+        lda rb_saved_zp0
+        ora rb_saved_zp1
+        beq :+
+        lda rb_saved_zp0
+        sta BASIC_START
+        lda rb_saved_zp1
+        sta BASIC_START+1
+:
+        lda #<BASIC_START
+        sta TXTTAB
+        lda #>BASIC_START
+        sta TXTTAB+1
+        lda #<BASIC_LIMIT
+        sta FRETOP
+        sta MEMSIZ
+        lda #>BASIC_LIMIT
+        sta FRETOP+1
+        sta MEMSIZ+1
+        lda #<BASIC_START
+        sta rb_ptr_lo
+        lda #>BASIC_START
+        sta rb_ptr_hi
+@line:
+        ldy #0
+        lda (rb_ptr_lo),y
+        sta rb_tmp_lo
+        iny
+        lda (rb_ptr_lo),y
+        sta rb_tmp_hi
+        ora rb_tmp_lo
+        beq @done
+        lda rb_tmp_hi
+        cmp #>BASIC_START
+        bcc @bad
+        cmp #>BASIC_LIMIT
+        bcs @bad
+        cmp rb_ptr_hi
+        bcc @bad
+        bne @advance
+        lda rb_tmp_lo
+        cmp rb_ptr_lo
+        beq @bad
+        bcc @bad
+@advance:
+        lda rb_tmp_lo
+        sta rb_ptr_lo
+        lda rb_tmp_hi
+        sta rb_ptr_hi
+        jmp @line
+@done:
+        clc
+        lda rb_ptr_lo
+        adc #2
+        sta VARTAB
+        sta ARYTAB
+        sta STREND
+        lda rb_ptr_hi
+        adc #0
+        sta VARTAB+1
+        sta ARYTAB+1
+        sta STREND+1
+        lda #$FF
+        sta CURLIN
+        sta CURLIN+1
+        sta OLDTXT
+        sta OLDTXT+1
+        lda #<BASIC_START
+        sta TXTPTR
+        lda #>BASIC_START
+        sta TXTPTR+1
+        rts
+@bad:
+        lda #0
+        sta BASIC_START
+        sta BASIC_START+1
+        lda #<(BASIC_START+2)
+        sta VARTAB
+        sta ARYTAB
+        sta STREND
+        lda #>(BASIC_START+2)
+        sta VARTAB+1
+        sta ARYTAB+1
+        sta STREND+1
+        lda #<BASIC_LIMIT
+        sta FRETOP
+        sta MEMSIZ
+        lda #>BASIC_LIMIT
+        sta FRETOP+1
+        sta MEMSIZ+1
+        rts
+
+        .segment "BRIDGE"
+
 ensure_basic_workspace_pointers:
         jsr set_basic_memory_bounds
         lda #<BASIC_START
@@ -495,6 +644,17 @@ ensure_basic_workspace_pointers:
         lda #>BASIC_LIMIT
         sta FRETOP+1
         sta MEMSIZ+1
+        lda BASIC_START
+        ora BASIC_START+1
+        bne @check_vars
+        lda rb_saved_zp0
+        ora rb_saved_zp1
+        beq @check_vars
+        lda rb_saved_zp0
+        sta BASIC_START
+        lda rb_saved_zp1
+        sta BASIC_START+1
+@check_vars:
         lda VARTAB+1
         cmp #>BASIC_START
         bcc @reset_vars
@@ -556,24 +716,14 @@ rb_crunch:
         jsr ensure_basic_workspace_pointers
         jmp BASIC_CRUNCH
 
-; IQPLOP replacement: print our private token as RB, otherwise defer.
+; IQPLOP replacement: token expansion is deferred for the stabilization pass.
 rb_list:
-        cmp #RB_TOKEN
-        beq @mine
         jmp BASIC_LISTCHAR
-@mine:
-        lda #'R'
-        jsr K_CHROUT
-        lda #'B'
-        jsr K_CHROUT
-        rts
 
 ; IGONE replacement: handle RB statements and check CTRL+B at statement edge.
 rb_execute:
         jsr ensure_basic_workspace_pointers
         jsr rb_peek_next_nonspace
-        cmp #RB_TOKEN
-        beq rb_statement_token
         cmp #'R'
         beq @maybe_raw
         cmp #'r'
@@ -609,12 +759,6 @@ rb_execute:
         jmp cmd_exit
 :
         jmp rb_execute_fallback
-rb_statement_token:
-        lda rb_peek_lo
-        sta TXTPTR
-        lda rb_peek_hi
-        sta TXTPTR+1
-        jsr CHRGET
 
 rb_statement:
         jsr parse_const_u8
@@ -715,6 +859,10 @@ cmd_clear:
         jmp rb_ok
 
 cmd_exit:
+        lda BASIC_START
+        sta rb_saved_zp0
+        lda BASIC_START+1
+        sta rb_saved_zp1
         lda #RB_MAGIC_READY
         sta rb_magic
         sta rb_entry_magic
@@ -723,6 +871,7 @@ cmd_exit:
         sta rb_entry_magic2
         lda #0
         sta KEYD_COUNT
+        jsr save_hidden_shadow
         jsr restore_vectors
         jmp SHIM_RETURN
 
@@ -814,6 +963,45 @@ rb_check_ctrl_b:
         rts
 
 restore_runtime_state:
+        rts
+
+save_hidden_shadow:
+        php
+        sei
+        jsr rb_prepare_memory_port
+        lda CPU_PORT
+        sta rb_saved_cpu
+        and #RAM_UNDER_BASIC
+        sta CPU_PORT
+        lda #<__HIDDEN_RUN__
+        sta rb_ptr_lo
+        lda #>__HIDDEN_RUN__
+        sta rb_ptr_hi
+        lda #<HIDDEN_SHADOW
+        sta rb_color_lo
+        lda #>HIDDEN_SHADOW
+        sta rb_color_hi
+        lda #>HIDDEN_SHADOW_SIZE
+        sta rb_tmp_hi
+        ldy #0
+@copy:
+        lda (rb_ptr_lo),y
+        sta (rb_color_lo),y
+        iny
+        bne @copy
+        inc rb_ptr_hi
+        inc rb_color_hi
+        dec rb_tmp_hi
+        bne @copy
+        lda rb_saved_cpu
+        sta CPU_PORT
+        plp
+        rts
+
+rb_prepare_memory_port:
+        lda CPU_DDR
+        ora #$07
+        sta CPU_DDR
         rts
 
 rb_match_exit:
@@ -1112,6 +1300,7 @@ ascii_to_screen:
 call_hidden_draw_default_header:
         php
         sei
+        jsr rb_prepare_memory_port
         lda CPU_PORT
         sta rb_saved_cpu
         and #RAM_UNDER_BASIC
@@ -1125,6 +1314,7 @@ call_hidden_draw_default_header:
 call_hidden_draw_header:
         php
         sei
+        jsr rb_prepare_memory_port
         lda CPU_PORT
         sta rb_saved_cpu
         and #RAM_UNDER_BASIC
@@ -1138,6 +1328,7 @@ call_hidden_draw_header:
 call_hidden_draw_text:
         php
         sei
+        jsr rb_prepare_memory_port
         lda CPU_PORT
         sta rb_saved_cpu
         and #RAM_UNDER_BASIC
@@ -1148,11 +1339,27 @@ call_hidden_draw_text:
         plp
         rts
 
-call_hidden_save_program:
+call_hidden_restore_basic_pointers:
         php
+        sei
+        jsr rb_prepare_memory_port
         lda CPU_PORT
         sta rb_saved_cpu
         and #RAM_UNDER_BASIC
+        sta CPU_PORT
+        jsr restore_basic_program_pointers
+        lda rb_saved_cpu
+        sta CPU_PORT
+        plp
+        rts
+
+call_hidden_save_program:
+        php
+        sei
+        jsr rb_prepare_memory_port
+        lda CPU_PORT
+        sta rb_saved_cpu
+        and #RAM_UNDER_BASIC_KEEP_KERNAL
         sta CPU_PORT
         jsr save_program
         lda rb_saved_cpu
@@ -1162,9 +1369,11 @@ call_hidden_save_program:
 
 call_hidden_load_program:
         php
+        sei
+        jsr rb_prepare_memory_port
         lda CPU_PORT
         sta rb_saved_cpu
-        and #RAM_UNDER_BASIC
+        and #RAM_UNDER_BASIC_KEEP_KERNAL
         sta CPU_PORT
         jsr load_program
         lda rb_saved_cpu

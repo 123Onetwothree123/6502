@@ -10,12 +10,35 @@ actual C64/ReadyOS evidence trail rather than a pile of confident guesses.
 - The app PRG loads at `$1000` and must obey the ReadyOS app/shim window:
   `$1000-$C5FF` is app-owned, `$C600-$C9FF` is reserved metadata/shim space.
 - BASIC programs are data inside the host. The scoped BASIC workspace is
-  currently `$1201-$9FFF`, with save/load relocating line links to/from the
+  currently `$1201-$99FF`, with save/load relocating line links to/from the
   standard C64 BASIC `$0801` format.
 - Hidden services live under BASIC ROM RAM at `$A000-$BFFF` and visible
   trampolines/state/mailbox live at `$C000-$C5FF`.
+- A shadow copy of the hidden helper image lives at `$9A00-$9FFF`, inside the
+  ReadyOS app snapshot window but above BASIC's managed top-of-memory. Warm
+  entry restores `$A000` from that shadow before using hidden helpers.
 
 ## Proven
+
+### 6502/C64 Assembly Discipline That Mattered Here
+
+- Treat `$0000` and `$0001` as a pair. `$0001` only drives memory banking bits
+  whose data-direction bits in `$0000` are configured as outputs. ReadyOS can
+  leave `$0000` in a state that makes a normal-looking `$01` value ineffective.
+- Do not map out KERNAL ROM while calling KERNAL routines. Hidden helper calls
+  that only touch RAM can use RAM-under-BASIC-ROM mapping; helpers that call
+  `SETLFS`, `OPEN`, `CHRIN`, `CHROUT`, etc. must keep KERNAL visible.
+- Keep interrupt state explicit around banking changes. Save flags with `PHP`,
+  `SEI` before remapping, restore `$01`, then `PLP`.
+- Do not trust registers or flags after probing ROM BASIC unless the ROM
+  contract says they are yours to change. Wedge fallbacks must leave `TXTPTR`,
+  accumulator/flags expectations, and line length behavior intact.
+- Page-zero BASIC pointers are live interpreter state, not cache. `TXTTAB`,
+  `VARTAB`, `ARYTAB`, `STREND`, `FRETOP`, `MEMSIZ`, `TXTPTR`, and the BASIC
+  line-link chain must agree before entering ROM BASIC.
+- Global vectors in page 3 are outside the ReadyOS app snapshot. Restore owned
+  vectors before yielding through the shim, and reinstall only after app memory
+  is restored.
 
 ### Cold/Warm Entry Must Not Trust `$C000` First
 
@@ -35,6 +58,30 @@ mid-copy, so the rest of the restore reads ROM instead of the hidden buffer.
 
 Current rule: keep RAM-under-ROM forced while restoring, copy stack and zero page
 first, and restore `$0000/$0001` last.
+
+### Hidden `$A000` Helpers Are Outside The ReadyOS Snapshot
+
+Proven by the `EXIT` resume crash. The ReadyOS shim snapshots `$1000-$C5FF`
+when an app returns to the launcher. ReadyBASIC's hidden helper code under
+`$A000-$BFFF` is not part of that transfer, so warm entry cannot assume it is
+still valid after the launcher or another app has run.
+
+Current rule: reserve `$9A00-$9FFF` as a shadow image, lower BASIC's memory
+limit to `$9A00`, and restore `$A000` from the shadow on every warm entry.
+`EXIT` refreshes the shadow before jumping to `$C80C`.
+
+### `$0000` DDR Is Part Of The Banking Contract
+
+Proven on 2026-05-09 with the binary-monitor probe. ReadyOS/launcher state left
+`$0000 == $12`, so writing a value such as `$36` to `$0001` did not reliably
+drive the LORAM banking bit. Hidden calls intended to run from RAM under BASIC
+ROM could accidentally execute BASIC ROM bytes around `$A000` instead of
+ReadyBASIC's helper code.
+
+Current rule: before every hidden-helper call, force the low three bits of
+`$0000` to outputs. Non-KERNAL hidden helpers use `$01 & $FD` so HIRAM makes
+RAM visible under `$A000`; KERNAL-calling file helpers use `$01 & $FE` so KERNAL
+ROM stays callable.
 
 ### `CHRIN` Hooks Must Preserve Carry Semantics
 
@@ -145,6 +192,29 @@ Automation caveat: the current harness key helper sends lowercase host ASCII in
 a way that does not match manual C64 lowercase/PETSCII entry. Automated `exit`
 therefore uses uppercase key codes for now, while the command matcher still
 accepts both byte forms.
+
+### EXIT Resume Must Repair BASIC State Late
+
+Proven on 2026-05-09. After `EXIT`, the ReadyOS REU snapshot preserved the
+program bytes in `$1201-$99FF` and the bridge-saved first line link, but the
+first link word at `$1201/$1202` could be zeroed again before the first `LIST`
+after resume. The failure signature was:
+
+- `rb_saved_zp0/rb_saved_zp1 == $09/$12`, showing the original first link was
+  saved correctly before shim return.
+- The program body after `$1203` was still present.
+- `LIST` after resume showed an empty program because `$1201/$1202 == $0000`.
+
+Current rule: warm entry still reconstructs BASIC pointers from the hidden
+helper, but the bridge also heals `$1201/$1202` from `rb_saved_zp0/zp1` inside
+`ensure_basic_workspace_pointers`, immediately before ROM BASIC crunch/execute
+paths can inspect the program. This is intentionally late enough to survive the
+READY re-entry path.
+
+Verification artifact:
+`../agenticdevharness/logs/vice_auto_20260509_231527/` passed direct `PRINT`,
+numbered line entry, `LIST`, `RUN`, direct `RB 2`, direct `RB 3`, stored `RB`
+line execution, `EXIT` to launcher, relaunch from REU, and `LIST` after resume.
 
 ## Disproven Or Revised
 

@@ -700,7 +700,11 @@ start_vice() {
     if [ "${#RRNET_VICE_ARGS[@]}" -gt 0 ]; then
         args+=("${RRNET_VICE_ARGS[@]}")
     fi
-    "$VICE" "${args[@]}" "$@"
+    if [ "${#args[@]}" -gt 0 ]; then
+        "$VICE" "${args[@]}" "$@"
+    else
+        "$VICE" "$@"
+    fi
 }
 
 configure_fast_vice_args
