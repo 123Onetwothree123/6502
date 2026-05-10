@@ -183,7 +183,9 @@ KNOWN_APP_NAMES = {
     "deminer",
     "cal26",
     "dizzy",
+    "readyirc",
     "ucitest",
+    "rirc-rrnet",
     "readme",
     "readyshell",
 }

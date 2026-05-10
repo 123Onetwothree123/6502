@@ -99,9 +99,13 @@ INTERACTIVE=0
 LIST_PROFILES=0
 FORCE_ARTIFACTS_FROM_D71=0
 VICE_FAST=0
+RRNET=0
+ETHERNET_DRIVER="pcap"
+ETHERNET_INTERFACE=""
 REU_SIZE_KB=16384
 DEBUG_MONCMDS=""
 FAST_VICE_ARGS=()
+RRNET_VICE_ARGS=()
 
 if command -v x64sc >/dev/null 2>&1; then
     VICE="x64sc"
@@ -153,6 +157,16 @@ validate_run_first_override() {
         echo "Error: --run-first must be 12 characters or fewer (got '$value')."
         exit 1
     fi
+}
+
+validate_ethernet_driver() {
+    case "$1" in
+        pcap|tuntap) ;;
+        *)
+            echo "Error: --ethernet-driver must be pcap or tuntap (got '$1')."
+            exit 1
+            ;;
+    esac
 }
 
 current_parse_trace_debug() {
@@ -248,6 +262,9 @@ show_help() {
     echo "                              into cfg/authoritative before the requested flow"
     echo "  --vice-fast                Disable true drive emulation, enable VICE drive traps,"
     echo "                              and start VICE in warp mode for launch"
+    echo "  --rrnet                    Enable VICE RR-Net Ethernet cartridge support"
+    echo "  --ethernet-driver NAME      VICE Ethernet I/O driver: pcap or tuntap (default: pcap)"
+    echo "  --ethernet-interface NAME   Optional VICE Ethernet interface name, e.g. en0"
     echo "  --reu-size KB              Set VICE REU size in KB (default: 16384; use 12288 for 12MB)"
     echo "  --config PATH               Override the profile's catalog source"
     echo "  --load-all 0|1              Override launcher auto-preload in generated apps.cfg"
@@ -322,6 +339,28 @@ while [ $# -gt 0 ]; do
             ;;
         --vice-fast)
             VICE_FAST=1
+            shift
+            ;;
+        --rrnet)
+            RRNET=1
+            shift
+            ;;
+        --ethernet-driver)
+            ETHERNET_DRIVER="$2"
+            validate_ethernet_driver "$ETHERNET_DRIVER"
+            shift 2
+            ;;
+        --ethernet-driver=*)
+            ETHERNET_DRIVER="${1#*=}"
+            validate_ethernet_driver "$ETHERNET_DRIVER"
+            shift
+            ;;
+        --ethernet-interface)
+            ETHERNET_INTERFACE="$2"
+            shift 2
+            ;;
+        --ethernet-interface=*)
+            ETHERNET_INTERFACE="${1#*=}"
             shift
             ;;
         --reu-size)
@@ -421,6 +460,8 @@ if ! [[ "$REU_SIZE_KB" =~ ^[0-9]+$ ]] || [ "$REU_SIZE_KB" -le 0 ]; then
     exit 1
 fi
 
+validate_ethernet_driver "$ETHERNET_DRIVER"
+
 if [ "$SKIP_BUILD" -eq 1 ] && { [ -n "$CONFIG_SOURCE" ] || [ -n "$CONFIG_OVERRIDE_LOAD_ALL" ] || [ -n "$CONFIG_OVERRIDE_RUN_FIRST" ]; }; then
     echo "Error: --skipbuild cannot be combined with --config, --load-all, or --run-first."
     exit 1
@@ -468,6 +509,16 @@ configure_fast_vice_args() {
             -trapdevice10
             -trapdevice11
         )
+    fi
+}
+
+configure_rrnet_vice_args() {
+    RRNET_VICE_ARGS=()
+    if [ "$RRNET" -eq 1 ]; then
+        RRNET_VICE_ARGS=(-rrnet -ethernetiodriver "$ETHERNET_DRIVER")
+        if [ -n "$ETHERNET_INTERFACE" ]; then
+            RRNET_VICE_ARGS+=(-ethernetioif "$ETHERNET_INTERFACE")
+        fi
     fi
 }
 
@@ -617,6 +668,9 @@ print_info() {
     if [ "$VICE_FAST" -eq 1 ]; then
         echo "VICE Fast: on (warp, traps enabled, true drive off)"
     fi
+    if [ "$RRNET" -eq 1 ]; then
+        echo "RR-Net: on (driver=$ETHERNET_DRIVER${ETHERNET_INTERFACE:+, interface=$ETHERNET_INTERFACE})"
+    fi
     echo ""
 }
 
@@ -632,18 +686,25 @@ print_easyflash_info() {
     if [ "$VICE_FAST" -eq 1 ]; then
         echo "VICE Fast: on (warp, traps enabled, true drive off)"
     fi
+    if [ "$RRNET" -eq 1 ]; then
+        echo "RR-Net: on (driver=$ETHERNET_DRIVER${ETHERNET_INTERFACE:+, interface=$ETHERNET_INTERFACE})"
+    fi
     echo ""
 }
 
 start_vice() {
+    local args=()
     if [ "${#FAST_VICE_ARGS[@]}" -gt 0 ]; then
-        "$VICE" "${FAST_VICE_ARGS[@]}" "$@"
-        return
+        args+=("${FAST_VICE_ARGS[@]}")
     fi
-    "$VICE" "$@"
+    if [ "${#RRNET_VICE_ARGS[@]}" -gt 0 ]; then
+        args+=("${RRNET_VICE_ARGS[@]}")
+    fi
+    "$VICE" "${args[@]}" "$@"
 }
 
 configure_fast_vice_args
+configure_rrnet_vice_args
 
 case "${MODE:-}" in
     help|-h|--help) ;;

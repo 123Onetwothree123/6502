@@ -59,6 +59,8 @@
     "obj/deminer.map",
     "obj/cal26.map",
     "obj/dizzy.map",
+    "obj/readyirc.map",
+    "obj/rirc-rrnet.map",
     "obj/readme.map",
     "obj/readyshell.map"
   ],
@@ -118,6 +120,8 @@
     "0xD011",
     "0xD012",
     "0xD800",
+    "0xDE00",
+    "0xDE1C",
     "0xDF00",
     "0xDF01",
     "0xDF02",
@@ -126,6 +130,8 @@
     "0xDF05",
     "0xDF06",
     "0xDF07",
-    "0xDF08"
+    "0xDF08",
+    "0xDF1C",
+    "0xDFFC"
   ]
 }

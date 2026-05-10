@@ -41,9 +41,9 @@
         { "artifact": "editor.prg", "name": "editor", "type": "prg" },
         { "artifact": "calcplus.prg", "name": "calcplus", "type": "prg" },
         { "artifact": "tasklist.prg", "name": "tasklist", "type": "prg" },
-        { "artifact": "sysinfo.prg", "name": "sysinfo", "type": "prg" },
         { "artifact": "simplefiles.prg", "name": "simplefiles", "type": "prg" },
-        { "artifact": "sidetris.prg", "name": "sidetris", "type": "prg" }
+        { "artifact": "readyirc.prg", "name": "readyirc", "type": "prg" },
+        { "artifact": "rirc-rrnet.prg", "name": "rirc-rrnet", "type": "prg" }
       ]
     }
   ]

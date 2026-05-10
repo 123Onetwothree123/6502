@@ -98,8 +98,8 @@ def main():
 
     print("\n=== App Hooks ===")
     for app_name in ("editor", "quicknotes", "calcplus", "hexview", "clipmgr", "reuviewer",
-                     "tasklist", "simplefiles", "game2048", "sidetris", "deminer", "cal26", "dizzy", "readme",
-                     "readyshell"):
+                     "tasklist", "simplefiles", "game2048", "sidetris", "deminer", "cal26", "dizzy", "readyirc", "rirc-rrnet",
+                     "readme", "readyshell"):
         try:
             hooks = parse_app_hooks(app_name)
         except (FileNotFoundError, ValueError) as ex:
