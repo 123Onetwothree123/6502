@@ -28,6 +28,7 @@ BASIC_FRMNUM    = $AD8A
 BASIC_CHKCOM    = $AEFD
 BASIC_SYNERR    = $AF08
 BASIC_GETADR    = $B7F7
+BASIC_LINPRT    = $BDCD
 BASIC_INIT_RAM  = $E3BF
 BASIC_RESTORE_VECTORS = $E453
 
@@ -63,6 +64,7 @@ LINNUM          = $14
 DFLTN           = $99
 SCREEN_INPUT    = $D0
 SHFLAG          = $028D
+COLOR_CODE      = $0286
 KEYD_COUNT      = $00C6
 KEYD_BUFFER     = $0277
 KERNAL_CHRIN_VEC= $0324
@@ -80,6 +82,7 @@ SCREEN          = $0400
 COLOR_RAM       = $D800
 VIC_BORDER      = $D020
 VIC_BG          = $D021
+VIC_MEM         = $D018
 CPU_PORT        = $0001
 
 SHIM_RETURN     = $C80C
@@ -103,6 +106,7 @@ RB_MAGIC_READY  = $52
 RB_MAGIC_RUN    = $B2
 RB_MAGIC2       = $A6
 RAM_UNDER_BASIC = $FD
+VIC_MEM_LOWERCASE = $16
 KEY_CTRL_B      = 2
 KEY_F2          = 137
 KEY_F4          = 138
@@ -210,7 +214,7 @@ rb_entry_cpu:   .byte 0
 default_title:
         .byte "READYBASIC",0
 help_text:
-        .byte "RB SAVE/LOAD  CTRL+B HOME",0
+        .byte "RB SAVE/LOAD  EXIT HOME",0
 
 ; ---------------------------------------------------------------------------
 ; Hidden helper code, called through the visible trampoline.
@@ -302,22 +306,12 @@ rb_saved_cpu:   .byte 0
 rb_ptr2_lo_tmp: .byte 0
 rb_ptr2_hi_tmp: .byte 0
 rb_vectors_saved:.byte 0
-rb_orig_error_lo:.byte 0
-rb_orig_error_hi:.byte 0
-rb_orig_main_lo:.byte 0
-rb_orig_main_hi:.byte 0
 rb_orig_crunch_lo:.byte 0
 rb_orig_crunch_hi:.byte 0
 rb_orig_list_lo:.byte 0
 rb_orig_list_hi:.byte 0
 rb_orig_execute_lo:.byte 0
 rb_orig_execute_hi:.byte 0
-rb_orig_eval_lo:.byte 0
-rb_orig_eval_hi:.byte 0
-rb_orig_chrin_lo:.byte 0
-rb_orig_chrin_hi:.byte 0
-rb_orig_getin_lo:.byte 0
-rb_orig_getin_hi:.byte 0
 rb_nav_action:  .byte 0
 rb_saved_txtptr_lo:.byte 0
 rb_saved_txtptr_hi:.byte 0
@@ -372,29 +366,11 @@ rb_resume_ready:
         jmp BASIC_READY
 
 rb_resume_running:
-        jsr install_vectors
-        jsr restore_runtime_state
-        lda #RB_MAGIC2
-        sta rb_magic2
-        lda #RB_MAGIC_READY
-        sta rb_magic
-        sta rb_entry_magic
-        lda #RB_MAGIC2
-        sta rb_entry_magic2
-        cli
-        jmp BASIC_GONE
+        jmp rb_resume_ready
 
 install_vectors:
         lda rb_vectors_saved
         bne @install
-        lda $0300
-        sta rb_orig_error_lo
-        lda $0301
-        sta rb_orig_error_hi
-        lda $0302
-        sta rb_orig_main_lo
-        lda $0303
-        sta rb_orig_main_hi
         lda $0304
         sta rb_orig_crunch_lo
         lda $0305
@@ -407,29 +383,9 @@ install_vectors:
         sta rb_orig_execute_lo
         lda $0309
         sta rb_orig_execute_hi
-        lda $030A
-        sta rb_orig_eval_lo
-        lda $030B
-        sta rb_orig_eval_hi
-        lda KERNAL_CHRIN_VEC
-        sta rb_orig_chrin_lo
-        lda KERNAL_CHRIN_VEC+1
-        sta rb_orig_chrin_hi
-        lda KERNAL_GETIN_VEC
-        sta rb_orig_getin_lo
-        lda KERNAL_GETIN_VEC+1
-        sta rb_orig_getin_hi
         lda #1
         sta rb_vectors_saved
 @install:
-        lda rb_orig_error_lo
-        sta $0300
-        lda rb_orig_error_hi
-        sta $0301
-        lda rb_orig_main_lo
-        sta $0302
-        lda rb_orig_main_hi
-        sta $0303
         lda #<rb_crunch
         sta $0304
         lda #>rb_crunch
@@ -442,23 +398,11 @@ install_vectors:
         sta $0308
         lda #>rb_execute
         sta $0309
-        lda rb_orig_eval_lo
-        sta $030A
-        lda rb_orig_eval_hi
-        sta $030B
         rts
 
 restore_vectors:
         lda rb_vectors_saved
         beq @done
-        lda rb_orig_error_lo
-        sta $0300
-        lda rb_orig_error_hi
-        sta $0301
-        lda rb_orig_main_lo
-        sta $0302
-        lda rb_orig_main_hi
-        sta $0303
         lda rb_orig_crunch_lo
         sta $0304
         lda rb_orig_crunch_hi
@@ -471,30 +415,17 @@ restore_vectors:
         sta $0308
         lda rb_orig_execute_hi
         sta $0309
-        lda rb_orig_eval_lo
-        sta $030A
-        lda rb_orig_eval_hi
-        sta $030B
-        lda rb_orig_chrin_lo
-        sta KERNAL_CHRIN_VEC
-        lda rb_orig_chrin_hi
-        sta KERNAL_CHRIN_VEC+1
-        lda rb_orig_getin_lo
-        sta KERNAL_GETIN_VEC
-        lda rb_orig_getin_hi
-        sta KERNAL_GETIN_VEC+1
 @done:
         rts
 
 rb_call_orig_execute:
         jmp (rb_orig_execute_lo)
 
-rb_call_orig_getin:
-        jmp (rb_orig_getin_lo)
-
 prepare_basic_console:
         lda #0
         sta KEYD_COUNT
+        lda #VIC_MEM_LOWERCASE
+        sta VIC_MEM
         jsr K_CLRCHN
         lda #$93
         jsr K_CHROUT
@@ -640,7 +571,6 @@ rb_list:
 ; IGONE replacement: handle RB statements and check CTRL+B at statement edge.
 rb_execute:
         jsr ensure_basic_workspace_pointers
-        jsr rb_check_ctrl_b
         jsr rb_peek_next_nonspace
         cmp #RB_TOKEN
         beq rb_statement_token
@@ -648,6 +578,10 @@ rb_execute:
         beq @maybe_raw
         cmp #'r'
         beq @maybe_raw
+        cmp #'E'
+        beq @maybe_exit
+        cmp #'e'
+        beq @maybe_exit
         jmp rb_execute_fallback
 @maybe_raw:
         lda rb_peek_lo
@@ -669,6 +603,12 @@ rb_execute:
         jsr CHRGET
         jsr CHRGET
         jmp rb_statement
+@maybe_exit:
+        jsr rb_match_exit
+        bcc :+
+        jmp cmd_exit
+:
+        jmp rb_execute_fallback
 rb_statement_token:
         lda rb_peek_lo
         sta TXTPTR
@@ -739,7 +679,7 @@ cmd_text:
         jsr parse_comma_string
         jsr parse_comma_expr_byte
         sta rb_arg_color
-        jsr call_hidden_draw_text
+        jsr rb_chout_text
         jmp rb_ok
 
 cmd_add:
@@ -756,6 +696,7 @@ cmd_add:
         lda rb_arg_a_hi
         adc LINNUM+1
         sta rb_result_hi
+        jsr rb_chout_add_result
         jmp rb_ok
 
 cmd_save:
@@ -772,6 +713,18 @@ cmd_clear:
         jsr init_basic_workspace
         jsr call_hidden_draw_default_header
         jmp rb_ok
+
+cmd_exit:
+        lda #RB_MAGIC_READY
+        sta rb_magic
+        sta rb_entry_magic
+        lda #RB_MAGIC2
+        sta rb_magic2
+        sta rb_entry_magic2
+        lda #0
+        sta KEYD_COUNT
+        jsr restore_vectors
+        jmp SHIM_RETURN
 
 rb_ok:
         lda #0
@@ -790,75 +743,114 @@ rb_err:
         sta rb_status
         rts
 
+rb_chout_text:
+        jsr rb_save_cursor
+        lda rb_arg_color
+        sta COLOR_CODE
+        clc
+        ldx rb_arg_y
+        ldy rb_arg_x
+        jsr K_PLOT
+        lda #0
+        sta rb_len
+@loop:
+        ldy rb_len
+        lda rb_strbuf,y
+        beq @done
+        jsr K_CHROUT
+        inc rb_len
+        lda rb_len
+        cmp #32
+        bcc @loop
+@done:
+        jmp rb_restore_cursor
+
+rb_chout_add_result:
+        jsr rb_save_cursor
+        lda #1
+        sta COLOR_CODE
+        clc
+        ldx #2
+        ldy #0
+        jsr K_PLOT
+        lda #'R'
+        jsr K_CHROUT
+        lda #'B'
+        jsr K_CHROUT
+        lda #'3'
+        jsr K_CHROUT
+        lda #'='
+        jsr K_CHROUT
+        ldx rb_result_lo
+        lda rb_result_hi
+        jsr BASIC_LINPRT
+        lda #5
+        sta rb_len
+@pad:
+        lda #' '
+        jsr K_CHROUT
+        dec rb_len
+        bne @pad
+        jmp rb_restore_cursor
+
+rb_save_cursor:
+        sec
+        jsr K_PLOT
+        stx rb_saved_txtptr_lo
+        sty rb_saved_txtptr_hi
+        rts
+
+rb_restore_cursor:
+        clc
+        ldx rb_saved_txtptr_lo
+        ldy rb_saved_txtptr_hi
+        jmp K_PLOT
+
 ; ---------------------------------------------------------------------------
-; CTRL+B statement-boundary save/return and warm restore.
+; Deferred launcher return.
 ; ---------------------------------------------------------------------------
 
 rb_check_ctrl_b:
-        lda KEYD_COUNT
-        beq @done
-        lda KEYD_BUFFER
-        cmp #KEY_CTRL_B
-        beq rb_suspend_running_launcher
-@done:
         rts
 
-rb_suspend_running_launcher:
-        jsr rb_call_orig_getin
-        lda #0
-        sta rb_nav_action
-        jmp rb_save_running_state
-
-rb_save_running_state:
-        sei
-        tsx
-        stx rb_saved_sp
-        ldx #0
-@copy_zp:
-        lda $0000,x
-        sta hidden_zp_save,x
-        lda $0100,x
-        sta hidden_stack_save,x
-        inx
-        bne @copy_zp
-        lda #RB_MAGIC_RUN
-        sta rb_magic
-        sta rb_entry_magic
-        lda #RB_MAGIC2
-        sta rb_magic2
-        sta rb_entry_magic2
-        lda #0
-        sta KEYD_COUNT
-        jsr restore_vectors
-        jmp SHIM_RETURN
-
 restore_runtime_state:
-        sei
-        lda CPU_PORT
-        and #RAM_UNDER_BASIC
-        sta CPU_PORT
-        lda hidden_zp_save
-        sta rb_saved_zp0
-        lda hidden_zp_save+1
-        sta rb_saved_zp1
-        ldx #0
-@copy_stack:
-        lda hidden_stack_save,x
-        sta $0100,x
-        inx
-        bne @copy_stack
-        ldx #2
-@copy_zp:
-        lda hidden_zp_save,x
-        sta $0000,x
-        inx
-        bne @copy_zp
-        lda rb_saved_zp0
-        sta $0000
-        lda rb_saved_zp1
-        sta $0001
-        ldx rb_saved_sp
-        txs
+        rts
+
+rb_match_exit:
+        lda rb_peek_lo
+        sta rb_ptr_lo
+        lda rb_peek_hi
+        sta rb_ptr_hi
+        ldy #1
+        lda (rb_ptr_lo),y
+        cmp #'X'
+        beq :+
+        cmp #'x'
+        bne @no
+:       iny
+        lda (rb_ptr_lo),y
+        cmp #'I'
+        beq :+
+        cmp #'i'
+        bne @no
+:       iny
+        lda (rb_ptr_lo),y
+        cmp #'T'
+        beq :+
+        cmp #'t'
+        bne @no
+:       iny
+        lda (rb_ptr_lo),y
+        beq @yes
+        cmp #':'
+        beq @yes
+        cmp #' '
+        beq @yes
+@no:
+        clc
+        rts
+@yes:
+        sec
         rts
 
 ; ---------------------------------------------------------------------------

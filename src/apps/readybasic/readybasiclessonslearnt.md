@@ -115,6 +115,37 @@ Current POC rule: do not tokenize `RB` yet. Leave `ICRNCH` forwarding to ROM
 support must be reintroduced only with a cruncher that preserves all required
 register and buffer contracts.
 
+### RB Parsing Worked; The Hidden Draw Path Was Invisible
+
+Proven on 2026-05-09 with the binary-monitor probe. After `RB 2,0,12,"OK",1`,
+ReadyBASIC state showed `rb_cmd_seen == $02`, `rb_arg_y == $0C`, and
+`rb_strbuf == "OK"`, but screen RAM at row 12 did not contain the text. That
+rules out the raw `RB` matcher and argument parser as the cause of the invisible
+manual command.
+
+Current POC rule: visible `RB 2`/`RB 3` feedback uses KERNAL `PLOT`/`CHROUT`
+from the bridge, with the cursor position saved and restored around the output.
+The direct hidden screen-writer path needs separate repair before it should be
+used for user-visible diagnostics again.
+
+Verification artifacts:
+`../agenticdevharness/logs/vice_auto_20260509_173427/` demonstrated the hidden
+draw failure, and `../agenticdevharness/logs/vice_auto_20260509_174140/`
+demonstrated visible `RB 2`, visible `RB 3`, mailbox `$C004/$C005 == $000F`,
+and `EXIT` returning to the launcher.
+
+### EXIT Is The Current Supported Launcher Return
+
+`CTRL+B`/F-key prompt interception is deferred until the editor-safe keyboard
+hook is proven. `EXIT`/`exit` is now the explicit ReadyBASIC wedge command for
+returning to the launcher: it restores ReadyBASIC-owned vectors, clears pending
+keyboard input, marks the app ready, and jumps to the ReadyOS shim return entry.
+
+Automation caveat: the current harness key helper sends lowercase host ASCII in
+a way that does not match manual C64 lowercase/PETSCII entry. Automated `exit`
+therefore uses uppercase key codes for now, while the command matcher still
+accepts both byte forms.
+
 ## Disproven Or Revised
 
 ### Hypothesis: The Headless Harness Proved Numbered Line Entry Stable
@@ -203,10 +234,10 @@ contract is fully proven.
   - `10 print 1` should enter without screen corruption or lockup.
   - `list` should show the line.
   - `run` should print `1` and return cleanly.
-- At the ReadyBASIC prompt:
-  - `CTRL+B` should return to the launcher.
-  - `F2` should switch to the next loaded app when one is available.
-- During a running BASIC program, hotkey handling is statement-boundary based.
+- At the ReadyBASIC prompt or from a running BASIC program:
+  - `exit` should restore vectors and return to the ReadyOS launcher.
+- `CTRL+B`/F-key interception remains deferred until the editor-safe hook is
+  implemented and proven.
 
 ## Open Questions
 
@@ -214,8 +245,8 @@ contract is fully proven.
   directly instead of peeking `KEYD_COUNT/KEYD_BUFFER`?
 - What exact register/flag contract should the future `RB` token cruncher
   preserve beyond `Y` as length?
-- Should `RB 3` visibly print or expose status/result via a documented PEEK-able
-  mailbox address for easier manual testing?
+- Should `RB 3` keep its visible debug output long term, or become mailbox-only
+  once there is a better inspection UI?
 - How much of `$C000-$C5FF` should remain free for future app/shim state before
   moving more bridge code into hidden helpers?
 
