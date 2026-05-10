@@ -61,10 +61,18 @@
     "obj/dizzy.map",
     "obj/readyirc.map",
     "obj/rirc-rrnet.map",
+    "obj/readybasic.map",
     "obj/readme.map",
     "obj/readyshell.map"
   ],
+  "compact_prg_files": [
+    "bin/readybasic.prg"
+  ],
   "main_segments": [
+    "ENTRY",
+    "BASICWS",
+    "HIDDEN",
+    "BRIDGE",
     "STARTUP",
     "LOWCODE",
     "CODE",

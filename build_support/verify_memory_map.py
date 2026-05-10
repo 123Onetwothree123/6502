@@ -86,6 +86,15 @@ def parse_map_symbol(txt, symbol):
     return int(m.group(1), 16)
 
 
+def parse_prg_span(path: Path):
+    data = path.read_bytes()
+    if len(data) < 2:
+        raise ValueError(f"PRG too short: {path}")
+    load = data[0] | (data[1] << 8)
+    end = load + len(data) - 3
+    return load, end, len(data) - 2
+
+
 def parse_define(path: Path, name: str):
     src = path.read_text(encoding="utf-8", errors="replace")
     m = re.search(rf"#define\s+{re.escape(name)}\s+([0-9xXa-fA-F]+)[uUlL]*\b", src)
@@ -398,6 +407,35 @@ def main():
                 start, end, _size = segs[ovl_name]
                 ok &= check(f"readyshell:{ovl_name} start", start == overlay_start, hex(start))
                 ok &= check(f"readyshell:{ovl_name} end < himem", end < himem, hex(end))
+
+    compact_prgs = spec.get("compact_prg_files", [])
+    if compact_prgs:
+        print("\n=== Compact PRG Load Bounds ===")
+    for rel in compact_prgs:
+        prg_path = ROOT / rel
+        if not prg_path.exists():
+            ok &= check(f"{rel} exists", False, "run make all first")
+            continue
+        try:
+            load, end, payload_len = parse_prg_span(prg_path)
+        except ValueError as ex:
+            ok &= check(f"{rel} parse", False, str(ex))
+            continue
+        ok &= check(
+            f"{rel} load address",
+            load == app_start,
+            f"load=${load:04X}",
+        )
+        ok &= check(
+            f"{rel} compact load span inside app window",
+            load >= app_start and end <= app_end,
+            f"{fmt_range(load, end)} payload=${payload_len:04X}",
+        )
+        ok &= check(
+            f"{rel} compact load span avoids REU meta",
+            not intersects(load, end, reu_meta_start, reu_meta_end),
+            f"{fmt_range(load, end)} vs {fmt_range(reu_meta_start, reu_meta_end)}",
+        )
 
     print("\n=== REU/Resume Constants ===")
     try:

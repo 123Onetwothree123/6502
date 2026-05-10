@@ -1,0 +1,227 @@
+# ReadyBASIC Lessons Learnt
+
+This is the running lab notebook for ReadyBASIC. Keep entries small, falsifiable,
+and updated when a hypothesis turns out to be wrong. The goal is to preserve the
+actual C64/ReadyOS evidence trail rather than a pile of confident guesses.
+
+## Current Model
+
+- ReadyBASIC is a ReadyOS-native PRG host for BASIC, not a normal C64 BASIC PRG.
+- The app PRG loads at `$1000` and must obey the ReadyOS app/shim window:
+  `$1000-$C5FF` is app-owned, `$C600-$C9FF` is reserved metadata/shim space.
+- BASIC programs are data inside the host. The scoped BASIC workspace is
+  currently `$1201-$9FFF`, with save/load relocating line links to/from the
+  standard C64 BASIC `$0801` format.
+- Hidden services live under BASIC ROM RAM at `$A000-$BFFF` and visible
+  trampolines/state/mailbox live at `$C000-$C5FF`.
+
+## Proven
+
+### Cold/Warm Entry Must Not Trust `$C000` First
+
+Cold launcher loads can leave stale bytes in `$C000-$C5FF`. A cold/warm decision
+based first on bridge magic at `$C000` can falsely take a resume path before the
+bridge has been copied into place.
+
+Current rule: use an entry-local cookie in the `$1000` entry segment as the
+first discriminator. A disk load resets that cookie from the PRG image; a REU
+resume preserves it in the app snapshot.
+
+### `$01` Restore Must Happen Last
+
+Hidden restore state under `$A000` is only readable while RAM is mapped under
+BASIC ROM. Restoring saved `$0001` too early can make BASIC ROM visible again
+mid-copy, so the rest of the restore reads ROM instead of the hidden buffer.
+
+Current rule: keep RAM-under-ROM forced while restoring, copy stack and zero page
+first, and restore `$0000/$0001` last.
+
+### `CHRIN` Hooks Must Preserve Carry Semantics
+
+BASIC checks carry after KERNAL input calls. The VICE C64 ROM disassembly shows
+the BASIC/KERNAL wrapper around `CHRIN` branches to the BASIC error path if
+carry is set after `$FFCF`.
+
+Bug seen: `print "hello"` executed, then reported `?C error`. That was caused by
+ReadyBASIC calling original `CHRIN`, comparing the returned byte with hotkeys,
+and returning with the carry flag left by `CMP`.
+
+Current rule: if original `CHRIN` returns carry set, return carry set unchanged;
+for ordinary successful input, explicitly return carry clear.
+
+### Gate Prompt Hooks By Current Input Device
+
+`DFLTN` at `$99` is the current/default input device. Value `0` means keyboard.
+ReadyBASIC must only treat bytes as app navigation when `DFLTN == 0`; otherwise
+file/device input used by BASIC or `RB 10/RB 11` must pass through untouched.
+
+### BASIC Prompt `CHRIN` Does Not Return Every Key
+
+At the READY prompt, KERNAL `CHRIN` enters the screen editor and usually returns
+only after Return, not after every keypress. That means a wrapper around `$0324`
+can be too late to see `CTRL+B` or `F2`.
+
+Revised rule: do not busy-wait in the `$0324` `CHRIN` vector before ROM's screen
+editor runs. The screen editor owns cursor blink, logical-line editing, keyboard
+buffer draining, and Return handling. Prompt-level ReadyOS navigation needs a
+deeper editor-safe hook or a later explicit command, not a pre-editor blocking
+loop.
+
+### ReadyBASIC Must Restore Global Vectors Before Shim Yield
+
+ReadyOS snapshots the app window `$1000-$C5FF`, but BASIC/KERNAL vectors in page
+3 are global machine state outside that snapshot. If ReadyBASIC yields through
+`$C80C/$C80F` with `$0304/$0306/$0308` or `$0324/$032A` still pointing into its
+bridge, the launcher or next app can run with vectors into stale app memory.
+
+Current rule: cold entry resets KERNAL I/O vectors with `$FF8A` and BASIC
+vectors with `$E453`, saves the originals once, installs ReadyBASIC vectors only
+while active, and restores the originals before every shim yield.
+
+### Do Not Replace The BASIC Error Vector With `$A43A`
+
+The stock `$0300` vector points at `$E38B`, not directly at `$A43A`. `$E38B`
+checks for negative `X` values used by the ROM STOP/end-of-direct-command path
+and returns to READY when appropriate. Pointing `$0300` directly at `$A43A`
+bypasses that wrapper and can turn a successful direct command into a spurious
+`?C error`.
+
+Current rule: ReadyBASIC only owns the vectors it needs for the wedge
+(`$0304/$0306/$0308` for now). `$0300/$0302/$030A` are preserved from the ROM
+defaults unless a future hook deliberately wraps and preserves their contracts.
+
+### IGONE Fallback Should Tail-Call The Saved Original Vector
+
+The BASIC command dispatcher enters via `$0308`; the ROM path calls `CHRGET` and
+then relies on the text pointer and processor flags in ways that are easy to
+disturb. A wedge that probes a statement and then jumps into the middle of the
+ROM dispatcher can leave direct-mode commands apparently working but followed by
+spurious BASIC errors.
+
+Current rule: probe the next non-space byte without changing `TXTPTR`. If the
+statement is not ReadyBASIC's command, jump through the saved original `$0308`
+vector so ROM BASIC performs its own `CHRGET`/dispatch path from an untouched
+state. Only after `RB`/`rb`/private token is proven does ReadyBASIC advance
+`TXTPTR`.
+
+### ICRNCH Must Preserve The Tokenized Line Length
+
+The BASIC line insertion path calls the crunch vector at `$0304`, then stores
+`Y` as the tokenized line length. Any custom cruncher that changes the line but
+returns the wrong `Y` can corrupt line insertion.
+
+Current POC rule: do not tokenize `RB` yet. Leave `ICRNCH` forwarding to ROM
+`$A57C`, and recognize raw `RB`/`rb` from `IGONE` instead. Proper private token
+support must be reintroduced only with a cruncher that preserves all required
+register and buffer contracts.
+
+## Disproven Or Revised
+
+### Hypothesis: The Headless Harness Proved Numbered Line Entry Stable
+
+Disproven on 2026-05-09 by a visible binary-monitor run:
+
+```sh
+READYBASIC_SKIP_BUILD=1 READYBASIC_VISIBLE=1 READYBASIC_KEEP_VICE=1 \
+  bash ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_lifecycle_probe.sh
+```
+
+Artifacts:
+`../agenticdevharness/logs/vice_auto_20260509_142432/`.
+
+Direct `PRINT 1` and `PRINT "HELLO"` return to `READY.` without a spurious
+`?C ERROR`, but `10 PRINT 1` still shifts the visible screen eight columns to
+the right and leaves `@@@@@@@@` on row 0. The previous assertion only checked
+for `?`, so it missed the screen corruption and falsely reported success.
+Future acceptance must assert screen layout/content, not just absence of BASIC
+errors.
+
+### Finding: Numbered Line Entry Needs Pointer Enforcement At Crunch Time
+
+Proven on 2026-05-09. ReadyOS can leave BASIC low-memory pointers unsuitable
+for ROM BASIC line insertion even after ReadyBASIC has claimed KERNAL memory
+bounds. The failure signature was:
+
+- `$0283/$0284` set to `$1200`, but `TXTTAB`/`VARTAB` low-memory state still
+  aimed into `$0100-$05xx`.
+- Entering `10 PRINT 1` made ROM BASIC move memory through screen/vector areas,
+  leaving `@@@@@@@@` at row 0 and shifting visible output.
+- `$1201` stayed empty, proving the line was not being inserted into the scoped
+  BASIC workspace.
+
+Fix: enforce ReadyBASIC's `$1201-$9FFF` BASIC pointers immediately before the
+`ICRNCH` pass and before wedge execution. If `VARTAB` is outside the scoped
+workspace, reset the empty-program pointers before ROM BASIC inserts the line.
+
+Verification artifact:
+`../agenticdevharness/logs/vice_auto_20260509_144003/`.
+
+That run passed direct `PRINT 1`, direct `PRINT "HELLO"`, `10 PRINT 1`, `LIST`,
+`RUN`, direct `RB 2`, direct `RB 3` mailbox result `$000F`, and a stored `20 RB
+2,...` executed by `RUN`, with assertions rejecting `?` errors and `@` screen
+artifacts.
+
+### Hypothesis: The Launch Lockup Was Only A ReadyOS ABI Load-Bounds Problem
+
+Revised. Load bounds did matter and are now verified, but later symptoms proved
+there were independent BASIC/KERNAL vector contract bugs after the app loaded.
+
+### Hypothesis: Hooking `CHRIN` After Original Return Is Enough For Prompt Hotkeys
+
+Disproven. The ROM screen editor consumes the interactive key stream internally
+and returns the completed logical line. Prompt navigation needs a pre-editor
+keyboard-buffer check or a deeper screen-editor hook.
+
+### Hypothesis: Pre-Editor `CHRIN` Keyboard-Buffer Peek Is Safe
+
+Disproven. The pre-editor peek was changed into a blocking wait for `$C6 != 0`.
+That starved the ROM screen editor before it could manage cursor/input state,
+matching delayed prompts, missing cursor blink, and fragile line entry. The
+stabilization pass removes it and accepts that prompt-level hotkeys need a
+separate, editor-safe design.
+
+### Hypothesis: Tokenizing `RB` Immediately Is The Best POC Path
+
+Revised. It is desirable, but the first priority is a stable scoped BASIC host.
+Raw `RB` recognized at execution time is safer until the crunch/list/execute
+contract is fully proven.
+
+## Current Verification Checklist
+
+- Build through normal profile flow, not direct app launching:
+  `bash ./run.sh --profile precog-d81 --vice-fast`
+- For headless probe runs, use the VICE binary monitor harness outside this
+  repo:
+  `bash ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_lifecycle_probe.sh`
+  The script builds the D81 with `runappfirst=readybasic`, boots `PREBOOT`, and
+  stores artifacts under `../agenticdevharness/logs/vice_auto_*`.
+- Confirm `readybasic.prg` load address is `$1000`.
+- Confirm compact PRG load span remains below `$C600`.
+- Confirm runtime `BRIDGE` remains below `$C600`.
+- In ReadyBASIC direct mode:
+  - `print "hello"` should print `hello` and return to `ready.` with no error.
+  - `10 print 1` should enter without screen corruption or lockup.
+  - `list` should show the line.
+  - `run` should print `1` and return cleanly.
+- At the ReadyBASIC prompt:
+  - `CTRL+B` should return to the launcher.
+  - `F2` should switch to the next loaded app when one is available.
+- During a running BASIC program, hotkey handling is statement-boundary based.
+
+## Open Questions
+
+- Should the prompt hotkey handler eventually hook the screen editor more
+  directly instead of peeking `KEYD_COUNT/KEYD_BUFFER`?
+- What exact register/flag contract should the future `RB` token cruncher
+  preserve beyond `Y` as length?
+- Should `RB 3` visibly print or expose status/result via a documented PEEK-able
+  mailbox address for easier manual testing?
+- How much of `$C000-$C5FF` should remain free for future app/shim state before
+  moving more bridge code into hidden helpers?
+
+## Useful References
+
+- C64 BASIC-ROM map: https://www.c64-wiki.com/wiki/BASIC-ROM
+- C64 vectors overview: https://www.c64-wiki.com/wiki/Vector
+- Mapping the C64, `DFLTN` and KERNAL input: https://cx16.dk/mapping_c64.html
+- C64 OS BASIC wedge discussion: https://c64os.com/post/basicwedgeprograms

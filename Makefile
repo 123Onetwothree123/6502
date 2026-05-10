@@ -72,6 +72,7 @@ READMEAPP = $(BIN_DIR)/readme.prg
 READYSHELL = $(BIN_DIR)/readyshell.prg
 READYIRC = $(BIN_DIR)/readyirc.prg
 RIRC_RRNET = $(BIN_DIR)/rirc-rrnet.prg
+READYBASIC = $(BIN_DIR)/readybasic.prg
 UCITEST = $(BIN_DIR)/ucitest.prg
 VERSION_HEADER = $(GEN_DIR)/build_version.h
 VERSION_ASM_INC = $(GEN_DIR)/msg_version.inc
@@ -357,10 +358,10 @@ LIB_READYSHELL = $(REU_DMA_SRC) $(RESUME_STATE_SIMPLE_SRCS)
 LIB_READYIRC = $(TUI_BASE_NAV_MISC) $(TUI_HOTKEY_SRC) $(LIB_REU_DMA) $(RESUME_STATE_SIMPLE_SRCS)
 LIB_RIRC_RRNET = $(TUI_BASE_NAV_MISC) $(TUI_HOTKEY_SRC) $(LIB_REU_DMA) $(RESUME_STATE_SIMPLE_SRCS) $(IP65_TCP_LIB) $(IP65_C64_LIB)
 LIB_UCITEST = $(TUI_UCITEST) $(TUI_HOTKEY_SRC)
-EASYFLASH_PAYLOADS = $(LAUNCHER_EASYFLASH) $(READYSHELL_EASYFLASH) $(EDITOR) $(QUICKNOTES) $(CALCPLUS) $(HEXVIEW) $(CLIPMGR) $(REUVIEWER) $(SYSINFO) $(TASKLIST) $(SIMPLEFILES) $(SIMPLECELLS) $(GAME2048) $(DEMINER) $(SIDETRIS) $(CAL26) $(DIZZY) $(READYIRC) $(RIRC_RRNET) $(UCITEST) $(READMEAPP) $(READYSHELL_OVL1_PRG) $(READYSHELL_OVL2_PRG) $(READYSHELL_OVL3_PRG) $(READYSHELL_OVL4_PRG) $(READYSHELL_OVL5_PRG) $(READYSHELL_OVL6_PRG) $(READYSHELL_OVL7_PRG) $(READYSHELL_OVL8_PRG) $(READYSHELL_OVL9_PRG)
+EASYFLASH_PAYLOADS = $(LAUNCHER_EASYFLASH) $(READYSHELL_EASYFLASH) $(EDITOR) $(QUICKNOTES) $(CALCPLUS) $(HEXVIEW) $(CLIPMGR) $(REUVIEWER) $(SYSINFO) $(TASKLIST) $(SIMPLEFILES) $(SIMPLECELLS) $(GAME2048) $(DEMINER) $(SIDETRIS) $(CAL26) $(DIZZY) $(READYIRC) $(RIRC_RRNET) $(READYBASIC) $(UCITEST) $(READMEAPP) $(READYSHELL_OVL1_PRG) $(READYSHELL_OVL2_PRG) $(READYSHELL_OVL3_PRG) $(READYSHELL_OVL4_PRG) $(READYSHELL_OVL5_PRG) $(READYSHELL_OVL6_PRG) $(READYSHELL_OVL7_PRG) $(READYSHELL_OVL8_PRG) $(READYSHELL_OVL9_PRG)
 
 # Primary binaries shared across profiles
-PROGRAMS = $(BOOT) $(PREBOOT) $(SETD71) $(SHOWCFG) $(TEST_REU) $(LAUNCHER) $(EDITOR) $(QUICKNOTES) $(CALCPLUS) $(HEXVIEW) $(CLIPMGR) $(REUVIEWER) $(SYSINFO) $(TASKLIST) $(SIMPLEFILES) $(SIMPLECELLS) $(GAME2048) $(DEMINER) $(SIDETRIS) $(CAL26) $(DIZZY) $(READYIRC) $(RIRC_RRNET) $(UCITEST) $(READMEAPP) $(READYSHELL)
+PROGRAMS = $(BOOT) $(PREBOOT) $(SETD71) $(SHOWCFG) $(TEST_REU) $(LAUNCHER) $(EDITOR) $(QUICKNOTES) $(CALCPLUS) $(HEXVIEW) $(CLIPMGR) $(REUVIEWER) $(SYSINFO) $(TASKLIST) $(SIMPLEFILES) $(SIMPLECELLS) $(GAME2048) $(DEMINER) $(SIDETRIS) $(CAL26) $(DIZZY) $(READYIRC) $(RIRC_RRNET) $(READYBASIC) $(UCITEST) $(READMEAPP) $(READYSHELL)
 
 $(BIN_DIR):
 	@mkdir -p "$@"
@@ -618,6 +619,12 @@ $(READYIRC): $(APPS_DIR)/readyirc/readyirc.c $(APPS_DIR)/readyirc/readyirc_uci.c
 # ReadyIRC RR-Net app (loads at $1000)
 $(RIRC_RRNET): $(APPS_DIR)/rirc-rrnet/rirc-rrnet.c $(APPS_DIR)/rirc-rrnet/rirc_rrnet.c $(APPS_DIR)/rirc-rrnet/rirc_rrnet.h $(APPS_DIR)/rirc-rrnet/rirc_rrnet_config.s $(APPS_DIR)/rirc-rrnet/rirc_rrnet_config.inc $(LIB_RIRC_RRNET)
 	$(CC) $(APP_CFLAGS) -I$(IP65_DIR)/inc -Os -m $(OBJ_DIR)/rirc-rrnet.map -o $@ $(APPS_DIR)/rirc-rrnet/rirc-rrnet.c $(APPS_DIR)/rirc-rrnet/rirc_rrnet.c $(APPS_DIR)/rirc-rrnet/rirc_rrnet_config.s $(LIB_RIRC_RRNET)
+
+# ReadyBASIC POC app (loads at $1000)
+$(READYBASIC): $(APPS_DIR)/readybasic/readybasic.s $(CFG_DIR)/ready_app_readybasic.cfg
+	@mkdir -p "$(OBJ_DIR)"
+	$(AS) -o $(OBJ_DIR)/readybasic.o $(APPS_DIR)/readybasic/readybasic.s
+	$(LD) -C $(CFG_DIR)/ready_app_readybasic.cfg -m $(OBJ_DIR)/readybasic.map -o $@ $(OBJ_DIR)/readybasic.o
 
 # UCI tester app (loads at $1000)
 $(UCITEST): $(APPS_DIR)/ucitest/ucitest.c $(APPS_DIR)/ucitest/ucitest_catalog.c $(APPS_DIR)/ucitest/ucitest_format.c $(APPS_DIR)/ucitest/ucitest_uci.c $(APPS_DIR)/ucitest/ucitest_uci_asm.s $(LIB_UCITEST)
@@ -1132,6 +1139,7 @@ help:
 	@echo "  $(SIDETRIS) - Sideways PETSCII Tetris game (loads at \$$1000)"
 	@echo "  $(CAL26)    - Calendar 2026 app (loads at \$$1000)"
 	@echo "  $(DIZZY)    - Kanban task board app (loads at \$$1000)"
+	@echo "  $(READYBASIC) - ReadyBASIC POC app (loads at \$$1000)"
 	@echo "  $(UCITEST)  - UCI tester app (loads at \$$1000)"
 	@echo "  $(READMEAPP) - Project README app (loads at \$$1000)"
 	@echo "  $(READYSHELL) - ReadyShell app (loads at \$$1000, overlays rsparser/rsvm/rsdrvilst/rsldv/rsstv on disk 1)"
