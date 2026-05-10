@@ -10,8 +10,10 @@ actual C64/ReadyOS evidence trail rather than a pile of confident guesses.
 - The app PRG loads at `$1000` and must obey the ReadyOS app/shim window:
   `$1000-$C5FF` is app-owned, `$C600-$C9FF` is reserved metadata/shim space.
 - BASIC programs are data inside the host. The scoped BASIC workspace is
-  currently `$1201-$99FF`, with save/load relocating line links to/from the
+  currently `$1201-$95FF`, with save/load relocating line links to/from the
   standard C64 BASIC `$0801` format.
+- `$9600-$99FF` is reserved for ReadyBASIC suspend metadata, zero-page snapshot,
+  stack snapshot, saved SP, and line-chain guards.
 - Hidden services live under BASIC ROM RAM at `$A000-$BFFF` and visible
   trampolines/state/mailbox live at `$C000-$C5FF`.
 - A shadow copy of the hidden helper image lives at `$9A00-$9FFF`, inside the
@@ -193,28 +195,41 @@ a way that does not match manual C64 lowercase/PETSCII entry. Automated `exit`
 therefore uses uppercase key codes for now, while the command matcher still
 accepts both byte forms.
 
-### EXIT Resume Must Repair BASIC State Late
+### EXIT Resume Must Snapshot BASIC Runtime State
 
-Proven on 2026-05-09. After `EXIT`, the ReadyOS REU snapshot preserved the
-program bytes in `$1201-$99FF` and the bridge-saved first line link, but the
-first link word at `$1201/$1202` could be zeroed again before the first `LIST`
-after resume. The failure signature was:
+Revised on 2026-05-10. The late first-link repair made `EXIT`/resume appear to
+work for a tiny program, but it was the wrong model. BASIC is a live runtime
+image: program text, variables, arrays, string heap, `TXTPTR`, stack, and page
+zero must stay coherent together.
 
-- `rb_saved_zp0/rb_saved_zp1 == $09/$12`, showing the original first link was
-  saved correctly before shim return.
-- The program body after `$1203` was still present.
-- `LIST` after resume showed an empty program because `$1201/$1202 == $0000`.
+Current rule: manual prompt `EXIT` saves BASIC zero page to `$9600-$96FF`,
+hardware stack page to `$9700-$97FF`, SP and line-chain guards under
+`$9800`, refreshes the hidden helper shadow, restores ReadyBASIC vectors, and
+then yields through `$C80C`. Warm entry restores hidden helpers first,
+reinstalls ReadyBASIC vectors, restores the saved BASIC runtime state, and
+returns to ROM BASIC without clearing the screen or reconstructing variable
+pointers from line links.
 
-Current rule: warm entry still reconstructs BASIC pointers from the hidden
-helper, but the bridge also heals `$1201/$1202` from `rb_saved_zp0/zp1` inside
-`ensure_basic_workspace_pointers`, immediately before ROM BASIC crunch/execute
-paths can inspect the program. This is intentionally late enough to survive the
-READY re-entry path.
+The old unconditional `$1201/$1202` repair from saved first-link bytes was
+removed. It could resurrect old program text after `NEW` or `RB 12`, which
+explained reports where `NEW`/`CLR` still left distorted old listings visible
+after resume.
 
 Verification artifact:
-`../agenticdevharness/logs/vice_auto_20260509_231527/` passed direct `PRINT`,
-numbered line entry, `LIST`, `RUN`, direct `RB 2`, direct `RB 3`, stored `RB`
-line execution, `EXIT` to launcher, relaunch from REU, and `LIST` after resume.
+`../agenticdevharness/logs/vice_auto_20260510_162036/` passed manual prompt
+`EXIT`/resume cases for a multi-line program, `NEW` staying empty across
+resume, variables/strings/arrays surviving resume, `CLR` keeping program text,
+and a stored `RB` line surviving resume.
+
+Baseline lifecycle artifact:
+`../agenticdevharness/logs/vice_auto_20260510_162159/` passed direct `PRINT`,
+numbered line entry, `LIST`, `RUN`, direct `RB 2`, direct `RB 3`, stored `RB`,
+manual `EXIT`, resume, and `LIST` after resume.
+
+Scope note: this verification deliberately covers manual prompt `EXIT`.
+Program-line continuation through `EXIT` is deferred. Raw `EXIT` inside
+`IF ... THEN` is not expected to work until `EXIT` is tokenized or the wedge
+hooks more of BASIC's command dispatch.
 
 ## Disproven Or Revised
 
@@ -250,7 +265,7 @@ bounds. The failure signature was:
 - `$1201` stayed empty, proving the line was not being inserted into the scoped
   BASIC workspace.
 
-Fix: enforce ReadyBASIC's `$1201-$9FFF` BASIC pointers immediately before the
+Fix: enforce ReadyBASIC's scoped BASIC pointers immediately before the
 `ICRNCH` pass and before wedge execution. If `VARTAB` is outside the scoped
 workspace, reset the empty-program pointers before ROM BASIC inserts the line.
 
@@ -296,6 +311,8 @@ contract is fully proven.
   `bash ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_lifecycle_probe.sh`
   The script builds the D81 with `runappfirst=readybasic`, boots `PREBOOT`, and
   stores artifacts under `../agenticdevharness/logs/vice_auto_*`.
+- For manual-`EXIT` BASIC-state probes, use:
+  `bash ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_state_probe.sh`
 - Confirm `readybasic.prg` load address is `$1000`.
 - Confirm compact PRG load span remains below `$C600`.
 - Confirm runtime `BRIDGE` remains below `$C600`.
@@ -304,8 +321,11 @@ contract is fully proven.
   - `10 print 1` should enter without screen corruption or lockup.
   - `list` should show the line.
   - `run` should print `1` and return cleanly.
-- At the ReadyBASIC prompt or from a running BASIC program:
+- At the ReadyBASIC prompt:
   - `exit` should restore vectors and return to the ReadyOS launcher.
+- After relaunching ReadyBASIC from the launcher:
+  - existing BASIC text, variables, strings, arrays, screen state, and `NEW`
+    state should resume coherently after a manual prompt `exit`.
 - `CTRL+B`/F-key interception remains deferred until the editor-safe hook is
   implemented and proven.
 
