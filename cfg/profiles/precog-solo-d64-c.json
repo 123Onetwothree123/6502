@@ -25,6 +25,7 @@
         { "artifact": "cal26.prg", "name": "cal26", "type": "prg" },
         { "artifact": "reuviewer.prg", "name": "reuviewer", "type": "prg" },
         { "artifact": "sysinfo.prg", "name": "sysinfo", "type": "prg" },
+        { "artifact": "obj/rbtest1.prg", "name": "RBTEST1", "type": "prg" },
         { "artifact": "obj/apps_cfg_petscii.seq", "name": "apps.cfg", "type": "seq" }
       ],
       "post_build": [
