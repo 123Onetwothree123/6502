@@ -74,6 +74,7 @@
         { "artifact": "simplecells.prg", "name": "simplecells", "type": "prg" },
         { "artifact": "game2048.prg", "name": "game2048", "type": "prg" },
         { "artifact": "sidetris.prg", "name": "sidetris", "type": "prg", "include_even_if_not_catalog": true },
+        { "artifact": "ucitest.prg", "name": "ucitest", "type": "prg" },
         { "artifact": "obj/app_sidetris_dual_d71.seq", "name": "app.sidetris", "type": "seq" },
         { "artifact": "readme.prg", "name": "readme", "type": "prg" }
       ]

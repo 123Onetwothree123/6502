@@ -36,6 +36,7 @@
         { "artifact": "deminer.prg", "name": "deminer", "type": "prg" },
         { "artifact": "cal26.prg", "name": "cal26", "type": "prg" },
         { "artifact": "dizzy.prg", "name": "dizzy", "type": "prg" },
+        { "artifact": "ucitest.prg", "name": "ucitest", "type": "prg" },
         { "artifact": "readme.prg", "name": "readme", "type": "prg" },
         { "artifact": "readyshell.prg", "name": "readyshell", "type": "prg" },
         { "artifact": "obj/rsparser.prg", "name": "rsparser", "type": "prg" },
