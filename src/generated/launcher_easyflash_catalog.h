@@ -11,7 +11,7 @@ static const unsigned char readyos_easyflash_app_banks[READYOS_EASYFLASH_APP_COU
 };
 
 static const unsigned char readyos_easyflash_default_slots[READYOS_EASYFLASH_APP_COUNT] = {
-    1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    1, 2, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
 static const char *const readyos_easyflash_prgs[READYOS_EASYFLASH_APP_COUNT] = {
@@ -19,6 +19,7 @@ static const char *const readyos_easyflash_prgs[READYOS_EASYFLASH_APP_COUNT] = {
     "readyshell",
     "simplefiles",
     "clipmgr",
+    "readybasic",
     "cal26",
     "tasklist",
     "reuviewer",
@@ -32,7 +33,6 @@ static const char *const readyos_easyflash_prgs[READYOS_EASYFLASH_APP_COUNT] = {
     "deminer",
     "dizzy",
     "readyirc",
-    "readybasic",
     "ucitest",
     "rirc-rrnet",
     "readme",
@@ -43,6 +43,7 @@ static const char *const readyos_easyflash_labels[READYOS_EASYFLASH_APP_COUNT] =
     "readyshell (beta)",
     "simple files",
     "clipboard",
+    "ready basic (alpha)",
     "calendar 26",
     "task list",
     "reu viewer",
@@ -56,7 +57,6 @@ static const char *const readyos_easyflash_labels[READYOS_EASYFLASH_APP_COUNT] =
     "deminer",
     "dizzy kanban",
     "readyirc",
-    "readybasic",
     "uci tester",
     "readyirc rrnet",
     "read.me",
@@ -67,6 +67,7 @@ static const char *const readyos_easyflash_descs[READYOS_EASYFLASH_APP_COUNT] = 
     "command shell poc scaffold",
     "dual pane file manager and seq viewer",
     "manage clipboard items",
+    "scoped basic v2 bridge poc",
     "calendar for 2026 with appointments",
     "outliner with notes and search",
     "view reu memory usage",
@@ -80,7 +81,6 @@ static const char *const readyos_easyflash_descs[READYOS_EASYFLASH_APP_COUNT] = 
     "minesweeper-style puzzle",
     "fizzy inspired kanban app",
     "ultimate tcp irc client",
-    "scoped basic v2 bridge poc",
     "ultimate command interface lab",
     "rr-net tcp irc client",
     "readyos, ultimate buddy, precog poc os",

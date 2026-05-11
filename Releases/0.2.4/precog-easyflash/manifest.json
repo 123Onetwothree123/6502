@@ -2,7 +2,7 @@
   "id": "precog-easyflash",
   "display_name": "precog easyflash",
   "kind": "easyflash",
-  "version_text": "0.2.4O",
+  "version_text": "0.2.4T",
   "catalog_source": "cfg/flavors/readyos_easyflash.ini",
   "artifacts": {
     "crt": "releases/0.2.4/precog-easyflash/readyos_easyflash.crt",
@@ -41,100 +41,100 @@
     },
     {
       "bank": 5,
+      "prg": "readybasic",
+      "label": "ready basic (alpha)",
+      "desc": "scoped basic v2 bridge poc",
+      "default_slot": 3
+    },
+    {
+      "bank": 6,
       "prg": "cal26",
       "label": "calendar 26",
       "desc": "calendar for 2026 with appointments",
       "default_slot": 0
     },
     {
-      "bank": 6,
+      "bank": 7,
       "prg": "tasklist",
       "label": "task list",
       "desc": "outliner with notes and search",
       "default_slot": 0
     },
     {
-      "bank": 7,
+      "bank": 8,
       "prg": "reuviewer",
       "label": "reu viewer",
       "desc": "view reu memory usage",
       "default_slot": 0
     },
     {
-      "bank": 8,
+      "bank": 9,
       "prg": "sysinfo",
       "label": "system info",
       "desc": "system, reu, and ultimate status",
       "default_slot": 0
     },
     {
-      "bank": 9,
+      "bank": 10,
       "prg": "quicknotes",
       "label": "quicknotes",
       "desc": "reu-backed note editor",
       "default_slot": 0
     },
     {
-      "bank": 10,
+      "bank": 11,
       "prg": "calcplus",
       "label": "calc plus",
       "desc": "keyboard-first expression calculator",
       "default_slot": 0
     },
     {
-      "bank": 11,
+      "bank": 12,
       "prg": "hexview",
       "label": "hex viewer",
       "desc": "browse memory in hex format",
       "default_slot": 0
     },
     {
-      "bank": 12,
+      "bank": 13,
       "prg": "simplecells",
       "label": "simple cells (alpha)",
       "desc": "spreadsheet with formulas and colors",
       "default_slot": 0
     },
     {
-      "bank": 13,
+      "bank": 14,
       "prg": "game2048",
       "label": "2048 game",
       "desc": "2048 tile puzzle",
       "default_slot": 0
     },
     {
-      "bank": 14,
+      "bank": 15,
       "prg": "sidetris",
       "label": "sidetris",
       "desc": "sideways tetris",
       "default_slot": 0
     },
     {
-      "bank": 15,
+      "bank": 16,
       "prg": "deminer",
       "label": "deminer",
       "desc": "minesweeper-style puzzle",
       "default_slot": 0
     },
     {
-      "bank": 16,
+      "bank": 17,
       "prg": "dizzy",
       "label": "dizzy kanban",
       "desc": "fizzy inspired kanban app",
       "default_slot": 0
     },
     {
-      "bank": 17,
+      "bank": 18,
       "prg": "readyirc",
       "label": "readyirc",
       "desc": "ultimate tcp irc client",
-      "default_slot": 0
-    },
-    {
-      "bank": 18,
-      "prg": "readybasic",
-      "label": "readybasic",
-      "desc": "scoped basic v2 bridge poc",
       "default_slot": 0
     },
     {
@@ -164,8 +164,8 @@
     "start_bank": 1,
     "bank_span": 2,
     "load_addr": 4096,
-    "payload_len": 23058,
-    "checksum16": 10582
+    "payload_len": 23078,
+    "checksum16": 6045
   },
   "overlays": [
     {
