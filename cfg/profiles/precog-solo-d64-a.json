@@ -25,7 +25,7 @@
         { "artifact": "hexview.prg", "name": "hexview", "type": "prg" },
         { "artifact": "readme.prg", "name": "readme", "type": "prg" },
         { "artifact": "dizzy.prg", "name": "dizzy", "type": "prg" },
-        { "artifact": "obj/rbtest1.prg", "name": "RBTEST1", "type": "prg" },
+        { "artifact": "obj/rbtest1.prg", "name": "rbtest1", "type": "prg" },
         { "artifact": "obj/apps_cfg_petscii.seq", "name": "apps.cfg", "type": "seq" }
       ]
     }

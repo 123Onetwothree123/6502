@@ -49,7 +49,7 @@
         { "artifact": "obj/rscat.prg", "name": "rscat", "type": "prg" },
         { "artifact": "obj/rscopy.prg", "name": "rscopy", "type": "prg" },
         { "artifact": "obj/rsedit.prg", "name": "rsedit", "type": "prg" },
-        { "artifact": "obj/rbtest1.prg", "name": "RBTEST1", "type": "prg" },
+        { "artifact": "obj/rbtest1.prg", "name": "rbtest1", "type": "prg" },
         { "artifact": "obj/apps_cfg_petscii.seq", "name": "apps.cfg", "type": "seq" },
         { "artifact": "obj/app_deminer_dual_d71.seq", "name": "app.deminer", "type": "seq" }
       ],
