@@ -1918,9 +1918,6 @@ static void launch_from_reu(unsigned char index) {
     bank = app_banks[index];
     size = app_sizes[index];
 
-    tui_clear(TUI_COLOR_BLUE);
-    tui_puts(8, 12, "LAUNCHING FROM REU...", TUI_COLOR_CYAN);
-
     launcher_resume_save(launcher_app_to_menu_index(index), menu.scroll_offset, 1);
 
     /* Save current launcher state to REU bank 0 first */
