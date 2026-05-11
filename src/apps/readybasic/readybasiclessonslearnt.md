@@ -231,6 +231,35 @@ Program-line continuation through `EXIT` is deferred. Raw `EXIT` inside
 `IF ... THEN` is not expected to work until `EXIT` is tokenized or the wedge
 hooks more of BASIC's command dispatch.
 
+### Do Not Reset `FRETOP` During Ordinary BASIC Dispatch
+
+Proven on 2026-05-10. `FRETOP` (`$33/$34`) is live BASIC string-heap state, not
+just another fixed memory-limit pointer. ReadyBASIC was enforcing its scoped
+workspace before both `ICRNCH` and `IGONE`, but that enforcement also reset
+`FRETOP` to `$9600` before ordinary direct-mode commands. That made BASIC forget
+where string data already lived, so a direct variable such as `A$="HELLO"` could
+survive in the variable descriptor while its string bytes became eligible for
+reuse by the next string allocation.
+
+Current rule: ordinary dispatch may enforce `TXTTAB`, KERNAL memory bounds, and
+`MEMSIZ`, and may reset only if `VARTAB` is outside the ReadyBASIC workspace.
+It must preserve a valid `FRETOP`. Full variable/string resets belong only to
+initialization, `NEW`, `CLR`, `RUN`, `RB 12`, loads, or a proven-invalid runtime
+state.
+
+Verification artifact:
+`../agenticdevharness/logs/vice_auto_20260510_233650/` added a direct-mode
+string case: `A$="HELLO"`, `EXIT`, resume, `PRINT A$+"!"`, then `B$="WORLD"`
+and `PRINT A$+"2"`. It passed. Memory dumps showed `FRETOP == $95FB` after the
+first string assignment and `FRETOP == $95F4` after resume plus the second
+string allocation, proving the pointer was no longer reset to `$9600`.
+
+Baseline lifecycle artifact:
+`../agenticdevharness/logs/vice_auto_20260510_234541/` passed direct `PRINT`,
+numbered line entry, `LIST`, `RUN`, direct `RB 2`, direct `RB 3`, stored `RB`,
+manual `EXIT`, resume, and `LIST` after resume with the preserved-`FRETOP`
+build.
+
 ## Disproven Or Revised
 
 ### Hypothesis: The Headless Harness Proved Numbered Line Entry Stable

@@ -685,10 +685,8 @@ ensure_basic_workspace_pointers:
         lda #>BASIC_START
         sta TXTTAB+1
         lda #<BASIC_LIMIT
-        sta FRETOP
         sta MEMSIZ
         lda #>BASIC_LIMIT
-        sta FRETOP+1
         sta MEMSIZ+1
         lda VARTAB+1
         cmp #>BASIC_START
