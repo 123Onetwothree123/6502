@@ -274,8 +274,8 @@ rb_entry_magic: .byte 0
 rb_entry_magic2:.byte 0
 rb_entry_cpu:   .byte 0
 
-default_title:
-        .byte "READYBASIC",0
+default_title_screen:
+        .byte 82,5,1,4,25,66,65,83,73,67,32,40,1,12,16,8,1,41,0
 help_text:
         .byte "RB SAVE/LOAD  EXIT HOME",0
 
@@ -625,8 +625,8 @@ prepare_basic_console:
 
 position_basic_prompt:
         clc
-        ldx #0
-        ldy #3
+        ldx #3
+        ldy #0
         jsr K_PLOT
         lda #0
         sta KEYD_COUNT
@@ -1191,17 +1191,96 @@ draw_default_header:
         lda #6
         sta VIC_BG
         sta VIC_BORDER
+        lda #0
+        jsr draw_box_top_row
         lda #1
-        sta rb_arg_color
+        jsr draw_box_middle_row
+        lda #2
+        jsr draw_box_bottom_row
         ldx #0
 @title:
-        lda default_title,x
-        sta rb_strbuf,x
-        beq @draw
+        lda default_title_screen,x
+        beq @done
+        sta SCREEN+11,x
+        lda #7
+        sta COLOR_RAM+11,x
         inx
         bne @title
-@draw:
-        jsr draw_header_from_buffer
+@done:
+        rts
+
+draw_box_top_row:
+        jsr clear_box_row
+        lda #$70
+        sta SCREEN
+        lda #$6e
+        sta SCREEN+39
+        rts
+
+draw_box_middle_row:
+        jsr clear_box_blank_row
+        lda #$5d
+        sta SCREEN+40
+        sta SCREEN+79
+        lda #14
+        sta COLOR_RAM+40
+        sta COLOR_RAM+79
+        rts
+
+draw_box_bottom_row:
+        jsr clear_box_row
+        lda #$6d
+        sta SCREEN+80
+        lda #$7d
+        sta SCREEN+119
+        rts
+
+clear_box_row:
+        jsr mul40_to_ptr
+        lda rb_ptr_hi
+        clc
+        adc #>SCREEN
+        sta rb_ptr_hi
+        lda rb_ptr_lo
+        sta rb_color_lo
+        lda rb_ptr_hi
+        sec
+        sbc #>SCREEN
+        clc
+        adc #>COLOR_RAM
+        sta rb_color_hi
+        ldy #39
+@loop:
+        lda #$40
+        sta (rb_ptr_lo),y
+        lda #14
+        sta (rb_color_lo),y
+        dey
+        bpl @loop
+        rts
+
+clear_box_blank_row:
+        jsr mul40_to_ptr
+        lda rb_ptr_hi
+        clc
+        adc #>SCREEN
+        sta rb_ptr_hi
+        lda rb_ptr_lo
+        sta rb_color_lo
+        lda rb_ptr_hi
+        sec
+        sbc #>SCREEN
+        clc
+        adc #>COLOR_RAM
+        sta rb_color_hi
+        ldy #39
+@loop:
+        lda #32
+        sta (rb_ptr_lo),y
+        lda #1
+        sta (rb_color_lo),y
+        dey
+        bpl @loop
         rts
 
 draw_header_from_buffer:

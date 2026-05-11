@@ -331,6 +331,13 @@ contract is fully proven.
 
 ## Open Questions
 
+- Deferred hypothesis: ReadyBASIC may leave KERNAL `MSGFLG` (`$009D`) nonzero
+  when returning to ReadyOS, which would make later shim/ReadyShell `LOAD` calls
+  print `SEARCHING FOR` / `LOADING` chatter that normally stays hidden. Prove
+  later by dumping `$009D` before ReadyBASIC, after direct BASIC use, after
+  `exit`, and immediately before launcher/shim/ReadyShell loads. Likely fix, if
+  proven: save/restore or clear `MSGFLG` around ReadyBASIC yield, and consider
+  defensive `SETMSG 0` around shim/overlay loads.
 - Should the prompt hotkey handler eventually hook the screen editor more
   directly instead of peeking `KEYD_COUNT/KEYD_BUFFER`?
 - What exact register/flag contract should the future `RB` token cruncher
