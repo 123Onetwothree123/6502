@@ -76,6 +76,7 @@ KERNAL_MEMBOT    = $0283
 BASIC_START     = $1201
 BASIC_SENTINEL  = BASIC_START - 1
 BASIC_LIMIT     = $9600
+BASIC_BYTES_FREE = BASIC_LIMIT - (BASIC_START + 2)
 RUNTIME_STATE   = $9600
 RUNTIME_ZP      = $9600
 RUNTIME_STACK   = $9700
@@ -276,6 +277,9 @@ rb_entry_cpu:   .byte 0
 
 default_title_screen:
         .byte 82,5,1,4,25,66,65,83,73,67,32,40,1,12,16,8,1,41,0
+default_bytes_free_screen:
+        .byte .sprintf("%05d ", BASIC_BYTES_FREE)
+        .byte 2,1,19,9,3,32,2,25,20,5,19,32,6,18,5,5,0
 help_text:
         .byte "RB SAVE/LOAD  EXIT HOME",0
 
@@ -1198,12 +1202,22 @@ draw_default_header:
         ldx #0
 @title:
         lda default_title_screen,x
-        beq @done
+        beq @bytes_free
         sta SCREEN+11,x
         lda #7
         sta COLOR_RAM+11,x
         inx
         bne @title
+@bytes_free:
+        ldx #0
+@bytes_free_loop:
+        lda default_bytes_free_screen,x
+        beq @done
+        sta SCREEN+49,x
+        lda #13
+        sta COLOR_RAM+49,x
+        inx
+        bne @bytes_free_loop
 @done:
         rts
 
