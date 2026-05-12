@@ -137,3 +137,37 @@
 - First failing step/code: none.
 - Next hypothesis:
   - Commit the source/config/docs/static-check delta as the known-good fallback point.
+
+## 2026-05-11: Program-Mode Probe Passed
+
+- First failing command: `READYBASIC_SKIP_BUILD=1 READYBASIC_VISIBLE=1 bash /Users/karlprosserpp/dev/c64projects/agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_program_probe.sh`
+- First failing run dir: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260511_203414`
+- First failing step/code: `assert_program_ping_run`, screen contained `?SYNTAX ERROR` instead of `PRPING 1`.
+- Key diagnosis:
+  - `LIST` showed `10 RB PING`, so raw stored text survived crunch/list.
+  - Bridge debug state showed `$0308` was not reached during the stored line.
+  - Dumping BASIC text proved `$3000`, the byte before relocated `BASIC_START=$3001`, contained `$20`.
+  - C64 BASIC `NEWSTT` expects the byte before `TXTTAB` to be zero; otherwise it reports syntax before advancing into the first stored line.
+- Fixes applied:
+  - Restored the older IGONE-style non-mutating peek/tail-call contract for `$0308` fallback.
+  - Cold BASIC workspace initialization now clears `BASIC_SENTINEL` (`$3000`) as well as the empty line-link bytes at `$3001/$3002`.
+  - Removed the now-unused saved-`TXTPTR` bridge bytes after switching back to non-mutating peek; final `BRIDGE` remains `$C000-$C075`.
+- Static command: `make readybasic-plugin-static-check`
+- Static result: pass.
+- Passing program command: `READYBASIC_VISIBLE=1 bash /Users/karlprosserpp/dev/c64projects/agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_program_probe.sh`
+- Passing program run dir: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260511_204630`
+- Program result: pass, 24/24 steps after a fresh `precog-d81` profile build with `runappfirst=readybasic`.
+- Program trace:
+  - `RB PING,OUT%` works from stored BASIC and survives `LIST`.
+  - Same-line continuation works: `RB ADD16,...:PRINT ...`.
+  - String input/output works: `RB STRUP,S$,T$`.
+  - Hidden `$A000` worker works: `RB HCRC,"AB",H%`.
+  - Integer array input/output works: `SUMAI` and `RANGEAI`.
+  - Persistent REU handle lifecycle works: `BUFNEW`, `BUFFILL`, `BUFFREE`.
+  - Error path works: `RB FAIL,7,X%` reports `?RB ERROR 7` and leaves the pre-cleared output variable at zero.
+- Regression command: `READYBASIC_SKIP_BUILD=1 READYBASIC_VISIBLE=1 bash /Users/karlprosserpp/dev/c64projects/agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_plugin_command_probe.sh`
+- Regression run dir: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260511_204727`
+- Regression result: pass, 47/47 steps.
+- Next hypothesis:
+  - The raw `RB COMMAND,...` path is now proven for both direct mode and stored program mode.
+  - Future token/crunch work must keep the sentinel, IGONE fallback, and line-length contracts under explicit tests.

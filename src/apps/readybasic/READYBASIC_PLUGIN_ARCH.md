@@ -77,6 +77,8 @@ Each descriptor is 32 bytes:
 ## Known V1 Boundaries
 
 - No cruncher: stored lines remain raw `RB COMMAND,...`, so regular BASIC `LIST` shows `RB`.
+- Raw stored-program `RUN` is supported through the `$0308` IGONE hook; the
+  relocated BASIC sentinel byte at `BASIC_START-1` must stay zero.
 - Command lookup is linear over fixed descriptors in bank `$44`.
 - String input currently supports string variables and quoted literals; fully general BASIC string expressions remain a follow-up.
 - V1 integer arrays are explicit base element plus count, e.g. `A%(0),N`.

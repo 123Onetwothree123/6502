@@ -237,6 +237,24 @@ compact, but the visible probe then blanked/crashed during `LIST`. The stable
 branch deliberately removes that crunch/list experiment and treats stored-program
 `RB` as future work requiring a separate lister contract probe.
 
+2026-05-11 program-mode follow-up: raw stored `RB COMMAND,...` is viable without
+a private token as long as the BASIC line-chain and `$0308` contracts are intact.
+The new program probe verifies `LIST` plus `RUN` for scalar, string, hidden,
+array, handle, and error-path commands. Private token support remains separate
+future work.
+
+### Relocated BASIC Needs A Zero Sentinel Byte
+
+Proven on 2026-05-11 after moving `BASIC_START` to `$3001`. C64 BASIC's
+`NEWSTT` path expects the byte immediately before `TXTTAB` to be zero; with
+`TXTTAB=$3001`, that means `$3000` must be cleared. If `$3000` still contains
+leftover app-image bytes, `RUN` can fail with `?SYNTAX ERROR` before the `$0308`
+ReadyBASIC wedge is ever entered.
+
+Current rule: cold workspace initialization clears `BASIC_SENTINEL`, `BASIC_START`,
+and `BASIC_START+1`. Any future relocation or loader change must keep
+`TXTTAB-1 == 0` as a hard invariant and include a stored-program `RUN` probe.
+
 ### RB Parsing Worked; The Hidden Draw Path Was Invisible
 
 Proven on 2026-05-09 with the binary-monitor probe. After `RB 2,0,12,"OK",1`,
@@ -459,6 +477,17 @@ contract is fully proven.
   `bash ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_lifecycle_probe.sh`
   The script builds the D81 with `runappfirst=readybasic`, boots `PREBOOT`, and
   stores artifacts under `../agenticdevharness/logs/vice_auto_*`.
+- For the current REU plugin direct-mode and ReadyOS resume contract, use:
+  `READYBASIC_VISIBLE=1 bash ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_plugin_command_probe.sh`
+  This boots normal ReadyOS with `runappfirst=readybasic`, exercises direct
+  `RB COMMAND,...` samples, returns through the launcher by `EXIT`, relaunches
+  ReadyBasic by menu navigation, and verifies BASIC variable/string state plus
+  registry function after resume.
+- For the stored-program command contract, use:
+  `READYBASIC_VISIBLE=1 bash ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_program_probe.sh`
+  This interviews each command style early: first `LIST`/`RUN` for `PING`, then
+  same-line continuation, strings, hidden workers, arrays, handles, and failure
+  clearing. It should fail fast at the first command family that regresses.
 - For manual-`EXIT` BASIC-state probes, use:
   `bash ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_state_probe.sh`
 - For the larger direct-variable/string/array stress case, use:

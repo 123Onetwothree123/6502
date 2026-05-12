@@ -461,68 +461,97 @@ restore_vectors:
         rts
 
 rb_execute:
-        lda TXTPTR
-        sta rb_saved_txtptr_lo
-        lda TXTPTR+1
-        sta rb_saved_txtptr_hi
-        jsr CHRGOT
+        jsr rb_peek_next_nonspace
         cmp #'R'
         beq @maybe_rb
         cmp #'r'
         beq @maybe_rb
         cmp #'E'
-        beq @exit_e
+        beq @maybe_exit
         cmp #'e'
-        beq @exit_e
-        jsr CHRGET
-        cmp #'R'
-        beq @maybe_rb
-        cmp #'r'
-        bne @maybe_exit
+        beq @maybe_exit
+        jmp rb_call_orig_execute
 @maybe_rb:
-        jsr CHRGET
+        lda rb_peek_lo
+        sta rb_ptr_lo
+        lda rb_peek_hi
+        sta rb_ptr_hi
+        ldy #1
+        lda (rb_ptr_lo),y
         cmp #'B'
         beq @got_rb
         cmp #'b'
-        bne rb_jump_orig_execute
+        bne rb_call_orig_execute
 @got_rb:
+        lda rb_peek_lo
+        sta TXTPTR
+        lda rb_peek_hi
+        sta TXTPTR+1
+        jsr CHRGET
         jsr CHRGET
         jmp rb_plugin_statement
 @maybe_exit:
-        cmp #'E'
-        beq @exit_e
-        cmp #'e'
-        bne rb_jump_orig_execute
-@exit_e:
-        jsr CHRGET
+        jsr rb_match_exit
+        bcc rb_call_orig_execute
+        jmp cmd_exit
+
+rb_call_orig_execute:
+        jmp (rb_orig_execute_lo)
+
+rb_peek_next_nonspace:
+        lda TXTPTR
+        sta rb_ptr_lo
+        lda TXTPTR+1
+        sta rb_ptr_hi
+@next:
+        inc rb_ptr_lo
+        bne :+
+        inc rb_ptr_hi
+:       ldy #0
+        lda (rb_ptr_lo),y
+        cmp #' '
+        beq @next
+        ldx rb_ptr_lo
+        stx rb_peek_lo
+        ldx rb_ptr_hi
+        stx rb_peek_hi
+        rts
+
+rb_match_exit:
+        lda rb_peek_lo
+        sta rb_ptr_lo
+        lda rb_peek_hi
+        sta rb_ptr_hi
+        ldy #1
+        lda (rb_ptr_lo),y
         cmp #'X'
         beq :+
         cmp #'x'
-        bne rb_jump_orig_execute
-:       jsr CHRGET
+        bne @no
+:       iny
+        lda (rb_ptr_lo),y
         cmp #'I'
         beq :+
         cmp #'i'
-        bne rb_jump_orig_execute
-:       jsr CHRGET
+        bne @no
+:       iny
+        lda (rb_ptr_lo),y
         cmp #'T'
         beq :+
         cmp #'t'
-        bne rb_jump_orig_execute
-:       jsr CHRGET
-        jmp cmd_exit
-
-rb_jump_orig_execute:
-        lda rb_saved_txtptr_lo
+        bne @no
+:       tya
+        clc
+        adc rb_peek_lo
         sta TXTPTR
-        lda rb_saved_txtptr_hi
+        lda rb_peek_hi
+        adc #0
         sta TXTPTR+1
-        lda rb_orig_execute_lo
-        sta rb_orig_execute_jmp+1
-        lda rb_orig_execute_hi
-        sta rb_orig_execute_jmp+2
-rb_orig_execute_jmp:
-        jmp BASIC_GONE
+        sec
+        rts
+@no:
+        clc
+        rts
 
 cmd_exit:
         lda TXTPTR+1
@@ -628,6 +657,7 @@ restore_basic_runtime_state:
 init_basic_workspace:
         jsr force_basic_workspace_pointers
         lda #0
+        sta BASIC_SENTINEL
         sta BASIC_START
         sta BASIC_START+1
         rts
@@ -1871,8 +1901,8 @@ rb_orig_list_lo:.byte 0
 rb_orig_list_hi:.byte 0
 rb_orig_execute_lo:.byte 0
 rb_orig_execute_hi:.byte 0
-rb_saved_txtptr_lo:.byte 0
-rb_saved_txtptr_hi:.byte 0
+rb_peek_lo:     .byte 0
+rb_peek_hi:     .byte 0
 
 rb_cmd_len:     .byte 0
 rb_lookup_index:.byte 0
