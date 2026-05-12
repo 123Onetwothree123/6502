@@ -342,6 +342,21 @@ contract is fully proven.
   stores artifacts under `../agenticdevharness/logs/vice_auto_*`.
 - For manual-`EXIT` BASIC-state probes, use:
   `bash ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_state_probe.sh`
+- For the larger direct-variable/string/array stress case, use:
+  `bash ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_large_vars_probe.sh`
+  It enters a five-line program, creates `A$` through `D$`, `DIM E(200)`, sets
+  `E(199)`, exits, resumes, and verifies strings, array data, and `LIST`.
+  On 2026-05-11 this passed five consecutive runs. The first draft falsely
+  failed because it printed several checks and `LIST` before asserting, scrolling
+  the earliest `A$` output off screen; screen assertions should check values
+  while they are still visible or use memory-backed validation.
+- For cross-app churn after `EXIT`, use:
+  `bash ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_cross_app_resume_probe.sh`
+  It builds the same larger BASIC/string/array case, then repeats:
+  `EXIT -> launcher -> ReadyShell -> CTRL+B -> launcher -> ReadyBASIC -> LIST
+  and one-at-a-time PRINT checks`. On 2026-05-11, 10 full cycles passed: all 206
+  plan steps were `ok`; the run was marked `partial` only because the harness
+  final automatic REU debug-ring fetch returned short after the successful plan.
 - Confirm `readybasic.prg` load address is `$1000`.
 - Confirm compact PRG load span remains below `$C600`.
 - Confirm runtime `BRIDGE` remains below `$C600`.

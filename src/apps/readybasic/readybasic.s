@@ -319,13 +319,21 @@ restore_basic_runtime_state:
         sta KERNAL_MEMTOP+1
         lda #0
         sta KEYD_COUNT
-        ldx RUNTIME_SP
-        txs
         lda RUNTIME_MODE
         cmp #RB_RESUME_RUN
         beq @running_resume
+        ; Rebuild the READY-mode screen with the KERNAL clear-screen code,
+        ; not BASIC CLR. BASIC CLR would erase variables/runtime state; this
+        ; resets the screen editor surface before redrawing the header.
+        jsr prepare_basic_console
+        jsr call_hidden_draw_default_header
+        jsr position_basic_prompt
+        ldx RUNTIME_SP
+        txs
         jmp BASIC_READY
 @running_resume:
+        ldx RUNTIME_SP
+        txs
         jmp BASIC_NEXT_STMT
 @fallback:
         jsr force_basic_workspace_pointers
@@ -898,6 +906,7 @@ cmd_clear:
 
 cmd_exit:
         jsr call_hidden_save_basic_runtime_state
+        jsr set_exit_resume_mode
         lda RUNTIME_MODE
         cmp #RB_RESUME_RUN
         beq @running
@@ -916,6 +925,23 @@ cmd_exit:
         jsr save_hidden_shadow
         jsr restore_vectors
         jmp SHIM_RETURN
+
+set_exit_resume_mode:
+        ; CURLIN can be stale after direct-mode commands such as LIST.
+        ; TXTPTR tells us where EXIT came from: input buffer/other RAM means
+        ; READY-mode resume; scoped BASIC text means continue program mode.
+        lda TXTPTR+1
+        cmp #>BASIC_START
+        bcc @ready
+        cmp #>BASIC_LIMIT
+        bcs @ready
+        lda #RB_RESUME_RUN
+        bne @store
+@ready:
+        lda #RB_RESUME_READY
+@store:
+        sta RUNTIME_MODE
+        rts
 
 rb_ok:
         lda #0
@@ -1193,6 +1219,7 @@ draw_default_header:
         lda #6
         sta VIC_BG
         sta VIC_BORDER
+        jsr clear_default_screen
         lda #0
         jsr draw_box_top_row
         lda #1
@@ -1219,6 +1246,35 @@ draw_default_header:
         inx
         bne @bytes_free_loop
 @done:
+        rts
+
+clear_default_screen:
+        ldx #0
+        lda #32
+@screen_full:
+        sta SCREEN,x
+        sta SCREEN+$100,x
+        sta SCREEN+$200,x
+        inx
+        bne @screen_full
+        ldx #$e7
+@screen_tail:
+        sta SCREEN+$300,x
+        dex
+        bpl @screen_tail
+        ldx #0
+        lda #1
+@color_full:
+        sta COLOR_RAM,x
+        sta COLOR_RAM+$100,x
+        sta COLOR_RAM+$200,x
+        inx
+        bne @color_full
+        ldx #$e7
+@color_tail:
+        sta COLOR_RAM+$300,x
+        dex
+        bpl @color_tail
         rts
 
 draw_box_top_row:
