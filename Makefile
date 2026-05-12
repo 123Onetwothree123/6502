@@ -627,6 +627,9 @@ $(READYBASIC): $(APPS_DIR)/readybasic/readybasic.s $(CFG_DIR)/ready_app_readybas
 	$(AS) -o $(OBJ_DIR)/readybasic.o $(APPS_DIR)/readybasic/readybasic.s
 	$(LD) -C $(CFG_DIR)/ready_app_readybasic.cfg -m $(OBJ_DIR)/readybasic.map -o $@ $(OBJ_DIR)/readybasic.o
 
+readybasic-plugin-static-check: $(READYBASIC) $(BUILD_SUPPORT_DIR)/verify_readybasic_plugin.py
+	$(PYTHON) $(BUILD_SUPPORT_DIR)/verify_readybasic_plugin.py
+
 # ReadyBASIC sample program (standard $0801 BASIC PRG, loaded by RB 11).
 $(READYBASIC_RBTEST1): $(APPS_DIR)/readybasic/rbtest1.bas
 	@mkdir -p "$(OBJ_DIR)"
@@ -1174,5 +1177,5 @@ probe-rel:
 launcher-verbose:
 	$(MAKE) LAUNCHER_CFG_VERBOSE=1 $(LAUNCHER)
 
-.PHONY: all clean verify verify-resume shim-verify fullcheck help run run-test seed-cal26 probe-rel launcher-verbose readyshell-host-tests readyshell-parse-smoke-host readyshell-vm-smoke-host readyshell-reu-tests-host editor-smoke-host tasklist-smoke-host programs prepare-version profile profiles release-all easyflash easyflash-verify easyflash-smoke easyflash-smoke-long easyflash-preload-verify easyflash-clean FORCE
+.PHONY: all clean verify verify-resume shim-verify fullcheck help run run-test seed-cal26 probe-rel launcher-verbose readybasic-plugin-static-check readyshell-host-tests readyshell-parse-smoke-host readyshell-vm-smoke-host readyshell-reu-tests-host editor-smoke-host tasklist-smoke-host programs prepare-version profile profiles release-all easyflash easyflash-verify easyflash-smoke easyflash-smoke-long easyflash-preload-verify easyflash-clean FORCE
 EASYFLASH_LAUNCHER_CPPFLAGS ?=

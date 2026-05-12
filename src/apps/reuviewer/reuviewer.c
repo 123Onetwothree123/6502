@@ -263,6 +263,14 @@ static void draw_grid(void) {
                     ch = CHAR_RSD;
                     color = TUI_COLOR_ORANGE;
                     break;
+                case REU_RB_CORE:
+                    ch = 'B';
+                    color = TUI_COLOR_LIGHTGREEN;
+                    break;
+                case REU_RB_CODE:
+                    ch = 'C';
+                    color = TUI_COLOR_CYAN;
+                    break;
                 default:
                     ch = CHAR_FREE;
                     color = TUI_COLOR_GRAY2;
@@ -313,6 +321,8 @@ static void draw_detail(void) {
         case REU_UNAVAIL:   type_str = "UNAVAILABLE"; break;
         case REU_RS_CACHE:  type_str = "RS CACHE"; break;
         case REU_RS_DEBUG:  type_str = "RS DEBUG/PROBE"; break;
+        case REU_RB_CORE:   type_str = "RB CORE/SYSTEM"; break;
+        case REU_RB_CODE:   type_str = "RB COMMAND CODE"; break;
         default:            type_str = "UNKNOWN"; break;
     }
     tui_puts(18, DETAIL_Y, type_str, TUI_COLOR_YELLOW);

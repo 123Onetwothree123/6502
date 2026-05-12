@@ -19,6 +19,8 @@
 #define REU_LAUNCHER   9
 #define REU_UNAVAIL    10
 #define REU_RS_SCRATCH 13
+#define REU_RB_CORE    14
+#define REU_RB_CODE    15
 
 /* Memory-mapped system area ($C600-$C7FF, persists across app switches) */
 #define REU_ALLOC_TABLE  ((unsigned char*)0xC600)  /* 256 bytes, 1 per bank */
@@ -34,6 +36,8 @@
 #define REU_BANK_RS_CACHE2 0x41
 #define REU_BANK_RS_CACHE3 0x42
 #define REU_BANK_RS_DEBUG 0x43
+#define REU_BANK_RB_CORE 0x44
+#define REU_BANK_RB_CODE 0x45
 #define REU_BANK_RS_SCRATCH 0x48
 
 /* Shim bitmap at $C836-$C838 (tracks which app banks are loaded) */

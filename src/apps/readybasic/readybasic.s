@@ -1,11 +1,14 @@
 ;
-; readybasic.s - ReadyOS BASIC V2 bridge proof of concept
+; readybasic.s - lean ReadyBASIC REU plugin command spine
 ;
 ; Load address: $1000
-; BASIC workspace: $1201-$95FF
-; Suspend state: $9600-$99FF
-; Hidden helper shadow: $9A00-$9FFF, restored to RAM under BASIC ROM at $A000
-; Visible bridge/mailbox/state: $C000-$C5FF, must remain below $C600
+; Visible resident core: $1200-$1BFF
+; Low command overlay: $1C00-$23FF
+; Shared call/result buffers: $2400-$27FF
+; BASIC workspace: $3001-$95FF
+; Runtime save state: $9600-$99FF
+; Hidden helper shadow: $9A00-$9FFF, restored to $A000-$A5FF
+; Bridge state/trampolines: $C000-$C5FF
 ;
 
         .setcpu "6502"
@@ -16,41 +19,29 @@
 
 CHRGET          = $0073
 CHRGOT          = $0079
-BASIC_ERROR     = $A43A
-BASIC_MAIN      = $A483
 BASIC_READY     = $A474
-BASIC_CRUNCH    = $A57C
-BASIC_LISTCHAR  = $A71A
 BASIC_NEXT_STMT = $A7AE
 BASIC_GONE      = $A7E4
-BASIC_GONE_CONT = $A7E7
-BASIC_EVAL      = $AE86
 BASIC_FRMNUM    = $AD8A
 BASIC_CHKCOM    = $AEFD
 BASIC_SYNERR    = $AF08
+BASIC_PTRGET    = $B08B
 BASIC_GETADR    = $B7F7
 BASIC_LINPRT    = $BDCD
-BASIC_INIT_RAM  = $E3BF
 BASIC_RESTORE_VECTORS = $E453
 
-K_SETLFS        = $FFBA
-K_SETNAM        = $FFBD
-K_OPEN          = $FFC0
-K_CLOSE         = $FFC3
-K_CHKIN         = $FFC6
-K_CHKOUT        = $FFC9
-K_CLRCHN        = $FFCC
-K_CHRIN         = $FFCF
 K_CHROUT        = $FFD2
-K_GETIN         = $FFE4
-K_RESTOR        = $FF8A
-K_READST        = $FFB7
+K_CLRCHN        = $FFCC
 K_PLOT          = $FFF0
+K_RESTOR        = $FF8A
 
 ; ---------------------------------------------------------------------------
 ; BASIC/KERNAL workspace
 ; ---------------------------------------------------------------------------
 
+VALTYP          = $0D
+INTFLG          = $0E
+LINNUM          = $14
 TXTTAB          = $2B
 VARTAB          = $2D
 ARYTAB          = $2F
@@ -58,26 +49,19 @@ STREND          = $31
 FRETOP          = $33
 MEMSIZ          = $37
 CURLIN          = $39
-OLDTXT          = $3D
 TXTPTR          = $7A
-
-LINNUM          = $14
 DFLTN           = $99
-SCREEN_INPUT    = $D0
-SHFLAG          = $028D
-COLOR_CODE      = $0286
+VARPNT          = $47
+SUBFLG          = $10
 KEYD_COUNT      = $00C6
-KEYD_BUFFER     = $0277
-KERNAL_CHRIN_VEC= $0324
-KERNAL_GETIN_VEC= $032A
-KERNAL_MEMTOP    = $0281
-KERNAL_MEMBOT    = $0283
+COLOR_CODE      = $0286
+KERNAL_MEMTOP   = $0281
+KERNAL_MEMBOT   = $0283
 
-BASIC_START     = $1201
+BASIC_START     = $3001
 BASIC_SENTINEL  = BASIC_START - 1
 BASIC_LIMIT     = $9600
 BASIC_BYTES_FREE = BASIC_LIMIT - (BASIC_START + 2)
-RUNTIME_STATE   = $9600
 RUNTIME_ZP      = $9600
 RUNTIME_STACK   = $9700
 RUNTIME_META    = $9800
@@ -91,35 +75,19 @@ RUNTIME_FIRST_HI= RUNTIME_META + $06
 RUNTIME_END_LO  = RUNTIME_META + $07
 RUNTIME_END_HI  = RUNTIME_META + $08
 HIDDEN_SHADOW   = $9A00
-HIDDEN_SHADOW_SIZE = $0600
-STD_BASIC_START = $0801
-RELOC_DELTA     = BASIC_START - STD_BASIC_START
 
-SCREEN          = $0400
-COLOR_RAM       = $D800
-VIC_BORDER      = $D020
-VIC_BG          = $D021
-VIC_MEM         = $D018
 CPU_DDR         = $0000
 CPU_PORT        = $0001
+VIC_MEM         = $D018
 
 SHIM_RETURN     = $C80C
-SHIM_SWITCH     = $C80F
-SHIM_TARGET     = $C820
-SHIM_CURRENT    = $C834
-SHIM_BITMAP_LO  = $C836
-SHIM_BITMAP_HI  = $C837
-SHIM_BITMAP_XHI = $C838
-SHIM_DRIVE      = $C839
 
-; BASIC-compatible scratch pointers. These are outside cc65's reserved ZP set
-; and are saved/restored for ReadyBASIC warm return.
+; Scratch pointers outside cc65's reserved zero-page runtime.
 rb_ptr_lo       = $FB
 rb_ptr_hi       = $FC
-rb_color_lo     = $FD
-rb_color_hi     = $FE
+rb_ptr2_lo      = $FD
+rb_ptr2_hi      = $FE
 
-RB_TOKEN        = $FE
 RB_MAGIC_READY  = $52
 RB_MAGIC_RUN    = $B2
 RB_MAGIC2       = $A6
@@ -127,14 +95,117 @@ RB_STATE_MAGIC1 = $72
 RB_STATE_MAGIC2 = $62
 RB_RESUME_READY = 0
 RB_RESUME_RUN   = 1
+
 RAM_UNDER_BASIC = $FD
 RAM_UNDER_BASIC_KEEP_KERNAL = $FE
 VIC_MEM_LOWERCASE = $16
-KEY_CTRL_B      = 2
-KEY_F2          = 137
-KEY_F4          = 138
-APP_BANK_MIN    = 1
-APP_BANK_MAX    = 23
+
+; ---------------------------------------------------------------------------
+; ReadyBASIC plugin ABI constants
+; ---------------------------------------------------------------------------
+
+RB_LOW_BASE     = $1C00
+RB_HIDDEN_BASE  = $A000
+RB_SHARED       = $2400
+RB_CF           = $2400
+RB_RF           = $2500
+RB_DESC_BUF     = $2680
+RB_CMDBUF       = $26A0
+RB_PAGEBUF      = $2700
+
+CF_CMD_ID       = RB_CF + $00
+CF_PARAM_COUNT  = RB_CF + $01
+CF_NUM0_LO      = RB_CF + $10
+CF_NUM0_HI      = RB_CF + $11
+CF_NUM1_LO      = RB_CF + $12
+CF_NUM1_HI      = RB_CF + $13
+CF_NUM2_LO      = RB_CF + $14
+CF_NUM2_HI      = RB_CF + $15
+CF_PTR0_LO      = RB_CF + $40
+CF_PTR0_HI      = RB_CF + $41
+CF_COUNT0_LO    = RB_CF + $42
+CF_COUNT0_HI    = RB_CF + $43
+CF_STR_LEN      = RB_CF + $50
+CF_STR_BUF      = RB_CF + $60
+
+RF_STATUS       = RB_RF + $00
+RF_ERROR        = RB_RF + $01
+RF_TAG          = RB_RF + $02
+RF_VAL_LO       = RB_RF + $03
+RF_VAL_HI       = RB_RF + $04
+RF_COUNT_LO     = RB_RF + $05
+RF_COUNT_HI     = RB_RF + $06
+RF_STR_LEN      = RB_RF + $10
+RF_STR_BUF      = RB_RF + $20
+RF_ARRAY_BUF    = RB_RF + $80
+
+RB_VAL_NONE     = 0
+RB_VAL_INT      = 1
+RB_VAL_STRING   = 2
+RB_VAL_ARRAYI   = 3
+
+RB_OUT_NONE     = 0
+RB_OUT_INT      = 1
+RB_OUT_STRING   = 2
+RB_OUT_ARRAYI   = 3
+
+RB_CMD_F_LOW    = $01
+RB_CMD_F_HIDDEN = $02
+
+RB_REU_CORE_BANK= $44
+RB_REU_CODE_BANK= $45
+RB_REU_TYPE_CORE= 14
+RB_REU_TYPE_CODE= 15
+RB_REU_ALLOC_TABLE = $C600
+RB_REU_HEADER_OFF  = $0000
+RB_REU_DESC_OFF    = $0100
+RB_REU_CALL_OFF    = $0400
+RB_REU_RESULT_OFF  = $0500
+RB_REU_DEBUG_OFF   = $0600
+RB_REU_HANDLE_OFF  = $0800
+RB_REU_HEAP_OFF    = $0900
+RB_REU_DATA_OFF    = $8000
+
+RB_CMD_DESC_SIZE   = 32
+RB_CMD_DESC_COUNT  = 11
+RB_MAX_NAME        = 15
+RB_MAX_STR         = 64
+RB_HANDLE_COUNT    = 8
+RB_HEAP_PAGES      = 16
+
+SIG_PING        = 1
+SIG_ADD16       = 2
+SIG_STRUP       = 3
+SIG_HCRC        = 4
+SIG_SUMAI       = 5
+SIG_RANGEAI     = 6
+SIG_BUFNEW      = 7
+SIG_BUFFILL     = 8
+SIG_BUFFREE     = 9
+SIG_TEMPSCRATCH = 10
+SIG_FAIL        = 11
+
+CMD_PING        = 1
+CMD_ADD16       = 2
+CMD_STRUP       = 3
+CMD_HCRC        = 4
+CMD_SUMAI       = 5
+CMD_RANGEAI     = 6
+CMD_BUFNEW      = 7
+CMD_BUFFILL     = 8
+CMD_BUFFREE     = 9
+CMD_TEMPSCRATCH = 10
+CMD_FAIL        = 11
+
+; REU registers.
+REU_CMD         = $DF01
+REU_C64_LO      = $DF02
+REU_C64_HI      = $DF03
+REU_ADDR_LO     = $DF04
+REU_ADDR_HI     = $DF05
+REU_BANK        = $DF06
+REU_LEN_LO      = $DF07
+REU_LEN_HI      = $DF08
 
 ; ---------------------------------------------------------------------------
 ; $1000 app entry
@@ -147,6 +218,8 @@ APP_BANK_MAX    = 23
 
         .import __HIDDEN_LOAD__, __HIDDEN_RUN__, __HIDDEN_SIZE__
         .import __BRIDGE_LOAD__, __BRIDGE_RUN__, __BRIDGE_SIZE__
+        .import __LOWPACK_LOAD__, __LOWPACK_RUN__, __LOWPACK_SIZE__
+        .import __HIDDENPACK_LOAD__, __HIDDENPACK_RUN__, __HIDDENPACK_SIZE__
 
 rb_entry_src    = $FB
 rb_entry_dst    = $FD
@@ -268,20 +341,242 @@ entry_copy_block:
 @done:
         rts
 
-        .byte "READYBASIC POC",0
+        .byte "READYBASIC REU",0
 
 rb_entry_len:   .word 0
 rb_entry_magic: .byte 0
 rb_entry_magic2:.byte 0
 rb_entry_cpu:   .byte 0
 
-default_title_screen:
-        .byte 82,5,1,4,25,66,65,83,73,67,32,40,1,12,16,8,1,41,0
-default_bytes_free_screen:
-        .byte .sprintf("%05d ", BASIC_BYTES_FREE)
-        .byte 2,1,19,9,3,32,2,25,20,5,19,32,6,18,5,5,0
-help_text:
-        .byte "RB SAVE/LOAD  EXIT HOME",0
+        .segment "PADLOW"
+        .res $0C00, 0
+
+; ---------------------------------------------------------------------------
+; Visible resident core.
+; ---------------------------------------------------------------------------
+
+        .segment "RESIDENT"
+
+rb_boot:
+        sei
+        lda CPU_DDR
+        ora #$07
+        sta CPU_DDR
+        lda #$37
+        sta CPU_PORT
+        lda rb_magic2
+        cmp #RB_MAGIC2
+        bne rb_cold_start
+        lda rb_magic
+        cmp #RB_MAGIC_RUN
+        beq rb_resume_running
+        cmp #RB_MAGIC_READY
+        beq rb_resume_ready
+
+rb_cold_start:
+        jsr K_RESTOR
+        jsr BASIC_RESTORE_VECTORS
+        jsr install_vectors
+        jsr init_basic_workspace
+        lda #1
+        sta rb_seed_cold
+        jsr call_hidden_seed_plugin_reu
+        jsr prepare_basic_console
+        jsr rb_draw_banner
+        jsr position_basic_prompt
+        lda #RB_MAGIC2
+        sta rb_magic2
+        lda #RB_MAGIC_READY
+        sta rb_magic
+        sta rb_entry_magic
+        lda #RB_MAGIC2
+        sta rb_entry_magic2
+        cli
+        jmp BASIC_READY
+
+rb_resume_ready:
+        jsr install_vectors
+        lda #0
+        sta rb_seed_cold
+        jsr call_hidden_seed_plugin_reu
+        lda #RB_MAGIC_READY
+        sta rb_entry_magic
+        lda #RB_MAGIC2
+        sta rb_entry_magic2
+        cli
+        jmp restore_basic_runtime_state
+
+rb_resume_running:
+        jsr install_vectors
+        lda #0
+        sta rb_seed_cold
+        jsr call_hidden_seed_plugin_reu
+        lda #RB_MAGIC_RUN
+        sta rb_entry_magic
+        lda #RB_MAGIC2
+        sta rb_entry_magic2
+        cli
+        jmp restore_basic_runtime_state
+
+install_vectors:
+        lda rb_vectors_saved
+        bne @install
+        lda $0304
+        sta rb_orig_crunch_lo
+        lda $0305
+        sta rb_orig_crunch_hi
+        lda $0306
+        sta rb_orig_list_lo
+        lda $0307
+        sta rb_orig_list_hi
+        lda $0308
+        sta rb_orig_execute_lo
+        lda $0309
+        sta rb_orig_execute_hi
+        lda #1
+        sta rb_vectors_saved
+@install:
+        lda #<rb_execute
+        sta $0308
+        lda #>rb_execute
+        sta $0309
+        rts
+
+restore_vectors:
+        lda rb_vectors_saved
+        beq @done
+        lda rb_orig_crunch_lo
+        sta $0304
+        lda rb_orig_crunch_hi
+        sta $0305
+        lda rb_orig_list_lo
+        sta $0306
+        lda rb_orig_list_hi
+        sta $0307
+        lda rb_orig_execute_lo
+        sta $0308
+        lda rb_orig_execute_hi
+        sta $0309
+@done:
+        rts
+
+rb_execute:
+        lda TXTPTR
+        sta rb_saved_txtptr_lo
+        lda TXTPTR+1
+        sta rb_saved_txtptr_hi
+        jsr CHRGOT
+        cmp #'R'
+        beq @maybe_rb
+        cmp #'r'
+        beq @maybe_rb
+        cmp #'E'
+        beq @exit_e
+        cmp #'e'
+        beq @exit_e
+        jsr CHRGET
+        cmp #'R'
+        beq @maybe_rb
+        cmp #'r'
+        bne @maybe_exit
+@maybe_rb:
+        jsr CHRGET
+        cmp #'B'
+        beq @got_rb
+        cmp #'b'
+        bne rb_jump_orig_execute
+@got_rb:
+        jsr CHRGET
+        jmp rb_plugin_statement
+@maybe_exit:
+        cmp #'E'
+        beq @exit_e
+        cmp #'e'
+        bne rb_jump_orig_execute
+@exit_e:
+        jsr CHRGET
+        cmp #'X'
+        beq :+
+        cmp #'x'
+        bne rb_jump_orig_execute
+:       jsr CHRGET
+        cmp #'I'
+        beq :+
+        cmp #'i'
+        bne rb_jump_orig_execute
+:       jsr CHRGET
+        cmp #'T'
+        beq :+
+        cmp #'t'
+        bne rb_jump_orig_execute
+:       jsr CHRGET
+        jmp cmd_exit
+
+rb_jump_orig_execute:
+        lda rb_saved_txtptr_lo
+        sta TXTPTR
+        lda rb_saved_txtptr_hi
+        sta TXTPTR+1
+        lda rb_orig_execute_lo
+        sta rb_orig_execute_jmp+1
+        lda rb_orig_execute_hi
+        sta rb_orig_execute_jmp+2
+rb_orig_execute_jmp:
+        jmp BASIC_GONE
+
+cmd_exit:
+        lda TXTPTR+1
+        cmp #>BASIC_START
+        bcs @running
+        lda #RB_RESUME_READY
+        sta RUNTIME_MODE
+        lda #RB_MAGIC_READY
+        bne @store
+@running:
+        lda #RB_RESUME_RUN
+        sta RUNTIME_MODE
+        lda #RB_MAGIC_RUN
+@store:
+        sta rb_magic
+        sta rb_entry_magic
+        lda #RB_MAGIC2
+        sta rb_magic2
+        sta rb_entry_magic2
+        jsr call_hidden_save_state
+        jsr restore_vectors
+        jmp SHIM_RETURN
+
+call_hidden_save_state:
+        php
+        sei
+        lda CPU_DDR
+        ora #$07
+        sta CPU_DDR
+        lda CPU_PORT
+        sta rb_saved_cpu
+        and #RAM_UNDER_BASIC_KEEP_KERNAL
+        sta CPU_PORT
+        jsr save_basic_runtime_state
+        lda rb_saved_cpu
+        sta CPU_PORT
+        plp
+        rts
+
+call_hidden_seed_plugin_reu:
+        php
+        sei
+        lda CPU_DDR
+        ora #$07
+        sta CPU_DDR
+        lda CPU_PORT
+        sta rb_saved_cpu
+        and #RAM_UNDER_BASIC_KEEP_KERNAL
+        sta CPU_PORT
+        jsr rb_seed_plugin_reu_hidden
+        lda rb_saved_cpu
+        sta CPU_PORT
+        plp
+        rts
 
 restore_basic_runtime_state:
         lda RUNTIME_MAGIC1
@@ -309,24 +604,14 @@ restore_basic_runtime_state:
         sta CPU_DDR
         lda #$37
         sta CPU_PORT
-        lda #<BASIC_SENTINEL
-        sta KERNAL_MEMBOT
-        lda #>BASIC_SENTINEL
-        sta KERNAL_MEMBOT+1
-        lda #<BASIC_LIMIT
-        sta KERNAL_MEMTOP
-        lda #>BASIC_LIMIT
-        sta KERNAL_MEMTOP+1
+        jsr set_basic_memory_bounds
         lda #0
         sta KEYD_COUNT
         lda RUNTIME_MODE
         cmp #RB_RESUME_RUN
         beq @running_resume
-        ; Rebuild the READY-mode screen with the KERNAL clear-screen code,
-        ; not BASIC CLR. BASIC CLR would erase variables/runtime state; this
-        ; resets the screen editor surface before redrawing the header.
         jsr prepare_basic_console
-        jsr call_hidden_draw_default_header
+        jsr rb_draw_banner
         jsr position_basic_prompt
         ldx RUNTIME_SP
         txs
@@ -340,11 +625,1158 @@ restore_basic_runtime_state:
         cli
         jmp BASIC_READY
 
+init_basic_workspace:
+        jsr force_basic_workspace_pointers
+        lda #0
+        sta BASIC_START
+        sta BASIC_START+1
+        rts
+
+force_basic_workspace_pointers:
+        jsr set_basic_memory_bounds
+        lda #<BASIC_START
+        sta TXTTAB
+        lda #>BASIC_START
+        sta TXTTAB+1
+        lda #<(BASIC_START + 2)
+        sta VARTAB
+        sta ARYTAB
+        sta STREND
+        lda #>(BASIC_START + 2)
+        sta VARTAB+1
+        sta ARYTAB+1
+        sta STREND+1
+        lda #<BASIC_LIMIT
+        sta FRETOP
+        sta MEMSIZ
+        lda #>BASIC_LIMIT
+        sta FRETOP+1
+        sta MEMSIZ+1
+        rts
+
+set_basic_memory_bounds:
+        lda #<BASIC_LIMIT
+        sta KERNAL_MEMTOP
+        lda #>BASIC_LIMIT
+        sta KERNAL_MEMTOP+1
+        lda #<BASIC_SENTINEL
+        sta KERNAL_MEMBOT
+        lda #>BASIC_SENTINEL
+        sta KERNAL_MEMBOT+1
+        rts
+
+prepare_basic_console:
+        lda #0
+        sta KEYD_COUNT
+        lda #VIC_MEM_LOWERCASE
+        sta VIC_MEM
+        jsr K_CLRCHN
+        lda #147
+        jsr K_CHROUT
+        lda #5
+        sta COLOR_CODE
+        rts
+
+position_basic_prompt:
+        clc
+        ldx #3
+        ldy #0
+        jsr K_PLOT
+        lda #0
+        sta KEYD_COUNT
+        rts
+
+rb_draw_banner:
+        lda #<rb_banner_text
+        sta rb_ptr_lo
+        lda #>rb_banner_text
+        sta rb_ptr_hi
+        jsr rb_print_z
+        lda #<rb_bytes_text
+        sta rb_ptr_lo
+        lda #>rb_bytes_text
+        sta rb_ptr_hi
+        jsr rb_print_z
+        ldx #<BASIC_BYTES_FREE
+        lda #>BASIC_BYTES_FREE
+        jsr BASIC_LINPRT
+        lda #13
+        jsr K_CHROUT
+        rts
+
+rb_print_z:
+        ldy #0
+@loop:
+        lda (rb_ptr_lo),y
+        beq @done
+        jsr K_CHROUT
+        iny
+        bne @loop
+@done:
+        rts
+
+rb_banner_text:
+        .byte "READYBASIC REU PLUGINS",13,0
+rb_bytes_text:
+        .byte "BYTES FREE ",0
+
 ; ---------------------------------------------------------------------------
-; Hidden helper code, called through the visible trampoline.
+; RB command parsing and dispatch.
+; ---------------------------------------------------------------------------
+
+rb_plugin_statement:
+        jsr rb_stage_start
+        jsr rb_parse_command_name
+        bcs @name_ok
+        jmp BASIC_SYNERR
+@name_ok:
+        lda #$A1
+        sta rb_debug_ring
+        jsr rb_lookup_command
+        bcs @found
+        lda #$01
+        jmp rb_runtime_error
+@found:
+        lda #$A2
+        sta rb_debug_ring
+        lda RB_DESC_BUF
+        sta CF_CMD_ID
+        lda #0
+        sta CF_PARAM_COUNT
+        jsr rb_clear_result_frame
+        lda #$A3
+        sta rb_debug_ring
+        jsr rb_parse_by_signature
+        lda #$A4
+        sta rb_debug_ring
+        jsr rb_stash_call_frame
+        jsr rb_load_and_call_command
+        jsr rb_stash_result_frame
+        jsr rb_commit_result
+        jmp BASIC_NEXT_STMT
+
+rb_parse_command_name:
+        jsr rb_skip_spaces
+        ldx #0
+@loop:
+        jsr CHRGOT
+        cmp #$A5
+        bne @not_fn_token
+        cpx #RB_MAX_NAME - 1
+        bcs @too_long
+        lda #'F'
+        sta RB_CMDBUF,x
+        inx
+        lda #'N'
+        sta RB_CMDBUF,x
+        inx
+        jsr CHRGET
+        jmp @loop
+@not_fn_token:
+        cmp #$B8
+        bne @not_fre_token
+        cpx #RB_MAX_NAME - 2
+        bcs @too_long
+        lda #'F'
+        sta RB_CMDBUF,x
+        inx
+        lda #'R'
+        sta RB_CMDBUF,x
+        inx
+        lda #'E'
+        sta RB_CMDBUF,x
+        inx
+        jsr CHRGET
+        jmp @loop
+@not_fre_token:
+        cmp #$C1
+        bcc @not_shifted_upper
+        cmp #$DB
+        bcs @not_shifted_upper
+        sec
+        sbc #$80
+        jmp @folded_case
+@not_shifted_upper:
+        cmp #'a'
+        bcc :+
+        cmp #'z' + 1
+        bcs :+
+        sec
+        sbc #$20
+@folded_case:
+:       cmp #'A'
+        bcc @maybe_digit
+        cmp #'Z' + 1
+        bcc @store
+@maybe_digit:
+        cmp #'0'
+        bcc @done
+        cmp #'9' + 1
+        bcs @done
+@store:
+        cpx #RB_MAX_NAME
+        bcs @too_long
+        sta RB_CMDBUF,x
+        inx
+        jsr CHRGET
+        jmp @loop
+@done:
+        stx rb_cmd_len
+        beq @bad
+        jsr rb_skip_spaces
+        sec
+        rts
+@too_long:
+@bad:
+        clc
+        rts
+
+rb_skip_spaces:
+@loop:
+        jsr CHRGOT
+        cmp #' '
+        bne @done
+        jsr CHRGET
+        jmp @loop
+@done:
+        rts
+
+rb_lookup_command:
+        lda #<RB_REU_DESC_OFF
+        sta rb_reu_off_lo
+        lda #>RB_REU_DESC_OFF
+        sta rb_reu_off_hi
+        lda #0
+        sta rb_lookup_index
+@loop:
+        lda rb_lookup_index
+        cmp #RB_CMD_DESC_COUNT
+        bcc :+
+        clc
+        rts
+:       lda #<RB_DESC_BUF
+        sta rb_reu_c64_lo
+        lda #>RB_DESC_BUF
+        sta rb_reu_c64_hi
+        lda #RB_REU_CORE_BANK
+        sta rb_reu_bank
+        lda #RB_CMD_DESC_SIZE
+        sta rb_reu_len_lo
+        lda #0
+        sta rb_reu_len_hi
+        jsr rb_reu_fetch
+        lda RB_DESC_BUF+15
+        cmp rb_cmd_len
+        bne @next
+        ldy #0
+@cmp:
+        cpy rb_cmd_len
+        beq @match
+        lda RB_DESC_BUF+16,y
+        cmp RB_CMDBUF,y
+        bne @next
+        iny
+        jmp @cmp
+@match:
+        sec
+        rts
+@next:
+        clc
+        lda rb_reu_off_lo
+        adc #RB_CMD_DESC_SIZE
+        sta rb_reu_off_lo
+        bcc :+
+        inc rb_reu_off_hi
+:       inc rb_lookup_index
+        jmp @loop
+
+rb_parse_by_signature:
+        lda RB_DESC_BUF+14
+        cmp #SIG_PING
+        beq parse_sig_ping
+        cmp #SIG_ADD16
+        beq parse_sig_add16
+        cmp #SIG_STRUP
+        beq parse_sig_strup
+        cmp #SIG_HCRC
+        beq parse_sig_hcrc
+        cmp #SIG_SUMAI
+        beq parse_sig_sumai
+        cmp #SIG_RANGEAI
+        beq parse_sig_rangeai
+        cmp #SIG_BUFNEW
+        beq parse_sig_bufnew
+        cmp #SIG_BUFFILL
+        beq parse_sig_buffill
+        cmp #SIG_BUFFREE
+        beq parse_sig_buffree
+        cmp #SIG_TEMPSCRATCH
+        beq parse_sig_tempscratch
+        cmp #SIG_FAIL
+        beq parse_sig_fail
+        jmp BASIC_SYNERR
+
+parse_sig_ping:
+        lda #$31
+        sta rb_debug_ring
+        jsr rb_parse_out_int
+        rts
+
+parse_sig_add16:
+        jsr rb_parse_num0
+        jsr rb_parse_num1
+        jsr rb_parse_out_int
+        rts
+
+parse_sig_strup:
+        jsr rb_parse_string_value
+        jsr rb_parse_out_string
+        rts
+
+parse_sig_hcrc:
+        jsr rb_parse_string_value
+        jsr rb_parse_out_int
+        rts
+
+parse_sig_sumai:
+        jsr rb_parse_int_array_input
+        jsr rb_parse_out_int
+        jsr rb_resolve_int_array_input_ptr
+        rts
+
+parse_sig_rangeai:
+        jsr rb_parse_num0
+        jsr rb_parse_num1
+        lda CF_NUM1_LO
+        sta rb_saved_count_lo
+        lda CF_NUM1_HI
+        sta rb_saved_count_hi
+        jsr rb_parse_out_int_array
+        rts
+
+parse_sig_bufnew:
+        jsr rb_parse_num0
+        jsr rb_parse_out_int
+        rts
+
+parse_sig_buffill:
+        jsr rb_parse_num0
+        jsr rb_parse_num1
+        rts
+
+parse_sig_buffree:
+        jsr rb_parse_num0
+        rts
+
+parse_sig_tempscratch:
+        jsr rb_parse_num0
+        jsr rb_parse_out_int
+        rts
+
+parse_sig_fail:
+        jsr rb_parse_num0
+        jsr rb_parse_out_int
+        rts
+
+rb_parse_num0:
+        lda #CF_NUM0_LO-RB_CF
+        bne rb_parse_num_to_slot
+rb_parse_num1:
+        lda #CF_NUM1_LO-RB_CF
+        bne rb_parse_num_to_slot
+rb_parse_num2:
+        lda #CF_NUM2_LO-RB_CF
+rb_parse_num_to_slot:
+        sta rb_target_off
+        jsr BASIC_CHKCOM
+        jsr BASIC_FRMNUM
+        jsr BASIC_GETADR
+        ldy rb_target_off
+        lda LINNUM
+        sta RB_CF,y
+        iny
+        lda LINNUM+1
+        sta RB_CF,y
+        inc CF_PARAM_COUNT
+        rts
+
+rb_parse_out_int:
+        jsr BASIC_CHKCOM
+        lda #0
+        sta SUBFLG
+        jsr BASIC_PTRGET
+        lda VALTYP
+        beq :+
+        jmp rb_parse_type_error
+:       lda INTFLG
+        cmp #$80
+        beq :+
+        jmp rb_parse_type_error
+:       lda #RB_OUT_INT
+        sta rb_out_type
+        lda VARPNT
+        sta rb_out_ptr_lo
+        lda VARPNT+1
+        sta rb_out_ptr_hi
+        ldy #0
+        lda #0
+        sta (VARPNT),y
+        iny
+        sta (VARPNT),y
+        lda #1
+        sta rb_out_count
+        inc CF_PARAM_COUNT
+        rts
+
+rb_parse_out_string:
+        jsr BASIC_CHKCOM
+        lda #0
+        sta SUBFLG
+        jsr BASIC_PTRGET
+        lda VALTYP
+        cmp #$FF
+        beq :+
+        jmp rb_parse_type_error
+:       lda #RB_OUT_STRING
+        sta rb_out_type
+        lda VARPNT
+        sta rb_out_ptr_lo
+        lda VARPNT+1
+        sta rb_out_ptr_hi
+        ldy #0
+        lda #0
+        sta (VARPNT),y
+        iny
+        sta (VARPNT),y
+        iny
+        sta (VARPNT),y
+        lda #1
+        sta rb_out_count
+        inc CF_PARAM_COUNT
+        rts
+
+rb_parse_out_int_array:
+        jsr BASIC_CHKCOM
+        lda #0
+        sta SUBFLG
+        jsr BASIC_PTRGET
+        lda VALTYP
+        beq :+
+        jmp rb_parse_type_error
+:       lda INTFLG
+        cmp #$80
+        beq :+
+        jmp rb_parse_type_error
+:       lda #RB_OUT_ARRAYI
+        sta rb_out_type
+        jsr rb_normalize_int_array_ptr_from_varpnt
+        lda rb_ptr2_lo
+        sta rb_out_ptr_lo
+        sta rb_ptr2_lo
+        lda rb_ptr2_hi
+        sta rb_out_ptr_hi
+        sta rb_ptr2_hi
+        lda rb_saved_count_lo
+        sta rb_out_count_lo
+        lda rb_saved_count_hi
+        sta rb_out_count_hi
+        jsr rb_clear_int_array_output
+        lda #1
+        sta rb_out_count
+        inc CF_PARAM_COUNT
+        rts
+
+rb_parse_int_array_input:
+        jsr BASIC_CHKCOM
+        lda #0
+        sta SUBFLG
+        jsr BASIC_PTRGET
+        lda VALTYP
+        beq :+
+        jmp rb_parse_type_error
+:       lda INTFLG
+        cmp #$80
+        beq :+
+        jmp rb_parse_type_error
+:       jsr rb_normalize_int_array_ptr_from_varpnt
+        sec
+        lda rb_ptr2_lo
+        sbc ARYTAB
+        sta CF_PTR0_LO
+        lda rb_ptr2_hi
+        sbc ARYTAB+1
+        sta CF_PTR0_HI
+        jsr rb_parse_num2
+        lda CF_NUM2_LO
+        sta CF_COUNT0_LO
+        sta rb_saved_count_lo
+        lda CF_NUM2_HI
+        sta CF_COUNT0_HI
+        sta rb_saved_count_hi
+        inc CF_PARAM_COUNT
+        rts
+
+rb_parse_string_value:
+        jsr BASIC_CHKCOM
+        jsr CHRGOT
+        cmp #$22
+        beq rb_parse_quoted_string
+        lda #0
+        sta SUBFLG
+        jsr BASIC_PTRGET
+        lda VALTYP
+        cmp #$FF
+        bne rb_parse_type_error
+        lda VARPNT
+        sta rb_ptr2_lo
+        lda VARPNT+1
+        sta rb_ptr2_hi
+        ldy #0
+        lda (rb_ptr2_lo),y
+        cmp #RB_MAX_STR + 1
+        bcc :+
+        lda #RB_MAX_STR
+:       sta CF_STR_LEN
+        iny
+        lda (rb_ptr2_lo),y
+        sta rb_ptr_lo
+        iny
+        lda (rb_ptr2_lo),y
+        sta rb_ptr_hi
+        ldy #0
+@copy:
+        cpy CF_STR_LEN
+        beq @done
+        lda (rb_ptr_lo),y
+        sta CF_STR_BUF,y
+        iny
+        jmp @copy
+@done:
+        inc CF_PARAM_COUNT
+        rts
+
+rb_parse_quoted_string:
+        jsr CHRGET
+        ldy #0
+@loop:
+        jsr CHRGOT
+        beq @done
+        cmp #$22
+        beq @close
+        cpy #RB_MAX_STR
+        bcs @skip
+        sta CF_STR_BUF,y
+        iny
+@skip:
+        jsr CHRGET
+        jmp @loop
+@close:
+        jsr CHRGET
+@done:
+        sty CF_STR_LEN
+        inc CF_PARAM_COUNT
+        rts
+
+rb_parse_type_error:
+        jmp BASIC_SYNERR
+
+rb_resolve_int_array_input_ptr:
+        clc
+        lda CF_PTR0_LO
+        adc ARYTAB
+        sta CF_PTR0_LO
+        lda CF_PTR0_HI
+        adc ARYTAB+1
+        sta CF_PTR0_HI
+        rts
+
+rb_normalize_int_array_ptr_from_varpnt:
+        lda VARPNT
+        sta rb_ptr2_lo
+        lda VARPNT+1
+        sta rb_ptr2_hi
+        ldy #0
+        lda (rb_ptr2_lo),y
+        cmp #$C1
+        bcc @done
+        cmp #$DB
+        bcs @done
+        iny
+        lda (rb_ptr2_lo),y
+        cmp #$80
+        bne @done
+        ldy #4
+        lda (rb_ptr2_lo),y
+        beq @done
+        cmp #11
+        bcs @done
+        clc
+        lda rb_ptr2_lo
+        adc #7
+        sta rb_ptr2_lo
+        lda rb_ptr2_hi
+        adc #0
+        sta rb_ptr2_hi
+@done:
+        rts
+
+rb_clear_int_array_output:
+        lda rb_out_count_hi
+        bne @done
+        ldx rb_out_count_lo
+        beq @done
+@loop:
+        ldy #0
+        lda #0
+        sta (rb_ptr2_lo),y
+        iny
+        sta (rb_ptr2_lo),y
+        clc
+        lda rb_ptr2_lo
+        adc #2
+        sta rb_ptr2_lo
+        bcc :+
+        inc rb_ptr2_hi
+:       dex
+        bne @loop
+@done:
+        rts
+
+; ---------------------------------------------------------------------------
+; Overlay loading, result commit, and errors.
+; ---------------------------------------------------------------------------
+
+rb_clear_result_frame:
+        lda #0
+        ldx #0
+@loop:
+        sta RB_RF,x
+        inx
+        bne @loop
+        lda #RB_OUT_NONE
+        sta rb_out_type
+        sta rb_out_count
+        rts
+
+rb_load_and_call_command:
+        lda RB_DESC_BUF+4
+        ora RB_DESC_BUF+5
+        beq @hidden
+        lda RB_DESC_BUF+2
+        sta rb_reu_off_lo
+        lda RB_DESC_BUF+3
+        sta rb_reu_off_hi
+        lda RB_DESC_BUF+4
+        sta rb_reu_len_lo
+        lda RB_DESC_BUF+5
+        sta rb_reu_len_hi
+        clc
+        lda #<RB_LOW_BASE
+        adc RB_DESC_BUF+2
+        sta rb_reu_c64_lo
+        lda #>RB_LOW_BASE
+        adc RB_DESC_BUF+3
+        sta rb_reu_c64_hi
+        clc
+        lda #<RB_LOW_BASE
+        adc RB_DESC_BUF+10
+        sta rb_overlay_vec_lo
+        lda #>RB_LOW_BASE
+        adc RB_DESC_BUF+11
+        sta rb_overlay_vec_hi
+        lda #RB_REU_CODE_BANK
+        sta rb_reu_bank
+        jsr rb_reu_fetch
+        jsr rb_call_low_overlay
+@hidden:
+        lda RB_DESC_BUF+8
+        ora RB_DESC_BUF+9
+        beq @done
+        lda RB_DESC_BUF+6
+        sta rb_reu_off_lo
+        lda RB_DESC_BUF+7
+        sta rb_reu_off_hi
+        lda RB_DESC_BUF+8
+        sta rb_reu_len_lo
+        lda RB_DESC_BUF+9
+        sta rb_reu_len_hi
+        clc
+        lda #<RB_HIDDEN_BASE
+        adc RB_DESC_BUF+12
+        sta rb_reu_c64_lo
+        sta rb_overlay_vec_lo
+        lda #>RB_HIDDEN_BASE
+        adc RB_DESC_BUF+13
+        sta rb_reu_c64_hi
+        sta rb_overlay_vec_hi
+        lda #RB_REU_CODE_BANK
+        sta rb_reu_bank
+        jsr rb_fetch_hidden_overlay
+        jsr rb_call_hidden_overlay
+@done:
+        rts
+
+rb_call_low_overlay:
+        jmp (rb_overlay_vec_lo)
+
+rb_fetch_hidden_overlay:
+        php
+        sei
+        lda CPU_DDR
+        ora #$07
+        sta CPU_DDR
+        lda CPU_PORT
+        sta rb_saved_cpu
+        and #RAM_UNDER_BASIC_KEEP_KERNAL
+        sta CPU_PORT
+        jsr rb_reu_fetch
+        lda rb_saved_cpu
+        sta CPU_PORT
+        plp
+        rts
+
+rb_call_hidden_overlay:
+        php
+        sei
+        lda CPU_DDR
+        ora #$07
+        sta CPU_DDR
+        lda CPU_PORT
+        sta rb_saved_cpu
+        and #RAM_UNDER_BASIC_KEEP_KERNAL
+        sta CPU_PORT
+        jsr rb_hidden_overlay_jmp
+        lda rb_saved_cpu
+        sta CPU_PORT
+        plp
+        rts
+
+rb_hidden_overlay_jmp:
+        jmp (rb_overlay_vec_lo)
+
+rb_commit_result:
+        lda RF_STATUS
+        beq @ok
+        lda RF_ERROR
+        bne :+
+        lda RF_STATUS
+:       jmp rb_runtime_error
+@ok:
+        lda rb_out_count
+        beq @done
+        lda rb_out_type
+        cmp #RB_OUT_INT
+        bne :+
+        jmp rb_commit_int
+:       cmp #RB_OUT_STRING
+        bne :+
+        jmp rb_commit_string
+:       cmp #RB_OUT_ARRAYI
+        bne @done
+        jmp rb_commit_arrayi
+@done:
+        rts
+
+rb_commit_int:
+        lda RF_TAG
+        cmp #RB_VAL_INT
+        bne @done
+        lda rb_out_ptr_lo
+        sta rb_ptr_lo
+        lda rb_out_ptr_hi
+        sta rb_ptr_hi
+        ldy #0
+        lda RF_VAL_HI
+        sta (rb_ptr_lo),y
+        iny
+        lda RF_VAL_LO
+        sta (rb_ptr_lo),y
+@done:
+        rts
+
+rb_commit_string:
+        lda RF_TAG
+        cmp #RB_VAL_STRING
+        bne @done
+        lda RF_STR_LEN
+        beq @empty
+        jsr rb_alloc_string_heap
+        bcs rb_commit_string_error
+        lda rb_out_ptr_lo
+        sta rb_ptr2_lo
+        lda rb_out_ptr_hi
+        sta rb_ptr2_hi
+        ldy #0
+        lda RF_STR_LEN
+        sta (rb_ptr2_lo),y
+        iny
+        lda rb_ptr_lo
+        sta (rb_ptr2_lo),y
+        iny
+        lda rb_ptr_hi
+        sta (rb_ptr2_lo),y
+        rts
+@empty:
+        lda rb_out_ptr_lo
+        sta rb_ptr2_lo
+        lda rb_out_ptr_hi
+        sta rb_ptr2_hi
+        ldy #0
+        lda #0
+        sta (rb_ptr2_lo),y
+        iny
+        sta (rb_ptr2_lo),y
+        iny
+        sta (rb_ptr2_lo),y
+@done:
+        rts
+rb_commit_string_error:
+        lda #$02
+        jmp rb_runtime_error
+
+rb_alloc_string_heap:
+        sec
+        lda FRETOP
+        sbc RF_STR_LEN
+        sta rb_ptr_lo
+        lda FRETOP+1
+        sbc #0
+        sta rb_ptr_hi
+        lda rb_ptr_hi
+        cmp STREND+1
+        bcc @oom
+        bne @copy
+        lda rb_ptr_lo
+        cmp STREND
+        bcc @oom
+@copy:
+        ldy #0
+@loop:
+        cpy RF_STR_LEN
+        beq @done
+        lda RF_STR_BUF,y
+        sta (rb_ptr_lo),y
+        iny
+        jmp @loop
+@done:
+        lda rb_ptr_lo
+        sta FRETOP
+        lda rb_ptr_hi
+        sta FRETOP+1
+        clc
+        rts
+@oom:
+        sec
+        rts
+
+rb_commit_arrayi:
+        lda RF_TAG
+        cmp #RB_VAL_ARRAYI
+        bne @done
+        lda rb_out_ptr_lo
+        sta rb_ptr_lo
+        lda rb_out_ptr_hi
+        sta rb_ptr_hi
+        ldx RF_COUNT_LO
+        beq @done
+        ldy #0
+@loop:
+        lda RF_ARRAY_BUF,y
+        sta (rb_ptr_lo),y
+        iny
+        lda RF_ARRAY_BUF,y
+        sta (rb_ptr_lo),y
+        iny
+        dex
+        beq @done
+        jmp @loop
+@done:
+        rts
+
+rb_runtime_error:
+        sta rb_error
+        lda #<rb_error_text
+        sta rb_ptr_lo
+        lda #>rb_error_text
+        sta rb_ptr_hi
+        jsr rb_print_z
+        ldx rb_error
+        lda #0
+        jsr BASIC_LINPRT
+        lda #13
+        jsr K_CHROUT
+        jmp BASIC_READY
+
+rb_error_text:
+        .byte "?RB ERROR ",0
+
+; ---------------------------------------------------------------------------
+; REU DMA, registry seed, debug, and handle heap.
+; ---------------------------------------------------------------------------
+
+rb_reu_stash:
+        lda rb_reu_c64_lo
+        sta REU_C64_LO
+        lda rb_reu_c64_hi
+        sta REU_C64_HI
+        lda rb_reu_off_lo
+        sta REU_ADDR_LO
+        lda rb_reu_off_hi
+        sta REU_ADDR_HI
+        lda rb_reu_bank
+        sta REU_BANK
+        lda rb_reu_len_lo
+        sta REU_LEN_LO
+        lda rb_reu_len_hi
+        sta REU_LEN_HI
+        lda #$90
+        sta REU_CMD
+        rts
+
+rb_reu_fetch:
+        lda rb_reu_c64_lo
+        sta REU_C64_LO
+        lda rb_reu_c64_hi
+        sta REU_C64_HI
+        lda rb_reu_off_lo
+        sta REU_ADDR_LO
+        lda rb_reu_off_hi
+        sta REU_ADDR_HI
+        lda rb_reu_bank
+        sta REU_BANK
+        lda rb_reu_len_lo
+        sta REU_LEN_LO
+        lda rb_reu_len_hi
+        sta REU_LEN_HI
+        lda #$91
+        sta REU_CMD
+        rts
+
+rb_stash_call_frame:
+        lda #<RB_CF
+        sta rb_reu_c64_lo
+        lda #>RB_CF
+        sta rb_reu_c64_hi
+        lda #<RB_REU_CALL_OFF
+        sta rb_reu_off_lo
+        lda #>RB_REU_CALL_OFF
+        sta rb_reu_off_hi
+        lda #RB_REU_CORE_BANK
+        sta rb_reu_bank
+        lda #$80
+        sta rb_reu_len_lo
+        lda #0
+        sta rb_reu_len_hi
+        jsr rb_reu_stash
+        rts
+
+rb_stash_result_frame:
+        lda #<RB_RF
+        sta rb_reu_c64_lo
+        lda #>RB_RF
+        sta rb_reu_c64_hi
+        lda #<RB_REU_RESULT_OFF
+        sta rb_reu_off_lo
+        lda #>RB_REU_RESULT_OFF
+        sta rb_reu_off_hi
+        lda #RB_REU_CORE_BANK
+        sta rb_reu_bank
+        lda #$80
+        sta rb_reu_len_lo
+        lda #0
+        sta rb_reu_len_hi
+        jsr rb_reu_stash
+        rts
+
+rb_stage_start:
+        lda #'S'
+        sta rb_debug_ring
+        rts
+
+rb_clear_handle_heap:
+        ldx #0
+        lda #0
+@h:
+        sta rb_handle_bank,x
+        sta rb_handle_page,x
+        sta rb_handle_pages,x
+        sta rb_handle_type,x
+        inx
+        cpx #RB_HANDLE_COUNT
+        bcc @h
+        ldx #0
+@p:
+        sta rb_page_bitmap,x
+        inx
+        cpx #RB_HEAP_PAGES
+        bcc @p
+        jsr rb_stash_handle_meta
+        rts
+
+rb_stash_handle_meta:
+        lda #<rb_handle_bank
+        sta rb_reu_c64_lo
+        lda #>rb_handle_bank
+        sta rb_reu_c64_hi
+        lda #<RB_REU_HANDLE_OFF
+        sta rb_reu_off_lo
+        lda #>RB_REU_HANDLE_OFF
+        sta rb_reu_off_hi
+        lda #RB_REU_CORE_BANK
+        sta rb_reu_bank
+        lda #$80
+        sta rb_reu_len_lo
+        lda #0
+        sta rb_reu_len_hi
+        jsr rb_reu_stash
+        rts
+
+        .segment "REGSEED"
+
+rb_reu_header:
+        .byte "RBPL"
+        .byte 1
+        .byte RB_CMD_DESC_COUNT
+        .byte RB_CMD_DESC_SIZE
+        .byte RB_MAX_NAME
+        .word RB_REU_DESC_OFF
+        .word RB_REU_CALL_OFF
+        .word RB_REU_RESULT_OFF
+        .word RB_REU_HANDLE_OFF
+rb_reu_header_end:
+
+.macro CMD_LOW id, sig, label, endlabel, name
+        .byte id, RB_CMD_F_LOW
+        .word label - __LOWPACK_RUN__
+        .word endlabel - label
+        .word 0
+        .word 0
+        .word label - __LOWPACK_RUN__
+        .word 0
+        .byte sig, .strlen(name)
+        .byte name
+        .res 16 - .strlen(name), 0
+.endmacro
+
+.macro CMD_LOW_ALL id, sig, label, name
+        .byte id, RB_CMD_F_LOW
+        .word 0
+        .word __LOWPACK_SIZE__
+        .word 0
+        .word 0
+        .word label - __LOWPACK_RUN__
+        .word 0
+        .byte sig, .strlen(name)
+        .byte name
+        .res 16 - .strlen(name), 0
+.endmacro
+
+.macro CMD_HIDDEN id, sig, label, endlabel, name
+        .byte id, RB_CMD_F_HIDDEN
+        .word 0
+        .word 0
+        .word (__HIDDENPACK_LOAD__ - __LOWPACK_LOAD__) + (label - __HIDDENPACK_RUN__)
+        .word endlabel - label
+        .word 0
+        .word label - RB_HIDDEN_BASE
+        .byte sig, .strlen(name)
+        .byte name
+        .res 16 - .strlen(name), 0
+.endmacro
+
+rb_command_descriptors:
+        CMD_LOW CMD_PING, SIG_PING, cmd_ping_low, cmd_ping_low_end, "PING"
+        CMD_LOW CMD_ADD16, SIG_ADD16, cmd_add16_low, cmd_add16_low_end, "ADD16"
+        CMD_LOW CMD_STRUP, SIG_STRUP, cmd_strup_low, cmd_strup_low_end, "STRUP"
+        CMD_HIDDEN CMD_HCRC, SIG_HCRC, cmd_hcrc_hidden, cmd_hcrc_hidden_end, "HCRC"
+        CMD_LOW CMD_SUMAI, SIG_SUMAI, cmd_sumai_low, cmd_sumai_low_end, "SUMAI"
+        CMD_LOW CMD_RANGEAI, SIG_RANGEAI, cmd_rangeai_low, cmd_rangeai_low_end, "RANGEAI"
+        CMD_LOW_ALL CMD_BUFNEW, SIG_BUFNEW, cmd_bufnew_low, "BUFNEW"
+        CMD_LOW_ALL CMD_BUFFILL, SIG_BUFFILL, cmd_buffill_low, "BUFFILL"
+        CMD_LOW_ALL CMD_BUFFREE, SIG_BUFFREE, cmd_buffree_low, "BUFFREE"
+        CMD_LOW_ALL CMD_TEMPSCRATCH, SIG_TEMPSCRATCH, cmd_tempscratch_low, "TEMPSCRATCH"
+        CMD_LOW CMD_FAIL, SIG_FAIL, cmd_fail_low, cmd_fail_low_end, "FAIL"
+
+; ---------------------------------------------------------------------------
+; Hidden helper code, called by visible resident code with BASIC ROM hidden.
 ; ---------------------------------------------------------------------------
 
         .segment "HIDDEN"
+
+rb_seed_plugin_reu_hidden:
+        jsr rb_mark_reu_banks_hidden
+        lda rb_seed_cold
+        bne :+
+        rts
+:
+        lda #<rb_reu_header
+        sta rb_reu_c64_lo
+        lda #>rb_reu_header
+        sta rb_reu_c64_hi
+        lda #<RB_REU_HEADER_OFF
+        sta rb_reu_off_lo
+        lda #>RB_REU_HEADER_OFF
+        sta rb_reu_off_hi
+        lda #RB_REU_CORE_BANK
+        sta rb_reu_bank
+        lda #rb_reu_header_end-rb_reu_header
+        sta rb_reu_len_lo
+        lda #0
+        sta rb_reu_len_hi
+        jsr rb_reu_stash
+
+        lda #<rb_command_descriptors
+        sta rb_reu_c64_lo
+        lda #>rb_command_descriptors
+        sta rb_reu_c64_hi
+        lda #<RB_REU_DESC_OFF
+        sta rb_reu_off_lo
+        lda #>RB_REU_DESC_OFF
+        sta rb_reu_off_hi
+        lda #<((RB_CMD_DESC_COUNT * RB_CMD_DESC_SIZE))
+        sta rb_reu_len_lo
+        lda #>((RB_CMD_DESC_COUNT * RB_CMD_DESC_SIZE))
+        sta rb_reu_len_hi
+        jsr rb_reu_stash
+
+        lda #<__LOWPACK_LOAD__
+        sta rb_reu_c64_lo
+        lda #>__LOWPACK_LOAD__
+        sta rb_reu_c64_hi
+        lda #0
+        sta rb_reu_off_lo
+        sta rb_reu_off_hi
+        lda #RB_REU_CODE_BANK
+        sta rb_reu_bank
+        lda #<__LOWPACK_SIZE__
+        sta rb_reu_len_lo
+        lda #>__LOWPACK_SIZE__
+        sta rb_reu_len_hi
+        jsr rb_reu_stash
+
+        lda #<__HIDDENPACK_LOAD__
+        sta rb_reu_c64_lo
+        lda #>__HIDDENPACK_LOAD__
+        sta rb_reu_c64_hi
+        lda #<(__HIDDENPACK_LOAD__ - __LOWPACK_LOAD__)
+        sta rb_reu_off_lo
+        lda #>(__HIDDENPACK_LOAD__ - __LOWPACK_LOAD__)
+        sta rb_reu_off_hi
+        lda #<__HIDDENPACK_SIZE__
+        sta rb_reu_len_lo
+        lda #>__HIDDENPACK_SIZE__
+        sta rb_reu_len_hi
+        jsr rb_reu_stash
+
+        jsr rb_clear_handle_heap
+        rts
+
+rb_mark_reu_banks_hidden:
+        lda #RB_REU_TYPE_CORE
+        sta RB_REU_ALLOC_TABLE + RB_REU_CORE_BANK
+        lda #RB_REU_TYPE_CODE
+        sta RB_REU_ALLOC_TABLE + RB_REU_CODE_BANK
+        rts
 
 save_basic_runtime_state:
         tsx
@@ -364,15 +1796,6 @@ save_basic_runtime_state:
         sta RUNTIME_MAGIC1
         lda #RB_STATE_MAGIC2
         sta RUNTIME_MAGIC2
-        lda CURLIN+1
-        cmp #$FF
-        bne @running
-        lda #RB_RESUME_READY
-        bne @mode_done
-@running:
-        lda #RB_RESUME_RUN
-@mode_done:
-        sta RUNTIME_MODE
         lda BASIC_START
         sta RUNTIME_FIRST_LO
         lda BASIC_START+1
@@ -383,42 +1806,42 @@ validate_basic_line_chain:
         lda #1
         sta RUNTIME_LINE_OK
         lda #<BASIC_START
-        sta rb_entry_src
+        sta rb_ptr_lo
         lda #>BASIC_START
-        sta rb_entry_src+1
+        sta rb_ptr_hi
 @line:
         ldy #0
-        lda (rb_entry_src),y
-        sta rb_entry_len
+        lda (rb_ptr_lo),y
+        sta rb_hidden_next_lo
         iny
-        lda (rb_entry_src),y
-        sta rb_entry_len+1
-        ora rb_entry_len
+        lda (rb_ptr_lo),y
+        sta rb_hidden_next_hi
+        ora rb_hidden_next_lo
         beq @done
-        lda rb_entry_len+1
+        lda rb_hidden_next_hi
         cmp #>BASIC_START
         bcc @bad
         cmp #>BASIC_LIMIT
         bcs @bad
-        cmp rb_entry_src+1
+        cmp rb_ptr_hi
         bcc @bad
         bne @advance
-        lda rb_entry_len
-        cmp rb_entry_src
+        lda rb_hidden_next_lo
+        cmp rb_ptr_lo
         beq @bad
         bcc @bad
 @advance:
-        lda rb_entry_len
-        sta rb_entry_src
-        lda rb_entry_len+1
-        sta rb_entry_src+1
+        lda rb_hidden_next_lo
+        sta rb_ptr_lo
+        lda rb_hidden_next_hi
+        sta rb_ptr_hi
         jmp @line
 @done:
         clc
-        lda rb_entry_src
+        lda rb_ptr_lo
         adc #2
         sta RUNTIME_END_LO
-        lda rb_entry_src+1
+        lda rb_ptr_hi
         adc #0
         sta RUNTIME_END_HI
         rts
@@ -427,82 +1850,20 @@ validate_basic_line_chain:
         sta RUNTIME_LINE_OK
         rts
 
-hidden_draw_text:
-        lda rb_arg_y
-        jsr mul40_to_ptr
-        clc
-        lda rb_ptr_lo
-        adc rb_arg_x
-        sta rb_ptr_lo
-        bcc :+
-        inc rb_ptr_hi
-:       lda rb_ptr_hi
-        clc
-        adc #>SCREEN
-        sta rb_ptr_hi
-
-        lda rb_arg_y
-        jsr mul40_to_ptr
-        clc
-        lda rb_ptr_lo
-        adc rb_arg_x
-        sta rb_color_lo
-        lda rb_ptr_hi
-        adc #>COLOR_RAM
-        sta rb_color_hi
-
-        ldy #$00
-@copy:
-        lda rb_strbuf,y
-        beq @done
-        jsr ascii_to_screen
-        sta (rb_ptr_lo),y
-        lda rb_arg_color
-        sta (rb_color_lo),y
-        iny
-        cpy #32
-        bcc @copy
-@done:
-        rts
+rb_hidden_next_lo: .byte 0
+rb_hidden_next_hi: .byte 0
 
 ; ---------------------------------------------------------------------------
-; Visible bridge, wedge, mailbox, and state.
+; Bridge state only.  Code stays out of $C000 unless it must be resident there.
 ; ---------------------------------------------------------------------------
 
         .segment "BRIDGE"
 
-rb_mailbox:
-rb_status:      .byte 0
-rb_error:       .byte 0
-rb_cmd_seen:    .byte 0
-rb_flags:       .byte 0
-rb_result_lo:   .byte 0
-rb_result_hi:   .byte 0
-rb_last_st:     .byte 0
-rb_drive:       .byte 0
-
 rb_magic:       .byte 0
 rb_magic2:      .byte 0
-rb_saved_sp:    .byte 0
-rb_arg_x:       .byte 0
-rb_arg_y:       .byte 0
-rb_arg_color:   .byte 1
-rb_arg_a_lo:    .byte 0
-rb_arg_a_hi:    .byte 0
-rb_arg_b_lo:    .byte 0
-rb_arg_b_hi:    .byte 0
-rb_tmp_lo:      .byte 0
-rb_tmp_hi:      .byte 0
-rb_len:         .byte 0
-rb_load_lo:     .byte 0
-rb_load_hi:     .byte 0
-rb_delta_lo:    .byte 0
-rb_delta_hi:    .byte 0
-rb_name_len:    .byte 0
-rb_tmp_char:    .byte 0
+rb_seed_cold:   .byte 0
+rb_error:       .byte 0
 rb_saved_cpu:   .byte 0
-rb_ptr2_lo_tmp: .byte 0
-rb_ptr2_hi_tmp: .byte 0
 rb_vectors_saved:.byte 0
 rb_orig_crunch_lo:.byte 0
 rb_orig_crunch_hi:.byte 0
@@ -510,1296 +1871,491 @@ rb_orig_list_lo:.byte 0
 rb_orig_list_hi:.byte 0
 rb_orig_execute_lo:.byte 0
 rb_orig_execute_hi:.byte 0
-rb_nav_action:  .byte 0
 rb_saved_txtptr_lo:.byte 0
 rb_saved_txtptr_hi:.byte 0
-rb_peek_lo:     .byte 0
-rb_peek_hi:     .byte 0
 
-rb_strbuf:      .res 33, 0
-rb_namebuf:     .res 48, 0
-rb_decbuf:      .res 6, 0
+rb_cmd_len:     .byte 0
+rb_lookup_index:.byte 0
+rb_target_off:  .byte 0
+rb_saved_count_lo:.byte 0
+rb_saved_count_hi:.byte 0
 
-rb_boot:
-        sei
-        lda CPU_DDR
-        ora #$07
-        sta CPU_DDR
-        lda #$37
-        sta CPU_PORT
-        lda rb_magic2
-        cmp #RB_MAGIC2
-        bne rb_cold_start
-        lda rb_magic
-        cmp #RB_MAGIC_RUN
-        beq rb_resume_running
-        cmp #RB_MAGIC_READY
-        beq rb_resume_ready
+rb_out_type:    .byte 0
+rb_out_count:   .byte 0
+rb_out_ptr_lo:  .byte 0
+rb_out_ptr_hi:  .byte 0
+rb_out_count_lo:.byte 0
+rb_out_count_hi:.byte 0
 
-rb_cold_start:
-        jsr K_RESTOR
-        jsr BASIC_RESTORE_VECTORS
-        jsr install_vectors
-        jsr init_basic_workspace
-        jsr prepare_basic_console
-        jsr call_hidden_draw_default_header
-        jsr position_basic_prompt
-        lda #RB_MAGIC2
-        sta rb_magic2
-        lda #RB_MAGIC_READY
-        sta rb_magic
-        sta rb_entry_magic
-        lda #RB_MAGIC2
-        sta rb_entry_magic2
-        cli
-        jmp BASIC_READY
+rb_overlay_vec_lo:.byte 0
+rb_overlay_vec_hi:.byte 0
 
-rb_resume_ready:
-        jsr install_vectors
-        lda #RB_MAGIC_READY
-        sta rb_entry_magic
-        lda #RB_MAGIC2
-        sta rb_entry_magic2
-        cli
-        jmp restore_basic_runtime_state
+rb_reu_c64_lo:  .byte 0
+rb_reu_c64_hi:  .byte 0
+rb_reu_off_lo:  .byte 0
+rb_reu_off_hi:  .byte 0
+rb_reu_bank:    .byte 0
+rb_reu_len_lo:  .byte 0
+rb_reu_len_hi:  .byte 0
 
-rb_resume_running:
-        jsr install_vectors
-        lda #RB_MAGIC_RUN
-        sta rb_entry_magic
-        lda #RB_MAGIC2
-        sta rb_entry_magic2
-        cli
-        jmp restore_basic_runtime_state
+rb_handle_bank: .res RB_HANDLE_COUNT, 0
+rb_handle_page: .res RB_HANDLE_COUNT, 0
+rb_handle_pages:.res RB_HANDLE_COUNT, 0
+rb_handle_type: .res RB_HANDLE_COUNT, 0
+rb_page_bitmap: .res RB_HEAP_PAGES, 0
+rb_handle_index:.byte 0
+rb_needed_pages:.byte 0
+rb_found_page:  .byte 0
+rb_fill_page:   .byte 0
+rb_debug_ring:  .res 32, 0
 
-install_vectors:
-        lda rb_vectors_saved
-        bne @install
-        lda $0304
-        sta rb_orig_crunch_lo
-        lda $0305
-        sta rb_orig_crunch_hi
-        lda $0306
-        sta rb_orig_list_lo
-        lda $0307
-        sta rb_orig_list_hi
-        lda $0308
-        sta rb_orig_execute_lo
-        lda $0309
-        sta rb_orig_execute_hi
-        lda #1
-        sta rb_vectors_saved
-@install:
-        lda #<rb_crunch
-        sta $0304
-        lda #>rb_crunch
-        sta $0305
-        lda #<rb_list
-        sta $0306
-        lda #>rb_list
-        sta $0307
-        lda #<rb_execute
-        sta $0308
-        lda #>rb_execute
-        sta $0309
-        rts
+; ---------------------------------------------------------------------------
+; Packed low overlay command implementations.  These are copied from REU bank
+; $45 into $1C00-$23FF before call.
+; ---------------------------------------------------------------------------
 
-restore_vectors:
-        lda rb_vectors_saved
-        beq @done
-        lda rb_orig_crunch_lo
-        sta $0304
-        lda rb_orig_crunch_hi
-        sta $0305
-        lda rb_orig_list_lo
-        sta $0306
-        lda rb_orig_list_hi
-        sta $0307
-        lda rb_orig_execute_lo
-        sta $0308
-        lda rb_orig_execute_hi
-        sta $0309
-@done:
-        rts
+        .segment "LOWPACK"
 
-rb_call_orig_execute:
-        jmp (rb_orig_execute_lo)
-
-prepare_basic_console:
+cmd_ping_low:
         lda #0
-        sta KEYD_COUNT
-        lda #VIC_MEM_LOWERCASE
-        sta VIC_MEM
-        jsr K_CLRCHN
-        lda #$93
-        jsr K_CHROUT
+        sta RF_STATUS
+        lda #RB_VAL_INT
+        sta RF_TAG
+        lda #1
+        sta RF_VAL_LO
+        lda #0
+        sta RF_VAL_HI
         rts
+cmd_ping_low_end:
 
-position_basic_prompt:
+cmd_add16_low:
         clc
-        ldx #3
+        lda CF_NUM0_LO
+        adc CF_NUM1_LO
+        sta RF_VAL_LO
+        lda CF_NUM0_HI
+        adc CF_NUM1_HI
+        sta RF_VAL_HI
+        lda #0
+        sta RF_STATUS
+        lda #RB_VAL_INT
+        sta RF_TAG
+        rts
+cmd_add16_low_end:
+
+cmd_strup_low:
+        lda #0
+        sta RF_STATUS
+        lda #RB_VAL_STRING
+        sta RF_TAG
+        lda CF_STR_LEN
+        sta RF_STR_LEN
         ldy #0
-        jsr K_PLOT
-        lda #0
-        sta KEYD_COUNT
-        rts
-
-init_basic_workspace:
-        jsr clear_basic_workspace
-        jsr set_basic_memory_bounds
-        jsr BASIC_INIT_RAM
-        jsr force_basic_workspace_pointers
-        jsr invalidate_basic_runtime_state
-        rts
-
-force_basic_workspace_pointers:
-        jsr set_basic_memory_bounds
-        lda #$00
-        sta BASIC_SENTINEL
-        lda #<BASIC_START
-        sta TXTTAB
-        lda #>BASIC_START
-        sta TXTTAB+1
-        lda #$00
-        sta BASIC_START
-        sta BASIC_START+1
-        lda #<(BASIC_START+2)
-        sta VARTAB
-        sta ARYTAB
-        sta STREND
-        lda #>(BASIC_START+2)
-        sta VARTAB+1
-        sta ARYTAB+1
-        sta STREND+1
-        lda #<BASIC_LIMIT
-        sta FRETOP
-        sta MEMSIZ
-        lda #>BASIC_LIMIT
-        sta FRETOP+1
-        sta MEMSIZ+1
-        lda #$FF
-        sta CURLIN
-        sta CURLIN+1
-        sta OLDTXT
-        sta OLDTXT+1
-        lda #<BASIC_START
-        sta TXTPTR
-        lda #>BASIC_START
-        sta TXTPTR+1
-        rts
-
-        .segment "BRIDGE"
-
-ensure_basic_workspace_pointers:
-        jsr set_basic_memory_bounds
-        lda #<BASIC_START
-        sta TXTTAB
-        lda #>BASIC_START
-        sta TXTTAB+1
-        lda #<BASIC_LIMIT
-        sta MEMSIZ
-        lda #>BASIC_LIMIT
-        sta MEMSIZ+1
-        lda VARTAB+1
-        cmp #>BASIC_START
-        bcc @reset_vars
-        cmp #>BASIC_LIMIT
-        bcs @reset_vars
-        rts
-@reset_vars:
-        lda #0
-        sta BASIC_START
-        sta BASIC_START+1
-        lda #<(BASIC_START+2)
-        sta VARTAB
-        sta ARYTAB
-        sta STREND
-        lda #>(BASIC_START+2)
-        sta VARTAB+1
-        sta ARYTAB+1
-        sta STREND+1
-        rts
-
-set_basic_memory_bounds:
-        lda #<BASIC_SENTINEL
-        sta KERNAL_MEMBOT
-        lda #>BASIC_SENTINEL
-        sta KERNAL_MEMBOT+1
-        lda #<BASIC_LIMIT
-        sta KERNAL_MEMTOP
-        lda #>BASIC_LIMIT
-        sta KERNAL_MEMTOP+1
-        rts
-
-clear_basic_workspace:
-        lda #<BASIC_START
-        sta rb_ptr_lo
-        lda #>BASIC_START
-        sta rb_ptr_hi
-        lda #0
-        tay
 @loop:
-        sta (rb_ptr_lo),y
-        inc rb_ptr_lo
-        bne :+
-        inc rb_ptr_hi
-:       lda rb_ptr_hi
-        cmp #>BASIC_LIMIT
-        bne @zero_next
-        lda rb_ptr_lo
-        cmp #<BASIC_LIMIT
+        cpy CF_STR_LEN
         beq @done
-@zero_next:
-        lda #0
-        jmp @loop
-@done:
-        rts
-
-; ICRNCH replacement: keep BASIC's line editor stable for the POC. RB is
-; recognized as raw text by IGONE, so ordinary program entry is untouched.
-rb_crunch:
-        jsr ensure_basic_workspace_pointers
-        jmp BASIC_CRUNCH
-
-; IQPLOP replacement: token expansion is deferred for the stabilization pass.
-rb_list:
-        jmp BASIC_LISTCHAR
-
-; IGONE replacement: handle RB statements and check CTRL+B at statement edge.
-rb_execute:
-        jsr ensure_basic_workspace_pointers
-        jsr rb_peek_next_nonspace
-        cmp #'R'
-        beq @maybe_raw
-        cmp #'r'
-        beq @maybe_raw
-        cmp #'E'
-        beq @maybe_exit
-        cmp #'e'
-        beq @maybe_exit
-        jmp rb_execute_fallback
-@maybe_raw:
-        lda rb_peek_lo
-        sta rb_ptr_lo
-        lda rb_peek_hi
-        sta rb_ptr_hi
-        ldy #1
-        lda (rb_ptr_lo),y
-        cmp #'B'
-        beq @raw_match
-        cmp #'b'
-        beq @raw_match
-        jmp rb_execute_fallback
-@raw_match:
-        lda rb_peek_lo
-        sta TXTPTR
-        lda rb_peek_hi
-        sta TXTPTR+1
-        jsr CHRGET
-        jsr CHRGET
-        jmp rb_statement
-@maybe_exit:
-        jsr rb_match_exit
-        bcc :+
-        jmp cmd_exit
-:
-        jmp rb_execute_fallback
-
-rb_statement:
-        jsr parse_const_u8
-        sta rb_cmd_seen
-        cmp #1
-        bne :+
-        jmp cmd_header
-:       cmp #2
-        bne :+
-        jmp cmd_text
-:       cmp #3
-        bne :+
-        jmp cmd_add
-:       cmp #10
-        bne :+
-        jmp cmd_save
-:       cmp #11
-        bne :+
-        jmp cmd_load
-:       cmp #12
-        bne :+
-        jmp cmd_clear
-:       jmp BASIC_SYNERR
-
-rb_execute_fallback:
-        jmp rb_call_orig_execute
-
-rb_peek_next_nonspace:
-        lda TXTPTR
-        sta rb_ptr_lo
-        lda TXTPTR+1
-        sta rb_ptr_hi
-@next:
-        inc rb_ptr_lo
-        bne :+
-        inc rb_ptr_hi
-:       ldy #0
-        lda (rb_ptr_lo),y
-        cmp #' '
-        beq @next
-        ldx rb_ptr_lo
-        stx rb_peek_lo
-        ldx rb_ptr_hi
-        stx rb_peek_hi
-        rts
-
-cmd_header:
-        jsr parse_comma_string
-        jsr parse_comma_byte
-        sta rb_arg_color
-        jsr parse_comma_byte
-        sta VIC_BG
-        sta VIC_BORDER
-        jsr call_hidden_draw_header
-        jmp rb_ok
-
-cmd_text:
-        jsr parse_comma_expr_byte
-        sta rb_arg_x
-        jsr parse_comma_expr_byte
-        sta rb_arg_y
-        jsr parse_comma_string
-        jsr parse_comma_expr_byte
-        sta rb_arg_color
-        jsr rb_chout_text
-        jmp rb_ok
-
-cmd_add:
-        jsr parse_comma_expr_u16
-        lda LINNUM
-        sta rb_arg_a_lo
-        lda LINNUM+1
-        sta rb_arg_a_hi
-        jsr parse_comma_expr_u16
-        clc
-        lda rb_arg_a_lo
-        adc LINNUM
-        sta rb_result_lo
-        lda rb_arg_a_hi
-        adc LINNUM+1
-        sta rb_result_hi
-        jsr rb_chout_add_result
-        jmp rb_ok
-
-cmd_save:
-        jsr parse_comma_string
-        jsr call_hidden_save_program
-        jmp rb_ok
-
-cmd_load:
-        jsr parse_comma_string
-        jsr call_hidden_load_program
-        jmp rb_ok
-
-cmd_clear:
-        jsr init_basic_workspace
-        jsr invalidate_basic_runtime_state
-        jsr call_hidden_draw_default_header
-        jmp rb_ok
-
-cmd_exit:
-        jsr call_hidden_save_basic_runtime_state
-        jsr set_exit_resume_mode
-        lda RUNTIME_MODE
-        cmp #RB_RESUME_RUN
-        beq @running
-        lda #RB_MAGIC_READY
-        bne @store_mode
-@running:
-        lda #RB_MAGIC_RUN
-@store_mode:
-        sta rb_magic
-        sta rb_entry_magic
-        lda #RB_MAGIC2
-        sta rb_magic2
-        sta rb_entry_magic2
-        lda #0
-        sta KEYD_COUNT
-        jsr save_hidden_shadow
-        jsr restore_vectors
-        jmp SHIM_RETURN
-
-set_exit_resume_mode:
-        ; CURLIN can be stale after direct-mode commands such as LIST.
-        ; TXTPTR tells us where EXIT came from: input buffer/other RAM means
-        ; READY-mode resume; scoped BASIC text means continue program mode.
-        lda TXTPTR+1
-        cmp #>BASIC_START
-        bcc @ready
-        cmp #>BASIC_LIMIT
-        bcs @ready
-        lda #RB_RESUME_RUN
-        bne @store
-@ready:
-        lda #RB_RESUME_READY
-@store:
-        sta RUNTIME_MODE
-        rts
-
-rb_ok:
-        lda #0
-        sta rb_status
-        sta rb_error
-        lda CURLIN+1
-        cmp #$FF
-        beq @direct
-        jmp BASIC_NEXT_STMT
-@direct:
-        jmp BASIC_READY
-
-rb_err:
-        sta rb_error
-        lda #$FF
-        sta rb_status
-        rts
-
-rb_chout_text:
-        jsr rb_save_cursor
-        lda rb_arg_color
-        sta COLOR_CODE
-        clc
-        ldx rb_arg_y
-        ldy rb_arg_x
-        jsr K_PLOT
-        lda #0
-        sta rb_len
-@loop:
-        ldy rb_len
-        lda rb_strbuf,y
-        beq @done
-        jsr K_CHROUT
-        inc rb_len
-        lda rb_len
-        cmp #32
-        bcc @loop
-@done:
-        jmp rb_restore_cursor
-
-rb_chout_add_result:
-        jsr rb_save_cursor
-        lda #1
-        sta COLOR_CODE
-        clc
-        ldx #2
-        ldy #0
-        jsr K_PLOT
-        lda #'R'
-        jsr K_CHROUT
-        lda #'B'
-        jsr K_CHROUT
-        lda #'3'
-        jsr K_CHROUT
-        lda #'='
-        jsr K_CHROUT
-        ldx rb_result_lo
-        lda rb_result_hi
-        jsr BASIC_LINPRT
-        lda #5
-        sta rb_len
-@pad:
-        lda #' '
-        jsr K_CHROUT
-        dec rb_len
-        bne @pad
-        jmp rb_restore_cursor
-
-rb_save_cursor:
+        lda CF_STR_BUF,y
+        cmp #$C1
+        bcc @ascii_case
+        cmp #$DB
+        bcs @ascii_case
         sec
-        jsr K_PLOT
-        stx rb_saved_txtptr_lo
-        sty rb_saved_txtptr_hi
-        rts
-
-rb_restore_cursor:
-        clc
-        ldx rb_saved_txtptr_lo
-        ldy rb_saved_txtptr_hi
-        jmp K_PLOT
-
-; ---------------------------------------------------------------------------
-; Deferred launcher return.
-; ---------------------------------------------------------------------------
-
-rb_check_ctrl_b:
-        rts
-
-restore_runtime_state:
-        rts
-
-invalidate_basic_runtime_state:
-        lda #0
-        sta RUNTIME_MAGIC1
-        sta RUNTIME_MAGIC2
-        sta RUNTIME_LINE_OK
-        rts
-
-save_hidden_shadow:
-        php
-        sei
-        jsr rb_prepare_memory_port
-        lda CPU_PORT
-        sta rb_saved_cpu
-        and #RAM_UNDER_BASIC
-        sta CPU_PORT
-        lda #<__HIDDEN_RUN__
-        sta rb_ptr_lo
-        lda #>__HIDDEN_RUN__
-        sta rb_ptr_hi
-        lda #<HIDDEN_SHADOW
-        sta rb_color_lo
-        lda #>HIDDEN_SHADOW
-        sta rb_color_hi
-        lda #>HIDDEN_SHADOW_SIZE
-        sta rb_tmp_hi
-        ldy #0
-@copy:
-        lda (rb_ptr_lo),y
-        sta (rb_color_lo),y
-        iny
-        bne @copy
-        inc rb_ptr_hi
-        inc rb_color_hi
-        dec rb_tmp_hi
-        bne @copy
-        lda rb_saved_cpu
-        sta CPU_PORT
-        plp
-        rts
-
-rb_prepare_memory_port:
-        lda CPU_DDR
-        ora #$07
-        sta CPU_DDR
-        rts
-
-rb_match_exit:
-        lda rb_peek_lo
-        sta rb_ptr_lo
-        lda rb_peek_hi
-        sta rb_ptr_hi
-        ldy #1
-        lda (rb_ptr_lo),y
-        cmp #'X'
-        beq :+
-        cmp #'x'
-        bne @no
-:       iny
-        lda (rb_ptr_lo),y
-        cmp #'I'
-        beq :+
-        cmp #'i'
-        bne @no
-:       iny
-        lda (rb_ptr_lo),y
-        cmp #'T'
-        beq :+
-        cmp #'t'
-        bne @no
-:       iny
-        lda (rb_ptr_lo),y
-        beq @yes
-        cmp #':'
-        beq @yes
-        cmp #' '
-        beq @yes
-@no:
-        clc
-        rts
-@yes:
-        clc
-        lda rb_peek_lo
-        adc #4
-        sta TXTPTR
-        lda rb_peek_hi
-        adc #0
-        sta TXTPTR+1
-        sec
-        rts
-
-; ---------------------------------------------------------------------------
-; Parsing helpers.
-; ---------------------------------------------------------------------------
-
-parse_const_u8:
-        lda #0
-        sta rb_tmp_lo
-@skip_spaces:
-        jsr CHRGOT
-        cmp #' '
-        bne @loop
-        jsr CHRGET
-        jmp @skip_spaces
-@loop:
-        jsr CHRGOT
-        cmp #'0'
-        bcc @done
-        cmp #'9'+1
-        bcs @done
-        sec
-        sbc #'0'
-        pha
-        lda rb_tmp_lo
-        asl
-        sta rb_tmp_hi
-        asl
-        asl
-        clc
-        adc rb_tmp_hi
-        sta rb_tmp_lo
-        pla
-        clc
-        adc rb_tmp_lo
-        sta rb_tmp_lo
-        jsr CHRGET
-        jmp @loop
-@done:
-        lda rb_tmp_lo
-        rts
-
-parse_comma_byte:
-        jsr BASIC_CHKCOM
-        jsr parse_const_u8
-        rts
-
-parse_comma_expr_byte:
-        jsr parse_comma_expr_u16
-        lda LINNUM
-        rts
-
-parse_comma_expr_u16:
-        jsr BASIC_CHKCOM
-        jsr BASIC_FRMNUM
-        jsr BASIC_GETADR
-        rts
-
-parse_comma_string:
-        jsr BASIC_CHKCOM
-        jsr CHRGOT
-        cmp #'"'
-        beq @quoted
-        jmp BASIC_SYNERR
-@quoted:
-        jsr CHRGET
-        ldy #0
-@copy:
-        jsr CHRGOT
-        cmp #'"'
-        beq @end
-        cmp #0
-        beq @bad
-        cpy #32
-        bcs @skip
-        sta rb_strbuf,y
-        iny
-@skip:
-        jsr CHRGET
-        jmp @copy
-@end:
-        lda #0
-        sta rb_strbuf,y
-        jsr CHRGET
-        rts
-@bad:
-        jmp BASIC_SYNERR
-
-; ---------------------------------------------------------------------------
-; TUI helpers.
-; ---------------------------------------------------------------------------
-
-        .segment "HIDDEN"
-
-draw_default_header:
-        lda #6
-        sta VIC_BG
-        sta VIC_BORDER
-        jsr clear_default_screen
-        lda #0
-        jsr draw_box_top_row
-        lda #1
-        jsr draw_box_middle_row
-        lda #2
-        jsr draw_box_bottom_row
-        ldx #0
-@title:
-        lda default_title_screen,x
-        beq @bytes_free
-        sta SCREEN+11,x
-        lda #7
-        sta COLOR_RAM+11,x
-        inx
-        bne @title
-@bytes_free:
-        ldx #0
-@bytes_free_loop:
-        lda default_bytes_free_screen,x
-        beq @done
-        sta SCREEN+49,x
-        lda #13
-        sta COLOR_RAM+49,x
-        inx
-        bne @bytes_free_loop
-@done:
-        rts
-
-clear_default_screen:
-        ldx #0
-        lda #32
-@screen_full:
-        sta SCREEN,x
-        sta SCREEN+$100,x
-        sta SCREEN+$200,x
-        inx
-        bne @screen_full
-        ldx #$e7
-@screen_tail:
-        sta SCREEN+$300,x
-        dex
-        bpl @screen_tail
-        ldx #0
-        lda #1
-@color_full:
-        sta COLOR_RAM,x
-        sta COLOR_RAM+$100,x
-        sta COLOR_RAM+$200,x
-        inx
-        bne @color_full
-        ldx #$e7
-@color_tail:
-        sta COLOR_RAM+$300,x
-        dex
-        bpl @color_tail
-        rts
-
-draw_box_top_row:
-        jsr clear_box_row
-        lda #$70
-        sta SCREEN
-        lda #$6e
-        sta SCREEN+39
-        rts
-
-draw_box_middle_row:
-        jsr clear_box_blank_row
-        lda #$5d
-        sta SCREEN+40
-        sta SCREEN+79
-        lda #14
-        sta COLOR_RAM+40
-        sta COLOR_RAM+79
-        rts
-
-draw_box_bottom_row:
-        jsr clear_box_row
-        lda #$6d
-        sta SCREEN+80
-        lda #$7d
-        sta SCREEN+119
-        rts
-
-clear_box_row:
-        jsr mul40_to_ptr
-        lda rb_ptr_hi
-        clc
-        adc #>SCREEN
-        sta rb_ptr_hi
-        lda rb_ptr_lo
-        sta rb_color_lo
-        lda rb_ptr_hi
-        sec
-        sbc #>SCREEN
-        clc
-        adc #>COLOR_RAM
-        sta rb_color_hi
-        ldy #39
-@loop:
-        lda #$40
-        sta (rb_ptr_lo),y
-        lda #14
-        sta (rb_color_lo),y
-        dey
-        bpl @loop
-        rts
-
-clear_box_blank_row:
-        jsr mul40_to_ptr
-        lda rb_ptr_hi
-        clc
-        adc #>SCREEN
-        sta rb_ptr_hi
-        lda rb_ptr_lo
-        sta rb_color_lo
-        lda rb_ptr_hi
-        sec
-        sbc #>SCREEN
-        clc
-        adc #>COLOR_RAM
-        sta rb_color_hi
-        ldy #39
-@loop:
-        lda #32
-        sta (rb_ptr_lo),y
-        lda #1
-        sta (rb_color_lo),y
-        dey
-        bpl @loop
-        rts
-
-draw_header_from_buffer:
-        lda rb_arg_color
-        pha
-        lda #0
-        jsr clear_screen_row
-        lda #1
-        jsr clear_screen_row
-        pla
-        sta rb_arg_color
-        lda #1
-        sta rb_arg_x
-        lda #0
-        sta rb_arg_y
-        jsr hidden_draw_text
-        ldx #0
-@help:
-        lda help_text,x
-        sta rb_strbuf,x
-        beq @draw_help
-        inx
-        cpx #33
-        bcc @help
-        lda #0
-        sta rb_strbuf+32
-@draw_help:
-        lda #0
-        sta rb_arg_x
-        lda #1
-        sta rb_arg_y
-        lda #15
-        sta rb_arg_color
-        jsr hidden_draw_text
-        rts
-
-clear_screen_row:
-        jsr mul40_to_ptr
-        lda rb_ptr_hi
-        clc
-        adc #>SCREEN
-        sta rb_ptr_hi
-        lda rb_ptr_lo
-        sta rb_color_lo
-        lda rb_ptr_hi
-        sec
-        sbc #>SCREEN
-        clc
-        adc #>COLOR_RAM
-        sta rb_color_hi
-        lda #1
-        sta rb_arg_color
-        ldy #39
-@loop:
-        lda #32
-        sta (rb_ptr_lo),y
-        lda rb_arg_color
-        sta (rb_color_lo),y
-        dey
-        bpl @loop
-        rts
-
-mul40_to_ptr:
-        sta rb_ptr_lo
-        lda #0
-        sta rb_ptr_hi
-        asl rb_ptr_lo
-        rol rb_ptr_hi
-        asl rb_ptr_lo
-        rol rb_ptr_hi
-        asl rb_ptr_lo
-        rol rb_ptr_hi
-        lda rb_ptr_lo
-        sta rb_tmp_lo
-        lda rb_ptr_hi
-        sta rb_tmp_hi
-        asl rb_ptr_lo
-        rol rb_ptr_hi
-        asl rb_ptr_lo
-        rol rb_ptr_hi
-        clc
-        lda rb_ptr_lo
-        adc rb_tmp_lo
-        sta rb_ptr_lo
-        lda rb_ptr_hi
-        adc rb_tmp_hi
-        sta rb_ptr_hi
-        rts
-
-ascii_to_screen:
-        cmp #'A'
-        bcc @digit
-        cmp #'Z'+1
-        bcs @lower
-        sec
-        sbc #'A'-1
-        rts
-@lower:
+        sbc #$80
+        jmp @store
+@ascii_case:
         cmp #'a'
-        bcc @digit
-        cmp #'z'+1
-        bcs @digit
-        sec
-        sbc #'a'-1
-        rts
-@digit:
-        cmp #'0'
-        bcc @punct
-        cmp #'9'+1
-        bcs @punct
-        rts
-@punct:
-        cmp #'@'
-        bne :+
-        lda #0
-        rts
-:       cmp #' '
-        bne :+
-        lda #32
-        rts
-:       cmp #'.'
-        bne :+
-        lda #46
-        rts
-:       cmp #':'
-        bne :+
-        lda #58
-        rts
-:       cmp #'+'
-        bne :+
-        lda #43
-        rts
-:       cmp #'-'
-        bne :+
-        lda #45
-        rts
-:       cmp #'='
-        bne :+
-        lda #61
-        rts
-:       cmp #'"'
-        bne :+
-        lda #34
-        rts
-:       lda #32
-        rts
-
-        .segment "BRIDGE"
-
-call_hidden_draw_default_header:
-        php
-        sei
-        jsr rb_prepare_memory_port
-        lda CPU_PORT
-        sta rb_saved_cpu
-        and #RAM_UNDER_BASIC
-        sta CPU_PORT
-        jsr draw_default_header
-        lda rb_saved_cpu
-        sta CPU_PORT
-        plp
-        rts
-
-call_hidden_draw_header:
-        php
-        sei
-        jsr rb_prepare_memory_port
-        lda CPU_PORT
-        sta rb_saved_cpu
-        and #RAM_UNDER_BASIC
-        sta CPU_PORT
-        jsr draw_header_from_buffer
-        lda rb_saved_cpu
-        sta CPU_PORT
-        plp
-        rts
-
-call_hidden_save_basic_runtime_state:
-        php
-        sei
-        jsr rb_prepare_memory_port
-        lda CPU_PORT
-        sta rb_saved_cpu
-        and #RAM_UNDER_BASIC
-        sta CPU_PORT
-        jsr save_basic_runtime_state
-        lda rb_saved_cpu
-        sta CPU_PORT
-        plp
-        rts
-
-call_hidden_save_program:
-        php
-        sei
-        jsr rb_prepare_memory_port
-        lda CPU_PORT
-        sta rb_saved_cpu
-        and #RAM_UNDER_BASIC_KEEP_KERNAL
-        sta CPU_PORT
-        jsr save_program
-        lda rb_saved_cpu
-        sta CPU_PORT
-        plp
-        rts
-
-call_hidden_load_program:
-        php
-        sei
-        jsr rb_prepare_memory_port
-        lda CPU_PORT
-        sta rb_saved_cpu
-        and #RAM_UNDER_BASIC_KEEP_KERNAL
-        sta CPU_PORT
-        jsr load_program
-        lda rb_saved_cpu
-        sta CPU_PORT
-        plp
-        rts
-
-; ---------------------------------------------------------------------------
-; File load/save helpers.
-; ---------------------------------------------------------------------------
-
-        .segment "HIDDEN"
-
-append_file_mode:
-        ldx #0
-@find_end:
-        lda rb_strbuf,x
-        beq @suffix
-        sta rb_namebuf,x
-        inx
-        cpx #36
-        bcc @find_end
-@suffix:
-        lda #','
-        sta rb_namebuf,x
-        inx
-        lda #'p'
-        sta rb_namebuf,x
-        inx
-        lda #','
-        sta rb_namebuf,x
-        inx
-        lda rb_tmp_char
-        sta rb_namebuf,x
-        inx
-        stx rb_name_len
-        lda #0
-        sta rb_namebuf,x
-        rts
-
-open_file:
-        lda rb_name_len
-        ldx #<rb_namebuf
-        ldy #>rb_namebuf
-        jsr K_SETNAM
-        lda rb_drive
-        bne :+
-        lda SHIM_DRIVE
-        bne :+
-        lda #8
-:       tax
-        lda #2
-        ldy #2
-        jsr K_SETLFS
-        jsr K_OPEN
-        bcs @err
-        lda #0
-        rts
-@err:
-        lda #1
-        rts
-
-close_file:
-        jsr K_CLRCHN
-        lda #2
-        jsr K_CLOSE
-        rts
-
-save_program:
-        lda #'w'
-        sta rb_tmp_char
-        jsr append_file_mode
-        jsr open_file
-        beq :+
-        lda #10
-        jsr rb_err
-        rts
-:       ldx #2
-        jsr K_CHKOUT
-        lda #<STD_BASIC_START
-        jsr K_CHROUT
-        lda #>STD_BASIC_START
-        jsr K_CHROUT
-
-        lda #<BASIC_START
-        sta rb_ptr_lo
-        lda #>BASIC_START
-        sta rb_ptr_hi
-@line:
-        ldy #0
-        lda (rb_ptr_lo),y
-        sta rb_tmp_lo
-        iny
-        lda (rb_ptr_lo),y
-        sta rb_tmp_hi
-        ora rb_tmp_lo
-        beq @end_marker
-        sec
-        lda rb_tmp_lo
-        sbc #<RELOC_DELTA
-        sta rb_ptr2_lo_tmp
-        lda rb_tmp_hi
-        sbc #>RELOC_DELTA
-        sta rb_ptr2_hi_tmp
-        lda rb_ptr2_lo_tmp
-        jsr K_CHROUT
-        lda rb_ptr2_hi_tmp
-        jsr K_CHROUT
-        ldy #2
-@bytes:
-        lda (rb_ptr_lo),y
-        jsr K_CHROUT
-        lda (rb_ptr_lo),y
-        beq @advance
-        iny
-        bne @bytes
-        lda #11
-        jsr rb_err
-        jsr close_file
-        rts
-@advance:
-        lda rb_tmp_lo
-        sta rb_ptr_lo
-        lda rb_tmp_hi
-        sta rb_ptr_hi
-        jmp @line
-@end_marker:
-        lda #0
-        jsr K_CHROUT
-        lda #0
-        jsr K_CHROUT
-        jsr close_file
-        jsr rb_ok
-        rts
-
-load_program:
-        lda #'r'
-        sta rb_tmp_char
-        jsr append_file_mode
-        jsr open_file
-        beq :+
-        lda #20
-        jsr rb_err
-        rts
-:       ldx #2
-        jsr K_CHKIN
-        jsr K_CHRIN
-        sta rb_load_lo
-        jsr K_CHRIN
-        sta rb_load_hi
-        sec
-        lda #<BASIC_START
-        sbc rb_load_lo
-        sta rb_delta_lo
-        lda #>BASIC_START
-        sbc rb_load_hi
-        sta rb_delta_hi
-
-        lda #<BASIC_START
-        sta rb_ptr_lo
-        lda #>BASIC_START
-        sta rb_ptr_hi
-@read:
-        jsr K_CHRIN
-        pha
-        jsr K_READST
-        sta rb_last_st
-        pla
-        ldy #0
-        sta (rb_ptr_lo),y
-        inc rb_ptr_lo
-        bne :+
-        inc rb_ptr_hi
-:       lda rb_ptr_hi
-        cmp #>BASIC_LIMIT
         bcc :+
-        lda #21
-        jsr rb_err
-        jsr close_file
-        rts
-:       lda rb_last_st
-        beq @read
-        jsr close_file
-        jsr relocate_loaded_program
-        jsr draw_default_header
-        jsr rb_ok
-        rts
-
-relocate_loaded_program:
-        lda #<BASIC_START
-        sta rb_ptr_lo
-        lda #>BASIC_START
-        sta rb_ptr_hi
-@line:
-        ldy #0
-        lda (rb_ptr_lo),y
-        sta rb_tmp_lo
+        cmp #'z' + 1
+        bcs :+
+        sec
+        sbc #$20
+@store:
+:       sta RF_STR_BUF,y
         iny
-        lda (rb_ptr_lo),y
-        sta rb_tmp_hi
-        ora rb_tmp_lo
-        beq @done
-        clc
-        lda rb_tmp_lo
-        adc rb_delta_lo
-        sta rb_tmp_lo
-        dey
-        sta (rb_ptr_lo),y
-        iny
-        lda rb_tmp_hi
-        adc rb_delta_hi
-        sta rb_tmp_hi
-        sta (rb_ptr_lo),y
-        lda rb_tmp_hi
-        cmp #>BASIC_LIMIT
-        bcc @advance
-        jmp init_basic_workspace
-@advance:
-        lda rb_tmp_lo
-        sta rb_ptr_lo
-        lda rb_tmp_hi
-        sta rb_ptr_hi
-        jmp @line
+        jmp @loop
 @done:
+        rts
+cmd_strup_low_end:
+
+cmd_sumai_low:
+        lda CF_PTR0_LO
+        sta rb_ptr_lo
+        lda CF_PTR0_HI
+        sta rb_ptr_hi
+        lda #0
+        sta RF_VAL_LO
+        sta RF_VAL_HI
+        ldx CF_COUNT0_LO
+        beq @done
+@loop:
+        ldy #1
+        clc
+        lda RF_VAL_LO
+        adc (rb_ptr_lo),y
+        sta RF_VAL_LO
+        dey
+        lda RF_VAL_HI
+        adc (rb_ptr_lo),y
+        sta RF_VAL_HI
         clc
         lda rb_ptr_lo
         adc #2
-        sta VARTAB
-        sta ARYTAB
-        sta STREND
-        lda rb_ptr_hi
-        adc #0
-        sta VARTAB+1
-        sta ARYTAB+1
-        sta STREND+1
-        lda #<BASIC_LIMIT
-        sta FRETOP
-        sta MEMSIZ
-        lda #>BASIC_LIMIT
-        sta FRETOP+1
-        sta MEMSIZ+1
+        sta rb_ptr_lo
+        bcc :+
+        inc rb_ptr_hi
+:       dex
+        bne @loop
+@done:
+        lda #0
+        sta RF_STATUS
+        lda #RB_VAL_INT
+        sta RF_TAG
         rts
+cmd_sumai_low_end:
+
+cmd_rangeai_low:
+        lda #0
+        sta RF_STATUS
+        lda #RB_VAL_ARRAYI
+        sta RF_TAG
+        lda CF_NUM1_LO
+        sta RF_COUNT_LO
+        lda CF_NUM1_HI
+        sta RF_COUNT_HI
+        lda CF_NUM0_LO
+        sta rb_ptr_lo
+        lda CF_NUM0_HI
+        sta rb_ptr_hi
+        ldx CF_NUM1_LO
+        beq @done
+        ldy #0
+@loop:
+        lda rb_ptr_hi
+        sta RF_ARRAY_BUF,y
+        iny
+        lda rb_ptr_lo
+        sta RF_ARRAY_BUF,y
+        iny
+        inc rb_ptr_lo
+        bne :+
+        inc rb_ptr_hi
+:       dex
+        bne @loop
+@done:
+        rts
+cmd_rangeai_low_end:
+
+cmd_bufnew_low:
+        jsr rb_handle_alloc
+        rts
+cmd_bufnew_low_end:
+
+cmd_buffill_low:
+        jsr rb_handle_fill
+        rts
+cmd_buffill_low_end:
+
+cmd_buffree_low:
+        jsr rb_handle_free
+        rts
+cmd_buffree_low_end:
+
+cmd_tempscratch_low:
+        jsr rb_temp_alloc
+        rts
+cmd_tempscratch_low_end:
+
+cmd_fail_low:
+        lda CF_NUM0_LO
+        bne :+
+        lda #$7F
+:       sta RF_STATUS
+        sta RF_ERROR
+        lda #RB_VAL_INT
+        sta RF_TAG
+        lda #0
+        sta RF_VAL_LO
+        sta RF_VAL_HI
+        rts
+cmd_fail_low_end:
+
+rb_handle_alloc:
+        jsr rb_len_to_pages
+        bcc @find_handle
+        jmp rb_overlay_bad_length
+@find_handle:
+        ldx #0
+@hloop:
+        lda rb_handle_bank,x
+        beq @got_handle
+        inx
+        cpx #RB_HANDLE_COUNT
+        bcc @hloop
+        lda #$21
+        jmp rb_overlay_fail
+@got_handle:
+        stx rb_handle_index
+        jsr rb_find_pages
+        bcs @no_pages
+        ldx rb_handle_index
+        lda #RB_REU_CORE_BANK
+        sta rb_handle_bank,x
+        lda rb_found_page
+        clc
+        adc #$80
+        sta rb_handle_page,x
+        lda rb_needed_pages
+        sta rb_handle_pages,x
+        lda #1
+        sta rb_handle_type,x
+        jsr rb_mark_pages_used
+        jsr rb_stash_handle_meta
+        ldx rb_handle_index
+        lda #0
+        sta RF_STATUS
+        lda #RB_VAL_INT
+        sta RF_TAG
+        txa
+        clc
+        adc #1
+        sta RF_VAL_LO
+        lda #0
+        sta RF_VAL_HI
+        rts
+@no_pages:
+        lda #$22
+        jmp rb_overlay_fail
+
+rb_overlay_bad_length:
+        lda #$23
+rb_overlay_fail:
+        sta RF_STATUS
+        sta RF_ERROR
+        rts
+
+rb_len_to_pages:
+        lda CF_NUM0_LO
+        ora CF_NUM0_HI
+        beq @bad
+        lda CF_NUM0_HI
+        sta rb_needed_pages
+        lda CF_NUM0_LO
+        beq @check
+        inc rb_needed_pages
+@check:
+        lda rb_needed_pages
+        beq @bad
+        cmp #RB_HEAP_PAGES + 1
+        bcs @bad
+        clc
+        rts
+@bad:
+        sec
+        rts
+
+rb_find_pages:
+        lda #0
+        sta rb_found_page
+@outer:
+        lda rb_found_page
+        clc
+        adc rb_needed_pages
+        cmp #RB_HEAP_PAGES + 1
+        bcc :+
+        sec
+        rts
+:       ldx #0
+@inner:
+        txa
+        clc
+        adc rb_found_page
+        tay
+        lda rb_page_bitmap,y
+        bne @next_start
+        inx
+        cpx rb_needed_pages
+        bcc @inner
+        clc
+        rts
+@next_start:
+        inc rb_found_page
+        jmp @outer
+
+rb_mark_pages_used:
+        ldx #0
+@loop:
+        txa
+        clc
+        adc rb_found_page
+        tay
+        lda #1
+        sta rb_page_bitmap,y
+        inx
+        cpx rb_needed_pages
+        bcc @loop
+        rts
+
+rb_handle_free:
+        lda CF_NUM0_LO
+        beq @bad
+        cmp #RB_HANDLE_COUNT + 1
+        bcs @bad
+        sec
+        sbc #1
+        tax
+        lda rb_handle_bank,x
+        beq @bad
+        stx rb_handle_index
+        lda rb_handle_page,x
+        sec
+        sbc #$80
+        sta rb_found_page
+        lda rb_handle_pages,x
+        sta rb_needed_pages
+        jsr rb_mark_pages_free
+        ldx rb_handle_index
+        lda #0
+        sta rb_handle_bank,x
+        sta rb_handle_page,x
+        sta rb_handle_pages,x
+        sta rb_handle_type,x
+        jsr rb_stash_handle_meta
+        lda #0
+        sta RF_STATUS
+        sta RF_TAG
+        rts
+@bad:
+        lda #$24
+        jmp rb_overlay_fail
+
+rb_mark_pages_free:
+        ldx #0
+@loop:
+        txa
+        clc
+        adc rb_found_page
+        tay
+        lda #0
+        sta rb_page_bitmap,y
+        inx
+        cpx rb_needed_pages
+        bcc @loop
+        rts
+
+rb_handle_fill:
+        lda CF_NUM0_LO
+        beq @bad
+        cmp #RB_HANDLE_COUNT + 1
+        bcs @bad
+        sec
+        sbc #1
+        tax
+        lda rb_handle_bank,x
+        beq @bad
+        stx rb_handle_index
+        lda CF_NUM1_LO
+        ldx #0
+@fillbuf:
+        sta RB_PAGEBUF,x
+        inx
+        bne @fillbuf
+        ldx rb_handle_index
+        lda rb_handle_page,x
+        sta rb_fill_page
+        lda rb_handle_pages,x
+        sta rb_needed_pages
+@page:
+        lda #<RB_PAGEBUF
+        sta rb_reu_c64_lo
+        lda #>RB_PAGEBUF
+        sta rb_reu_c64_hi
+        lda #0
+        sta rb_reu_off_lo
+        lda rb_fill_page
+        sta rb_reu_off_hi
+        lda #RB_REU_CORE_BANK
+        sta rb_reu_bank
+        lda #0
+        sta rb_reu_len_lo
+        lda #1
+        sta rb_reu_len_hi
+        jsr rb_reu_stash
+        inc rb_fill_page
+        dec rb_needed_pages
+        bne @page
+        lda #0
+        sta RF_STATUS
+        sta RF_TAG
+        rts
+@bad:
+        lda #$25
+        jmp rb_overlay_fail
+
+rb_temp_alloc:
+        jsr rb_len_to_pages
+        bcs @bad
+        jsr rb_find_pages
+        bcs @bad
+        jsr rb_mark_pages_used
+        jsr rb_mark_pages_free
+        lda #0
+        sta RF_STATUS
+        lda #RB_VAL_INT
+        sta RF_TAG
+        lda rb_needed_pages
+        sta RF_VAL_LO
+        lda #0
+        sta RF_VAL_HI
+        rts
+@bad:
+        lda #$26
+        jmp rb_overlay_fail
+
+; ---------------------------------------------------------------------------
+; Packed hidden overlay command implementations.  These are copied from REU
+; bank $45 into RAM under BASIC ROM before call.
+; ---------------------------------------------------------------------------
+
+        .segment "HIDDENPACK"
+
+cmd_hcrc_hidden:
+        lda #0
+        sta RF_VAL_LO
+        sta RF_VAL_HI
+        ldy #0
+@loop:
+        cpy CF_STR_LEN
+        beq @done
+        lda RF_VAL_LO
+        sta rb_ptr_lo
+        lda CF_STR_BUF,y
+        cmp #$C1
+        bcc @ascii_case
+        cmp #$DB
+        bcs @ascii_case
+        sec
+        sbc #$80
+        jmp @sum
+@ascii_case:
+        cmp #'a'
+        bcc @sum
+        cmp #'z' + 1
+        bcs @sum
+        sec
+        sbc #$20
+@sum:
+        clc
+        adc rb_ptr_lo
+        sta RF_VAL_LO
+        lda RF_VAL_HI
+        adc #0
+        sta RF_VAL_HI
+        iny
+        jmp @loop
+@done:
+        lda #0
+        sta RF_STATUS
+        lda #RB_VAL_INT
+        sta RF_TAG
+        rts
+cmd_hcrc_hidden_end:

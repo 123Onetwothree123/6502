@@ -9,9 +9,9 @@ actual C64/ReadyOS evidence trail rather than a pile of confident guesses.
 - ReadyBASIC is a ReadyOS-native PRG host for BASIC, not a normal C64 BASIC PRG.
 - The app PRG loads at `$1000` and must obey the ReadyOS app/shim window:
   `$1000-$C5FF` is app-owned, `$C600-$C9FF` is reserved metadata/shim space.
-- BASIC programs are data inside the host. The scoped BASIC workspace is
-  currently `$1201-$95FF`, with save/load relocating line links to/from the
-  standard C64 BASIC `$0801` format.
+- BASIC programs are data inside the host. The scoped BASIC workspace is now
+  `$3001-$95FF`; raw ReadyBASIC wedge lines are left as text rather than
+  crunched into a private token.
 - `$9600-$99FF` is reserved for ReadyBASIC suspend metadata, zero-page snapshot,
   stack snapshot, saved SP, and line-chain guards.
 - Hidden services live under BASIC ROM RAM at `$A000-$BFFF` and visible
@@ -19,8 +19,77 @@ actual C64/ReadyOS evidence trail rather than a pile of confident guesses.
 - A shadow copy of the hidden helper image lives at `$9A00-$9FFF`, inside the
   ReadyOS app snapshot window but above BASIC's managed top-of-memory. Warm
   entry restores `$A000` from that shadow before using hidden helpers.
+- The plugin spine keeps visible resident code at `$1200-$1BFF`, command
+  overlays at `$1C00-$23FF`, shared frames at `$2400-$27FF`, and fixed
+  ReadyBASIC REU banks `$44/$45`.
+
+## Live Discipline Notes
+
+### Distinguish App RAM From Shared ReadyOS Metadata
+
+ReadyOS app snapshots own `$1000-$C5FF`. `$C600-$C7FF` is not app-private RAM,
+but it is also not unused; ReadyOS uses it for shared REU metadata. ReadyBasic
+may mark its fixed REU banks by writing the canonical allocation table bytes at
+`$C600+$44` and `$C600+$45`, matching `src/lib/reu_mgr.c`, but must never treat
+that page as a general ReadyBasic buffer. If a future probe sees boot or app-load
+instability, check whether ReadyBasic is writing more than those ownership tags
+before blaming the launcher or VICE.
+
+### Interrupted VICE Runs Still Need A Ledger Entry
+
+When a visible run is killed before the harness times out, record it as
+interrupted rather than pass/fail. Capture what stage was active, what artifacts
+exist, whether any VICE/dotnet processes were left behind, and which next run
+must produce a monitor dump if the same symptom repeats. The 2026-05-11
+`vice_auto_20260511_201407` run reached `wait_readybasic_prompt` but was stopped
+before a dump, so it proves only that the cold boot appeared stalled from the
+UI, not which address or routine was stuck.
 
 ## Proven
+
+### Lean Plugin Spine Needs Seed-Only Tables Outside Resident RAM
+
+Proven on 2026-05-11 while moving ReadyBASIC from demo `RB` commands to the
+REU plugin spine. Keeping command descriptors and REU prestash code in the
+visible resident core overflowed `$1200-$1BFF`. Moving descriptor seed data to a
+load-only `REGSEED` segment, moving prestash into hidden helper code, and moving
+handle/page allocation into the low overlay pack brought the resident core down
+to `$08BF` bytes.
+
+Current rule: resident low RAM keeps BASIC-facing parser, variable commit,
+overlay loading, and ROM helper calls. Seed tables and non-BASIC worker logic
+belong in hidden helpers or packed overlays whenever possible.
+
+Verification artifact:
+`make bin/readybasic.prg` produced `RESIDENT $1200-$1ABE`,
+`LOWPACK $1C00-$1EEE`, `HIDDEN $A000-$A141`, `HIDDENPACK $A800-$A82F`,
+and `BRIDGE $C000-$C075`.
+
+### Raw `RB COMMAND,...` Preserves Listing Text
+
+V1 deliberately does not install a custom cruncher. The crunch vector still
+forwards to ROM BASIC, and ReadyBASIC recognizes raw `RB` text from the execute
+vector. This means regular BASIC `LIST` shows the `RB` prefix and command name,
+which is expected until a future crunch/list pair is implemented and verified.
+
+Current rule: do not add private token support without a matching lister and a
+proved `ICRNCH` length/register contract.
+
+### Menu Resume Must Prove Screen And BASIC State
+
+Proven on 2026-05-11 with the visible 47-step plugin probe:
+`vice_auto_20260511_202329`. The acceptance path must launch ReadyBasic through
+ReadyOS, exercise direct commands, type `EXIT`, return to the launcher, relaunch
+ReadyBasic through the menu, and then prove both:
+
+- The ReadyBasic READY screen is redrawn instead of leaving the launcher menu
+  underneath `READY.`.
+- BASIC variables survive the app snapshot round trip; the probe seeds
+  `V%=321:VS$="OK"` before `EXIT` and checks `STATE 321 :OK` after resume.
+
+Current rule: do not use `CTRL+3` as a substitute for menu re-entry in
+ReadyBasic resume acceptance. The hotkey path can hide launcher selection and
+screen redraw mistakes.
 
 ### 6502/C64 Assembly Discipline That Mattered Here
 
@@ -150,8 +219,7 @@ spurious BASIC errors.
 Current rule: probe the next non-space byte without changing `TXTPTR`. If the
 statement is not ReadyBASIC's command, jump through the saved original `$0308`
 vector so ROM BASIC performs its own `CHRGET`/dispatch path from an untouched
-state. Only after `RB`/`rb`/private token is proven does ReadyBASIC advance
-`TXTPTR`.
+state. Only after raw `RB`/`rb` is proven does ReadyBASIC advance `TXTPTR`.
 
 ### ICRNCH Must Preserve The Tokenized Line Length
 
@@ -163,6 +231,11 @@ Current POC rule: do not tokenize `RB` yet. Leave `ICRNCH` forwarding to ROM
 `$A57C`, and recognize raw `RB`/`rb` from `IGONE` instead. Proper private token
 support must be reintroduced only with a cruncher that preserves all required
 register and buffer contracts.
+
+2026-05-11 follow-up: a private `$CC` token experiment made stored `RB` lines
+compact, but the visible probe then blanked/crashed during `LIST`. The stable
+branch deliberately removes that crunch/list experiment and treats stored-program
+`RB` as future work requiring a separate lister contract probe.
 
 ### RB Parsing Worked; The Hidden Draw Path Was Invisible
 
@@ -230,6 +303,52 @@ Scope note: this verification deliberately covers manual prompt `EXIT`.
 Program-line continuation through `EXIT` is deferred. Raw `EXIT` inside
 `IF ... THEN` is not expected to work until `EXIT` is tokenized or the wedge
 hooks more of BASIC's command dispatch.
+
+### Resume Display Is A Contract, Not Cosmetic
+
+Reproven on 2026-05-11 during the lean REU plugin rewrite. After moving
+ReadyBASIC's visible/core memory contract down to `$1200-$2FFF` and
+`BASIC_START=$3001`, the app could return from the launcher to BASIC but leave
+the launcher menu on screen with a `READY.` prompt painted over it.
+
+The root cause was twofold:
+
+- `cmd_exit` correctly decided that a manual prompt `EXIT` was a READY-mode
+  return, but `save_basic_runtime_state` recalculated resume mode from
+  `CURLIN`. In direct mode after the plugin command flow, that could save
+  `RUNTIME_MODE=RB_RESUME_RUN` and resume through `BASIC_NEXT_STMT`. A follow-up
+  run showed `cmd_exit` itself must not depend on `CURLIN` either; direct
+  commands are more reliably identified by `TXTPTR` still pointing into the
+  `$0200` input buffer rather than the `$3001+` BASIC text area.
+- The new resume path omitted baseline console restoration steps: clear
+  channels, clear the screen/editor surface, restore lowercase VIC text mode,
+  clear pending keyboard bytes, redraw the ReadyBasic banner, and position the
+  prompt before entering `BASIC_READY`.
+
+Current rule: memory layout changes must be reviewed against a lifecycle
+contract checklist before the first "good" commit. At minimum: page-3 vectors,
+hidden helper shadow, CPU port banking, BASIC memory bounds, live BASIC pointers
+including `FRETOP`, runtime mode, stack/ZP restore, screen/editor state, prompt
+position, key buffer, and launcher menu re-entry path.
+
+Current `EXIT` mode rule: V1 supports manual prompt `EXIT`. It treats `TXTPTR`
+below `BASIC_START` as READY-mode resume and `TXTPTR >= BASIC_START` as a
+program-line resume candidate. Do not use `CURLIN` alone as the direct/program
+discriminator in the wedge path. `cmd_exit` writes the chosen `RUNTIME_MODE`
+itself; the hidden save helper preserves that byte rather than deriving mode
+again from less-local state.
+
+### Do Not Reset Live BASIC Pointers On Warm Restore
+
+Reproven on 2026-05-11. It is correct to set KERNAL memory top/bottom on warm
+resume, but not to run the cold workspace reset after restoring zero page.
+`FRETOP`, `VARTAB`, `ARYTAB`, and `STREND` are live BASIC runtime state. Resetting
+them on warm entry can silently lose variables, arrays, or string heap state even
+when program text still looks valid.
+
+Current rule: split "set KERNAL memory bounds" from "force cold BASIC workspace
+pointers." Warm restore gets only the memory bounds unless the runtime snapshot
+is invalid and we deliberately fall back to an empty BASIC state.
 
 ### Do Not Reset `FRETOP` During Ordinary BASIC Dispatch
 
