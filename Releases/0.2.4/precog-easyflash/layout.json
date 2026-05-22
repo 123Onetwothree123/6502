@@ -6,7 +6,7 @@
     "bank_span": 2,
     "load_addr": 4096,
     "payload_len": 23029,
-    "checksum16": 46577
+    "checksum16": 46552
   },
   "apps": [
     {
@@ -78,7 +78,7 @@
       "bank_span": 3,
       "load_addr": 4096,
       "payload_len": 33085,
-      "checksum16": 54130,
+      "checksum16": 54131,
       "default_slot": 0
     },
     {
@@ -210,7 +210,7 @@
       "bank_span": 3,
       "load_addr": 4096,
       "payload_len": 38431,
-      "checksum16": 34254,
+      "checksum16": 34255,
       "default_slot": 0
     },
     {

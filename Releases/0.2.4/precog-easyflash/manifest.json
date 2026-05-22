@@ -2,7 +2,7 @@
   "id": "precog-easyflash",
   "display_name": "precog easyflash",
   "kind": "easyflash",
-  "version_text": "0.2.4Z",
+  "version_text": "0.2.4A",
   "catalog_source": "cfg/flavors/readyos_easyflash.ini",
   "artifacts": {
     "crt": "releases/0.2.4/precog-easyflash/readyos_easyflash.crt",
@@ -165,7 +165,7 @@
     "bank_span": 2,
     "load_addr": 4096,
     "payload_len": 23029,
-    "checksum16": 46577
+    "checksum16": 46552
   },
   "overlays": [
     {

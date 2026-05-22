@@ -7,7 +7,7 @@ EASYFLASH_LAUNCHER_BANK = 1
 EASYFLASH_LAUNCHER_BANK_SPAN = 2
 EASYFLASH_LAUNCHER_LOAD_ADDR = $1000
 EASYFLASH_LAUNCHER_PAYLOAD_LEN = $59F5
-EASYFLASH_LAUNCHER_CHECKSUM16 = $B5F1
+EASYFLASH_LAUNCHER_CHECKSUM16 = $B5D8
 READYSHELL_OVERLAY_STAGE_ADDR = $1000
 READYSHELL_OVERLAY_META_OFF = $4880F0
 
@@ -17,7 +17,7 @@ easyflash_app_table:
     .byte 3, 7, 2, <$1000, >$1000, <$7376, >$7376, <$A10C, >$A10C
     .byte 4, 9, 2, <$1000, >$1000, <$7D5B, >$7D5B, <$41B9, >$41B9
     .byte 5, 11, 1, <$1000, >$1000, <$3200, >$3200, <$C48B, >$C48B
-    .byte 6, 12, 3, <$1000, >$1000, <$813D, >$813D, <$D372, >$D372
+    .byte 6, 12, 3, <$1000, >$1000, <$813D, >$813D, <$D373, >$D373
     .byte 7, 15, 2, <$1000, >$1000, <$7B9B, >$7B9B, <$15DE, >$15DE
     .byte 8, 17, 1, <$1000, >$1000, <$3A4F, >$3A4F, <$FA24, >$FA24
     .byte 9, 18, 1, <$1000, >$1000, <$3FA5, >$3FA5, <$1681, >$1681
@@ -28,7 +28,7 @@ easyflash_app_table:
     .byte 14, 28, 2, <$1000, >$1000, <$41A9, >$41A9, <$A137, >$A137
     .byte 15, 30, 1, <$1000, >$1000, <$3C2C, >$3C2C, <$06C6, >$06C6
     .byte 16, 31, 2, <$1000, >$1000, <$4EB5, >$4EB5, <$D8D3, >$D8D3
-    .byte 17, 33, 3, <$1000, >$1000, <$961F, >$961F, <$85CE, >$85CE
+    .byte 17, 33, 3, <$1000, >$1000, <$961F, >$961F, <$85CF, >$85CF
     .byte 18, 36, 1, <$1000, >$1000, <$3AD6, >$3AD6, <$67C8, >$67C8
     .byte 19, 37, 2, <$1000, >$1000, <$587D, >$587D, <$2704, >$2704
     .byte 20, 39, 2, <$1000, >$1000, <$5416, >$5416, <$152D, >$152D
