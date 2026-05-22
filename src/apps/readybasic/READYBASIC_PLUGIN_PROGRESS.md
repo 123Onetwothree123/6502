@@ -20,8 +20,9 @@
   - Prevented warm resume from rereading `REGSEED` after BASIC may own `$4000+`.
 - Next hypothesis:
   - Run static guardrail target after each layout-sensitive edit.
-  - Add VICE command-level probes through normal ReadyOS boot once the launcher-side automation is updated for raw `RB COMMAND,...` samples.
-  - Existing ReadyBasic lifecycle probe still drives old demo commands such as `RB 2,...` and `RB 3,...`; do not treat it as a valid plugin-spine probe until it is regenerated for `PING`, `ADD16`, `STRUP`, and the handle commands.
+  - Add VICE command-level probes through normal ReadyOS boot once the launcher-side automation is updated for raw `!COMMAND args` samples.
+  - Existing ReadyBasic lifecycle probe still needed regeneration for the new
+    plugin-spine commands before it could be treated as authoritative.
 
 ## 2026-05-11: Static Guardrail
 
@@ -57,7 +58,7 @@
 - No longer relevant or intentionally replaced:
   - Demo commands `RB 1/2/3/10/11/12`, hidden screen drawing, mailbox text drawing, and PRG save/load helpers.
   - `$1201` BASIC workspace and old `$1000-$3FFF` compact load assumptions.
-  - Private `RB` token experiments. The visible probe showed the `$CC` token/list attempt can crash/blank `LIST`; V1 keeps raw direct `RB COMMAND,...` only.
+  - Private `RB` token experiments. The visible probe showed the `$CC` token/list attempt can crash/blank `LIST`; V1 keeps raw direct `!COMMAND args` only.
   - Direct app-bank hotkeys in probes. Acceptance should navigate the launcher menu for ReadyBasic re-entry.
 - Fixes from this review:
   - `cmd_exit` now identifies manual prompt `EXIT` by `TXTPTR < BASIC_START` instead of `CURLIN`; this matches the direct input buffer path and keeps program-line resume as a later candidate.
@@ -97,7 +98,7 @@
   - Direct command probes passed for `PING`, `ADD16`, `STRUP`, `HCRC`, `SUMAI`, `RANGEAI`, `BUFNEW`, `BUFFILL`, `BUFFREE`, `TEMPSCRATCH`, `FAIL`, and unknown-command error.
   - `EXIT` returned to the launcher.
   - ReadyBasic was relaunched by menu navigation, not `CTRL+3`.
-  - READY-mode resume cleared/redrew the ReadyBasic screen and `RB PING` still worked after resume.
+  - READY-mode resume cleared/redrew the ReadyBasic screen and `!PING` still worked after resume.
 - First failing step/code: none.
 - Next hypothesis:
   - Add an explicit BASIC variable/string survival check across the same launcher round trip before committing a known-good fallback branch.
@@ -111,7 +112,7 @@
   - Reused the already-built `precog-d81` image from the previous passing run.
   - Added `V%=321:VS$="OK"` before `EXIT`.
   - Returned to launcher, relaunched ReadyBasic by menu navigation, and asserted `STATE 321 :OK` after resume.
-  - Asserted `RESUME 1` from `RB PING` after the state check.
+  - Asserted `RESUME 1` from `!PING` after the state check.
   - Final bridge dump starts with `52 a6`, confirming READY resume magic after the round trip.
 - First failing step/code: none.
 - Next hypothesis:
@@ -133,7 +134,7 @@
   - Unknown command reported `?RB ERROR 1`.
   - Menu-based ReadyBasic re-entry passed; no `CTRL+3` path was used.
   - `V%=321` and `VS$="OK"` survived `EXIT` -> launcher -> menu relaunch.
-  - Post-resume `RB PING,P%` returned `RESUME 1`.
+  - Post-resume `!PING P%` returned `RESUME 1`.
 - First failing step/code: none.
 - Next hypothesis:
   - Commit the source/config/docs/static-check delta as the known-good fallback point.
@@ -144,7 +145,7 @@
 - First failing run dir: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260511_203414`
 - First failing step/code: `assert_program_ping_run`, screen contained `?SYNTAX ERROR` instead of `PRPING 1`.
 - Key diagnosis:
-  - `LIST` showed `10 RB PING`, so raw stored text survived crunch/list.
+  - `LIST` showed `10 !PING`, so raw stored text survived crunch/list.
   - Bridge debug state showed `$0308` was not reached during the stored line.
   - Dumping BASIC text proved `$3000`, the byte before relocated `BASIC_START=$3001`, contained `$20`.
   - C64 BASIC `NEWSTT` expects the byte before `TXTTAB` to be zero; otherwise it reports syntax before advancing into the first stored line.
@@ -158,16 +159,78 @@
 - Passing program run dir: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260511_204630`
 - Program result: pass, 24/24 steps after a fresh `precog-d81` profile build with `runappfirst=readybasic`.
 - Program trace:
-  - `RB PING,OUT%` works from stored BASIC and survives `LIST`.
-  - Same-line continuation works: `RB ADD16,...:PRINT ...`.
-  - String input/output works: `RB STRUP,S$,T$`.
-  - Hidden `$A000` worker works: `RB HCRC,"AB",H%`.
+  - `!PING OUT%` works from stored BASIC and survives `LIST`.
+  - Same-line continuation works: `!ADD16 ...:PRINT ...`.
+  - String input/output works: `!STRUP S$,T$`.
+  - Hidden `$A000` worker works: `!HCRC "AB",H%`.
   - Integer array input/output works: `SUMAI` and `RANGEAI`.
   - Persistent REU handle lifecycle works: `BUFNEW`, `BUFFILL`, `BUFFREE`.
-  - Error path works: `RB FAIL,7,X%` reports `?RB ERROR 7` and leaves the pre-cleared output variable at zero.
+  - Error path works: `!FAIL 7,X%` reports `?RB ERROR 7` and leaves the pre-cleared output variable at zero.
 - Regression command: `READYBASIC_SKIP_BUILD=1 READYBASIC_VISIBLE=1 bash /Users/karlprosserpp/dev/c64projects/agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_plugin_command_probe.sh`
 - Regression run dir: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260511_204727`
 - Regression result: pass, 47/47 steps.
 - Next hypothesis:
-  - The raw `RB COMMAND,...` path is now proven for both direct mode and stored program mode.
+  - The raw `!COMMAND args` path is now proven for both direct mode and stored program mode.
   - Future token/crunch work must keep the sentinel, IGONE fallback, and line-length contracts under explicit tests.
+
+## 2026-05-12: Full Suite Visual Verification Passed
+
+- Script: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_full_suite_visual_verification.sh`
+- Generated plan id: `readybasic_full_suite_visual_verification`
+- Command: `READYBASIC_VISIBLE=1 /Users/karlprosserpp/dev/c64projects/agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_full_suite_visual_verification.sh`
+- Run dir: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260512_002033`
+- Result: pass, 84/84 steps after a fresh `precog-d81` profile build with `READYOS_CONFIG_RUN_FIRST=readybasic`.
+- Visual pacing:
+  - All input sections use `post_delay_s: 3.0`, so the current result or `LIST` output remains visible for three seconds before the next screen-clearing section begins.
+- Key trace:
+  - Cold ReadyOS boot autoloaded ReadyBasic through the generated app config.
+  - Direct-mode sample commands passed across scalar, string, hidden worker, array, REU handle, temporary heap, failure, and unknown-command paths.
+  - Launcher round trip used menu navigation, not `CTRL+3`; ReadyBasic redrew on return and variables plus registry state survived.
+  - Stored BASIC program tests passed for `PING`, same-line `ADD16`, `STRUP`, hidden `HCRC`, `SUMAI`, `RANGEAI`, `BUFNEW/BUFFILL/BUFFREE`, and failure output clearing.
+- First failing step/code: none.
+- Next hypothesis:
+  - Keep this script as the human-watchable acceptance suite while shorter direct/program probes remain better for tight edit-run loops.
+
+## 2026-05-21: Bang Command Syntax Migration
+
+- Syntax changed from `RB NAME,...` to `!NAME args`, with the first argument
+  separated by spaces and later arguments still comma-separated.
+- Parser changes:
+  - `$0308` execute hook now recognizes raw `!` at BASIC statement start,
+    including after `:`.
+  - Command-name parsing uses raw `TXTPTR` reads so `!PING P%` does not absorb
+    `P%` as part of the command name.
+  - Parameter parsing allows whitespace before the first argument and commas for
+    subsequent arguments.
+  - A leading comma after the command name is rejected as syntax.
+- `IF ... THEN !COMMAND` fix:
+  - Added a tiny `$0304` crunch hook that calls ROM crunch first.
+  - After ROM tokenization, only a real `THEN` token followed by `!` is rewritten
+    to `THEN :!`, letting ROM BASIC reach the normal `$0308` statement dispatch.
+  - Quoted strings, `REM`, and `DATA` text containing `THEN !` are not rewritten.
+- Static command: `make readybasic-plugin-static-check`
+- Static result: pass; `RESIDENT $1200-$1BC1` (`$09C2`), `BRIDGE $C000-$C164`
+  (`$0165`).
+- Fresh-build command probe:
+  - Command: `READYBASIC_VISIBLE=1 bash .../run_readybasic_plugin_command_probe.sh`
+  - Run dir: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260521_010753`
+  - Follow-up run with direct `IF 1 THEN !PING`: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260521_011815`
+  - All steps reported `ok`; wrapper status was `partial` with no failed step.
+- Program probe:
+  - Run dir: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260521_012044`
+  - All steps reported `ok`, including stored `IF 1 THEN !PING`, `IF 0 THEN`,
+    `FOR/NEXT`, and `THEN !` inside string/`REM`/`DATA` text.
+- Full visual suite:
+  - Run dir: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260521_012154`
+  - All 98 steps reported `ok`; wrapper status was `partial` with no failed step.
+- Additional probes:
+  - Lifecycle: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260521_012603`, all 47 steps `ok`.
+  - State: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260521_012627`, all 57 steps `ok`.
+  - `RBTEST1`: `/Users/karlprosserpp/dev/c64projects/readyosprecog/logs/vice_auto_20260521_012719`, all 12 steps `ok`.
+  - Large vars: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260521_012739`, all 19 steps `ok`.
+- Harness instability:
+  - Cross-app resume reached step 200/206 before VICE exited with code 137:
+    `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260521_012802`.
+  - A rerun failed near launch with the same VICE exit code 137, and the
+    second-entry editor probe also failed before reaching ReadyBASIC due VICE
+    monitor/exit-137 launch failures.

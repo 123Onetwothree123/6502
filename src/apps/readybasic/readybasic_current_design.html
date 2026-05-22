@@ -1,0 +1,922 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ReadyBASIC Current Design</title>
+  <style>
+    :root {
+      --ink: #18202a;
+      --muted: #586477;
+      --paper: #f6f8fb;
+      --panel: #ffffff;
+      --line: #d8e0ea;
+      --resident: #1f7a5c;
+      --resident-bg: #dff7ec;
+      --basic: #1f6fbf;
+      --basic-bg: #ddecff;
+      --overlay: #087f8c;
+      --overlay-bg: #d8f5f8;
+      --reu: #7a4db3;
+      --reu-bg: #efe8ff;
+      --hidden: #a04478;
+      --hidden-bg: #ffe2f0;
+      --readyos: #8a5a00;
+      --readyos-bg: #fff1c9;
+      --error: #b02d3f;
+      --error-bg: #ffe0e6;
+      --bridge: #405165;
+      --bridge-bg: #e5ebf2;
+      --shadow: 0 14px 36px rgba(24, 32, 42, 0.08);
+      --radius: 8px;
+      color-scheme: light;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, #ecf4ff 0, rgba(246, 248, 251, 0) 380px),
+        var(--paper);
+      line-height: 1.52;
+    }
+    a { color: var(--basic); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      background: #eef3f8;
+      border: 1px solid #dbe4ee;
+      border-radius: 5px;
+      padding: 1px 5px;
+      font-size: 0.94em;
+    }
+    .page {
+      width: min(1220px, calc(100vw - 36px));
+      margin: 0 auto;
+    }
+    header {
+      padding: 54px 0 24px;
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--resident);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    h1 {
+      max-width: 980px;
+      margin: 0 0 14px;
+      font-size: clamp(34px, 5vw, 62px);
+      line-height: 1.02;
+      letter-spacing: 0;
+    }
+    .lead {
+      max-width: 920px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 20px;
+    }
+    .dashboard {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-top: 28px;
+    }
+    .metric {
+      min-height: 128px;
+      padding: 16px;
+      background: rgba(255, 255, 255, 0.86);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .metric b {
+      display: block;
+      font-size: 25px;
+      line-height: 1.05;
+      margin-bottom: 8px;
+    }
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      border-top: 1px solid rgba(216, 224, 234, 0.72);
+      border-bottom: 1px solid rgba(216, 224, 234, 0.92);
+      background: rgba(246, 248, 251, 0.93);
+      backdrop-filter: blur(12px);
+    }
+    nav .page {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 10px 0;
+    }
+    nav a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      padding: 7px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--bridge);
+      font-size: 13px;
+      font-weight: 700;
+    }
+    main { padding: 30px 0 72px; }
+    section {
+      margin: 0 0 34px;
+      scroll-margin-top: 76px;
+    }
+    .band {
+      padding: 24px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    h2 {
+      margin: 0 0 14px;
+      font-size: 29px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+    h3 {
+      margin: 0 0 8px;
+      font-size: 18px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+    p { margin: 0 0 12px; }
+    .muted { color: var(--muted); }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+    .callout {
+      margin: 14px 0;
+      padding: 14px 16px;
+      border-left: 5px solid var(--basic);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      background: var(--basic-bg);
+    }
+    .callout.good { border-left-color: var(--resident); background: var(--resident-bg); }
+    .callout.warn { border-left-color: var(--readyos); background: var(--readyos-bg); }
+    .callout.error { border-left-color: var(--error); background: var(--error-bg); }
+
+    table {
+      width: 100%;
+      margin: 14px 0;
+      border: 1px solid var(--line);
+      border-collapse: collapse;
+      border-radius: var(--radius);
+      overflow: hidden;
+      font-size: 14px;
+    }
+    th, td {
+      padding: 10px 12px;
+      text-align: left;
+      vertical-align: top;
+      border-bottom: 1px solid var(--line);
+    }
+    th {
+      background: #eef3f9;
+      color: var(--bridge);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+    tr:last-child td { border-bottom: none; }
+
+    .syntax-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+    .syntax-box {
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfdff;
+    }
+    .syntax-line {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      margin: 10px 0;
+      border: 1px solid #c8d6e5;
+      border-radius: var(--radius);
+      background: #0f172a;
+      color: #e6f0ff;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 18px;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+    .status-list {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .status-list li {
+      display: grid;
+      grid-template-columns: 92px 1fr;
+      gap: 10px;
+      align-items: start;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+    .pill {
+      display: inline-flex;
+      justify-content: center;
+      min-width: 72px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--resident-bg);
+      color: var(--resident);
+      font-size: 12px;
+      font-weight: 850;
+    }
+    .pill.no { background: var(--error-bg); color: var(--error); }
+    .pill.text { background: var(--bridge-bg); color: var(--bridge); }
+
+    .category-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    .category {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 14px;
+    }
+    .category h3 {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .cmd-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 8px 0;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--bridge-bg);
+      color: var(--bridge);
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .chip.low { background: var(--overlay-bg); color: var(--overlay); }
+    .chip.hidden { background: var(--hidden-bg); color: var(--hidden); }
+    .chip.reu { background: var(--reu-bg); color: var(--reu); }
+    .chip.error { background: var(--error-bg); color: var(--error); }
+
+    .memory-map {
+      display: grid;
+      grid-template-columns: 150px 1fr 92px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: #fff;
+      margin: 18px 0;
+    }
+    .addr, .size {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 46px;
+      padding: 10px;
+      background: #f1f5f9;
+      color: var(--bridge);
+      border-bottom: 1px solid var(--line);
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-weight: 850;
+      font-size: 13px;
+    }
+    .addr { border-right: 1px solid var(--line); }
+    .size { border-left: 1px solid var(--line); }
+    .region {
+      min-height: 46px;
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.7);
+    }
+    .region b { display: block; }
+    .region small { display: block; color: rgba(24, 32, 42, 0.68); }
+    .memory-map > :nth-last-child(-n+3) { border-bottom: none; }
+    .r-entry { background: #e8edf5; }
+    .r-resident { background: var(--resident-bg); }
+    .r-overlay { background: var(--overlay-bg); }
+    .r-shared { background: #fff5d9; }
+    .r-basic { background: var(--basic-bg); }
+    .r-hidden { background: var(--hidden-bg); }
+    .r-bridge { background: var(--bridge-bg); }
+    .r-readyos { background: var(--readyos-bg); }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      margin: 16px 0;
+    }
+    .step {
+      position: relative;
+      min-height: 124px;
+      padding: 13px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+    .step::after {
+      content: ">";
+      position: absolute;
+      right: -9px;
+      top: 45%;
+      width: 18px;
+      height: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: var(--basic);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 900;
+      z-index: 2;
+    }
+    .step:last-child::after { display: none; }
+    .num {
+      display: inline-flex;
+      width: 25px;
+      height: 25px;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 8px;
+      border-radius: 50%;
+      background: var(--basic-bg);
+      color: var(--basic);
+      font-weight: 900;
+    }
+    .flow.resume .step::after { background: var(--readyos); }
+    .flow.resume .num { background: var(--readyos-bg); color: var(--readyos); }
+
+    .pipeline {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin: 16px 0;
+    }
+    .pipe {
+      min-height: 154px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+    .dot {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      margin-right: 7px;
+      border-radius: 50%;
+      background: var(--basic);
+    }
+    .dot.resident { background: var(--resident); }
+    .dot.overlay { background: var(--overlay); }
+    .dot.error { background: var(--error); }
+
+    .bank-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin: 16px 0;
+    }
+    .bank {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+    .bank-title {
+      padding: 14px;
+      color: #fff;
+      font-weight: 900;
+    }
+    .bank.core .bank-title { background: var(--reu); }
+    .bank.code .bank-title { background: var(--overlay); }
+    .slice {
+      display: grid;
+      grid-template-columns: 112px 1fr;
+      border-bottom: 1px solid var(--line);
+    }
+    .slice:last-child { border-bottom: none; }
+    .slice span:first-child {
+      padding: 9px;
+      background: #f8fafc;
+      border-right: 1px solid var(--line);
+      color: var(--bridge);
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-weight: 850;
+    }
+    .slice span:last-child { padding: 9px; }
+
+    .invariants {
+      columns: 2;
+      column-gap: 30px;
+      padding-left: 18px;
+    }
+    .invariants li {
+      margin-bottom: 8px;
+      break-inside: avoid;
+    }
+    footer {
+      padding: 24px 0 44px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 980px) {
+      .dashboard, .syntax-grid, .grid-2, .grid-3, .category-grid, .bank-grid, .pipeline {
+        grid-template-columns: 1fr;
+      }
+      .flow { grid-template-columns: 1fr; }
+      .step::after {
+        content: "v";
+        right: auto;
+        left: 22px;
+        top: auto;
+        bottom: -9px;
+      }
+      .memory-map { grid-template-columns: 112px 1fr 76px; }
+      .invariants { columns: 1; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="page">
+      <div class="eyebrow">ReadyBASIC current design</div>
+      <h1>Raw ! Commands, REU Plugin Spine, ReadyOS Suspend/Resume</h1>
+      <p class="lead">
+        A factual visual guide to the current ReadyBASIC implementation:
+        visible BASIC syntax, command categories, C64 RAM ownership, REU bank
+        layout, command frames, cold boot, manual EXIT, and warm resume.
+      </p>
+      <div class="dashboard">
+        <div class="metric"><b>!COMMAND args</b><span>First arg after whitespace, later args comma-separated.</span></div>
+        <div class="metric"><b>$1200-$1BC1</b><span>Visible resident core. Parser, hooks, ROM calls, REU DMA, commit.</span></div>
+        <div class="metric"><b>REU $44 / $45</b><span>Core/system bank and packed command-code bank.</span></div>
+        <div class="metric"><b>11 commands</b><span>Examples cover scalar, string, array, hidden, handle, temp, and error paths.</span></div>
+      </div>
+    </div>
+  </header>
+
+  <nav>
+    <div class="page">
+      <a href="#syntax">Syntax</a>
+      <a href="#commands">Command Families</a>
+      <a href="#overlays">Overlays</a>
+      <a href="#memory">C64 RAM</a>
+      <a href="#basicram">BASIC RAM</a>
+      <a href="#vectors">Vectors</a>
+      <a href="#pipeline">Pipeline</a>
+      <a href="#reu">REU</a>
+      <a href="#lifecycle">Lifecycle</a>
+      <a href="#verify">Verification</a>
+    </div>
+  </nav>
+
+  <main class="page">
+    <section id="syntax" class="band">
+      <h2>Current Syntax And Statement Behavior</h2>
+      <div class="syntax-grid">
+        <div class="syntax-box">
+          <p>ReadyBASIC commands use raw visible text. Stored lines remain readable, and <code>LIST</code> shows the command text.</p>
+          <span class="syntax-line">!COMMAND first,arg,arg</span>
+          <p>
+            The command name follows <code>!</code>. The first argument is separated by whitespace,
+            and later arguments use commas. A leading comma after the command name is rejected.
+          </p>
+          <div class="callout good">
+            <strong>IF normalization:</strong> <code>IF 1 THEN !PING P%</code> works, but stores/lists as
+            <code>IF 1 THEN :!PING P%</code> so BASIC reaches the normal statement dispatcher.
+          </div>
+        </div>
+        <ul class="status-list">
+          <li><span class="pill">Yes</span><span>Immediate mode, for example <code>!PING P%</code>.</span></li>
+          <li><span class="pill">Yes</span><span>Stored program line start.</span></li>
+          <li><span class="pill">Yes</span><span>After <code>:</code>, for example <code>PRINT "A":!PING P%</code>.</span></li>
+          <li><span class="pill">Yes</span><span>Inside a <code>FOR/NEXT</code> body as a normal statement.</span></li>
+          <li><span class="pill">Yes</span><span>After <code>IF ... THEN</code>, through the lean crunch rewrite.</span></li>
+          <li><span class="pill text">Text</span><span>Inside strings, <code>REM</code>, and <code>DATA</code>; not rewritten or dispatched.</span></li>
+          <li><span class="pill no">No</span><span>Inside expressions, <code>PRINT</code> lists, or <code>FOR</code> clauses.</span></li>
+          <li><span class="pill no">No</span><span><code>ELSE</code> is not native BASIC V2 and is not added by ReadyBASIC.</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="commands" class="band">
+      <h2>Command Families</h2>
+      <p>
+        These are implementation examples of command shapes the spine supports,
+        not the final product command catalog.
+      </p>
+      <div class="category-grid">
+        <div class="category">
+          <h3>Scalar Outputs <span class="chip low">low overlay</span></h3>
+          <div class="cmd-row"><span class="chip">PING</span><span class="chip">ADD16</span></div>
+          <p>Prove integer output variables, numeric expression parsing, output clearing, and scalar commit.</p>
+        </div>
+        <div class="category">
+          <h3>String Transfer/Transform <span class="chip low">low overlay</span></h3>
+          <div class="cmd-row"><span class="chip">STRUP</span></div>
+          <p>Captures string variables or quoted literals, stages transformed bytes, and lets resident code allocate the BASIC string result.</p>
+        </div>
+        <div class="category">
+          <h3>Hidden Banked Worker <span class="chip hidden">hidden</span></h3>
+          <div class="cmd-row"><span class="chip">HCRC</span></div>
+          <p>Runs worker code under BASIC ROM RAM in the <code>$A800</code> hidden overlay slot and returns an integer result.</p>
+        </div>
+        <div class="category">
+          <h3>Integer Array Transfer <span class="chip low">low overlay</span></h3>
+          <div class="cmd-row"><span class="chip">SUMAI</span><span class="chip">RANGEAI</span></div>
+          <p>Uses explicit base element plus count, for example <code>A%(0),N</code>, to read or write integer arrays.</p>
+        </div>
+        <div class="category">
+          <h3>Persistent REU Handles <span class="chip reu">REU data</span></h3>
+          <div class="cmd-row"><span class="chip">BUFNEW</span><span class="chip">BUFFILL</span><span class="chip">BUFFREE</span></div>
+          <p>Returns small BASIC integer handles for persistent data pages in REU bank <code>$44</code>.</p>
+        </div>
+        <div class="category">
+          <h3>Temporary REU Workspace <span class="chip reu">temp pages</span></h3>
+          <div class="cmd-row"><span class="chip">TEMPSCRATCH</span></div>
+          <p>Allocates and immediately frees pages, proving temporary workspace without persistent state leaks.</p>
+        </div>
+        <div class="category">
+          <h3>Error/Failure Contract <span class="chip error">error path</span></h3>
+          <div class="cmd-row"><span class="chip">FAIL</span></div>
+          <p>Clears output first, then reports <code>?RB ERROR n</code> without committing stale results.</p>
+        </div>
+        <div class="category">
+          <h3>ReadyOS Yield <span class="chip">system</span></h3>
+          <div class="cmd-row"><span class="chip">EXIT</span></div>
+          <p>Manual prompt command that saves BASIC runtime state, restores vectors, and returns through the ReadyOS shim.</p>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Command</th><th>Placement</th><th>Parameters</th><th>Result</th></tr></thead>
+        <tbody>
+          <tr><td><code>!PING OUT%</code></td><td>Low <code>$1C00+$0000</code>, copy <code>$0015</code></td><td>output integer</td><td>Returns <code>1</code>.</td></tr>
+          <tr><td><code>!ADD16 A,B,OUT%</code></td><td>Low <code>$1C00+$0015</code>, copy <code>$001E</code></td><td>two numeric expressions, output integer</td><td>Returns 16-bit sum.</td></tr>
+          <tr><td><code>!STRUP S$,OUT$</code></td><td>Low <code>$1C00+$0033</code>, copy <code>$003B</code></td><td>string variable or quoted literal, output string</td><td>Uppercases staged bytes.</td></tr>
+          <tr><td><code>!HCRC S$,OUT%</code></td><td>Hidden <code>$A800</code>, copy <code>$004D</code></td><td>string variable or quoted literal, output integer</td><td>Returns uppercase-byte checksum.</td></tr>
+          <tr><td><code>!SUMAI A%(0),COUNT,OUT%</code></td><td>Low <code>$1C00+$006E</code>, copy <code>$0044</code></td><td>array base, count, output integer</td><td>Sums integer array elements.</td></tr>
+          <tr><td><code>!RANGEAI START,COUNT,A%(0)</code></td><td>Low <code>$1C00+$00B2</code>, copy <code>$003D</code></td><td>start, count, output array base</td><td>Stages consecutive integers for resident commit.</td></tr>
+          <tr><td><code>!BUFNEW LEN,H%</code></td><td>Low entry <code>$00EF</code>, copy <code>$02F3</code></td><td>byte length, output handle</td><td>Allocates pages and returns one-based handle.</td></tr>
+          <tr><td><code>!BUFFILL H%,BYTE</code></td><td>Low entry <code>$00F3</code>, copy <code>$02F3</code></td><td>handle, fill byte</td><td>Fills handle pages through <code>$2700</code>.</td></tr>
+          <tr><td><code>!BUFFREE H%</code></td><td>Low entry <code>$00F7</code>, copy <code>$02F3</code></td><td>handle</td><td>Frees metadata and page bitmap state.</td></tr>
+          <tr><td><code>!TEMPSCRATCH LEN,OUT%</code></td><td>Low entry <code>$00FB</code>, copy <code>$02F3</code></td><td>byte length, output integer</td><td>Returns pages required after temporary allocation/free.</td></tr>
+          <tr><td><code>!FAIL CODE,OUT%</code></td><td>Low <code>$1C00+$00FF</code>, copy <code>$001B</code></td><td>error code, output integer</td><td>Clears output, then reports <code>?RB ERROR code</code>.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="overlays" class="band">
+      <h2>Command Overlay Loading And Files Involved</h2>
+      <p>
+        There is one ReadyBASIC app executable: <code>bin/readybasic.prg</code>.
+        There is not one PRG or executable file per command. The command
+        overlays are linker segments inside that one PRG load image.
+      </p>
+      <div class="grid-2">
+        <div>
+          <h3>Files And Artifacts</h3>
+          <table>
+            <thead><tr><th>File or artifact</th><th>Role</th></tr></thead>
+            <tbody>
+              <tr><td><code>readybasic.s</code></td><td>All current ReadyBASIC code, command descriptors, low overlay code, hidden overlay code, and hidden helpers.</td></tr>
+              <tr><td><code>ready_app_readybasic.cfg</code></td><td>Defines resident code, <code>CMDPACK</code>, <code>REGSEED</code>, hidden helper load image, bridge load image, and runtime overlay slots.</td></tr>
+              <tr><td><code>Makefile</code></td><td>Assembles, links, and writes <code>bin/readybasic.prg</code> plus <code>obj/readybasic.map</code>.</td></tr>
+              <tr><td><code>obj/readybasic.map</code></td><td>Current source of truth for segment ranges and sizes.</td></tr>
+              <tr><td><code>rbtest1.bas</code></td><td>Sample BASIC program only; not part of the command overlay mechanism.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <h3>Load Image To Runtime</h3>
+          <div class="flow">
+            <div class="step"><span class="num">1</span><h3>Link</h3><p><code>LOWPACK</code>, <code>HIDDENPACK</code>, and <code>REGSEED</code> are embedded in one PRG.</p></div>
+            <div class="step"><span class="num">2</span><h3>Cold Seed</h3><p>Hidden helper copies registry/header to bank <code>$44</code> and command code to bank <code>$45</code>.</p></div>
+            <div class="step"><span class="num">3</span><h3>Release</h3><p>BASIC may later own former load-image ranges such as <code>$4000+</code>.</p></div>
+            <div class="step"><span class="num">4</span><h3>Fetch</h3><p>Each command descriptor tells the loader which bank <code>$45</code> bytes to copy.</p></div>
+            <div class="step"><span class="num">5</span><h3>Call</h3><p>Low code runs at <code>$1C00</code>; hidden code runs under BASIC ROM at <code>$A800</code>.</p></div>
+          </div>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Segment</th><th>Load/source role</th><th>Runtime role</th></tr></thead>
+        <tbody>
+          <tr><td><code>LOWPACK</code></td><td>Packed low command bytes in <code>CMDPACK</code>, prestashed to bank <code>$45</code> offset <code>$0000</code>.</td><td>Fetched on demand into the fixed low overlay slot <code>$1C00-$23FF</code>.</td></tr>
+          <tr><td><code>HIDDENPACK</code></td><td>Packed hidden worker bytes after <code>LOWPACK</code>, prestashed to bank <code>$45</code> offset <code>$02F3</code>.</td><td>Fetched on demand into hidden RAM at <code>$A800-$A84C</code>.</td></tr>
+          <tr><td><code>REGSEED</code></td><td>Load-only registry header and command descriptors at <code>$4000-$416F</code>.</td><td>Copied on cold boot into bank <code>$44</code> offsets <code>$0000</code> and <code>$0100</code>.</td></tr>
+        </tbody>
+      </table>
+      <div class="callout warn">
+        Cold boot is the only time the load-image command pack and
+        <code>REGSEED</code> are trusted. Warm resume reuses the REU copies and
+        does not reseed from <code>$2800+</code> or <code>$4000+</code>.
+      </div>
+    </section>
+
+    <section id="memory" class="band">
+      <h2>C64 RAM Layout</h2>
+      <p>
+        ReadyBASIC runs inside the ReadyOS app working region <code>$1000-$C5FF</code>.
+        Shared ReadyOS metadata and shim space above that are not general scratch.
+      </p>
+      <div class="memory-map" aria-label="C64 RAM map">
+        <div class="addr">$1000-$1102</div><div class="region r-entry"><b>ENTRY</b><small>Cold/warm discriminator and early copy code.</small></div><div class="size">$0103</div>
+        <div class="addr">$1200-$1BC1</div><div class="region r-resident"><b>RESIDENT</b><small>Parser, hooks, BASIC ROM calls, REU DMA, result commit.</small></div><div class="size">$09C2</div>
+        <div class="addr">$1C00-$23FF</div><div class="region r-overlay"><b>Low Overlay Slot</b><small>Runtime destination for command slices copied from bank <code>$45</code>.</small></div><div class="size">2 KB</div>
+        <div class="addr">$1C00-$1EF2</div><div class="region r-overlay"><b>LOWPACK Image</b><small>Current linked low command pack before REU prestash.</small></div><div class="size">$02F3</div>
+        <div class="addr">$2400-$27FF</div><div class="region r-shared"><b>Shared Frames</b><small>Call frame, result frame, descriptor/name/page buffers.</small></div><div class="size">1 KB</div>
+        <div class="addr">$2800-$2FFF</div><div class="region r-overlay"><b>Command Pack Load Image</b><small>Low and hidden overlay seed bytes before cold prestash.</small></div><div class="size">load</div>
+        <div class="addr">$3000</div><div class="region r-basic"><b>BASIC Sentinel</b><small>Must stay zero before stored-program RUN.</small></div><div class="size">1 byte</div>
+        <div class="addr">$3001-$95FF</div><div class="region r-basic"><b>BASIC Workspace</b><small>Program text, variables, arrays, string heap.</small></div><div class="size">BASIC</div>
+        <div class="addr">$4000-$416F</div><div class="region r-shared"><b>REGSEED Load-Only Image</b><small>Cold descriptor seed copied to REU, then this range may be BASIC-owned.</small></div><div class="size">$0170</div>
+        <div class="addr">$9600-$99FF</div><div class="region r-readyos"><b>Runtime Snapshot</b><small>Zero page, stack, SP, mode, line-chain guards.</small></div><div class="size">1 KB</div>
+        <div class="addr">$9A00-$9FFF</div><div class="region r-hidden"><b>Hidden Shadow</b><small>Warm source for restoring <code>$A000</code> helper.</small></div><div class="size">1.5 KB</div>
+        <div class="addr">$A000-$A237</div><div class="region r-hidden"><b>HIDDEN</b><small>Helper code under BASIC ROM RAM.</small></div><div class="size">$0238</div>
+        <div class="addr">$A800-$A84C</div><div class="region r-hidden"><b>HIDDENPACK</b><small>Hidden worker overlay image.</small></div><div class="size">$004D</div>
+        <div class="addr">$C000-$C164</div><div class="region r-bridge"><b>BRIDGE</b><small>Magic, saved vectors, overlay vars, handles, debug bytes.</small></div><div class="size">$0165</div>
+        <div class="addr">$C600-$C7FF</div><div class="region r-readyos"><b>ReadyOS REU Metadata</b><small>ReadyBASIC only marks REU bank ownership here.</small></div><div class="size">shared</div>
+        <div class="addr">$C800-$C9FF</div><div class="region r-readyos"><b>ReadyOS Shim ABI</b><small>Jump table/data, not ReadyBASIC RAM.</small></div><div class="size">shared</div>
+      </div>
+      <div class="callout warn">
+        <strong>Load image versus runtime:</strong> cold entry copies hidden, bridge,
+        registry, and command seeds out of the PRG load image. After that,
+        BASIC owns <code>$3001-$95FF</code>, so warm resume must not reread cold-only seed
+        tables at <code>$4000+</code>.
+      </div>
+    </section>
+
+    <section id="basicram" class="band">
+      <h2>BASIC Free RAM And Growth Strategy</h2>
+      <p>
+        Stock C64 BASIC V2 starts at <code>$0801</code> with top at
+        <code>$A000</code>, giving about <code>38911</code> bytes free.
+        ReadyBASIC relocates BASIC to <code>$3001</code> with top at
+        <code>$9600</code>. On an empty ReadyBASIC workspace, variables begin at
+        <code>$3003</code>, so the practical empty BASIC free space is
+        <code>$9600 - $3003 = 26109</code> bytes.
+      </p>
+      <div class="grid-3">
+        <div class="metric"><b>38911 bytes</b><span>Stock empty C64 BASIC V2 free space.</span></div>
+        <div class="metric"><b>26109 bytes</b><span>Current empty ReadyBASIC free space.</span></div>
+        <div class="metric"><b>-12802 bytes</b><span>ReadyBASIC tradeoff for ReadyOS integration, overlays, frames, and resume state.</span></div>
+      </div>
+      <table>
+        <thead><tr><th>Environment</th><th>BASIC text start</th><th>BASIC top</th><th>Empty free bytes</th></tr></thead>
+        <tbody>
+          <tr><td>Stock C64 BASIC V2</td><td><code>$0801</code></td><td><code>$A000</code></td><td><code>38911</code></td></tr>
+          <tr><td>ReadyBASIC current layout</td><td><code>$3001</code></td><td><code>$9600</code></td><td><code>26109</code></td></tr>
+          <tr><td>Difference</td><td>-</td><td>-</td><td><code>-12802</code></td></tr>
+        </tbody>
+      </table>
+      <div class="grid-2">
+        <div>
+          <h3>How To Add Many More Commands</h3>
+          <ul>
+            <li>Keep the resident core below <code>$1C00</code>; every resident byte is permanent C64 RAM pressure.</li>
+            <li>Put implementation code in packed REU code banks and copy it into existing overlay slots only when invoked.</li>
+            <li>Reuse existing signatures and commit paths where possible.</li>
+            <li>Keep descriptors in the REU registry, not in resident RAM.</li>
+            <li>Expose large or persistent state as BASIC integer handles backed by dynamic REU banks.</li>
+            <li>If bank <code>$45</code> becomes crowded, extend the registry for more packed code banks instead of lowering BASIC top.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Current Per-Command Overhead</h3>
+          <table>
+            <thead><tr><th>New command kind</th><th>Permanent C64 RAM</th><th>REU/load image</th></tr></thead>
+            <tbody>
+              <tr><td>Existing signature and overlay slot</td><td>Usually <code>0</code> bytes of BASIC workspace and <code>0</code> bytes resident.</td><td>32-byte descriptor plus command code bytes.</td></tr>
+              <tr><td>New parameter/result signature</td><td>No BASIC workspace cost; resident parser/commit support grows.</td><td>32-byte descriptor plus command code bytes.</td></tr>
+              <tr><td>Persistent data</td><td>No BASIC workspace cost if represented as a handle.</td><td>Descriptor/code bytes plus REU data allocation and handle metadata.</td></tr>
+              <tr><td>Larger fixed C64 buffer</td><td>Costs C64 RAM only if it expands frames, slots, resident code, or bridge state.</td><td>Prefer REU if possible.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="vectors" class="band">
+      <h2>Page-3 Vector Ownership</h2>
+      <table>
+        <thead><tr><th>Vector</th><th>Address</th><th>ReadyBASIC role</th></tr></thead>
+        <tbody>
+          <tr><td>Crunch</td><td><code>$0304/$0305</code></td><td>Calls ROM crunch first, then normalizes tokenized <code>THEN !</code> into <code>THEN :!</code>.</td></tr>
+          <tr><td>List</td><td><code>$0306/$0307</code></td><td>Saved/restored; V1 leaves normal ROM listing behavior.</td></tr>
+          <tr><td>Execute</td><td><code>$0308/$0309</code></td><td>Peeks for <code>!</code> or <code>EXIT</code>; otherwise tail-calls the original execute vector without advancing <code>TXTPTR</code>.</td></tr>
+        </tbody>
+      </table>
+      <div class="callout error">
+        <strong>Restore-before-yield is mandatory.</strong> Page-3 vectors are
+        global machine state. <code>EXIT</code> restores the originals before the ReadyOS
+        shim return so other apps cannot dispatch through stale ReadyBASIC code.
+      </div>
+    </section>
+
+    <section id="pipeline" class="band">
+      <h2>Command Dispatch Pipeline</h2>
+      <div class="pipeline">
+        <div class="pipe"><h3><span class="dot"></span>Match</h3><p>Execute hook peeks without mutating <code>TXTPTR</code>. Non-ReadyBASIC statements tail-call ROM.</p></div>
+        <div class="pipe"><h3><span class="dot resident"></span>Parse</h3><p>Command name normalizes into <code>$26A0</code>; descriptors are scanned from REU bank <code>$44</code>.</p></div>
+        <div class="pipe"><h3><span class="dot overlay"></span>Execute</h3><p>Code is fetched from bank <code>$45</code> into <code>$1C00</code> or <code>$A800</code>, then writes result frame <code>$2500</code>.</p></div>
+        <div class="pipe"><h3><span class="dot error"></span>Commit</h3><p>Resident prints <code>?RB ERROR n</code> on failure or commits integer, string, or array results.</p></div>
+      </div>
+      <table>
+        <thead><tr><th>Surface</th><th>Address or offset</th><th>Role</th></tr></thead>
+        <tbody>
+          <tr><td>Call frame</td><td><code>$2400</code></td><td>Command id, parameter count, numeric slots, pointer/count slots, string input buffer.</td></tr>
+          <tr><td>Result frame</td><td><code>$2500</code></td><td>Status, error, value tag, scalar value, string output buffer, array output buffer.</td></tr>
+          <tr><td>Descriptor buffer</td><td><code>$2680</code></td><td>One descriptor fetched from REU bank <code>$44</code>.</td></tr>
+          <tr><td>Command buffer</td><td><code>$26A0</code></td><td>Uppercase normalized command name.</td></tr>
+          <tr><td>Page buffer</td><td><code>$2700</code></td><td>256-byte staging page for REU handle operations.</td></tr>
+          <tr><td>REU call snapshot</td><td>Bank <code>$44</code>, <code>$0400</code></td><td>Copy of the current call frame.</td></tr>
+          <tr><td>REU result snapshot</td><td>Bank <code>$44</code>, <code>$0500</code></td><td>Copy of the current result frame.</td></tr>
+        </tbody>
+      </table>
+      <div class="grid-2">
+        <div>
+          <h3>Descriptor ABI</h3>
+          <table>
+            <tbody>
+              <tr><td><code>0</code></td><td>Command id.</td></tr>
+              <tr><td><code>1</code></td><td>Flags: low or hidden overlay.</td></tr>
+              <tr><td><code>2-9</code></td><td>Low/hidden code offsets and sizes in bank <code>$45</code>.</td></tr>
+              <tr><td><code>10-13</code></td><td>Low/hidden entry offsets from <code>$1C00</code> or <code>$A000</code>.</td></tr>
+              <tr><td><code>14-15</code></td><td>Signature id and command-name length.</td></tr>
+              <tr><td><code>16-31</code></td><td>Uppercase command-name bytes, zero padded.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <h3>Result Tags</h3>
+          <table>
+            <tbody>
+              <tr><td><code>0</code></td><td>No result.</td></tr>
+              <tr><td><code>1</code></td><td>Integer result.</td></tr>
+              <tr><td><code>2</code></td><td>String result.</td></tr>
+              <tr><td><code>3</code></td><td>Integer array result.</td></tr>
+            </tbody>
+          </table>
+          <p class="muted">String heap writes happen only in visible resident code after successful worker execution.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="reu" class="band">
+      <h2>REU Layout</h2>
+      <p>
+        ReadyBASIC reserves bank <code>$44</code> for core/system state and bank <code>$45</code> for
+        packed command code, then marks ReadyOS ownership at <code>$C600+$44/$45</code>.
+      </p>
+      <div class="bank-grid">
+        <div class="bank core">
+          <div class="bank-title">Bank $44: Core/System Storage, type 14</div>
+          <div class="slice"><span>$0000</span><span>Header: <code>RBPL</code>, version, descriptor count, descriptor size, frame offsets.</span></div>
+          <div class="slice"><span>$0100</span><span>11 command descriptors, 32 bytes each.</span></div>
+          <div class="slice"><span>$0400</span><span>Current call-frame snapshot.</span></div>
+          <div class="slice"><span>$0500</span><span>Current result-frame snapshot.</span></div>
+          <div class="slice"><span>$0600</span><span>Reserved debug ring area.</span></div>
+          <div class="slice"><span>$0800</span><span>Persistent handle metadata snapshot.</span></div>
+          <div class="slice"><span>$0900</span><span>Reserved transient heap/staging area.</span></div>
+          <div class="slice"><span>$8000</span><span>V1 sample data heap: 16 pages of 256 bytes.</span></div>
+        </div>
+        <div class="bank code">
+          <div class="bank-title">Bank $45: Packed Command Code, type 15</div>
+          <div class="slice"><span>$0000</span><span>Low overlay pack <code>$0000-$02DC</code>, copied into <code>$1C00-$23FF</code>.</span></div>
+          <div class="slice"><span>$02F3</span><span>Hidden overlay pack <code>$02F3-$033F</code>, copied into <code>$A800-$A84C</code>.</span></div>
+          <div class="slice"><span>desc</span><span>Descriptors point to code offsets, code sizes, and run offsets.</span></div>
+          <div class="slice"><span>handles</span><span>Handle commands fetch the full <code>$02F3</code> low pack because shared allocator helpers live there.</span></div>
+        </div>
+      </div>
+      <div class="callout good">
+        BASIC sees persistent objects as small integer handles. Bridge/REU
+        metadata records bank, start page, page count, type, and bitmap state.
+      </div>
+    </section>
+
+    <section id="lifecycle" class="band">
+      <h2>Cold Boot, EXIT, And Warm Resume</h2>
+      <h3>Cold Boot</h3>
+      <div class="flow">
+        <div class="step"><span class="num">1</span><h3>Load</h3><p>ReadyOS loads <code>readybasic.prg</code> at <code>$1000</code>.</p></div>
+        <div class="step"><span class="num">2</span><h3>Copy</h3><p>Entry copies hidden helper seed to <code>$A000</code> and <code>$9A00</code>, then bridge seed to <code>$C000</code>.</p></div>
+        <div class="step"><span class="num">3</span><h3>Relocate</h3><p>Resident installs hooks and relocates BASIC to <code>$3001</code> with top at <code>$9600</code>.</p></div>
+        <div class="step"><span class="num">4</span><h3>Seed REU</h3><p>Bank <code>$44</code> gets header/descriptors; bank <code>$45</code> gets packed command code.</p></div>
+        <div class="step"><span class="num">5</span><h3>READY</h3><p>ReadyBASIC clears/redraws the screen, prints its banner, and enters <code>BASIC_READY</code>.</p></div>
+      </div>
+      <h3>Manual EXIT And Warm Resume</h3>
+      <div class="flow resume">
+        <div class="step"><span class="num">1</span><h3>EXIT</h3><p>Manual prompt <code>EXIT</code> stores READY-mode bridge and entry magic.</p></div>
+        <div class="step"><span class="num">2</span><h3>Snapshot</h3><p>Zero page, stack page, SP, mode, and guards are saved under <code>$9600-$99FF</code>.</p></div>
+        <div class="step"><span class="num">3</span><h3>Yield</h3><p>Original vectors are restored and ReadyBASIC jumps to shim return <code>$C80C</code>.</p></div>
+        <div class="step"><span class="num">4</span><h3>Restore</h3><p>Warm entry restores <code>$A000</code> from <code>$9A00</code>, reinstalls vectors, and re-marks REU ownership.</p></div>
+        <div class="step"><span class="num">5</span><h3>Resume</h3><p>Runtime state is restored, live BASIC pointers are preserved, and the screen is redrawn.</p></div>
+      </div>
+      <div class="callout warn">
+        Warm resume does not cold-reset <code>FRETOP</code>, <code>VARTAB</code>, <code>ARYTAB</code>, or
+        <code>STREND</code>. Those live BASIC pointers must survive with variables, arrays,
+        and string heap state intact.
+      </div>
+    </section>
+
+    <section id="invariants" class="band">
+      <h2>Hard Invariants</h2>
+      <ul class="invariants">
+        <li>Boot ReadyBASIC through normal ReadyOS run/profile flows.</li>
+        <li><code>BASIC_START</code> remains <code>$3001</code>.</li>
+        <li><code>$3000</code> remains zero before stored-program <code>RUN</code>.</li>
+        <li><code>RESIDENT</code> stays below <code>$1C00</code>.</li>
+        <li><code>BRIDGE</code> stays below <code>$C600</code>.</li>
+        <li><code>$C600-$C7FF</code> is shared ReadyOS REU metadata.</li>
+        <li><code>$C800-$C9FF</code> is ReadyOS shim ABI.</li>
+        <li>Warm resume restores <code>$A000</code> from <code>$9A00</code> before hidden helper calls.</li>
+        <li>Warm resume does not cold-reset BASIC heap or variable pointers.</li>
+        <li>ReadyBASIC-owned vectors are restored before yielding to ReadyOS.</li>
+        <li>Non-ReadyBASIC statements tail-call ROM with unmutated <code>TXTPTR</code>.</li>
+        <li>Output variables are cleared before command execution.</li>
+        <li>String heap writes happen only in visible resident code.</li>
+        <li>Acceptance re-entry uses launcher menu navigation, not direct app-bank hotkeys.</li>
+      </ul>
+    </section>
+
+    <section id="verify" class="band">
+      <h2>Current Verification Evidence</h2>
+      <p>Static guardrails are checked with <code>make readybasic-plugin-static-check</code>.</p>
+      <table>
+        <thead><tr><th>Probe</th><th>Coverage</th></tr></thead>
+        <tbody>
+          <tr><td>Plugin command probe</td><td>Direct <code>!</code> commands, direct <code>IF 1 THEN !PING</code>, string/REM safety, leading-comma rejection, resume.</td></tr>
+          <tr><td>Program probe</td><td>Stored line start, colon chains, true/false <code>IF ... THEN !</code>, <code>FOR/NEXT</code>, strings, REM, DATA, arrays, hidden worker, handles, failure clearing.</td></tr>
+          <tr><td>Full visual verification</td><td>Human-watchable command, program, resume, and error coverage.</td></tr>
+          <tr><td>Lifecycle probe</td><td>Cold entry, <code>EXIT</code>, launcher re-entry, READY-mode redraw.</td></tr>
+          <tr><td>State probe</td><td>BASIC variable/string survival and command availability after resume.</td></tr>
+          <tr><td><code>rbtest1</code> probe</td><td>Sample program assembled at the relocated BASIC workspace.</td></tr>
+          <tr><td>Large-vars probe</td><td>BASIC workspace and variable behavior under heavier state.</td></tr>
+          <tr><td>Cross-app resume stress</td><td>ReadyBASIC survives repeated app switches.</td></tr>
+          <tr><td>Second-entry/editor stress</td><td>ReadyBASIC survives editor/launcher round trips and later re-entry.</td></tr>
+        </tbody>
+      </table>
+      <p class="muted">
+        Some harness wrappers can report process-level <code>partial</code> even when every
+        step is <code>ok</code> and <code>FailedStep</code> is <code>null</code>; for ReadyBASIC these are treated
+        as harness shutdown-status quirks, not command failures.
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    <div class="page">
+      Content source:
+      <code>src/apps/readybasic/READYBASIC_CURRENT_DESIGN.md</code>.
+      This HTML is hand-authored from that Markdown and intentionally standalone.
+    </div>
+  </footer>
+</body>
+</html>

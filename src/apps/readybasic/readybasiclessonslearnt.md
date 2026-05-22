@@ -65,15 +65,19 @@ Verification artifact:
 `LOWPACK $1C00-$1EEE`, `HIDDEN $A000-$A141`, `HIDDENPACK $A800-$A82F`,
 and `BRIDGE $C000-$C075`.
 
-### Raw `RB COMMAND,...` Preserves Listing Text
+### Raw `!COMMAND args` Preserves Listing Text
 
-V1 deliberately does not install a custom cruncher. The crunch vector still
-forwards to ROM BASIC, and ReadyBASIC recognizes raw `RB` text from the execute
-vector. This means regular BASIC `LIST` shows the `RB` prefix and command name,
-which is expected until a future crunch/list pair is implemented and verified.
+V1 deliberately does not install a private command token. The crunch hook
+forwards to ROM BASIC first, and ReadyBASIC recognizes raw `!` text from the
+execute vector. Regular BASIC `LIST` therefore shows the `!` prefix and command
+name. The only crunch-time rewrite is the `IF ... THEN !COMMAND` edge: after ROM
+tokenization, a real `THEN` token followed by `!` is changed to `THEN :!` so ROM
+BASIC re-enters the normal statement dispatcher.
 
 Current rule: do not add private token support without a matching lister and a
-proved `ICRNCH` length/register contract.
+proved `ICRNCH` length/register contract. Keep the `THEN !` normalizer tiny and
+post-ROM-crunch so quoted strings, `REM`, and `DATA` text are not scanned as
+commands.
 
 ### Menu Resume Must Prove Screen And BASIC State
 
@@ -219,7 +223,7 @@ spurious BASIC errors.
 Current rule: probe the next non-space byte without changing `TXTPTR`. If the
 statement is not ReadyBASIC's command, jump through the saved original `$0308`
 vector so ROM BASIC performs its own `CHRGET`/dispatch path from an untouched
-state. Only after raw `RB`/`rb` is proven does ReadyBASIC advance `TXTPTR`.
+state. Only after raw `!` is proven does ReadyBASIC advance `TXTPTR`.
 
 ### ICRNCH Must Preserve The Tokenized Line Length
 
@@ -227,17 +231,18 @@ The BASIC line insertion path calls the crunch vector at `$0304`, then stores
 `Y` as the tokenized line length. Any custom cruncher that changes the line but
 returns the wrong `Y` can corrupt line insertion.
 
-Current POC rule: do not tokenize `RB` yet. Leave `ICRNCH` forwarding to ROM
-`$A57C`, and recognize raw `RB`/`rb` from `IGONE` instead. Proper private token
+Current POC rule: do not tokenize ReadyBASIC commands yet. `ICRNCH` must call
+the original ROM cruncher first, preserve its returned line length contract, and
+only then apply the tiny `THEN !` to `THEN :!` normalizer. Proper private token
 support must be reintroduced only with a cruncher that preserves all required
 register and buffer contracts.
 
-2026-05-11 follow-up: a private `$CC` token experiment made stored `RB` lines
+2026-05-11 follow-up: a private `$CC` token experiment made stored `!` lines
 compact, but the visible probe then blanked/crashed during `LIST`. The stable
-branch deliberately removes that crunch/list experiment and treats stored-program
-`RB` as future work requiring a separate lister contract probe.
+branch deliberately removes that crunch/list experiment and treats private
+tokenization as future work requiring a separate lister contract probe.
 
-2026-05-11 program-mode follow-up: raw stored `RB COMMAND,...` is viable without
+2026-05-11 program-mode follow-up: raw stored `!COMMAND args` is viable without
 a private token as long as the BASIC line-chain and `$0308` contracts are intact.
 The new program probe verifies `LIST` plus `RUN` for scalar, string, hidden,
 array, handle, and error-path commands. Private token support remains separate
@@ -260,7 +265,7 @@ and `BASIC_START+1`. Any future relocation or loader change must keep
 Proven on 2026-05-09 with the binary-monitor probe. After `RB 2,0,12,"OK",1`,
 ReadyBASIC state showed `rb_cmd_seen == $02`, `rb_arg_y == $0C`, and
 `rb_strbuf == "OK"`, but screen RAM at row 12 did not contain the text. That
-rules out the raw `RB` matcher and argument parser as the cause of the invisible
+rules out the raw `!` matcher and argument parser as the cause of the invisible
 manual command.
 
 Current POC rule: visible `RB 2`/`RB 3` feedback uses KERNAL `PLOT`/`CHROUT`
@@ -310,11 +315,11 @@ Verification artifact:
 `../agenticdevharness/logs/vice_auto_20260510_162036/` passed manual prompt
 `EXIT`/resume cases for a multi-line program, `NEW` staying empty across
 resume, variables/strings/arrays surviving resume, `CLR` keeping program text,
-and a stored `RB` line surviving resume.
+and a stored `!` line surviving resume.
 
 Baseline lifecycle artifact:
 `../agenticdevharness/logs/vice_auto_20260510_162159/` passed direct `PRINT`,
-numbered line entry, `LIST`, `RUN`, direct `RB 2`, direct `RB 3`, stored `RB`,
+numbered line entry, `LIST`, `RUN`, direct `!2`, direct `!3`, stored `!`,
 manual `EXIT`, resume, and `LIST` after resume.
 
 Scope note: this verification deliberately covers manual prompt `EXIT`.
@@ -393,7 +398,7 @@ string allocation, proving the pointer was no longer reset to `$9600`.
 
 Baseline lifecycle artifact:
 `../agenticdevharness/logs/vice_auto_20260510_234541/` passed direct `PRINT`,
-numbered line entry, `LIST`, `RUN`, direct `RB 2`, direct `RB 3`, stored `RB`,
+numbered line entry, `LIST`, `RUN`, direct `!2`, direct `!3`, stored `!`,
 manual `EXIT`, resume, and `LIST` after resume with the preserved-`FRETOP`
 build.
 
@@ -462,10 +467,10 @@ matching delayed prompts, missing cursor blink, and fragile line entry. The
 stabilization pass removes it and accepts that prompt-level hotkeys need a
 separate, editor-safe design.
 
-### Hypothesis: Tokenizing `RB` Immediately Is The Best POC Path
+### Hypothesis: Tokenizing ReadyBASIC Commands Immediately Is The Best POC Path
 
 Revised. It is desirable, but the first priority is a stable scoped BASIC host.
-Raw `RB` recognized at execution time is safer until the crunch/list/execute
+Raw command text recognized at execution time is safer until the crunch/list/execute
 contract is fully proven.
 
 ## Current Verification Checklist
@@ -480,7 +485,7 @@ contract is fully proven.
 - For the current REU plugin direct-mode and ReadyOS resume contract, use:
   `READYBASIC_VISIBLE=1 bash ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_plugin_command_probe.sh`
   This boots normal ReadyOS with `runappfirst=readybasic`, exercises direct
-  `RB COMMAND,...` samples, returns through the launcher by `EXIT`, relaunches
+  `!COMMAND args` samples, returns through the launcher by `EXIT`, relaunches
   ReadyBasic by menu navigation, and verifies BASIC variable/string state plus
   registry function after resume.
 - For the stored-program command contract, use:

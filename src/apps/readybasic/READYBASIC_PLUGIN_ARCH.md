@@ -4,12 +4,12 @@
 
 - `BASIC_START = $3001`; BASIC owns `$3001-$95FF`.
 - `$1000-$1102`: tiny app entry that copies hidden helpers and bridge state before BASIC starts.
-- `$1200-$1ABE`: visible resident core. This is the only code that calls BASIC ROM helpers.
-- `$1C00-$23FF`: low command overlay slot. Current packed low command image is `$02EF` bytes.
+- `$1200-$1BC1`: visible resident core. This is the only code that calls BASIC ROM helpers.
+- `$1C00-$23FF`: low command overlay slot. Current packed low command image is `$02F3` bytes.
 - `$2400-$27FF`: fixed call frame, result frame, descriptor buffer, command-name buffer, and page buffer.
 - `$A000-$A141`: hidden helper code, restored from `$9A00`.
 - `$A800-$A82F`: hidden worker overlay slot used by `HCRC`.
-- `$C000-$C075`: bridge state only; the implementation stays below `$C600`.
+- `$C000-$C164`: bridge state only; the implementation stays below `$C600`.
 
 ## REU Banks
 
@@ -32,7 +32,7 @@
 ## Bank `$45` Regions
 
 - Offset `$0000`: low overlay pack copied from the linker `LOWPACK` segment.
-- Offset `$02EF`: hidden overlay pack copied from the linker `HIDDENPACK` segment.
+- Offset `$02F3`: hidden overlay pack copied from the linker `HIDDENPACK` segment.
 - Descriptors store code offsets and run offsets; normal low commands copy only their slice. Buffer/heap sample commands currently load the whole low pack because their allocator helpers live in the overlay pack rather than resident core RAM.
 
 ## Descriptor ABI
@@ -62,22 +62,26 @@ Each descriptor is 32 bytes:
 
 ## Implemented Commands
 
-- `RB PING,OUT%`: low overlay, returns `1`.
-- `RB ADD16,A,B,OUT%`: low overlay, returns 16-bit sum.
-- `RB STRUP,S$,OUT$`: low overlay, copies and uppercases a string variable or quoted literal.
-- `RB HCRC,S$,OUT%`: hidden `$A800` overlay, returns a simple checksum.
-- `RB SUMAI,A%(0),COUNT,OUT%`: low overlay, sums integer array elements.
-- `RB RANGEAI,START,COUNT,A%(0)`: low overlay, stages integer array output and resident commit writes it.
-- `RB BUFNEW,LEN,H%`: low overlay, creates a persistent handle in bank `$44`.
-- `RB BUFFILL,H%,BYTE`: low overlay, fills handle pages.
-- `RB BUFFREE,H%`: low overlay, frees a handle.
-- `RB TEMPSCRATCH,LEN,OUT%`: low overlay, allocates and frees temporary pages, returning page count.
-- `RB FAIL,CODE,OUT%`: low overlay, exercises the error path after output clearing.
+- `!PING OUT%`: low overlay, returns `1`.
+- `!ADD16 A,B,OUT%`: low overlay, returns 16-bit sum.
+- `!STRUP S$,OUT$`: low overlay, copies and uppercases a string variable or quoted literal.
+- `!HCRC S$,OUT%`: hidden `$A800` overlay, returns a simple checksum.
+- `!SUMAI A%(0),COUNT,OUT%`: low overlay, sums integer array elements.
+- `!RANGEAI START,COUNT,A%(0)`: low overlay, stages integer array output and resident commit writes it.
+- `!BUFNEW LEN,H%`: low overlay, creates a persistent handle in bank `$44`.
+- `!BUFFILL H%,BYTE`: low overlay, fills handle pages.
+- `!BUFFREE H%`: low overlay, frees a handle.
+- `!TEMPSCRATCH LEN,OUT%`: low overlay, allocates and frees temporary pages, returning page count.
+- `!FAIL CODE,OUT%`: low overlay, exercises the error path after output clearing.
 
 ## Known V1 Boundaries
 
-- No cruncher: stored lines remain raw `RB COMMAND,...`, so regular BASIC `LIST` shows `RB`.
-- Raw stored-program `RUN` is supported through the `$0308` IGONE hook; the
+- No private command token: stored lines remain visible `!COMMAND args`, so
+  regular BASIC `LIST` shows the `!` command text.
+- A tiny crunch hook delegates to ROM first, then normalizes tokenized
+  `THEN !COMMAND` to `THEN :!COMMAND` so BASIC's existing statement dispatcher
+  reaches the `$0308` execute hook. String, `REM`, and `DATA` text are left alone.
+- Raw stored-program `RUN` is supported through the `$0308` execute hook; the
   relocated BASIC sentinel byte at `BASIC_START-1` must stay zero.
 - Command lookup is linear over fixed descriptors in bank `$44`.
 - String input currently supports string variables and quoted literals; fully general BASIC string expressions remain a follow-up.

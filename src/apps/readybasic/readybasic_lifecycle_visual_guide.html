@@ -1,0 +1,820 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ReadyBASIC Lifecycle And REU Architecture</title>
+  <style>
+    :root {
+      --ink: #18202a;
+      --muted: #536174;
+      --paper: #f7f8fb;
+      --panel: #ffffff;
+      --line: #d7dde7;
+      --blue: #1d6fd3;
+      --blue-2: #dbeafe;
+      --green: #198754;
+      --green-2: #dcfce7;
+      --cyan: #0987a0;
+      --cyan-2: #d9f7fb;
+      --purple: #7650c4;
+      --purple-2: #ede9fe;
+      --amber: #b56b00;
+      --amber-2: #fff2cc;
+      --red: #be3144;
+      --red-2: #ffe1e7;
+      --slate: #334155;
+      --slate-2: #e2e8f0;
+      --shadow: 0 12px 32px rgba(24, 32, 42, 0.08);
+      --radius: 8px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, #eef5ff 0, rgba(247, 248, 251, 0) 360px),
+        var(--paper);
+      line-height: 1.55;
+    }
+    a { color: var(--blue); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .page {
+      width: min(1180px, calc(100vw - 36px));
+      margin: 0 auto;
+    }
+    header {
+      padding: 56px 0 28px;
+    }
+    .eyebrow {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      color: var(--blue);
+      font-weight: 750;
+      letter-spacing: 0;
+      text-transform: uppercase;
+      font-size: 12px;
+      margin-bottom: 10px;
+    }
+    h1 {
+      font-size: clamp(34px, 5vw, 64px);
+      line-height: 1.02;
+      letter-spacing: 0;
+      margin: 0 0 14px;
+      max-width: 980px;
+    }
+    .lead {
+      font-size: 20px;
+      color: var(--muted);
+      max-width: 900px;
+      margin: 0;
+    }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-top: 28px;
+    }
+    .metric {
+      background: rgba(255, 255, 255, 0.8);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+    .metric b {
+      display: block;
+      font-size: 24px;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+    .metric span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: rgba(247, 248, 251, 0.92);
+      backdrop-filter: blur(12px);
+      border-top: 1px solid rgba(215, 221, 231, 0.7);
+      border-bottom: 1px solid rgba(215, 221, 231, 0.9);
+    }
+    nav .page {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 10px 0;
+    }
+    nav a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      padding: 7px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--slate);
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    main { padding: 30px 0 70px; }
+    section {
+      margin: 0 0 34px;
+    }
+    .band {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: var(--shadow);
+    }
+    h2 {
+      font-size: 28px;
+      margin: 0 0 14px;
+      letter-spacing: 0;
+      line-height: 1.15;
+    }
+    h3 {
+      font-size: 19px;
+      margin: 0 0 10px;
+      letter-spacing: 0;
+    }
+    p { margin: 0 0 12px; }
+    .muted { color: var(--muted); }
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      background: #eef2f7;
+      border: 1px solid #dde5ef;
+      border-radius: 5px;
+      padding: 1px 5px;
+      font-size: 0.94em;
+    }
+    .strong {
+      font-weight: 800;
+      color: var(--ink);
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+    .callout {
+      border-left: 5px solid var(--blue);
+      background: var(--blue-2);
+      padding: 14px 16px;
+      border-radius: 0 var(--radius) var(--radius) 0;
+      margin: 14px 0;
+    }
+    .warning {
+      border-left-color: var(--red);
+      background: var(--red-2);
+    }
+    .good {
+      border-left-color: var(--green);
+      background: var(--green-2);
+    }
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .tag {
+      display: inline-flex;
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 999px;
+      padding: 5px 9px;
+      font-size: 12px;
+      font-weight: 750;
+      color: var(--slate);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 14px 0;
+      overflow: hidden;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      font-size: 14px;
+    }
+    th, td {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+    th {
+      background: #edf3fb;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0;
+      color: var(--slate);
+    }
+    tr:last-child td { border-bottom: none; }
+
+    .memory-map {
+      display: grid;
+      grid-template-columns: 150px 1fr;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: #fff;
+      margin: 18px 0;
+    }
+    .addr {
+      background: #f1f5f9;
+      border-right: 1px solid var(--line);
+      color: var(--slate);
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-weight: 800;
+      padding: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+    }
+    .region {
+      padding: 10px 12px;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.65);
+    }
+    .region:last-child { border-bottom: none; }
+    .region b { display: block; }
+    .region small { color: rgba(24, 32, 42, 0.68); }
+    .r-entry { background: #dbeafe; }
+    .r-resident { background: #dcfce7; }
+    .r-low { background: #cffafe; }
+    .r-shared { background: #fef3c7; }
+    .r-pack { background: #ede9fe; }
+    .r-basic { background: #e0f2fe; }
+    .r-save { background: #ffe4e6; }
+    .r-hidden { background: #f3e8ff; }
+    .r-bridge { background: #e2e8f0; }
+    .r-shim { background: #fee2e2; }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      margin: 16px 0;
+    }
+    .step {
+      position: relative;
+      min-height: 118px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 13px;
+    }
+    .step::after {
+      content: ">";
+      position: absolute;
+      right: -9px;
+      top: 42%;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--blue);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 12px;
+      z-index: 2;
+    }
+    .step:last-child::after { display: none; }
+    .step .num {
+      display: inline-flex;
+      width: 24px;
+      height: 24px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: var(--blue-2);
+      color: var(--blue);
+      font-weight: 850;
+      margin-bottom: 8px;
+    }
+
+    .reu-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin-top: 14px;
+    }
+    .bank {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: #fff;
+    }
+    .bank-title {
+      padding: 14px;
+      font-weight: 850;
+      color: #fff;
+    }
+    .bank.core .bank-title { background: var(--green); }
+    .bank.code .bank-title { background: var(--cyan); }
+    .slice {
+      display: grid;
+      grid-template-columns: 105px 1fr;
+      border-bottom: 1px solid var(--line);
+    }
+    .slice:last-child { border-bottom: none; }
+    .slice span:first-child {
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-weight: 800;
+      background: #f8fafc;
+      padding: 9px;
+      border-right: 1px solid var(--line);
+      color: var(--slate);
+    }
+    .slice span:last-child { padding: 9px; }
+
+    .pipeline {
+      display: grid;
+      grid-template-columns: 1.05fr 1fr 1fr 1fr;
+      gap: 12px;
+      align-items: stretch;
+      margin: 16px 0;
+    }
+    .pipe-card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px;
+      min-height: 150px;
+    }
+    .pipe-card h3 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      display: inline-block;
+      background: var(--blue);
+    }
+    .dot.green { background: var(--green); }
+    .dot.cyan { background: var(--cyan); }
+    .dot.amber { background: var(--amber); }
+
+    .command-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    .command {
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: var(--radius);
+      padding: 14px;
+    }
+    .command h3 {
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 15px;
+      margin-bottom: 8px;
+    }
+    .command-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 8px 0;
+    }
+    .chip {
+      display: inline-flex;
+      padding: 3px 7px;
+      border-radius: 999px;
+      background: var(--slate-2);
+      color: var(--slate);
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .chip.low { background: var(--cyan-2); color: var(--cyan); }
+    .chip.hidden { background: var(--purple-2); color: var(--purple); }
+    .chip.reu { background: var(--green-2); color: var(--green); }
+    .chip.err { background: var(--red-2); color: var(--red); }
+
+    .invariant-list {
+      columns: 2;
+      column-gap: 28px;
+      padding-left: 18px;
+    }
+    .invariant-list li {
+      break-inside: avoid;
+      margin-bottom: 8px;
+    }
+
+    footer {
+      color: var(--muted);
+      border-top: 1px solid var(--line);
+      padding: 24px 0 44px;
+      font-size: 13px;
+    }
+
+    @media (max-width: 920px) {
+      .hero-grid, .grid-2, .grid-3, .reu-layout, .pipeline, .command-grid {
+        grid-template-columns: 1fr;
+      }
+      .flow { grid-template-columns: 1fr; }
+      .step::after {
+        content: "v";
+        right: auto;
+        left: 22px;
+        top: auto;
+        bottom: -9px;
+      }
+      .memory-map { grid-template-columns: 112px 1fr; }
+      .invariant-list { columns: 1; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="page">
+      <div class="eyebrow">ReadyBASIC deep architecture guide</div>
+      <h1>Lifecycle, Memory Ownership, REU Plugin Spine</h1>
+      <p class="lead">
+        A visual map of how ReadyBASIC loads, relocates BASIC, seeds fixed REU
+        banks, dispatches raw <code>!COMMAND args</code> statements, survives
+        ReadyOS suspend/resume, and keeps command workers lean.
+      </p>
+      <div class="hero-grid">
+        <div class="metric"><b>$3001</b><span>BASIC start. The byte at $3000 must stay zero.</span></div>
+        <div class="metric"><b>$44</b><span>ReadyBASIC common/system REU bank.</span></div>
+        <div class="metric"><b>$45</b><span>Packed command-code REU bank.</span></div>
+        <div class="metric"><b>84/84</b><span>Latest full visual verification pass.</span></div>
+      </div>
+    </div>
+  </header>
+
+  <nav>
+    <div class="page">
+      <a href="#philosophy">Philosophy</a>
+      <a href="#memory">RAM Map</a>
+      <a href="#reu">REU Banks</a>
+      <a href="#cold">Cold Boot</a>
+      <a href="#resume">Suspend/Resume</a>
+      <a href="#pipeline">Command Pipeline</a>
+      <a href="#commands">Commands</a>
+      <a href="#invariants">Invariants</a>
+    </div>
+  </nav>
+
+  <main class="page">
+    <section id="philosophy" class="band">
+      <h2>Technical Philosophy</h2>
+      <p>
+        ReadyBASIC is a <strong>ReadyOS-native BASIC host</strong>, not a
+        normal C64 BASIC PRG and not a cc65 application. Its current plugin
+        spine is all assembler and intentionally small: no object VM, no generic
+        value serializer, no command-per-bank REU waste, and no custom token
+        cruncher in V1.
+      </p>
+      <div class="callout good">
+        <strong>The central rule:</strong> BASIC-facing work stays in visible
+        resident RAM. Workers receive a flat call frame, write a flat result
+        frame, and let the resident core commit results back into BASIC.
+      </div>
+      <div class="grid-3">
+        <div>
+          <h3>Visible resident core</h3>
+          <p class="muted">Owns ROM helper calls, parsing, variable references,
+          string heap writes, REU DMA wrappers, and result commit.</p>
+        </div>
+        <div>
+          <h3>Low and hidden overlays</h3>
+          <p class="muted">Do command work from copied slices. They do not own
+          BASIC's live interpreter contracts.</p>
+        </div>
+        <div>
+          <h3>REU banks</h3>
+          <p class="muted">Hold registry, frames, code pack, debug snapshots,
+          and sample handle data without spending normal BASIC RAM per command.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="memory" class="band">
+      <h2>C64 RAM Ownership</h2>
+      <p>
+        ReadyBASIC lives inside the ReadyOS app window while also carving a
+        scoped BASIC workspace. The current linked map is shown here; the
+        important part is not just where bytes live, but which subsystem is
+        allowed to mutate them.
+      </p>
+
+      <div class="memory-map" aria-label="ReadyBASIC memory map">
+        <div class="addr">$1000-$1102</div>
+        <div class="region r-entry"><span><b>ENTRY</b><small>Cold/warm cookie and early copy code.</small></span><strong>$0103</strong></div>
+        <div class="addr">$1200-$1BC1</div>
+        <div class="region r-resident"><span><b>RESIDENT</b><small>Parser, crunch/execute hooks, BASIC ROM calls, REU DMA, commit path.</small></span><strong>$09C2</strong></div>
+        <div class="addr">$1C00-$23FF</div>
+        <div class="region r-low"><span><b>LOW OVERLAY SLOT</b><small>Command slices fetched from REU bank $45.</small></span><strong>2 KB slot</strong></div>
+        <div class="addr">$2400-$27FF</div>
+        <div class="region r-shared"><span><b>SHARED FRAMES</b><small>Call frame, result frame, descriptor/name/page buffers.</small></span><strong>1 KB</strong></div>
+        <div class="addr">$2800-$2FFF</div>
+        <div class="region r-pack"><span><b>CMDPACK LOAD IMAGE</b><small>Low and hidden overlay seed bytes before cold prestash.</small></span><strong>load only</strong></div>
+        <div class="addr">$3000</div>
+        <div class="region r-basic"><span><b>BASIC SENTINEL</b><small>Must be zero for stored BASIC RUN.</small></span><strong>1 byte</strong></div>
+        <div class="addr">$3001-$95FF</div>
+        <div class="region r-basic"><span><b>BASIC WORKSPACE</b><small>Program text, variables, arrays, string heap.</small></span><strong>visible to user</strong></div>
+        <div class="addr">$9600-$99FF</div>
+        <div class="region r-save"><span><b>RUNTIME SNAPSHOT</b><small>Zero page, stack, saved SP, mode, line-chain guards.</small></span><strong>1 KB</strong></div>
+        <div class="addr">$9A00-$9FFF</div>
+        <div class="region r-hidden"><span><b>HIDDEN SHADOW</b><small>Warm source for restoring helper code under BASIC ROM.</small></span><strong>1.5 KB</strong></div>
+        <div class="addr">$A000-$A237</div>
+        <div class="region r-hidden"><span><b>HIDDEN HELPER</b><small>Runs with RAM mapped under BASIC ROM.</small></span><strong>$0238</strong></div>
+        <div class="addr">$A800-$A84C</div>
+        <div class="region r-hidden"><span><b>HIDDEN OVERLAY</b><small>HCRC worker slot.</small></span><strong>$004D</strong></div>
+        <div class="addr">$C000-$C164</div>
+        <div class="region r-bridge"><span><b>BRIDGE STATE</b><small>Magic, saved vectors, overlay vars, handles, debug bytes.</small></span><strong>$0165</strong></div>
+        <div class="addr">$C600-$C7FF</div>
+        <div class="region r-shim"><span><b>READYOS REU METADATA</b><small>Only bank ownership tags are touched.</small></span><strong>shared</strong></div>
+        <div class="addr">$C800-$C9FF</div>
+        <div class="region r-shim"><span><b>SHIM ABI</b><small>ReadyOS jump table/data. Not ReadyBASIC RAM.</small></span><strong>reserved</strong></div>
+      </div>
+
+      <div class="callout warning">
+        <strong>The subtle bit:</strong> the PRG load image temporarily occupies
+        `$3000+`, but cold setup copies out the hidden/bridge/registry seeds and
+        then BASIC owns `$3001-$95FF`. Warm resume must not trust those old
+        load-only seed addresses.
+      </div>
+    </section>
+
+    <section id="reu" class="band">
+      <h2>REU Suballocation</h2>
+      <p>
+        ReadyBASIC uses fixed banks for the spine and packed commands, then
+        suballocates inside those banks. This keeps the design leaner than
+        command-per-bank storage.
+      </p>
+
+      <div class="reu-layout">
+        <div class="bank core">
+          <div class="bank-title">REU Bank $44: Core/System</div>
+          <div class="slice"><span>$0000</span><span>Header: <strong>RBPL</strong>, version, descriptor count, frame offsets.</span></div>
+          <div class="slice"><span>$0100</span><span>Command descriptors: 11 x 32 bytes.</span></div>
+          <div class="slice"><span>$0400</span><span>Call frame snapshot from `$2400`.</span></div>
+          <div class="slice"><span>$0500</span><span>Result frame snapshot from `$2500`.</span></div>
+          <div class="slice"><span>$0600</span><span>Reserved REU debug ring region.</span></div>
+          <div class="slice"><span>$0800</span><span>Handle metadata snapshot.</span></div>
+          <div class="slice"><span>$0900</span><span>Reserved transient heap/staging area.</span></div>
+          <div class="slice"><span>$8000</span><span>V1 persistent sample heap: 16 x 256-byte pages.</span></div>
+        </div>
+
+        <div class="bank code">
+          <div class="bank-title">REU Bank $45: Packed Command Code</div>
+          <div class="slice"><span>$0000</span><span>Low overlay pack, size `$02F3`, fetched into `$1C00-$23FF`.</span></div>
+          <div class="slice"><span>$02F3</span><span>Hidden overlay pack, size `$004D`, fetched into `$A800-$A84C`.</span></div>
+          <div class="slice"><span>desc</span><span>Each descriptor stores code offset, code length, run offset, flags, signature, and name.</span></div>
+          <div class="slice"><span>$C600</span><span>ReadyOS allocation table marks `$44` as type 14 and `$45` as type 15.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="cold" class="band">
+      <h2>Cold Boot Flow</h2>
+      <p>
+        Cold boot starts with a plain ReadyOS app load at `$1000`. The tiny entry
+        code does the minimum work needed before handing control to the resident
+        core.
+      </p>
+      <div class="flow">
+        <div class="step"><span class="num">1</span><h3>Load</h3><p>ReadyOS loads <code>readybasic.prg</code> at `$1000`.</p></div>
+        <div class="step"><span class="num">2</span><h3>Copy Hidden</h3><p>Entry maps RAM under BASIC ROM and copies hidden helper seed to `$A000` and `$9A00`.</p></div>
+        <div class="step"><span class="num">3</span><h3>Copy Bridge</h3><p>Bridge seed from `$3800` becomes live state at `$C000`.</p></div>
+        <div class="step"><span class="num">4</span><h3>Initialize BASIC</h3><p>Resident sets `$3001` workspace, `$9600` top, and clears `$3000-$3002`.</p></div>
+        <div class="step"><span class="num">5</span><h3>Seed REU</h3><p>Hidden helper prestashes registry to `$44` and code pack to `$45`, then enters READY.</p></div>
+      </div>
+      <div class="callout">
+        <strong>Cold-only behavior:</strong> registry and code are copied from
+        load-only RAM into REU. Warm resume re-marks bank ownership but avoids
+        rereading `$4000+` because BASIC may own that memory by then.
+      </div>
+    </section>
+
+    <section id="resume" class="band">
+      <h2>Suspend And Resume</h2>
+      <div class="grid-2">
+        <div>
+          <h3>EXIT suspend</h3>
+          <p>
+            The execute hook recognizes <code>EXIT</code>. Manual prompt
+            <code>EXIT</code> is the proven V1 path. It stores READY-mode magic,
+            saves BASIC runtime state under `$9600`, restores page-3 vectors,
+            and jumps to the ReadyOS shim at `$C80C`.
+          </p>
+          <table>
+            <thead><tr><th>Range</th><th>Saved data</th></tr></thead>
+            <tbody>
+              <tr><td><code>$9600-$96FF</code></td><td>Zero page snapshot.</td></tr>
+              <tr><td><code>$9700-$97FF</code></td><td>Hardware stack snapshot.</td></tr>
+              <tr><td><code>$9800+</code></td><td>Magic, saved SP, mode, line-chain guards.</td></tr>
+              <tr><td><code>$9A00-$9FFF</code></td><td>Hidden helper shadow preserved inside app snapshot.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <h3>Warm resume</h3>
+          <p>
+            On relaunch from the ReadyOS menu, entry-local magic selects warm
+            path. ReadyBASIC restores `$A000` from `$9A00`, reinstalls the
+            execute hook, re-marks REU banks, restores stack and zero page, and
+            redraws the ReadyBasic screen before entering `BASIC_READY`.
+          </p>
+          <div class="callout good">
+            <strong>Warm restore does not cold-reset BASIC.</strong> It preserves
+            live `FRETOP`, `VARTAB`, `ARYTAB`, `STREND`, variables, arrays, and
+            string heap state from the saved runtime image.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="pipeline" class="band">
+      <h2>Command Pipeline</h2>
+      <p>
+        The current path is raw text at execute time. BASIC `LIST` still shows
+        <code>!COMMAND args</code>; ReadyBASIC recognizes it when ROM BASIC dispatches the
+        statement.
+      </p>
+      <div class="pipeline">
+        <div class="pipe-card">
+          <h3><span class="dot"></span> 1. Match</h3>
+          <p>Peek at the next non-space byte without disturbing `TXTPTR`. If it
+          is not `!` or `EXIT`, tail-call the saved ROM execute vector.</p>
+        </div>
+        <div class="pipe-card">
+          <h3><span class="dot green"></span> 2. Parse</h3>
+          <p>Normalize command name into `$26A0`, linear-search descriptors from
+          REU bank `$44`, then parse parameters with BASIC ROM helpers.</p>
+        </div>
+        <div class="pipe-card">
+          <h3><span class="dot cyan"></span> 3. Execute</h3>
+          <p>Copy command code from REU bank `$45` into `$1C00` or `$A800`, call
+          it, and stash call/result frames back into bank `$44` for inspection.</p>
+        </div>
+        <div class="pipe-card">
+          <h3><span class="dot amber"></span> 4. Commit</h3>
+          <p>Resident code checks `RF_STATUS`, prints `?RB ERROR n` on failure,
+          or commits integer, string, or array results to the captured BASIC
+          output reference.</p>
+        </div>
+      </div>
+
+      <table>
+        <thead><tr><th>Low RAM frame</th><th>Address</th><th>Role</th></tr></thead>
+        <tbody>
+          <tr><td>Call frame</td><td><code>$2400</code></td><td>Command id, parameter count, numeric slots, pointer/count slots, string buffer.</td></tr>
+          <tr><td>Result frame</td><td><code>$2500</code></td><td>Status, error, tag, scalar value, string buffer, array buffer.</td></tr>
+          <tr><td>Descriptor buffer</td><td><code>$2680</code></td><td>One 32-byte descriptor fetched from REU bank `$44`.</td></tr>
+          <tr><td>Command buffer</td><td><code>$26A0</code></td><td>Uppercase normalized command name.</td></tr>
+          <tr><td>Page buffer</td><td><code>$2700</code></td><td>256-byte scratch page for `BUFFILL` stashes.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="commands" class="band">
+      <h2>Command Code And Data Movement</h2>
+      <p>
+        These commands are representative samples for the plugin spine. Some are
+        tiny single-slice low overlays; the handle commands currently copy the
+        whole low pack to keep allocator helpers out of resident RAM.
+      </p>
+
+      <div class="command-grid">
+        <div class="command">
+          <h3>!PING OUT%</h3>
+          <div class="command-meta"><span class="chip low">low</span><span class="chip">offset $0000</span><span class="chip">copy $0015</span></div>
+          <p>Returns integer `1`. Proves output variable clearing and scalar result commit.</p>
+        </div>
+        <div class="command">
+          <h3>!ADD16 A,B,OUT%</h3>
+          <div class="command-meta"><span class="chip low">low</span><span class="chip">offset $0015</span><span class="chip">copy $001E</span></div>
+          <p>Parses two numeric expressions through BASIC ROM and returns a 16-bit sum.</p>
+        </div>
+        <div class="command">
+          <h3>!STRUP S$,OUT$</h3>
+          <div class="command-meta"><span class="chip low">low</span><span class="chip">offset $0033</span><span class="chip">copy $003B</span></div>
+          <p>Copies a string variable or quoted literal into the call frame, uppercases it, and lets resident code allocate the BASIC string result.</p>
+        </div>
+        <div class="command">
+          <h3>!HCRC S$,OUT%</h3>
+          <div class="command-meta"><span class="chip hidden">hidden</span><span class="chip">bank $45+$02F3</span><span class="chip">copy $004D</span></div>
+          <p>Copies hidden code into `$A800`, maps RAM under BASIC ROM, and returns a checksum-like uppercase byte sum.</p>
+        </div>
+        <div class="command">
+          <h3>!SUMAI A%(0),COUNT,OUT%</h3>
+          <div class="command-meta"><span class="chip low">low</span><span class="chip">offset $006E</span><span class="chip">copy $0044</span></div>
+          <p>Uses explicit array base plus count, resolves the array pointer, and sums integer elements.</p>
+        </div>
+        <div class="command">
+          <h3>!RANGEAI START,COUNT,A%(0)</h3>
+          <div class="command-meta"><span class="chip low">low</span><span class="chip">offset $00B2</span><span class="chip">copy $003D</span></div>
+          <p>Stages consecutive integer values in the result frame; resident code writes them into the output array.</p>
+        </div>
+        <div class="command">
+          <h3>!BUFNEW LEN,H%</h3>
+          <div class="command-meta"><span class="chip low">low</span><span class="chip reu">REU handle</span><span class="chip">copy $02F3</span></div>
+          <p>Allocates contiguous 256-byte pages inside bank `$44` and returns a one-based handle.</p>
+        </div>
+        <div class="command">
+          <h3>!BUFFILL H%,BYTE</h3>
+          <div class="command-meta"><span class="chip low">low</span><span class="chip reu">REU data</span><span class="chip">copy $02F3</span></div>
+          <p>Fills `$2700` with a byte and stashes it page by page into the handle's REU pages.</p>
+        </div>
+        <div class="command">
+          <h3>!BUFFREE H%</h3>
+          <div class="command-meta"><span class="chip low">low</span><span class="chip reu">metadata</span><span class="chip">copy $02F3</span></div>
+          <p>Clears page bitmap and handle metadata, then mirrors that metadata to bank `$44` offset `$0800`.</p>
+        </div>
+        <div class="command">
+          <h3>!TEMPSCRATCH LEN,OUT%</h3>
+          <div class="command-meta"><span class="chip low">low</span><span class="chip reu">temp heap</span><span class="chip">copy $02F3</span></div>
+          <p>Allocates and immediately frees pages, returning the number of pages required.</p>
+        </div>
+        <div class="command">
+          <h3>!FAIL CODE,OUT%</h3>
+          <div class="command-meta"><span class="chip low">low</span><span class="chip err">error path</span><span class="chip">copy $001B</span></div>
+          <p>Proves outputs are cleared before execution and stale result frames are not committed after failure.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="invariants" class="band">
+      <h2>Hard Invariants</h2>
+      <ul class="invariant-list">
+        <li><strong>Boot through ReadyOS</strong>, not standalone app launch.</li>
+        <li><code>BASIC_START</code> remains <code>$3001</code>.</li>
+        <li><code>$3000</code> remains zero before stored-program <code>RUN</code>.</li>
+        <li><code>RESIDENT</code> stays below <code>$1C00</code>.</li>
+        <li><code>BRIDGE</code> stays below <code>$C600</code>.</li>
+        <li><code>$C600-$C7FF</code> is shared ReadyOS REU metadata.</li>
+        <li><code>$C800-$C9FF</code> is shim ABI, not app scratch.</li>
+        <li>Warm resume restores <code>$A000</code> from <code>$9A00</code> before hidden calls.</li>
+        <li>Warm restore preserves live <code>FRETOP</code>, variables, arrays, and string heap.</li>
+        <li>ReadyBASIC restores owned page-3 vectors before yielding to ReadyOS.</li>
+        <li>Fallback BASIC dispatch tail-calls the original <code>$0308</code> vector with unmutated <code>TXTPTR</code>.</li>
+        <li>String heap writes happen only in visible resident code.</li>
+        <li>Acceptance re-entry uses launcher menu navigation, not <code>CTRL+3</code>.</li>
+      </ul>
+    </section>
+
+    <section class="band">
+      <h2>Current Proof</h2>
+      <p>
+        The human-watchable suite is:
+      </p>
+      <p><code>READYBASIC_VISIBLE=1 /Users/karlprosserpp/dev/c64projects/agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_full_suite_visual_verification.sh</code></p>
+      <p>
+        Latest recorded pass: <strong>84/84 steps</strong> at
+        <code>/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260512_002033</code>.
+      </p>
+      <div class="tag-row">
+        <span class="tag">cold ReadyOS boot</span>
+        <span class="tag">direct mode</span>
+        <span class="tag">stored programs</span>
+        <span class="tag">menu resume</span>
+        <span class="tag">arrays</span>
+        <span class="tag">strings</span>
+        <span class="tag">hidden worker</span>
+        <span class="tag">REU handles</span>
+        <span class="tag">error clearing</span>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="page">
+      Source companion:
+      <code>src/apps/readybasic/READYBASIC_LIFECYCLE_AND_REU_ARCHITECTURE.md</code>.
+      HTML generated as a hand-authored visual guide for the current ReadyBASIC
+      REU plugin spine.
+    </div>
+  </footer>
+</body>
+</html>
