@@ -327,7 +327,13 @@
       font-size: 13px;
     }
     .addr { border-right: 1px solid var(--line); }
-    .size { border-left: 1px solid var(--line); }
+    .size {
+      border-left: 1px solid var(--line);
+      flex-direction: column;
+      gap: 2px;
+      line-height: 1.2;
+    }
+    .size span { display: block; }
     .region {
       min-height: 46px;
       padding: 10px 12px;
@@ -497,9 +503,9 @@
       </p>
       <div class="dashboard">
         <div class="metric"><b>!COMMAND args</b><span>First arg after whitespace, later args comma-separated.</span></div>
-        <div class="metric"><b>$1200-$1BC1</b><span>Visible resident core. Parser, hooks, ROM calls, REU DMA, commit.</span></div>
+        <div class="metric"><b>$1200-$1BAB</b><span>Visible resident core, $09AC (2.4K). Parser, hooks, ROM calls, REU DMA, commit.</span></div>
         <div class="metric"><b>REU $44 / $45</b><span>Core/system bank and packed command-code bank.</span></div>
-        <div class="metric"><b>11 commands</b><span>Examples cover scalar, string, array, hidden, handle, temp, and error paths.</span></div>
+        <div class="metric"><b>12 commands</b><span>Examples cover scalar, string, array, hidden, handle, temp, free-memory, and error paths.</span></div>
       </div>
     </div>
   </header>
@@ -653,11 +659,11 @@
         </div>
       </div>
       <table>
-        <thead><tr><th>Segment</th><th>Load/source role</th><th>Runtime role</th></tr></thead>
+        <thead><tr><th>Segment</th><th>Size</th><th>Load/source role</th><th>Runtime role</th></tr></thead>
         <tbody>
-          <tr><td><code>LOWPACK</code></td><td>Packed low command bytes in <code>CMDPACK</code>, prestashed to bank <code>$45</code> offset <code>$0000</code>.</td><td>Fetched on demand into banked RAM under BASIC ROM at <code>$A900+</code>.</td></tr>
-          <tr><td><code>HIDDENPACK</code></td><td>Packed hidden worker bytes after <code>LOWPACK</code>, prestashed to bank <code>$45</code> offset <code>$02F3</code>.</td><td>Fetched on demand into hidden RAM at <code>$A800-$A84C</code>.</td></tr>
-          <tr><td><code>REGSEED</code></td><td>Load-only registry header and command descriptors at <code>$4000-$418F</code>.</td><td>Copied on cold boot into bank <code>$44</code> offsets <code>$0000</code> and <code>$0100</code>.</td></tr>
+          <tr><td><code>LOWPACK</code></td><td><code>$02F3</code> (0.7K)</td><td>Packed low command bytes in <code>CMDPACK</code>, prestashed to bank <code>$45</code> offset <code>$0000</code>.</td><td>Fetched on demand into banked RAM under BASIC ROM at <code>$A900+</code>.</td></tr>
+          <tr><td><code>HIDDENPACK</code></td><td><code>$004D</code> (77B)</td><td>Packed hidden worker bytes after <code>LOWPACK</code>, prestashed to bank <code>$45</code> offset <code>$02F3</code>.</td><td>Fetched on demand into hidden RAM at <code>$A800-$A84C</code>.</td></tr>
+          <tr><td><code>REGSEED</code></td><td><code>$0190</code> (400B)</td><td>Load-only registry header and command descriptors at <code>$4000-$418F</code>.</td><td>Copied on cold boot into bank <code>$44</code> offsets <code>$0000</code> and <code>$0100</code>.</td></tr>
         </tbody>
       </table>
       <div class="callout warn">
@@ -674,20 +680,20 @@
         Shared ReadyOS metadata and shim space above that are not general scratch.
       </p>
       <div class="memory-map" aria-label="C64 RAM map">
-        <div class="addr">$1000-$1102</div><div class="region r-entry"><b>ENTRY</b><small>Cold/warm discriminator and early copy code.</small></div><div class="size">$0103</div>
-        <div class="addr">$1200-$1BAB</div><div class="region r-resident"><b>RESIDENT</b><small>Parser, hooks, BASIC ROM calls, REU DMA, result commit.</small></div><div class="size">$09AC</div>
+        <div class="addr">$1000-$1102</div><div class="region r-entry"><b>ENTRY</b><small>Cold/warm discriminator and early copy code.</small></div><div class="size">$0103<br><span>259B</span></div>
+        <div class="addr">$1200-$1BAB</div><div class="region r-resident"><b>RESIDENT</b><small>Parser, hooks, BASIC ROM calls, REU DMA, result commit.</small></div><div class="size">$09AC<br><span>2.4K</span></div>
         <div class="addr">$1C00</div><div class="region r-basic"><b>BASIC Sentinel</b><small>Must stay zero before stored-program RUN.</small></div><div class="size">1 byte</div>
-        <div class="addr">$1C01-$9FFF</div><div class="region r-basic"><b>BASIC Workspace</b><small>Program text, variables, arrays, string heap.</small></div><div class="size">33789</div>
-        <div class="addr">$2800-$2FFF</div><div class="region r-overlay"><b>Command Pack Load Image</b><small>Low and hidden overlay seed bytes before cold prestash.</small></div><div class="size">load</div>
-        <div class="addr">$4000-$418F</div><div class="region r-shared"><b>REGSEED Load-Only Image</b><small>Cold descriptor seed copied to REU, then this range may be BASIC-owned.</small></div><div class="size">$0190</div>
-        <div class="addr">REU $44:$0A00-$0BFF</div><div class="region r-readyos"><b>Runtime Snapshot</b><small>Zero page, stack, SP, mode, line-chain guards.</small></div><div class="size">REU</div>
-        <div class="addr">$A000-$A336</div><div class="region r-hidden"><b>HIDDEN</b><small>Helper code under BASIC ROM RAM.</small></div><div class="size">$0337</div>
-        <div class="addr">$A800-$A84C</div><div class="region r-hidden"><b>HIDDENPACK</b><small>Hidden worker overlay image.</small></div><div class="size">$004D</div>
-        <div class="addr">$A900-$ABF2</div><div class="region r-overlay"><b>LOWPACK Runtime</b><small>Banked low command pack fetched from REU.</small></div><div class="size">$02F3</div>
-        <div class="addr">$C000-$C1BD</div><div class="region r-bridge"><b>BRIDGE</b><small>Magic, saved vectors, overlay vars, handles, debug bytes.</small></div><div class="size">$01BE</div>
-        <div class="addr">$C200-$C5FF</div><div class="region r-shared"><b>Shared Frames</b><small>Call/result frames, descriptor/name/page buffers; hidden shadow is refreshed at <code>$C280</code> on <code>!EXIT</code>.</small></div><div class="size">1 KB</div>
-        <div class="addr">$C600-$C7FF</div><div class="region r-readyos"><b>ReadyOS REU Metadata</b><small>ReadyBASIC only marks REU bank ownership here.</small></div><div class="size">shared</div>
-        <div class="addr">$C800-$C9FF</div><div class="region r-readyos"><b>ReadyOS Shim ABI</b><small>Jump table/data, not ReadyBASIC RAM.</small></div><div class="size">shared</div>
+        <div class="addr">$1C01-$9FFF</div><div class="region r-basic"><b>BASIC Workspace</b><small>Program text, variables, arrays, string heap.</small></div><div class="size">$83FF<br><span>33789 free / 33.0K</span></div>
+        <div class="addr">$2800-$2FFF</div><div class="region r-overlay"><b>Command Pack Load Image</b><small>Low and hidden overlay seed bytes before cold prestash.</small></div><div class="size">$0800<br><span>2.0K</span></div>
+        <div class="addr">$4000-$418F</div><div class="region r-shared"><b>REGSEED Load-Only Image</b><small>Cold descriptor seed copied to REU, then this range may be BASIC-owned.</small></div><div class="size">$0190<br><span>400B</span></div>
+        <div class="addr">REU $44:$0A00-$0BFF</div><div class="region r-readyos"><b>Runtime Snapshot</b><small>Zero page, stack, SP, mode, line-chain guards.</small></div><div class="size">$0200<br><span>0.5K</span></div>
+        <div class="addr">$A000-$A336</div><div class="region r-hidden"><b>HIDDEN</b><small>Helper code under BASIC ROM RAM.</small></div><div class="size">$0337<br><span>0.8K</span></div>
+        <div class="addr">$A800-$A84C</div><div class="region r-hidden"><b>HIDDENPACK</b><small>Hidden worker overlay image.</small></div><div class="size">$004D<br><span>77B</span></div>
+        <div class="addr">$A900-$ABF2</div><div class="region r-overlay"><b>LOWPACK Runtime</b><small>Banked low command pack fetched from REU.</small></div><div class="size">$02F3<br><span>0.7K</span></div>
+        <div class="addr">$C000-$C1BD</div><div class="region r-bridge"><b>BRIDGE</b><small>Magic, saved vectors, overlay vars, handles, debug bytes.</small></div><div class="size">$01BE<br><span>446B</span></div>
+        <div class="addr">$C200-$C5FF</div><div class="region r-shared"><b>Shared Frames</b><small>Call/result frames, descriptor/name/page buffers; hidden shadow is refreshed at <code>$C280</code> on <code>!EXIT</code>.</small></div><div class="size">$0400<br><span>1.0K</span></div>
+        <div class="addr">$C600-$C7FF</div><div class="region r-readyos"><b>ReadyOS REU Metadata</b><small>ReadyBASIC only marks REU bank ownership here.</small></div><div class="size">$0200<br><span>0.5K</span></div>
+        <div class="addr">$C800-$C9FF</div><div class="region r-readyos"><b>ReadyOS Shim ABI</b><small>Jump table/data, not ReadyBASIC RAM.</small></div><div class="size">$0200<br><span>0.5K</span></div>
       </div>
       <div class="callout warn">
         <strong>Load image versus runtime:</strong> cold entry copies hidden, bridge,
@@ -708,16 +714,16 @@
         <code>$A000 - $1C03 = 33789</code> bytes.
       </p>
       <div class="grid-3">
-        <div class="metric"><b>38911 bytes</b><span>Stock empty C64 BASIC V2 free space.</span></div>
-        <div class="metric"><b>33789 bytes</b><span>Current empty ReadyBASIC free space.</span></div>
-        <div class="metric"><b>-5122 bytes</b><span>Remaining ReadyBASIC tradeoff for ReadyOS integration and resident dispatch.</span></div>
+        <div class="metric"><b>38911 bytes</b><span>38.0K stock empty C64 BASIC V2 free space.</span></div>
+        <div class="metric"><b>33789 bytes</b><span>33.0K current empty ReadyBASIC free space.</span></div>
+        <div class="metric"><b>-5122 bytes</b><span>-5.0K remaining ReadyBASIC tradeoff for ReadyOS integration and resident dispatch.</span></div>
       </div>
       <table>
         <thead><tr><th>Environment</th><th>BASIC text start</th><th>BASIC top</th><th>Empty free bytes</th></tr></thead>
         <tbody>
-          <tr><td>Stock C64 BASIC V2</td><td><code>$0801</code></td><td><code>$A000</code></td><td><code>38911</code></td></tr>
-          <tr><td>ReadyBASIC current layout</td><td><code>$1C01</code></td><td><code>$A000</code></td><td><code>33789</code></td></tr>
-          <tr><td>Difference</td><td>-</td><td>-</td><td><code>-5122</code></td></tr>
+          <tr><td>Stock C64 BASIC V2</td><td><code>$0801</code></td><td><code>$A000</code></td><td><code>38911</code> (38.0K)</td></tr>
+          <tr><td>ReadyBASIC current layout</td><td><code>$1C01</code></td><td><code>$A000</code></td><td><code>33789</code> (33.0K)</td></tr>
+          <tr><td>Difference</td><td>-</td><td>-</td><td><code>-5122</code> (-5.0K)</td></tr>
         </tbody>
       </table>
       <div class="grid-2">

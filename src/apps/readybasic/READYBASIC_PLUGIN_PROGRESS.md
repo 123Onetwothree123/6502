@@ -1,5 +1,34 @@
 # ReadyBASIC Plugin Progress
 
+This is a chronological progress log. Older entries intentionally preserve the
+layout and addresses that were current when the tests were run. For the current
+memory map, use `READYBASIC_CURRENT_DESIGN.md`.
+
+## 2026-05-21: Memory-Reclaim Layout
+
+- Command: `make readybasic-plugin-static-check`
+- Result: pass.
+- Current static layout:
+  - `ENTRY` `$1000-$1102`, size `$0103` (259B).
+  - `RESIDENT` `$1200-$1BAB`, size `$09AC` (2.4K).
+  - `REGSEED` `$4000-$418F`, size `$0190` (400B).
+  - `HIDDEN` `$A000-$A336`, size `$0337` (0.8K).
+  - `HIDDENPACK` `$A800-$A84C`, size `$004D` (77B).
+  - `LOWPACK` `$A900-$ABF2`, size `$02F3` (0.7K).
+  - `BRIDGE` `$C000-$C1BD`, size `$01BE` (446B).
+- Current BASIC workspace:
+  - `BASIC_START=$1C01`.
+  - BASIC top is `$A000`.
+  - Empty free space is `33789` bytes (33.0K), up from `26109` bytes (25.5K).
+  - Recovered space is `7680` bytes (7.5K).
+- Current suspend/resume layout:
+  - Shared frames live at `$C200-$C5FF` (`$0400`, 1.0K).
+  - Hidden helper shadow is refreshed at `$C280-$C5B6` (`$0337`, 0.8K).
+  - Zero page and stack snapshots live in REU bank `$44` offsets `$0A00/$0B00`.
+- Latest full visual verification:
+  - Run dir: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260521_202657`
+  - Result: 98/98 steps, `FailedStep: null`, no degraded steps.
+
 ## 2026-05-11: Assembler Spine Build
 
 - Command: `make bin/readybasic.prg`

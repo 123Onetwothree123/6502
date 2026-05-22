@@ -43,13 +43,13 @@ The current map confirms this layout:
 
 | Segment | Runtime range | Size | Role |
 |---|---:|---:|---|
-| `ENTRY` | `$1000-$1102` | `$0103` | App entry, cold/warm discriminator, early copies. |
-| `RESIDENT` | `$1200-$1BC1` | `$09C2` | Visible parser, ROM calls, REU DMA wrappers, result commit. |
-| `LOWPACK` | `$1C00-$1EF2` | `$02F3` | Packed low overlay image, loaded to REU bank `$45`. |
-| `REGSEED` | `$4000-$416F` | `$0170` | Load-only registry header/descriptors used on cold seed. |
-| `HIDDEN` | `$A000-$A237` | `$0238` | Hidden helper routines under BASIC ROM. |
-| `HIDDENPACK` | `$A800-$A84C` | `$004D` | Hidden worker overlay image, loaded to REU bank `$45`. |
-| `BRIDGE` | `$C000-$C164` | `$0165` | Persistent bridge/state bytes, no general scratch. |
+| `ENTRY` | `$1000-$1102` | `$0103` (259B) | App entry, cold/warm discriminator, early copies. |
+| `RESIDENT` | `$1200-$1BAB` | `$09AC` (2.4K) | Visible parser, ROM calls, REU DMA wrappers, result commit. |
+| `REGSEED` | `$4000-$418F` | `$0190` (400B) | Load-only registry header/descriptors used on cold seed. |
+| `HIDDEN` | `$A000-$A336` | `$0337` (0.8K) | Hidden helper routines under BASIC ROM. |
+| `HIDDENPACK` | `$A800-$A84C` | `$004D` (77B) | Hidden worker overlay image, loaded to REU bank `$45`. |
+| `LOWPACK` | `$A900-$ABF2` | `$02F3` (0.7K) | Banked low overlay image under BASIC ROM, loaded from REU bank `$45`. |
+| `BRIDGE` | `$C000-$C1BD` | `$01BE` (446B) | Persistent bridge/state bytes, no general scratch. |
 
 ## Technical Philosophy
 
@@ -93,22 +93,22 @@ live inside that contract while also hosting BASIC.
 ```mermaid
 flowchart TB
   A["$1000-$1102 ENTRY<br/>load entry and cold/warm cookie"]
-  B["$1200-$1BC1 RESIDENT<br/>visible parser, vector hook, REU DMA, commit"]
-  C["$1C00-$23FF LOW OVERLAY SLOT<br/>command code copied here from bank $45"]
-  D["$2400-$27FF SHARED FRAMES<br/>call frame, result frame, descriptor/name/page buffers"]
+  B["$1200-$1BAB RESIDENT<br/>visible parser, vector hook, REU DMA, commit"]
+  C["$1C00 SENTINEL<br/>must be zero for BASIC RUN"]
+  D["$1C01-$9FFF BASIC WORKSPACE<br/>33789 free bytes / 33.0K"]
   E["$2800-$2FFF CMDPACK LOAD IMAGE<br/>low and hidden overlay seed bytes before cold prestash"]
-  F["$3000 sentinel<br/>must be zero for BASIC RUN"]
-  G["$3001-$95FF BASIC WORKSPACE<br/>program text, variables, arrays, string heap"]
-  H["$9600-$99FF RUNTIME SNAPSHOT<br/>zero page, stack, SP, line-chain guards"]
-  I["$9A00-$9FFF HIDDEN SHADOW<br/>restores $A000 helper on warm entry"]
-  J["$A000-$A237 HIDDEN HELPER<br/>runs under BASIC ROM RAM"]
+  F["REU $44:$0A00-$0BFF RUNTIME SNAPSHOT<br/>zero page and stack / 0.5K"]
+  G["$C200-$C5FF SHARED FRAMES<br/>call/result/descriptor/name/page buffers / 1.0K"]
+  I["$C280-$C5B6 HIDDEN SHADOW<br/>refreshed on EXIT / 0.8K"]
+  J["$A000-$A336 HIDDEN HELPER<br/>runs under BASIC ROM RAM"]
   K["$A800-$A84C HIDDEN OVERLAY<br/>HCRC worker copied from REU bank $45"]
-  L["$C000-$C164 BRIDGE STATE<br/>magic, saved vectors, overlay vars, handles, debug"]
+  O["$A900-$ABF2 LOW OVERLAY<br/>low workers under BASIC ROM RAM"]
+  L["$C000-$C1BD BRIDGE STATE<br/>magic, saved vectors, overlay vars, handles, debug"]
   M["$C600-$C7FF READYOS REU METADATA<br/>only bank ownership tags here"]
   N["$C800-$C9FF SHIM ABI<br/>ReadyOS jump table/data, not app RAM"]
 
   A --> B --> C --> D --> G
-  G --> H --> I --> J --> K --> L --> M --> N
+  G --> F --> J --> K --> O --> L --> M --> N
 ```
 
 ### Load Image Versus Runtime Image
@@ -120,13 +120,13 @@ runtime-visible resident core:
 |---:|---|
 | `$1000-$11FF` | Entry image, including entry-local warm cookie. |
 | `$1200-$1BFF` | Resident core image. |
-| `$1C00-$27FF` | Padding so the file load span reserves the future low/shared range. |
+| `$1C00-$27FF` | Padding in the PRG load image; after cold setup, BASIC uses `$1C01+`. |
 | `$2800-$2FFF` | Command pack seed bytes. |
-| `$3000-$37FF` | Hidden helper seed bytes, copied to `$A000` and `$9A00`. |
+| `$3000-$37FF` | Hidden helper seed bytes, copied to `$A000` and the visible `$C280` shadow. |
 | `$3800-$3FFF` | Bridge seed bytes, copied to `$C000`. |
 | `$4000-$41FF` | Registry seed bytes, copied to REU bank `$44` only on cold entry. |
 
-After cold setup, BASIC owns `$3001-$95FF`. This is why warm resume must **not**
+After cold setup, BASIC owns `$1C01-$9FFF`. This is why warm resume must **not**
 try to reread the load-only seed tables at `$4000+`: that memory may now be
 BASIC program or variable storage.
 
@@ -152,15 +152,17 @@ ReadyBASIC marks these in the ReadyOS REU allocation table at `$C600+$44` and
 ```mermaid
 flowchart TB
   H["$0000 Header<br/>RBPL, version, descriptor count, frame offsets"]
-  D["$0100 Descriptors<br/>11 x 32-byte command descriptors"]
-  C["$0400 Call frame snapshot<br/>copy of $2400 frame"]
-  R["$0500 Result frame snapshot<br/>copy of $2500 frame"]
+  D["$0100 Descriptors<br/>12 x 32-byte command descriptors"]
+  C["$0400 Call frame snapshot<br/>copy of $C200 frame"]
+  R["$0500 Result frame snapshot<br/>copy of $C300 frame"]
   DBG["$0600 Debug ring reserved<br/>parser/command breadcrumbs"]
   HM["$0800 Handle metadata<br/>8 handles + page bitmap snapshot"]
   HP["$0900 Reserved transient heap<br/>future parser/result staging"]
+  ZP["$0A00 Zero-page snapshot<br/>ReadyOS suspend/resume"]
+  ST["$0B00 Stack-page snapshot<br/>ReadyOS suspend/resume"]
   DATA["$8000-$8FFF V1 data heap<br/>16 x 256-byte pages"]
 
-  H --> D --> C --> R --> DBG --> HM --> HP --> DATA
+  H --> D --> C --> R --> DBG --> HM --> HP --> ZP --> ST --> DATA
 ```
 
 V1 persistent sample buffers use the data heap in bank `$44`, pages `$80-$8F`.
@@ -173,7 +175,7 @@ dynamic banks and keep handles as the stable reference.
 
 ```mermaid
 flowchart LR
-  LP["$0000-$02DC Low overlay pack<br/>copied into $1C00-$23FF"]
+  LP["$0000-$02F2 Low overlay pack<br/>copied into $A900-$ABF2"]
   HP["$02F3-$033F Hidden overlay pack<br/>copied into $A800-$A84C"]
   LP --> HP
 ```
@@ -195,7 +197,7 @@ Each command descriptor is 32 bytes:
 | `4-5` | Low code size. |
 | `6-7` | Hidden code offset in REU bank `$45`. |
 | `8-9` | Hidden code size. |
-| `10-11` | Low entry offset from `$1C00`. |
+| `10-11` | Low entry offset from `$A900`. |
 | `12-13` | Hidden entry offset from `$A000`. |
 | `14` | Signature id. |
 | `15` | Uppercase command-name length. |
@@ -213,12 +215,12 @@ flowchart TD
   C["Cold path"]
   H1["Map RAM under BASIC ROM"]
   H2["Copy hidden helper seed $3000 -> $A000"]
-  H3["Copy hidden helper seed $3000 -> $9A00 shadow"]
+  H3["Copy hidden helper seed -> $C280 shadow"]
   B1["Copy bridge seed $3800 -> $C000"]
   RB["Jump to rb_boot"]
   V["Reset KERNAL/BASIC vectors"]
   I["Install $0308 execute hook"]
-  W["Initialize BASIC workspace at $3001"]
+  W["Initialize BASIC workspace at $1C01"]
   S["Cold seed REU banks $44/$45"]
   P["Clear screen, lowercase VIC mode, banner"]
   R["Enter BASIC_READY"]
@@ -228,18 +230,18 @@ flowchart TD
 
 The cold setup performs these important operations:
 
-1. It copies hidden helper code before BASIC owns `$3001+`.
-2. It stores a shadow copy at `$9A00` because `$A000` code cannot be trusted
+1. It copies hidden helper code before BASIC owns `$1C01+`.
+2. It stores a visible shadow copy at `$C280` because `$A000` code cannot be trusted
    after a ReadyOS app switch.
 3. It copies bridge state to `$C000`.
 4. It resets KERNAL and BASIC vectors, then installs only the execute vector
    hook at `$0308/$0309`.
 5. It relocates BASIC:
-   - `TXTTAB = $3001`
-   - `VARTAB = ARYTAB = STREND = $3003`
-   - `FRETOP = MEMSIZ = $9600`
-   - KERNAL memory bottom/top = `$3000/$9600`
-6. It clears `$3000`, `$3001`, and `$3002`. The `$3000` byte is a hard
+   - `TXTTAB = $1C01`
+   - `VARTAB = ARYTAB = STREND = $1C03`
+   - `FRETOP = MEMSIZ = $A000`
+   - KERNAL memory bottom/top = `$1C00/$A000`
+6. It clears `$1C00`, `$1C01`, and `$1C02`. The `$1C00` byte is a hard
    invariant: C64 BASIC `RUN` expects the byte before `TXTTAB` to be zero.
 7. It seeds REU bank `$44` and `$45`.
 8. It draws the ReadyBASIC banner and enters `BASIC_READY`.
@@ -251,7 +253,7 @@ flowchart TD
   R0["ReadyOS restores app window and jumps to $1000"]
   E["ENTRY sees entry-local warm magic"]
   RH["Map RAM under BASIC ROM"]
-  RS["Copy $9A00 shadow -> $A000 hidden helper"]
+  RS["Copy $C280 shadow -> $A000 hidden helper"]
   RB["Jump to rb_boot"]
   M["Bridge magic says READY or RUN"]
   IV["Install $0308 execute hook"]
@@ -271,11 +273,11 @@ flowchart TD
 
 Warm resume is intentionally different from cold boot:
 
-- It restores the hidden helper from `$9A00`, not from the old load image.
+- It restores the hidden helper from `$C280`, not from the old load image.
 - It reinstalls ReadyBASIC-owned vectors.
 - It re-marks REU ownership for `$44/$45`.
 - It does **not** rebuild the registry/code banks from load-only RAM.
-- It restores BASIC stack and zero page from `$9600-$99FF`.
+- It restores BASIC stack and zero page from REU bank `$44` offsets `$0A00/$0B00`.
 - It resets KERNAL memory bounds, but it does not reset live BASIC pointers such
   as `FRETOP`, `VARTAB`, `ARYTAB`, or `STREND`.
 - READY-mode resume clears/redraws the screen so the launcher menu does not
@@ -292,9 +294,9 @@ flowchart TD
   D["cmd_exit checks TXTPTR<br/>below BASIC_START means READY-mode return"]
   M["Store bridge and entry magic<br/>READY or RUN candidate"]
   S["call_hidden_save_state"]
-  Z["Save zero page $0000-$00FF -> $9600"]
-  ST["Save stack $0100-$01FF -> $9700"]
-  META["Save SP, mode, line-chain guards -> $9800"]
+  Z["Save zero page $0000-$00FF -> REU $44:$0A00"]
+  ST["Save stack $0100-$01FF -> REU $44:$0B00"]
+  META["Save SP, mode, line-chain guards -> bridge metadata"]
   V["Restore BASIC/KERNAL page-3 vectors"]
   SHIM["Jump SHIM_RETURN $C80C"]
   L["Launcher regains control"]
@@ -311,10 +313,10 @@ The runtime snapshot lives here:
 
 | Range | Meaning |
 |---:|---|
-| `$9600-$96FF` | Saved zero page. |
-| `$9700-$97FF` | Saved hardware stack page. |
-| `$9800+` | Runtime magic, saved SP, resume mode, line-chain validation. |
-| `$9A00-$9FFF` | Hidden helper shadow. |
+| REU `$44:$0A00-$0AFF` | Saved zero page. |
+| REU `$44:$0B00-$0BFF` | Saved hardware stack page. |
+| Bridge metadata | Runtime magic, saved SP, resume mode, line-chain validation. |
+| `$C280-$C5B6` | Hidden helper shadow, refreshed during `EXIT`. |
 
 ## Raw ! Dispatch
 
@@ -356,29 +358,29 @@ sequenceDiagram
   participant RES as ReadyBASIC resident
   participant R44 as REU bank $44
   participant R45 as REU bank $45
-  participant LOW as Low overlay $1C00
+  participant LOW as Low overlay $A900
   participant HID as Hidden overlay $A800
 
   BASIC->>RES: $0308 execute vector
   RES->>RES: Match raw "!"
   RES->>RES: Normalize command name
   RES->>R44: Fetch descriptors one at a time from $0100
-  R44-->>RES: Descriptor -> $2680
+  R44-->>RES: Descriptor -> $C480
   RES->>RES: Parse signature with BASIC ROM helpers
   RES->>RES: Clear output variables
-  RES->>R44: Stash call frame $2400 -> $0400
+  RES->>R44: Stash call frame $C200 -> $0400
   alt Low command
     RES->>R45: Fetch code slice
-    R45-->>LOW: Copy into $1C00 slot
+    R45-->>LOW: Copy into $A900 slot
     RES->>LOW: JSR command entry
-    LOW-->>RES: Result frame at $2500
+    LOW-->>RES: Result frame at $C300
   else Hidden command
     RES->>R45: Fetch hidden code slice
     R45-->>HID: Copy into RAM under BASIC ROM
     RES->>HID: Call with RAM under BASIC visible
-    HID-->>RES: Result frame at $2500
+    HID-->>RES: Result frame at $C300
   end
-  RES->>R44: Stash result frame $2500 -> $0500
+  RES->>R44: Stash result frame $C300 -> $0500
   RES->>RES: Commit result to BASIC variable/string/array
   RES-->>BASIC: BASIC_NEXT_STMT
 ```
@@ -387,11 +389,11 @@ sequenceDiagram
 
 | Frame | Address | Contents |
 |---|---:|---|
-| Call frame | `$2400` | Command id, parameter count, numeric slots, pointer/count slots, string buffer. |
-| Result frame | `$2500` | Status, error, value tag, scalar value, string buffer, array buffer. |
-| Descriptor buffer | `$2680` | One 32-byte descriptor fetched from REU bank `$44`. |
-| Command buffer | `$26A0` | Normalized command name. |
-| Page buffer | `$2700` | 256-byte fill/stash buffer for handle operations. |
+| Call frame | `$C200` | Command id, parameter count, numeric slots, pointer/count slots, string buffer. |
+| Result frame | `$C300` | Status, error, value tag, scalar value, string buffer, array buffer. |
+| Descriptor buffer | `$C480` | One 32-byte descriptor fetched from REU bank `$44`. |
+| Command buffer | `$C4A0` | Normalized command name. |
+| Page buffer | `$C500` | 256-byte fill/stash buffer for handle operations and warm-resume stack staging. |
 
 The call and result frames are also mirrored to REU bank `$44` offsets `$0400`
 and `$0500`. This gives crash/debug visibility and gives future worker models a
@@ -433,17 +435,18 @@ BASIC's string heap.
 
 | Command | Code placement | REU code bytes copied | Parameters | Result behavior |
 |---|---|---:|---|---|
-| `!PING OUT%` | Low overlay at `$1C00+$0000` | `$0015` | output int | Returns `1`. |
-| `!ADD16 A,B,OUT%` | Low overlay at `$1C00+$0015` | `$001E` | two numeric expressions, output int | Returns 16-bit sum. |
-| `!STRUP S$,OUT$` | Low overlay at `$1C00+$0033` | `$003B` | string variable or literal, output string | Uppercases staged bytes. |
-| `!HCRC S$,OUT%` | Hidden overlay at `$A800` | `$004D` | string variable or literal, output int | Sums uppercase bytes. |
-| `!SUMAI A%(0),COUNT,OUT%` | Low overlay at `$1C00+$006E` | `$0044` | integer array base/count, output int | Sums integer array values. |
-| `!RANGEAI START,COUNT,A%(0)` | Low overlay at `$1C00+$00B2` | `$003D` | start/count, output array | Stages consecutive integers. |
-| `!BUFNEW LEN,H%` | Low overlay entry `$00EF` | `$02F3` | length, output handle | Allocates persistent pages in bank `$44`. |
-| `!BUFFILL H%,BYTE` | Low overlay entry `$00F3` | `$02F3` | handle, byte | Fills handle pages using `$2700` page buffer. |
-| `!BUFFREE H%` | Low overlay entry `$00F7` | `$02F3` | handle | Frees pages and clears metadata. |
-| `!TEMPSCRATCH LEN,OUT%` | Low overlay entry `$00FB` | `$02F3` | length, output int | Allocates then frees pages, returns page count. |
-| `!FAIL CODE,OUT%` | Low overlay at `$1C00+$00FF` | `$001B` | code, output int | Clears output first, then returns `?RB ERROR code`. |
+| `!PING OUT%` | Low overlay at `$A900+$0000` | `$0015` (21B) | output int | Returns `1`. |
+| `!ADD16 A,B,OUT%` | Low overlay at `$A900+$0015` | `$001E` (30B) | two numeric expressions, output int | Returns 16-bit sum. |
+| `!STRUP S$,OUT$` | Low overlay at `$A900+$0033` | `$003B` (59B) | string variable or literal, output string | Uppercases staged bytes. |
+| `!HCRC S$,OUT%` | Hidden overlay at `$A800` | `$004D` (77B) | string variable or literal, output int | Sums uppercase bytes. |
+| `!SUMAI A%(0),COUNT,OUT%` | Low overlay at `$A900+$006E` | `$0044` (68B) | integer array base/count, output int | Sums integer array values. |
+| `!RANGEAI START,COUNT,A%(0)` | Low overlay at `$A900+$00B2` | `$003D` (61B) | start/count, output array | Stages consecutive integers. |
+| `!BUFNEW LEN,H%` | Low overlay entry `$00EF` | `$02F3` (0.7K) | length, output handle | Allocates persistent pages in bank `$44`. |
+| `!BUFFILL H%,BYTE` | Low overlay entry `$00F3` | `$02F3` (0.7K) | handle, byte | Fills handle pages using `$C500` page buffer. |
+| `!BUFFREE H%` | Low overlay entry `$00F7` | `$02F3` (0.7K) | handle | Frees pages and clears metadata. |
+| `!TEMPSCRATCH LEN,OUT%` | Low overlay entry `$00FB` | `$02F3` (0.7K) | length, output int | Allocates then frees pages, returns page count. |
+| `!FAIL CODE,OUT%` | Low overlay at `$A900+$00FF` | `$001B` (27B) | code, output int | Clears output first, then returns `?RB ERROR code`. |
+| `!FREEMEM` | Low overlay at `$A900+$011A` | `$0016` (22B) | none | Prints live free BASIC bytes and refreshes the header. |
 
 The heap-oriented commands copy the full `$02F3` low pack because allocator
 helpers currently live in the same overlay pack. That is an implementation
@@ -466,7 +469,7 @@ flowchart LR
 ```
 
 `BUFNEW` converts byte length to 256-byte pages, finds contiguous free pages,
-records metadata, and returns a one-based handle. `BUFFILL` fills `$2700` with
+records metadata, and returns a one-based handle. `BUFFILL` fills `$C500` with
 the byte and stashes it page by page into bank `$44` at page offsets `$80-$8F`.
 `BUFFREE` clears both the handle and bitmap. `TEMPSCRATCH` proves temporary
 allocation by marking pages and freeing them before returning.
@@ -481,7 +484,7 @@ visible reference.
 
 ReadyBASIC uses two kinds of hidden code:
 
-- Hidden helper at `$A000-$A237`.
+- Hidden helper at `$A000-$A336`.
 - Hidden worker overlay at `$A800-$A84C`.
 
 Before calling hidden code, ReadyBASIC:
@@ -505,13 +508,13 @@ These invariants are the current safety rails:
 
 - ReadyBASIC must be booted through normal ReadyOS profile/run flow, not as a
   standalone app.
-- `BASIC_START` stays `$3001`.
-- `$3000` stays zero before stored-program `RUN`.
+- `BASIC_START` stays `$1C01`.
+- `$1C00` stays zero before stored-program `RUN`.
 - `RESIDENT` stays below `$1C00`.
-- `BRIDGE` stays below `$C600`.
+- `BRIDGE` stays below `$C200`, leaving `$C200-$C5FF` for shared frames.
 - `$C600-$C7FF` is ReadyOS REU metadata, not ReadyBASIC scratch.
 - `$C800-$C9FF` remains shim ABI.
-- Warm resume must restore `$A000` from `$9A00` before hidden helper calls.
+- Warm resume must restore `$A000` from `$C280` before hidden helper calls.
 - Warm resume must not reset `FRETOP`, `VARTAB`, `ARYTAB`, or `STREND`.
 - ReadyBASIC-owned vectors must be restored before yielding to ReadyOS.
 - Non-ReadyBASIC BASIC statements must tail-call the original `$0308` vector
@@ -527,11 +530,11 @@ The current full visual suite is:
 READYBASIC_VISIBLE=1 /Users/karlprosserpp/dev/c64projects/agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_full_suite_visual_verification.sh
 ```
 
-Latest documented pass:
+Latest documented pass on the memory-reclaim branch:
 
 - Run dir:
-  `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260512_002033`
-- Result: 84/84 steps.
+  `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260521_202657`
+- Result: 98/98 steps, `FailedStep: null`, no degraded steps.
 - It validates:
   - Cold ReadyOS boot with `READYOS_CONFIG_RUN_FIRST=readybasic`.
   - Direct-mode scalar, string, hidden worker, array, REU handle, temp heap,

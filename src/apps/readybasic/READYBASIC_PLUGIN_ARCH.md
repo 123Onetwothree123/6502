@@ -2,14 +2,15 @@
 
 ## Current V1 Layout
 
-- `BASIC_START = $3001`; BASIC owns `$3001-$95FF`.
-- `$1000-$1102`: tiny app entry that copies hidden helpers and bridge state before BASIC starts.
-- `$1200-$1BC1`: visible resident core. This is the only code that calls BASIC ROM helpers.
-- `$1C00-$23FF`: low command overlay slot. Current packed low command image is `$02F3` bytes.
-- `$2400-$27FF`: fixed call frame, result frame, descriptor buffer, command-name buffer, and page buffer.
-- `$A000-$A141`: hidden helper code, restored from `$9A00`.
-- `$A800-$A82F`: hidden worker overlay slot used by `HCRC`.
-- `$C000-$C164`: bridge state only; the implementation stays below `$C600`.
+- `BASIC_START = $1C01`; BASIC owns `$1C01-$9FFF`, with `33789` empty free bytes (33.0K).
+- `$1000-$1102`: tiny app entry (`$0103`, 259B) that copies hidden helpers and bridge state before BASIC starts.
+- `$1200-$1BAB`: visible resident core (`$09AC`, 2.4K). This is the only code that calls BASIC ROM helpers.
+- `$1C00`: BASIC sentinel byte; it must stay zero before stored-program `RUN`.
+- `$A900-$ABF2`: low command overlay slot under BASIC ROM. Current packed low command image is `$02F3` bytes (0.7K).
+- `$C200-$C5FF`: fixed call frame, result frame, descriptor buffer, command-name buffer, page buffer, and warm-resume staging (`$0400`, 1.0K).
+- `$A000-$A336`: hidden helper code (`$0337`, 0.8K), restored from the visible `$C280` shadow.
+- `$A800-$A84C`: hidden worker overlay slot (`$004D`, 77B) used by `HCRC`.
+- `$C000-$C1BD`: bridge state only (`$01BE`, 446B); the implementation stays below `$C200`.
 
 ## REU Banks
 
@@ -22,11 +23,13 @@
 ## Bank `$44` Regions
 
 - `$0000`: registry header (`RBPL`, version, descriptor count, descriptor size, frame offsets).
-- `$0100`: compact command descriptors, 32 bytes each.
+- `$0100`: 12 compact command descriptors, 32 bytes each.
 - `$0400`: current call-frame snapshot.
 - `$0500`: current result-frame snapshot.
 - `$0600`: reserved REU debug ring region.
 - `$0800`: persistent handle metadata snapshot.
+- `$0A00`: ReadyOS suspend/resume zero-page snapshot.
+- `$0B00`: ReadyOS suspend/resume stack-page snapshot.
 - `$8000-$8FFF`: current V1 16-page persistent data heap for sample buffer handles.
 
 ## Bank `$45` Regions
@@ -45,7 +48,7 @@ Each descriptor is 32 bytes:
 - `4-5`: low code size.
 - `6-7`: hidden code offset in bank `$45`.
 - `8-9`: hidden code size.
-- `10-11`: low run offset from `$1C00`.
+- `10-11`: low run offset from `$A900`.
 - `12-13`: hidden run offset from `$A000`.
 - `14`: signature id.
 - `15`: uppercase command-name length.
@@ -53,8 +56,11 @@ Each descriptor is 32 bytes:
 
 ## Frames
 
-- Call frame starts at `$2400`.
-- Result frame starts at `$2500`.
+- Call frame starts at `$C200`.
+- Result frame starts at `$C300`.
+- Descriptor buffer starts at `$C480`.
+- Command buffer starts at `$C4A0`.
+- Page buffer starts at `$C500`.
 - V1 supports up to the requested frame size, but implemented sample signatures use direct fixed slots rather than a generalized signature VM.
 - Numeric expressions are evaluated through BASIC ROM `FRMNUM` and `GETADR`.
 - Variable and array references use BASIC ROM `PTRGET`; output integers are cleared before command execution.
@@ -73,6 +79,7 @@ Each descriptor is 32 bytes:
 - `!BUFFREE H%`: low overlay, frees a handle.
 - `!TEMPSCRATCH LEN,OUT%`: low overlay, allocates and frees temporary pages, returning page count.
 - `!FAIL CODE,OUT%`: low overlay, exercises the error path after output clearing.
+- `!FREEMEM`: low overlay, prints the current live BASIC free-byte count and refreshes the header.
 
 ## Known V1 Boundaries
 

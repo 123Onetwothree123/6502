@@ -35,9 +35,11 @@ ReadyBASIC now duplicates a small amount of ReadyOS REU and shim knowledge in as
 
 - ReadyBASIC still uses:
   - `SHIM_RETURN = $C80C`
-  - bridge state at `$C000-$C5FF`
-  - app runtime save at `$9600-$99FF`
+  - bridge state at `$C000-$C1BD`
+  - shared frames and visible helper shadow at `$C200-$C5FF`
+  - app runtime zero-page/stack save in REU bank `$44` offsets `$0A00/$0B00`
 - Do not place ReadyBasic state in `$C800-$C9FF`; that remains shim ABI territory.
+- Do not use `$C600-$C7FF` as ReadyBASIC scratch; it remains ReadyOS REU metadata.
 
 ## Banking Discipline
 

@@ -245,7 +245,12 @@
       font-size: 13px;
     }
     .addr { border-right: 1px solid var(--line); }
-    .size { border-left: 1px solid var(--line); }
+    .size {
+      border-left: 1px solid var(--line);
+      flex-direction: column;
+      gap: 2px;
+      line-height: 1.2;
+    }
     .region {
       min-height: 44px;
       padding: 9px 12px;
@@ -391,9 +396,9 @@
         permanently reducing BASIC workspace.
       </p>
       <div class="dashboard">
-        <div class="metric"><b>33789 bytes</b><span>Current empty ReadyBASIC BASIC workspace.</span></div>
-        <div class="metric"><b>+7680 bytes</b><span class="gain">Implemented gain versus the old 26109-byte layout.</span></div>
-        <div class="metric"><b>+7680 bytes</b><span>Implemented gain over the old baseline.</span></div>
+        <div class="metric"><b>33789 bytes</b><span>33.0K current empty ReadyBASIC BASIC workspace.</span></div>
+        <div class="metric"><b>+7680 bytes</b><span class="gain">7.5K gained versus the old 26109-byte layout.</span></div>
+        <div class="metric"><b>5122 bytes</b><span>5.0K below stock C64 BASIC V2.</span></div>
         <div class="metric"><b>0 BASIC bytes</b><span>Expected cost for a new command that reuses existing signatures.</span></div>
       </div>
     </div>
@@ -422,19 +427,19 @@
 variables start at   $1C03
 BASIC top is         $A000
 
-$A000 - $1C03 = 33789 bytes</span>
+$A000 - $1C03 = 33789 bytes (33.0K)</span>
         </div>
         <div>
           <p>Stock C64 BASIC V2 gives about <code>38911</code> bytes.</p>
           <span class="formula">stock BASIC text starts at $0801
 stock BASIC top is         $A000
 
-$A000 - $0801 = 38911 bytes</span>
+$A000 - $0801 = 38911 bytes (38.0K)</span>
         </div>
       </div>
       <div class="callout warn">
-        ReadyBASIC is now <code>5122</code> bytes below stock. Before this branch it
-        had <code>26109</code> bytes free, so this branch reclaimed <code>7680</code> bytes.
+        ReadyBASIC is now <code>5122</code> bytes (5.0K) below stock. Before this branch it
+        had <code>26109</code> bytes (25.5K) free, so this branch reclaimed <code>7680</code> bytes (7.5K).
       </div>
       <p>
         For manual testing, use <code>bash ./run.sh --profile precog-d81 --skipbuild</code>
@@ -454,7 +459,7 @@ $A000 - $0801 = 38911 bytes</span>
           <tr><td><code>$9600-$99FF</code></td><td>Former runtime snapshot.</td><td>Now BASIC workspace up to <code>$9FFF</code>.</td><td>Implemented by saving zero page/stack in REU bank <code>$44</code>.</td></tr>
           <tr><td><code>$9A00-$9FFF</code></td><td>Former hidden helper shadow.</td><td>Now BASIC workspace.</td><td>Implemented by refreshing a visible shadow at <code>$C280</code> during <code>!EXIT</code>.</td></tr>
           <tr><td><code>$A000-$BFFF</code></td><td>Hidden helper and hidden overlay.</td><td>Main command overlay arena for most or all workers.</td><td>Safe inside ReadyOS app window, visible only when banking out BASIC ROM.</td></tr>
-          <tr><td><code>$C000-$C5FF</code></td><td>Bridge uses <code>$C000-$C164</code>; rest is mostly free.</td><td>Shared frames, small visible trampolines, loader scratch.</td><td>Safe only below <code>$C600</code>.</td></tr>
+          <tr><td><code>$C000-$C5FF</code></td><td>Bridge uses <code>$C000-$C1BD</code> (<code>$01BE</code>, 446B); rest holds shared frames and visible shadow.</td><td>Shared frames, small visible trampolines, loader scratch.</td><td>Safe only below <code>$C600</code>.</td></tr>
           <tr><td><code>$C600-$C7FF</code></td><td>ReadyOS REU metadata.</td><td>Not available.</td><td>Reserved.</td></tr>
           <tr><td><code>$C800-$C9FF</code></td><td>ReadyOS shim ABI.</td><td>Not available.</td><td>Reserved.</td></tr>
         </tbody>
@@ -473,11 +478,11 @@ $A000 - $0801 = 38911 bytes</span>
         <thead><tr><th>Component</th><th>Current location</th><th>Lifetime</th><th>Reuse idea</th></tr></thead>
         <tbody>
           <tr><td><code>CMDPACK</code> load image</td><td><code>$2800-$2FFF</code></td><td>Cold seed only.</td><td>Let BASIC own this range after code is copied to REU bank <code>$45</code>.</td></tr>
-          <tr><td><code>REGSEED</code></td><td><code>$4000-$416F</code></td><td>Cold seed only.</td><td>Already load-only; never reread after BASIC owns memory.</td></tr>
-          <tr><td>Runtime snapshot</td><td><code>$9600-$99FF</code></td><td>Needed only across <code>EXIT</code>/warm resume.</td><td>Save zero page, stack, and mode directly to REU.</td></tr>
-          <tr><td>Hidden shadow</td><td><code>$9A00-$9FFF</code></td><td>Needed only to restore <code>$A000</code> helper after app switch.</td><td>Keep helper image in REU and fetch on warm entry.</td></tr>
-          <tr><td>Low overlay slot</td><td><code>$1C00-$23FF</code></td><td>Needed only while a command executes.</td><td>Run low workers from banked RAM under BASIC ROM.</td></tr>
-          <tr><td>Shared frames</td><td><code>$2400-$27FF</code></td><td>Needed during parse/execute/commit.</td><td>Move to visible RAM below <code>$C600</code>, such as <code>$C200-$C5FF</code>.</td></tr>
+          <tr><td><code>REGSEED</code></td><td><code>$4000-$418F</code> (<code>$0190</code>, 400B)</td><td>Cold seed only.</td><td>Already load-only; never reread after BASIC owns memory.</td></tr>
+          <tr><td>Runtime snapshot</td><td>former <code>$9600-$99FF</code> (<code>$0400</code>, 1.0K)</td><td>Needed only across <code>EXIT</code>/warm resume.</td><td>Save zero page, stack, and mode directly to REU.</td></tr>
+          <tr><td>Hidden shadow</td><td>former <code>$9A00-$9FFF</code> (<code>$0600</code>, 1.5K)</td><td>Needed only to restore <code>$A000</code> helper after app switch.</td><td>Refresh visible <code>$C280-$C5B6</code> (<code>$0337</code>, 0.8K) during <code>!EXIT</code>.</td></tr>
+          <tr><td>Low overlay slot</td><td>former <code>$1C00-$23FF</code> (<code>$0800</code>, 2.0K)</td><td>Needed only while a command executes.</td><td>Run low workers from banked RAM under BASIC ROM.</td></tr>
+          <tr><td>Shared frames</td><td>former <code>$2400-$27FF</code> (<code>$0400</code>, 1.0K)</td><td>Needed during parse/execute/commit.</td><td>Move to <code>$C200-$C5FF</code> (<code>$0400</code>, 1.0K).</td></tr>
         </tbody>
       </table>
     </section>
@@ -492,9 +497,9 @@ $A000 - $0801 = 38911 bytes</span>
         <div class="step"><span class="num">5</span><h3>Raise Top</h3><p>Move BASIC top from <code>$9600</code> back to <code>$A000</code>.</p></div>
       </div>
       <div class="grid-3">
-        <div class="metric"><b>+3072 bytes</b><span>Stage 1 frame move target: <code>$9600 - $2403</code>.</span></div>
-        <div class="metric"><b>+5120 bytes</b><span>Stage 2 worker move target: <code>$9600 - $1C03</code>.</span></div>
-        <div class="metric"><b>+7680 bytes</b><span>Stage 3 REU resume target: <code>$A000 - $1C03</code>.</span></div>
+        <div class="metric"><b>+3072 bytes</b><span>3.0K stage 1 frame move target: <code>$9600 - $2403</code>.</span></div>
+        <div class="metric"><b>+5120 bytes</b><span>5.0K stage 2 worker move target: <code>$9600 - $1C03</code>.</span></div>
+        <div class="metric"><b>+7680 bytes</b><span>7.5K stage 3 REU resume target: <code>$A000 - $1C03</code>.</span></div>
       </div>
       <div class="callout risk">
         The worker-under-ROM stage is the behavioral hinge: workers must not call
@@ -506,21 +511,21 @@ $A000 - $0801 = 38911 bytes</span>
     <section id="scenarios" class="band">
       <h2>BASIC RAM Scenarios</h2>
       <div class="scenario-grid">
-        <div class="scenario"><div class="label">Old baseline</div><b>26109</b><code>$3001-$9600</code><span class="gain">baseline</span></div>
-        <div class="scenario"><div class="label">Reclaim <code>CMDPACK</code> only</div><b>28157</b><code>$2801-$9600</code><span class="gain">+2048</span></div>
-        <div class="scenario"><div class="label">Move shared frames</div><b>29181</b><code>$2401-$9600</code><span class="gain">+3072</span></div>
-        <div class="scenario"><div class="label">Move workers under ROM</div><b>31229</b><code>$1C01-$9600</code><span class="gain">+5120</span></div>
-        <div class="scenario"><div class="label">Workers + REU resume</div><b>33789</b><code>$1C01-$A000</code><span class="gain">+7680</span></div>
+        <div class="scenario"><div class="label">Old baseline</div><b>26109</b><code>$3001-$9600</code><span class="gain">25.5K</span></div>
+        <div class="scenario"><div class="label">Reclaim <code>CMDPACK</code> only</div><b>28157</b><code>$2801-$9600</code><span class="gain">+2048 / 2.0K</span></div>
+        <div class="scenario"><div class="label">Move shared frames</div><b>29181</b><code>$2401-$9600</code><span class="gain">+3072 / 3.0K</span></div>
+        <div class="scenario"><div class="label">Move workers under ROM</div><b>31229</b><code>$1C01-$9600</code><span class="gain">+5120 / 5.0K</span></div>
+        <div class="scenario"><div class="label">Workers + REU resume</div><b>33789</b><code>$1C01-$A000</code><span class="gain">+7680 / 7.5K</span></div>
       </div>
       <table>
         <thead><tr><th>Scenario</th><th>BASIC start</th><th>BASIC top</th><th>Empty free bytes</th><th>Gain over old baseline</th></tr></thead>
         <tbody>
-          <tr><td>Old baseline</td><td><code>$3001</code></td><td><code>$9600</code></td><td><code>26109</code></td><td><code>0</code></td></tr>
-          <tr><td>Reclaim load-only <code>CMDPACK</code> only</td><td><code>$2801</code></td><td><code>$9600</code></td><td><code>28157</code></td><td><code>+2048</code></td></tr>
-          <tr><td>Move shared frames to <code>$C200</code></td><td><code>$2401</code></td><td><code>$9600</code></td><td><code>29181</code></td><td><code>+3072</code></td></tr>
-          <tr><td>Move all command workers under ROM</td><td><code>$1C01</code></td><td><code>$9600</code></td><td><code>31229</code></td><td><code>+5120</code></td></tr>
-          <tr><td>Move workers under ROM and resume state to REU</td><td><code>$1C01</code></td><td><code>$A000</code></td><td><code>33789</code></td><td><code>+7680</code></td></tr>
-          <tr><td>Stock C64 BASIC V2</td><td><code>$0801</code></td><td><code>$A000</code></td><td><code>38911</code></td><td><code>+12802</code> versus old baseline</td></tr>
+          <tr><td>Old baseline</td><td><code>$3001</code></td><td><code>$9600</code></td><td><code>26109</code> (25.5K)</td><td><code>0</code></td></tr>
+          <tr><td>Reclaim load-only <code>CMDPACK</code> only</td><td><code>$2801</code></td><td><code>$9600</code></td><td><code>28157</code> (27.5K)</td><td><code>+2048</code> (2.0K)</td></tr>
+          <tr><td>Move shared frames to <code>$C200</code></td><td><code>$2401</code></td><td><code>$9600</code></td><td><code>29181</code> (28.5K)</td><td><code>+3072</code> (3.0K)</td></tr>
+          <tr><td>Move all command workers under ROM</td><td><code>$1C01</code></td><td><code>$9600</code></td><td><code>31229</code> (30.5K)</td><td><code>+5120</code> (5.0K)</td></tr>
+          <tr><td>Move workers under ROM and resume state to REU</td><td><code>$1C01</code></td><td><code>$A000</code></td><td><code>33789</code> (33.0K)</td><td><code>+7680</code> (7.5K)</td></tr>
+          <tr><td>Stock C64 BASIC V2</td><td><code>$0801</code></td><td><code>$A000</code></td><td><code>38911</code> (38.0K)</td><td><code>+12802</code> (12.5K) versus old baseline</td></tr>
         </tbody>
       </table>
       <p class="muted">
@@ -564,17 +569,17 @@ $A000 - $0801 = 38911 bytes</span>
     <section id="layout" class="band">
       <h2>Implemented Rearranged Layout</h2>
       <div class="map">
-        <div class="addr">$1000-$1102</div><div class="region r-entry"><b>Entry / warm trampoline</b><small>Only what must run before resident setup.</small></div><div class="size">tiny</div>
-        <div class="addr">$1200-$1BAB</div><div class="region r-resident"><b>Visible resident</b><small>Parser, vector hooks, ROM calls, REU DMA, result commit.</small></div><div class="size">$09AC</div>
-        <div class="addr">$1C00</div><div class="region r-basic"><b>BASIC sentinel</b><small>Zero byte before BASIC text.</small></div><div class="size">1 byte</div>
-        <div class="addr">$1C01-$9FFF</div><div class="region r-basic"><b>BASIC workspace</b><small>Program text, variables, arrays, string heap.</small></div><div class="size">33789</div>
-        <div class="addr">$A000-$A336</div><div class="region r-hidden"><b>Hidden helper</b><small>Restored from load image on cold entry and from <code>$C280</code> on warm entry.</small></div><div class="size">$0337</div>
-        <div class="addr">$A800-$A84C</div><div class="region r-overlay"><b>Hidden command overlay arena</b><small>Hidden workers execute under BASIC ROM RAM.</small></div><div class="size">$004D</div>
-        <div class="addr">$A900-$ABF2</div><div class="region r-overlay"><b>Low command overlay arena</b><small>Low workers execute under BASIC ROM RAM.</small></div><div class="size">$02F3</div>
-        <div class="addr">$C000-$C1BD</div><div class="region r-bridge"><b>Bridge state</b><small>Magic, saved vectors, small persistent bytes.</small></div><div class="size">$01BE</div>
-        <div class="addr">$C200-$C5FF</div><div class="region r-bridge"><b>Shared frames and shadow</b><small>Frames, resume buffers, and refreshed hidden helper shadow at <code>$C280</code>.</small></div><div class="size">1 KB</div>
-        <div class="addr">$C600-$C7FF</div><div class="region r-readyos"><b>ReadyOS REU metadata</b><small>Do not use.</small></div><div class="size">reserved</div>
-        <div class="addr">$C800-$C9FF</div><div class="region r-readyos"><b>ReadyOS shim ABI</b><small>Do not use.</small></div><div class="size">reserved</div>
+        <div class="addr">$1000-$1102</div><div class="region r-entry"><b>Entry / warm trampoline</b><small>Only what must run before resident setup.</small></div><div class="size">$0103<br>259B</div>
+        <div class="addr">$1200-$1BAB</div><div class="region r-resident"><b>Visible resident</b><small>Parser, vector hooks, ROM calls, REU DMA, result commit.</small></div><div class="size">$09AC<br>2.4K</div>
+        <div class="addr">$1C00</div><div class="region r-basic"><b>BASIC sentinel</b><small>Zero byte before BASIC text.</small></div><div class="size">1B</div>
+        <div class="addr">$1C01-$9FFF</div><div class="region r-basic"><b>BASIC workspace</b><small>Program text, variables, arrays, string heap.</small></div><div class="size">$83FF<br>33789 free / 33.0K</div>
+        <div class="addr">$A000-$A336</div><div class="region r-hidden"><b>Hidden helper</b><small>Restored from load image on cold entry and from <code>$C280</code> on warm entry.</small></div><div class="size">$0337<br>0.8K</div>
+        <div class="addr">$A800-$A84C</div><div class="region r-overlay"><b>Hidden command overlay arena</b><small>Hidden workers execute under BASIC ROM RAM.</small></div><div class="size">$004D<br>77B</div>
+        <div class="addr">$A900-$ABF2</div><div class="region r-overlay"><b>Low command overlay arena</b><small>Low workers execute under BASIC ROM RAM.</small></div><div class="size">$02F3<br>0.7K</div>
+        <div class="addr">$C000-$C1BD</div><div class="region r-bridge"><b>Bridge state</b><small>Magic, saved vectors, small persistent bytes.</small></div><div class="size">$01BE<br>446B</div>
+        <div class="addr">$C200-$C5FF</div><div class="region r-bridge"><b>Shared frames and shadow</b><small>Frames, resume buffers, and refreshed hidden helper shadow at <code>$C280</code>.</small></div><div class="size">$0400<br>1.0K</div>
+        <div class="addr">$C600-$C7FF</div><div class="region r-readyos"><b>ReadyOS REU metadata</b><small>Do not use.</small></div><div class="size">$0200<br>0.5K</div>
+        <div class="addr">$C800-$C9FF</div><div class="region r-readyos"><b>ReadyOS shim ABI</b><small>Do not use.</small></div><div class="size">$0200<br>0.5K</div>
       </div>
     </section>
 

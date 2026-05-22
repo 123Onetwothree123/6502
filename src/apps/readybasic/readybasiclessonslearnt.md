@@ -10,17 +10,17 @@ actual C64/ReadyOS evidence trail rather than a pile of confident guesses.
 - The app PRG loads at `$1000` and must obey the ReadyOS app/shim window:
   `$1000-$C5FF` is app-owned, `$C600-$C9FF` is reserved metadata/shim space.
 - BASIC programs are data inside the host. The scoped BASIC workspace is now
-  `$3001-$95FF`; raw ReadyBASIC wedge lines are left as text rather than
+  `$1C01-$9FFF`, with `33789` empty free bytes (33.0K); raw ReadyBASIC wedge lines are left as text rather than
   crunched into a private token.
-- `$9600-$99FF` is reserved for ReadyBASIC suspend metadata, zero-page snapshot,
-  stack snapshot, saved SP, and line-chain guards.
+- ReadyBASIC suspend state keeps zero-page and stack snapshots in REU bank `$44`
+  at offsets `$0A00/$0B00`; saved SP, mode, and line-chain guards live in bridge metadata.
 - Hidden services live under BASIC ROM RAM at `$A000-$BFFF` and visible
   trampolines/state/mailbox live at `$C000-$C5FF`.
-- A shadow copy of the hidden helper image lives at `$9A00-$9FFF`, inside the
-  ReadyOS app snapshot window but above BASIC's managed top-of-memory. Warm
+- A refreshed visible shadow copy of the hidden helper image lives at `$C280-$C5B6`,
+  inside the ReadyOS app snapshot window. Warm
   entry restores `$A000` from that shadow before using hidden helpers.
 - The plugin spine keeps visible resident code at `$1200-$1BFF`, command
-  overlays at `$1C00-$23FF`, shared frames at `$2400-$27FF`, and fixed
+  overlays under BASIC ROM at `$A900-$ABF2`, shared frames at `$C200-$C5FF`, and fixed
   ReadyBASIC REU banks `$44/$45`.
 
 ## Live Discipline Notes
@@ -141,9 +141,9 @@ when an app returns to the launcher. ReadyBASIC's hidden helper code under
 `$A000-$BFFF` is not part of that transfer, so warm entry cannot assume it is
 still valid after the launcher or another app has run.
 
-Current rule: reserve `$9A00-$9FFF` as a shadow image, lower BASIC's memory
-limit to `$9A00`, and restore `$A000` from the shadow on every warm entry.
-`EXIT` refreshes the shadow before jumping to `$C80C`.
+Current rule: keep the hidden helper shadow at `$C280-$C5B6`, refresh it during
+manual prompt `EXIT`, and restore `$A000` from that shadow on every warm entry.
+BASIC top is `$A000`; the old `$9A00-$9FFF` shadow reservation has been reclaimed.
 
 ### `$0000` DDR Is Part Of The Banking Contract
 
@@ -250,9 +250,10 @@ future work.
 
 ### Relocated BASIC Needs A Zero Sentinel Byte
 
-Proven on 2026-05-11 after moving `BASIC_START` to `$3001`. C64 BASIC's
+Proven on 2026-05-11 after moving `BASIC_START` to `$3001`, and still true after
+the later move to `$1C01`. C64 BASIC's
 `NEWSTT` path expects the byte immediately before `TXTTAB` to be zero; with
-`TXTTAB=$3001`, that means `$3000` must be cleared. If `$3000` still contains
+`TXTTAB=$1C01`, that means `$1C00` must be cleared. If `$1C00` still contains
 leftover app-image bytes, `RUN` can fail with `?SYNTAX ERROR` before the `$0308`
 ReadyBASIC wedge is ever entered.
 
@@ -298,9 +299,9 @@ work for a tiny program, but it was the wrong model. BASIC is a live runtime
 image: program text, variables, arrays, string heap, `TXTPTR`, stack, and page
 zero must stay coherent together.
 
-Current rule: manual prompt `EXIT` saves BASIC zero page to `$9600-$96FF`,
-hardware stack page to `$9700-$97FF`, SP and line-chain guards under
-`$9800`, refreshes the hidden helper shadow, restores ReadyBASIC vectors, and
+Current rule: manual prompt `EXIT` saves BASIC zero page to REU bank `$44:$0A00`,
+hardware stack page to REU bank `$44:$0B00`, SP and line-chain guards in bridge
+metadata, refreshes the hidden helper shadow, restores ReadyBASIC vectors, and
 then yields through `$C80C`. Warm entry restores hidden helpers first,
 reinstalls ReadyBASIC vectors, restores the saved BASIC runtime state, and
 returns to ROM BASIC without clearing the screen or reconstructing variable
@@ -331,7 +332,7 @@ hooks more of BASIC's command dispatch.
 
 Reproven on 2026-05-11 during the lean REU plugin rewrite. After moving
 ReadyBASIC's visible/core memory contract down to `$1200-$2FFF` and
-`BASIC_START=$3001`, the app could return from the launcher to BASIC but leave
+`BASIC_START=$3001` at the time, the app could return from the launcher to BASIC but leave
 the launcher menu on screen with a `READY.` prompt painted over it.
 
 The root cause was twofold:
@@ -342,7 +343,7 @@ The root cause was twofold:
   `RUNTIME_MODE=RB_RESUME_RUN` and resume through `BASIC_NEXT_STMT`. A follow-up
   run showed `cmd_exit` itself must not depend on `CURLIN` either; direct
   commands are more reliably identified by `TXTPTR` still pointing into the
-  `$0200` input buffer rather than the `$3001+` BASIC text area.
+  `$0200` input buffer rather than the `$1C01+` BASIC text area.
 - The new resume path omitted baseline console restoration steps: clear
   channels, clear the screen/editor surface, restore lowercase VIC text mode,
   clear pending keyboard bytes, redraw the ReadyBasic banner, and position the
@@ -378,7 +379,7 @@ is invalid and we deliberately fall back to an empty BASIC state.
 Proven on 2026-05-10. `FRETOP` (`$33/$34`) is live BASIC string-heap state, not
 just another fixed memory-limit pointer. ReadyBASIC was enforcing its scoped
 workspace before both `ICRNCH` and `IGONE`, but that enforcement also reset
-`FRETOP` to `$9600` before ordinary direct-mode commands. That made BASIC forget
+`FRETOP` to the then-current BASIC top before ordinary direct-mode commands. That made BASIC forget
 where string data already lived, so a direct variable such as `A$="HELLO"` could
 survive in the variable descriptor while its string bytes became eligible for
 reuse by the next string allocation.
