@@ -3,12 +3,12 @@
 ;
 ; Load address: $1000
 ; Visible resident core: $1200-$1BFF
-; Low command overlay: $1C00-$23FF
-; Shared call/result buffers: $2400-$27FF
-; BASIC workspace: $3001-$95FF
-; Runtime save state: $9600-$99FF
-; Hidden helper shadow: $9A00-$9FFF, restored to $A000-$A5FF
-; Bridge state/trampolines: $C000-$C5FF
+; Low command overlay: $A900-$BFFF, under BASIC ROM
+; Shared call/result buffers: $C200-$C5FF
+; BASIC workspace: $1C01-$9FFF
+; Runtime zero page/stack snapshot: REU bank $44 offsets $0A00/$0B00
+; Hidden helper shadow: $C280+, restored to $A000+ on warm entry
+; Bridge state/trampolines: $C000-$C1FF
 ;
 
         .setcpu "6502"
@@ -58,25 +58,15 @@ COLOR_CODE      = $0286
 KERNAL_MEMTOP   = $0281
 KERNAL_MEMBOT   = $0283
 
-BASIC_START     = $3001
+BASIC_START     = $1C01
 BASIC_SENTINEL  = BASIC_START - 1
-BASIC_LIMIT     = $9600
+BASIC_LIMIT     = $A000
 BASIC_BYTES_FREE = BASIC_LIMIT - (BASIC_START + 2)
 BASIC_INPUT_BUF = $0200
 BASIC_INPUT_MAX = $58
-RUNTIME_ZP      = $9600
-RUNTIME_STACK   = $9700
-RUNTIME_META    = $9800
-RUNTIME_MAGIC1  = RUNTIME_META + $00
-RUNTIME_MAGIC2  = RUNTIME_META + $01
-RUNTIME_SP      = RUNTIME_META + $02
-RUNTIME_MODE    = RUNTIME_META + $03
-RUNTIME_LINE_OK = RUNTIME_META + $04
-RUNTIME_FIRST_LO= RUNTIME_META + $05
-RUNTIME_FIRST_HI= RUNTIME_META + $06
-RUNTIME_END_LO  = RUNTIME_META + $07
-RUNTIME_END_HI  = RUNTIME_META + $08
-HIDDEN_SHADOW   = $9A00
+RUNTIME_ZP_BUF  = $C400
+RUNTIME_STACK_BUF = $C500
+HIDDEN_SHADOW   = $C280
 
 CPU_DDR         = $0000
 CPU_PORT        = $0001
@@ -111,14 +101,14 @@ VIC_MEM_LOWERCASE = $16
 ; ReadyBASIC plugin ABI constants
 ; ---------------------------------------------------------------------------
 
-RB_LOW_BASE     = $1C00
+RB_LOW_BASE     = $A900
 RB_HIDDEN_BASE  = $A000
-RB_SHARED       = $2400
-RB_CF           = $2400
-RB_RF           = $2500
-RB_DESC_BUF     = $2680
-RB_CMDBUF       = $26A0
-RB_PAGEBUF      = $2700
+RB_SHARED       = $C200
+RB_CF           = $C200
+RB_RF           = $C300
+RB_DESC_BUF     = $C480
+RB_CMDBUF       = $C4A0
+RB_PAGEBUF      = $C500
 
 CF_CMD_ID       = RB_CF + $00
 CF_PARAM_COUNT  = RB_CF + $01
@@ -171,6 +161,8 @@ RB_REU_RESULT_OFF  = $0500
 RB_REU_DEBUG_OFF   = $0600
 RB_REU_HANDLE_OFF  = $0800
 RB_REU_HEAP_OFF    = $0900
+RB_REU_RUNTIME_ZP_OFF = $0A00
+RB_REU_RUNTIME_STACK_OFF = $0B00
 RB_REU_DATA_OFF    = $8000
 
 RB_CMD_DESC_SIZE   = 32
@@ -607,51 +599,47 @@ call_hidden_seed_plugin_reu:
         rts
 
 restore_basic_runtime_state:
-        lda RUNTIME_MAGIC1
-        cmp #RB_STATE_MAGIC1
-        bne @fallback
-        lda RUNTIME_MAGIC2
-        cmp #RB_STATE_MAGIC2
-        bne @fallback
-        lda RUNTIME_LINE_OK
-        beq @fallback
-        ldx #0
-@stack:
-        lda RUNTIME_STACK,x
-        sta $0100,x
-        inx
-        bne @stack
-        ldx #2
-@zp:
-        lda RUNTIME_ZP,x
-        sta $0000,x
-        inx
-        bne @zp
+        sei
+        lda CPU_DDR
+        ora #$07
+        sta CPU_DDR
+        lda CPU_PORT
+        sta rb_saved_cpu
+        and #RAM_UNDER_BASIC_KEEP_KERNAL
+        sta CPU_PORT
+        jmp hidden_restore_basic_runtime_state
+
+restore_basic_runtime_state_fallback:
         lda CPU_DDR
         ora #$07
         sta CPU_DDR
         lda #$37
         sta CPU_PORT
-        jsr set_basic_memory_bounds
-        lda #0
-        sta KEYD_COUNT
-        lda RUNTIME_MODE
-        cmp #RB_RESUME_RUN
-        beq @running_resume
-        jsr prepare_basic_console
-        jsr rb_draw_header
-        jsr position_basic_prompt
-        ldx RUNTIME_SP
-        txs
-        jmp BASIC_READY
-@running_resume:
-        ldx RUNTIME_SP
-        txs
-        jmp BASIC_NEXT_STMT
-@fallback:
         jsr force_basic_workspace_pointers
         cli
         jmp BASIC_READY
+
+restore_basic_finish_ready:
+        lda CPU_DDR
+        ora #$07
+        sta CPU_DDR
+        lda #$37
+        sta CPU_PORT
+        ldx RUNTIME_SP
+        txs
+        cli
+        jmp BASIC_READY
+
+restore_basic_finish_run:
+        lda CPU_DDR
+        ora #$07
+        sta CPU_DDR
+        lda #$37
+        sta CPU_PORT
+        ldx RUNTIME_SP
+        txs
+        cli
+        jmp BASIC_NEXT_STMT
 
 init_basic_workspace:
         jsr force_basic_workspace_pointers
@@ -1330,8 +1318,8 @@ rb_load_and_call_command:
         sta rb_overlay_vec_hi
         lda #RB_REU_CODE_BANK
         sta rb_reu_bank
-        jsr rb_reu_fetch
-        jsr rb_call_low_overlay
+        jsr rb_fetch_hidden_overlay
+        jsr rb_call_hidden_overlay
 @hidden:
         lda RB_DESC_BUF+8
         ora RB_DESC_BUF+9
@@ -1748,6 +1736,86 @@ rb_command_descriptors:
 
         .segment "HIDDEN"
 
+hidden_restore_basic_runtime_state:
+        lda RUNTIME_MAGIC1
+        cmp #RB_STATE_MAGIC1
+        beq :+
+        jmp @fallback
+:
+        lda RUNTIME_MAGIC2
+        cmp #RB_STATE_MAGIC2
+        beq :+
+        jmp @fallback
+:
+        lda RUNTIME_LINE_OK
+        bne :+
+        jmp @fallback
+:
+
+        lda #<RUNTIME_STACK_BUF
+        sta rb_reu_c64_lo
+        lda #>RUNTIME_STACK_BUF
+        sta rb_reu_c64_hi
+        lda #<RB_REU_RUNTIME_STACK_OFF
+        sta rb_reu_off_lo
+        lda #>RB_REU_RUNTIME_STACK_OFF
+        sta rb_reu_off_hi
+        lda #RB_REU_CORE_BANK
+        sta rb_reu_bank
+        lda #0
+        sta rb_reu_len_lo
+        lda #1
+        sta rb_reu_len_hi
+        jsr rb_reu_fetch
+
+        lda #<RUNTIME_ZP_BUF
+        sta rb_reu_c64_lo
+        lda #>RUNTIME_ZP_BUF
+        sta rb_reu_c64_hi
+        lda #<RB_REU_RUNTIME_ZP_OFF
+        sta rb_reu_off_lo
+        lda #>RB_REU_RUNTIME_ZP_OFF
+        sta rb_reu_off_hi
+        lda #RB_REU_CORE_BANK
+        sta rb_reu_bank
+        lda #0
+        sta rb_reu_len_lo
+        lda #1
+        sta rb_reu_len_hi
+        jsr rb_reu_fetch
+
+        jsr set_basic_memory_bounds
+        lda #0
+        sta KEYD_COUNT
+        lda RUNTIME_MODE
+        cmp #RB_RESUME_RUN
+        beq @copy_runtime
+        jsr prepare_basic_console
+        jsr rb_draw_header
+        jsr position_basic_prompt
+
+@copy_runtime:
+        ldx #0
+@stack:
+        lda RUNTIME_STACK_BUF,x
+        sta $0100,x
+        inx
+        bne @stack
+        ldx #2
+@zp:
+        lda RUNTIME_ZP_BUF,x
+        sta $0000,x
+        inx
+        bne @zp
+        lda RUNTIME_MODE
+        cmp #RB_RESUME_RUN
+        beq @running_resume
+        jmp restore_basic_finish_ready
+@running_resume:
+        jmp restore_basic_finish_run
+@fallback:
+        jmp restore_basic_runtime_state_fallback
+
 draw_default_header:
         lda #6
         sta VIC_BG
@@ -1964,14 +2032,40 @@ save_basic_runtime_state:
         clc
         adc #4
         sta RUNTIME_SP
-        ldx #0
-@copy:
-        lda $0000,x
-        sta RUNTIME_ZP,x
-        lda $0100,x
-        sta RUNTIME_STACK,x
-        inx
-        bne @copy
+
+        lda #0
+        sta rb_reu_c64_lo
+        sta rb_reu_c64_hi
+        lda #<RB_REU_RUNTIME_ZP_OFF
+        sta rb_reu_off_lo
+        lda #>RB_REU_RUNTIME_ZP_OFF
+        sta rb_reu_off_hi
+        lda #RB_REU_CORE_BANK
+        sta rb_reu_bank
+        lda #0
+        sta rb_reu_len_lo
+        lda #1
+        sta rb_reu_len_hi
+        jsr rb_reu_stash
+
+        lda #0
+        sta rb_reu_c64_lo
+        lda #1
+        sta rb_reu_c64_hi
+        lda #<RB_REU_RUNTIME_STACK_OFF
+        sta rb_reu_off_lo
+        lda #>RB_REU_RUNTIME_STACK_OFF
+        sta rb_reu_off_hi
+        lda #RB_REU_CORE_BANK
+        sta rb_reu_bank
+        lda #0
+        sta rb_reu_len_lo
+        lda #1
+        sta rb_reu_len_hi
+        jsr rb_reu_stash
+
+        jsr refresh_hidden_shadow
+
         lda #RB_STATE_MAGIC1
         sta RUNTIME_MAGIC1
         lda #RB_STATE_MAGIC2
@@ -2033,6 +2127,22 @@ validate_basic_line_chain:
 rb_hidden_next_lo: .byte 0
 rb_hidden_next_hi: .byte 0
 
+refresh_hidden_shadow:
+        lda #<__HIDDEN_RUN__
+        sta rb_entry_src
+        lda #>__HIDDEN_RUN__
+        sta rb_entry_src+1
+        lda #<HIDDEN_SHADOW
+        sta rb_entry_dst
+        lda #>HIDDEN_SHADOW
+        sta rb_entry_dst+1
+        lda #<__HIDDEN_SIZE__
+        sta rb_entry_len
+        lda #>__HIDDEN_SIZE__
+        sta rb_entry_len+1
+        jsr entry_copy_block
+        rts
+
 ; ---------------------------------------------------------------------------
 ; Bridge state only.  Code stays out of $C000 unless it must be resident there.
 ; ---------------------------------------------------------------------------
@@ -2058,10 +2168,48 @@ rb_calc_basic_free:
 
 rb_print_live_free:
         jsr rb_calc_basic_free
-        ldx rb_free_lo
+        lda #0
+        sta rb_digit_seen
+        ldx #0
+@place:
+        lda #0
+        sta rb_digit_count
+@sub:
+        sec
+        lda rb_free_lo
+        sbc rb_decimal_lo,x
+        sta rb_tmp_lo
         lda rb_free_hi
-        jsr BASIC_LINPRT
+        sbc rb_decimal_hi,x
+        bcc @emit
+        sta rb_free_hi
+        lda rb_tmp_lo
+        sta rb_free_lo
+        inc rb_digit_count
+        jmp @sub
+@emit:
+        lda rb_digit_count
+        bne @print
+        lda rb_digit_seen
+        bne @print
+        cpx #4
+        bne @next
+        lda #0
+@print:
+        ora #'0'
+        jsr K_CHROUT
+        lda #1
+        sta rb_digit_seen
+@next:
+        inx
+        cpx #5
+        bcc @place
         rts
+
+rb_decimal_lo:
+        .byte <10000,<1000,<100,<10,<1
+rb_decimal_hi:
+        .byte >10000,>1000,>100,>10,>1
 
 rb_update_header_free:
         sec
@@ -2190,8 +2338,21 @@ rb_saved_count_lo:.byte 0
 rb_saved_count_hi:.byte 0
 rb_free_lo:     .byte 0
 rb_free_hi:     .byte 0
+rb_tmp_lo:      .byte 0
+rb_digit_count: .byte 0
+rb_digit_seen:  .byte 0
 rb_saved_plot_x:.byte 0
 rb_saved_plot_y:.byte 0
+
+RUNTIME_MAGIC1:  .byte 0
+RUNTIME_MAGIC2:  .byte 0
+RUNTIME_SP:      .byte 0
+RUNTIME_MODE:    .byte 0
+RUNTIME_LINE_OK: .byte 0
+RUNTIME_FIRST_LO:.byte 0
+RUNTIME_FIRST_HI:.byte 0
+RUNTIME_END_LO:  .byte 0
+RUNTIME_END_HI:  .byte 0
 
 rb_out_type:    .byte 0
 rb_out_count:   .byte 0

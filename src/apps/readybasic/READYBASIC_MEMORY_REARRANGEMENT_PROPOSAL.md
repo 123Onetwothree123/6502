@@ -1,19 +1,20 @@
-# ReadyBASIC Memory Rearrangement Proposal
+# ReadyBASIC Memory Rearrangement Implementation
 
-This is a speculative design note for increasing ReadyBASIC BASIC workspace
-while preserving the ReadyOS app contract. It does not describe current code.
-The current implementation remains documented in `READYBASIC_CURRENT_DESIGN.md`.
+This note records the implemented memory-reclaim branch. The original proposal
+was to move shared frames, command workers, and suspend/resume state out of the
+BASIC workspace while preserving the ReadyOS app contract. The branch implements
+that plan; `READYBASIC_CURRENT_DESIGN.md` is the detailed current reference.
 
-## Current Baseline
+## Result
 
-ReadyBASIC currently gives BASIC an empty workspace of `26109` bytes:
+ReadyBASIC now gives BASIC an empty workspace of `33789` bytes:
 
 ```text
-BASIC text starts at $3001
-variables start at   $3003
-BASIC top is         $9600
+BASIC text starts at $1C01
+variables start at   $1C03
+BASIC top is         $A000
 
-$9600 - $3003 = 26109 bytes
+$A000 - $1C03 = 33789 bytes
 ```
 
 For comparison, stock C64 BASIC V2 gives about `38911` bytes:
@@ -25,9 +26,8 @@ stock BASIC top is         $A000
 $A000 - $0801 = 38911 bytes
 ```
 
-ReadyBASIC is therefore `12802` bytes below stock today. That space buys
-ReadyOS integration, resident parser code, overlay slots, shared frames, hidden
-helpers, bridge state, and suspend/resume safety.
+ReadyBASIC is now `5122` bytes below stock. Before this branch, ReadyBASIC had
+`26109` bytes free, so the implemented reclaim is `7680` bytes.
 
 ## Normal ReadyOS Interactive Run
 
@@ -48,13 +48,13 @@ ReadyBASIC should be exercised through the normal ReadyOS launcher/shim flow.
 
 | Area | Current use | Candidate use | ReadyOS safety |
 |---|---|---|---|
-| `$2800-$2FFF` | Command-pack load image only after cold seed. | BASIC workspace after cold boot if `BASIC_START` moves lower. | Safe after cold seed; must not be reread on warm resume. |
-| `$2400-$27FF` | Call/result/descriptor/name/page frames. | Move to `$C200-$C5FF`, then let BASIC start at `$2401`. | Safe if `$C600-$C7FF` and `$C800-$C9FF` remain untouched. |
-| `$1C00-$23FF` | Low overlay execution slot. | Move low command execution under BASIC ROM RAM, then let BASIC start at `$1C01`. | Safe if worker code never needs BASIC ROM visible while executing there. |
-| `$9600-$99FF` | Runtime snapshot: zero page, stack, SP, mode, line guards. | Store snapshot in REU bank `$44` or a dedicated ReadyBASIC state bank. | Safe if `EXIT` and warm resume can restore without relying on this RAM. |
-| `$9A00-$9FFF` | Hidden helper shadow. | Store helper image in REU and fetch it back on warm resume. | Safe if a tiny visible warm loader can fetch helper before hidden calls. |
-| `$A000-$BFFF` RAM under BASIC ROM | Hidden helper and hidden overlay only. | Main command overlay arena for most or all command workers. | Safe inside ReadyOS app window, but only visible when banking out BASIC ROM. |
-| `$C000-$C5FF` | Bridge uses `$C000-$C164`; rest is mostly free. | Shared frames, small visible trampolines, loader scratch. | Safe only below `$C600`; do not touch ReadyOS REU metadata or shim ABI. |
+| `$2800-$2FFF` | Command-pack load image only after cold seed. | BASIC workspace after cold boot. | Implemented; warm resume uses REU copies. |
+| `$2400-$27FF` | Former call/result/descriptor/name/page frames. | BASIC workspace. | Implemented by moving frames to `$C200-$C5FF`. |
+| `$1C00-$23FF` | Former low overlay execution slot. | BASIC workspace beginning at `$1C01`. | Implemented by moving low command execution to `$A900+`. |
+| `$9600-$99FF` | Former runtime snapshot. | BASIC workspace up to `$9FFF`. | Implemented by saving zero page/stack in REU bank `$44` offsets `$0A00/$0B00`. |
+| `$9A00-$9FFF` | Former hidden helper shadow. | BASIC workspace. | Implemented by refreshing a visible shadow at `$C280` during `!EXIT`. |
+| `$A000-$BFFF` RAM under BASIC ROM | Hidden helper, hidden overlay, low command overlay. | Main command overlay arena. | Implemented; final ROM restore happens in resident low RAM, not while executing under ROM. |
+| `$C000-$C5FF` | Bridge plus spare visible bytes. | Bridge, shared frames, resume buffers, refreshed hidden shadow. | Implemented below `$C600`; ReadyOS metadata remains untouched. |
 | `$C600-$C7FF` | ReadyOS REU metadata. | Not available. | Reserved. |
 | `$C800-$C9FF` | ReadyOS shim ABI. | Not available. | Reserved. |
 | `$D000-$FFFF` | I/O, ROM, KERNAL, machine state. | Avoid for ReadyBASIC workspace. | Not part of the normal ReadyOS app RAM contract. |
@@ -78,13 +78,13 @@ BASIC program is stored in that address range. Load-only seed bytes are easy.
 Runtime parser, command dispatch, and result commit code are not easy because
 they must remain callable whenever BASIC dispatches a statement.
 
-## Proposed Rearrangement Stages
+## Implemented Rearrangement Stages
 
 ### Stage 1: Move Shared Frames To `$C200-$C5FF`
 
 Move the fixed shared frame block out of `$2400-$27FF`:
 
-| Current frame | Current address | Proposed address |
+| Frame | Old address | Implemented address |
 |---|---:|---:|
 | Call frame | `$2400` | `$C200` |
 | Result frame | `$2500` | `$C300` |
@@ -95,29 +95,29 @@ Move the fixed shared frame block out of `$2400-$27FF`:
 Keep the bridge at `$C000-$C164`; leave a small gap before `$C200`. Stay below
 `$C600`, because `$C600-$C7FF` is ReadyOS REU metadata.
 
-After this, `$2400-$2FFF` can become BASIC workspace after cold seed, and
-`BASIC_START` could move from `$3001` to `$2401`.
+This made `$2400-$2FFF` BASIC workspace after cold seed.
 
 Expected free BASIC RAM:
 
 ```text
 $9600 - $2403 = 29181 bytes
-gain over current = 3072 bytes
+gain over old baseline = 3072 bytes
 ```
 
 ### Stage 2: Move Command Workers Under BASIC ROM
 
-Move low command execution out of `$1C00-$23FF`. Use RAM under BASIC ROM as the
-main worker overlay arena, just as `HCRC` already proves for hidden code.
+Low command execution now runs from `$A900+` under BASIC ROM. The resident
+visible code still performs parsing and result commit, while workers avoid
+BASIC ROM calls during banked execution.
 
-This would make `$1C00-$23FF` available to BASIC and let `BASIC_START` move to
-`$1C01`, immediately after the resident core.
+This made `$1C00-$23FF` available to BASIC and moved `BASIC_START` to `$1C01`,
+immediately after the resident core.
 
 Expected free BASIC RAM while keeping the current `$9600` top:
 
 ```text
 $9600 - $1C03 = 31229 bytes
-gain over current = 5120 bytes
+gain over old baseline = 5120 bytes
 ```
 
 Design constraints:
@@ -129,19 +129,22 @@ Design constraints:
 - The hidden helper at `$A000` and worker arena at `$A800+` need a clear layout
   so they do not overlap.
 
-### Stage 3: Move Resume Snapshot And Hidden Shadow To REU
+### Stage 3: Move Resume Snapshot And Hidden Shadow Out Of BASIC RAM
 
-Move `$9600-$99FF` runtime snapshot and `$9A00-$9FFF` hidden helper shadow out
-of C64 BASIC-visible RAM and into REU.
+The runtime zero-page and stack snapshot moved from `$9600-$97FF` to REU bank
+`$44` offsets `$0A00/$0B00`. Resume metadata stayed in the bridge. The hidden
+helper shadow moved from `$9A00` to visible RAM at `$C280`; it is refreshed
+during `!EXIT` because command frames may reuse that visible space while
+ReadyBASIC is running.
 
-This would allow BASIC top to move from `$9600` back to `$A000`, the normal
+This allowed BASIC top to move from `$9600` back to `$A000`, the normal
 BASIC ROM boundary.
 
 With Stage 2 also done:
 
 ```text
 $A000 - $1C03 = 33789 bytes
-gain over current = 7680 bytes
+gain over old baseline = 7680 bytes
 remaining gap below stock = 5122 bytes
 ```
 
@@ -149,24 +152,24 @@ Design constraints:
 
 - `EXIT` must save zero page, stack, SP, mode, and line-chain guards directly to
   REU before yielding to ReadyOS.
-- Warm entry must have a tiny visible path that can fetch the hidden helper from
-  REU before any `$A000` helper call.
+- Warm entry copies the visible `$C280` helper shadow back to `$A000` before any
+  `$A000` helper call.
 - If REU state is missing or corrupt, warm entry must fall back to a safe cold
   BASIC workspace rather than resuming bad pointers.
 - ReadyBASIC must continue to re-mark REU bank ownership on warm resume.
 
 ## BASIC RAM Scenarios
 
-| Scenario | BASIC start | BASIC top | Empty free bytes | Gain over current |
+| Scenario | BASIC start | BASIC top | Empty free bytes | Gain over old baseline |
 |---|---:|---:|---:|---:|
-| Current layout | `$3001` | `$9600` | `26109` | `0` |
+| Old baseline | `$3001` | `$9600` | `26109` | `0` |
 | Reclaim load-only `CMDPACK` only | `$2801` | `$9600` | `28157` | `+2048` |
 | Move shared frames to `$C200` | `$2401` | `$9600` | `29181` | `+3072` |
 | Move all command workers under ROM | `$1C01` | `$9600` | `31229` | `+5120` |
 | Move workers under ROM and resume state to REU | `$1C01` | `$A000` | `33789` | `+7680` |
-| Stock C64 BASIC V2 | `$0801` | `$A000` | `38911` | `+12802` versus current |
+| Stock C64 BASIC V2 | `$0801` | `$A000` | `38911` | `+12802` versus old baseline |
 
-The practical high-value target is `33789` bytes free. Getting beyond that
+The implemented high-value target is `33789` bytes free. Getting beyond that
 would require moving or radically shrinking the visible resident core below
 `$1C00`, or moving parts of resident dispatch into a banked/trampoline model.
 That is much riskier because the execute hook must be callable from normal BASIC
@@ -195,21 +198,21 @@ BASIC top or adding resident command bodies. It should be:
 4. Keep shared parser/commit code resident only when several commands reuse it.
 5. Store large command-private state in REU and expose BASIC integer handles.
 
-## Recommended Rearranged Layout
+## Implemented Rearranged Layout
 
 This is the most attractive medium-risk target:
 
-| Region | Proposed use |
+| Region | Implemented use |
 |---|---|
 | `$1000-$1102` | Tiny entry/warm trampoline. Keep only what must run before resident setup. |
-| `$1200-$1BC1` | Visible resident parser, vector hooks, ROM calls, REU DMA, result commit. |
+| `$1200-$1BAB` | Visible resident parser, vector hooks, ROM calls, REU DMA, result commit. |
 | `$1C00` | BASIC sentinel byte. |
 | `$1C01-$9FFF` | BASIC workspace if resume state moves to REU and command workers move under ROM. |
-| `$A000-$A1FF` | Hidden helper, fetched from REU on cold/warm setup. |
-| `$A200-$BFFF` | Hidden command overlay arena for workers. |
-| `$C000-$C164` | Bridge state and saved vectors. |
-| `$C165-$C1FF` | Guard or small spare visible bytes. |
-| `$C200-$C5FF` | Shared frames and page buffer. |
+| `$A000-$A336` | Hidden helper, restored from load image on cold entry and from `$C280` on warm entry. |
+| `$A800-$A84C` | Hidden command overlay arena. |
+| `$A900-$ABF2` | Banked low command overlay arena. |
+| `$C000-$C1BD` | Bridge state and saved vectors. |
+| `$C200-$C5FF` | Shared frames, resume buffers, and refreshed hidden helper shadow at `$C280`. |
 | `$C600-$C7FF` | ReadyOS REU metadata; do not use. |
 | `$C800-$C9FF` | ReadyOS shim ABI; do not use. |
 
@@ -217,7 +220,7 @@ This keeps the ReadyOS app-window contract intact and does not ask BASIC to use
 RAM above `$A000`. It gets ReadyBASIC back to `33789` empty BASIC bytes while
 still supporting many more commands through REU-packed overlays.
 
-## Risks And Required Proofs
+## Risks And Proofs Run
 
 - Prove hidden-worker-only execution for every current command, not just `HCRC`.
 - Prove no worker calls BASIC ROM while BASIC ROM is banked out.
