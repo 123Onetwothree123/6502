@@ -6,7 +6,7 @@
     "bank_span": 2,
     "load_addr": 4096,
     "payload_len": 23029,
-    "checksum16": 46552
+    "checksum16": 46553
   },
   "apps": [
     {
