@@ -665,13 +665,16 @@
         <tbody>
           <tr><td><code>LOWPACK</code></td><td><code>$04E0</code> (1.2K)</td><td>Packed low command bytes in <code>CMDPACK</code>, prestashed to bank <code>$45</code> offset <code>$0000</code>.</td><td>Fetched on demand into banked RAM under BASIC ROM at <code>$A900+</code>.</td></tr>
           <tr><td><code>HIDDENPACK</code></td><td><code>$004D</code> (77B)</td><td>Packed hidden worker bytes after <code>LOWPACK</code>, prestashed to bank <code>$45</code> offset <code>$04E0</code>.</td><td>Fetched on demand into hidden RAM at <code>$A800-$A84C</code>.</td></tr>
+          <tr><td><code>HIDLOAD</code></td><td><code>$0337</code> (823B)</td><td>Load-only hidden helper seed starting at <code>$4000</code>.</td><td>Copied on cold boot into <code>$A000-$A336</code> and the visible <code>$C280-$C5B6</code> warm-resume shadow.</td></tr>
+          <tr><td><code>BRLOAD</code></td><td><code>$01C5</code> (453B)</td><td>Load-only bridge seed starting at <code>$4800</code>.</td><td>Copied on cold boot into <code>$C000-$C1C4</code>.</td></tr>
           <tr><td><code>REGSEED</code></td><td><code>$1010</code> (4112B)</td><td>Load-only registry header and 128 command descriptors at <code>$5000-$600F</code>.</td><td>Copied on cold boot into bank <code>$44</code> offsets <code>$0000</code> and <code>$1000</code>.</td></tr>
         </tbody>
       </table>
       <div class="callout warn">
         Cold boot is the only time the load-image command pack and
         <code>REGSEED</code> are trusted. Warm resume reuses the REU copies and
-        does not reseed from <code>$2800+</code> or <code>$5000+</code>.
+        does not reseed from <code>$2800+</code>, <code>$4000+</code>,
+        <code>$4800+</code>, or <code>$5000+</code>.
       </div>
     </section>
 
@@ -687,6 +690,8 @@
         <div class="addr">$1C00</div><div class="region r-basic"><b>BASIC Sentinel</b><small>Must stay zero before stored-program RUN.</small></div><div class="size">1 byte</div>
         <div class="addr">$1C01-$9FFF</div><div class="region r-basic"><b>BASIC Workspace</b><small>Program text, variables, arrays, string heap.</small></div><div class="size">$83FF<br><span>33789 free / 33.0K</span></div>
         <div class="addr">$2800-$3FFF</div><div class="region r-overlay"><b>Command Pack Load Image</b><small>Low and hidden overlay seed bytes before cold prestash.</small></div><div class="size">$1800<br><span>6.0K</span></div>
+        <div class="addr">$4000+</div><div class="region r-hidden"><b>HIDLOAD Image</b><small>Hidden helper seed copied to $A000 and $C280.</small></div><div class="size">$0337<br><span>823B</span></div>
+        <div class="addr">$4800+</div><div class="region r-bridge"><b>BRLOAD Image</b><small>Bridge seed copied to $C000.</small></div><div class="size">$01C5<br><span>453B</span></div>
         <div class="addr">$5000-$600F</div><div class="region r-shared"><b>REGSEED Load-Only Image</b><small>Cold 128-slot descriptor seed copied to REU, then this range may be BASIC-owned.</small></div><div class="size">$1010<br><span>4112B</span></div>
         <div class="addr">REU $44:$0A00-$0BFF</div><div class="region r-readyos"><b>Runtime Snapshot</b><small>Zero page, stack, SP, mode, line-chain guards.</small></div><div class="size">$0200<br><span>0.5K</span></div>
         <div class="addr">$A000-$A336</div><div class="region r-hidden"><b>HIDDEN</b><small>Helper code under BASIC ROM RAM.</small></div><div class="size">$0337<br><span>0.8K</span></div>

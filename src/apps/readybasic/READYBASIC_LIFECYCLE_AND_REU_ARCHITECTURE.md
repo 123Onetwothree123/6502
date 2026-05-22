@@ -93,17 +93,17 @@ live inside that contract while also hosting BASIC.
 ```mermaid
 flowchart TB
   A["$1000-$1102 ENTRY<br/>load entry and cold/warm cookie"]
-  B["$1200-$1BAB RESIDENT<br/>visible parser, vector hook, REU DMA, commit"]
+  B["$1200-$1BF9 RESIDENT<br/>visible parser, vector hook, REU DMA, commit"]
   C["$1C00 SENTINEL<br/>must be zero for BASIC RUN"]
   D["$1C01-$9FFF BASIC WORKSPACE<br/>33789 free bytes / 33.0K"]
-  E["$2800-$2FFF CMDPACK LOAD IMAGE<br/>low and hidden overlay seed bytes before cold prestash"]
+  E["$2800-$3FFF CMDPACK LOAD IMAGE<br/>low and hidden overlay seed bytes before cold prestash"]
   F["REU $44:$0A00-$0BFF RUNTIME SNAPSHOT<br/>zero page and stack / 0.5K"]
   G["$C200-$C5FF SHARED FRAMES<br/>call/result/descriptor/name/page buffers / 1.0K"]
   I["$C280-$C5B6 HIDDEN SHADOW<br/>refreshed on EXIT / 0.8K"]
   J["$A000-$A336 HIDDEN HELPER<br/>runs under BASIC ROM RAM"]
   K["$A800-$A84C HIDDEN OVERLAY<br/>HCRC worker copied from REU bank $45"]
-  O["$A900-$ABF2 LOW OVERLAY<br/>low workers under BASIC ROM RAM"]
-  L["$C000-$C1BD BRIDGE STATE<br/>magic, saved vectors, overlay vars, handles, debug"]
+  O["$A900-$ADDF LOW OVERLAY<br/>low workers under BASIC ROM RAM"]
+  L["$C000-$C1C4 BRIDGE STATE<br/>magic, saved vectors, overlay vars, handles, debug"]
   M["$C600-$C7FF READYOS REU METADATA<br/>only bank ownership tags here"]
   N["$C800-$C9FF SHIM ABI<br/>ReadyOS jump table/data, not app RAM"]
 
@@ -121,14 +121,14 @@ runtime-visible resident core:
 | `$1000-$11FF` | Entry image, including entry-local warm cookie. |
 | `$1200-$1BFF` | Resident core image. |
 | `$1C00-$27FF` | Padding in the PRG load image; after cold setup, BASIC uses `$1C01+`. |
-| `$2800-$2FFF` | Command pack seed bytes. |
-| `$3000-$37FF` | Hidden helper seed bytes, copied to `$A000` and the visible `$C280` shadow. |
-| `$3800-$3FFF` | Bridge seed bytes, copied to `$C000`. |
-| `$4000-$41FF` | Registry seed bytes, copied to REU bank `$44` only on cold entry. |
+| `$2800-$3FFF` | Command pack seed bytes, copied to REU bank `$45` only on cold entry. |
+| `$4000+` | Hidden helper seed bytes, copied to `$A000` and the visible `$C280` shadow. |
+| `$4800+` | Bridge seed bytes, copied to `$C000`. |
+| `$5000-$600F` | Registry seed bytes, copied to REU bank `$44` only on cold entry. |
 
 After cold setup, BASIC owns `$1C01-$9FFF`. This is why warm resume must **not**
-try to reread the load-only seed tables at `$4000+`: that memory may now be
-BASIC program or variable storage.
+try to reread the load-only seed tables at `$2800+`, `$4000+`, `$4800+`, or
+`$5000+`: that memory may now be BASIC program or variable storage.
 
 ## REU Layout
 
@@ -260,7 +260,7 @@ flowchart TD
   M["Bridge magic says READY or RUN"]
   IV["Install $0308 execute hook"]
   MK["Re-mark REU bank ownership"]
-  SKIP["Do not reread load-only REGSEED"]
+  SKIP["Do not reread load-only CMDPACK/REGSEED"]
   REST["restore_basic_runtime_state"]
   OK{"Runtime magic and line chain ok?"}
   READY["READY resume:<br/>console reset, banner, prompt, BASIC_READY"]

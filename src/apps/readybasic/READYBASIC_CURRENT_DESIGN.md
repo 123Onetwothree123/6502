@@ -112,13 +112,15 @@ The linker puts packed command bytes in the PRG load image at `CMDPACK`
 |---|---:|---|---|
 | `LOWPACK` | `$04E0` (1.2K) | Packed low command bytes loaded from `CMDPACK` and prestashed to REU bank `$45` offset `$0000`. | Fetched on demand into the banked low overlay slot at `$A900+`, under BASIC ROM. |
 | `HIDDENPACK` | `$004D` (77B) | Packed hidden worker bytes loaded after `LOWPACK` in `CMDPACK` and prestashed to REU bank `$45` offset `$04E0`. | Fetched on demand into hidden RAM at `$A800-$A84C`. |
+| `HIDLOAD` | `$0337` (823B) | Load-only hidden helper seed starting at `$4000`. | Copied on cold boot into `$A000-$A336` and the visible `$C280-$C5B6` warm-resume shadow. |
+| `BRLOAD` | `$01C5` (453B) | Load-only bridge seed starting at `$4800`. | Copied on cold boot into `$C000-$C1C4`. |
 | `REGSEED` | `$1010` (4112B) | Load-only registry header and 128 command descriptors at `$5000-$600F`. | Copied on cold boot into REU bank `$44` offsets `$0000` and `$1000`. |
 
 Cold boot is the only time the load-image command pack and `REGSEED` are trusted.
 The hidden helper copies the registry/header to REU bank `$44` and copies
 `LOWPACK` plus `HIDDENPACK` to REU bank `$45`. After that, BASIC may own the
 former load-image addresses, so warm resume reuses the REU copies and does not
-reseed from `$2800+` or `$4000+`.
+reseed from `$2800+`, `$4000+`, `$4800+`, or `$5000+`.
 
 At command execution time, the descriptor tells the resident loader which bytes
 to fetch:
@@ -146,6 +148,9 @@ metadata and shim space above that are not general ReadyBASIC scratch.
 | BASIC sentinel | `$1C00` | 1 byte | Must stay zero before stored-program `RUN`. |
 | BASIC workspace | `$1C01-$9FFF` | `$83FF` region, `33789` free bytes (33.0K) | Program text, variables, arrays, string heap. |
 | Command pack load image | `$2800-$3FFF` | `$1800` (6.0K) file range | Low and hidden overlay seed bytes before cold prestash. |
+| Hidden helper load image | `$4000+` | `$0337` (823B) load-only | Hidden helper seed copied to `$A000` and `$C280`. |
+| Bridge load image | `$4800+` | `$01C5` (453B) load-only | Bridge seed copied to `$C000`. |
+| Registry seed load image | `$5000-$600F` | `$1010` (4112B) load-only | Header and 128 descriptors copied to REU bank `$44`. |
 | Runtime snapshot | REU bank `$44`, offsets `$0A00-$0BFF` | `$0200` (0.5K) plus bridge metadata | Saved zero page, stack page, SP, resume mode, line-chain guards. |
 | `HIDDEN` | `$A000-$A336` | `$0337` (0.8K) | Helper code run with RAM mapped under BASIC ROM. |
 | `HIDDENPACK` | `$A800-$A84C` | `$004D` (77B) | Hidden worker overlay image. |

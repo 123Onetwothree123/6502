@@ -545,6 +545,12 @@
         <div class="region r-basic"><span><b>BASIC WORKSPACE</b><small>Program text, variables, arrays, string heap.</small></span><strong>$83FF<br>33789 free / 33.0K</strong></div>
         <div class="addr">$2800-$3FFF</div>
         <div class="region r-pack"><span><b>CMDPACK LOAD IMAGE</b><small>Low and hidden overlay seed bytes before cold prestash.</small></span><strong>$1800<br>6.0K</strong></div>
+        <div class="addr">$4000+</div>
+        <div class="region r-hidden"><span><b>HIDLOAD IMAGE</b><small>Hidden helper seed copied to $A000 and $C280.</small></span><strong>$0337<br>823B</strong></div>
+        <div class="addr">$4800+</div>
+        <div class="region r-bridge"><span><b>BRLOAD IMAGE</b><small>Bridge seed copied to $C000.</small></span><strong>$01C5<br>453B</strong></div>
+        <div class="addr">$5000-$600F</div>
+        <div class="region r-pack"><span><b>REGSEED IMAGE</b><small>Header and 128 descriptors copied to REU $44:$1000.</small></span><strong>$1010<br>4112B</strong></div>
         <div class="addr">REU $44:$0A00-$0BFF</div>
         <div class="region r-save"><span><b>RUNTIME SNAPSHOT</b><small>Zero page, stack, saved SP, mode, line-chain guards.</small></span><strong>$0200<br>0.5K</strong></div>
         <div class="addr">$A000-$A336</div>
@@ -565,9 +571,10 @@
 
       <div class="callout warning">
         <strong>The subtle bit:</strong> the PRG load image temporarily occupies
-        `$3000+`, but cold setup copies out the hidden/bridge/registry seeds and
-        then BASIC owns `$1C01-$9FFF`. Warm resume must not trust those old
-        load-only seed addresses.
+        load-only seed ranges, but cold setup copies out the command pack,
+        hidden helper, bridge, and registry seeds. Then BASIC owns
+        `$1C01-$9FFF`. Warm resume must not trust those old load-only seed
+        addresses.
       </div>
     </section>
 
@@ -613,15 +620,16 @@
       </p>
       <div class="flow">
         <div class="step"><span class="num">1</span><h3>Load</h3><p>ReadyOS loads <code>readybasic.prg</code> at `$1000`.</p></div>
-        <div class="step"><span class="num">2</span><h3>Copy Hidden</h3><p>Entry maps RAM under BASIC ROM and copies hidden helper seed to `$A000`, then keeps a visible shadow at `$C280`.</p></div>
-        <div class="step"><span class="num">3</span><h3>Copy Bridge</h3><p>Bridge seed from `$3800` becomes live state at `$C000`.</p></div>
+        <div class="step"><span class="num">2</span><h3>Copy Hidden</h3><p>Entry maps RAM under BASIC ROM and copies the hidden helper seed to `$A000`, then keeps a visible shadow at `$C280`.</p></div>
+        <div class="step"><span class="num">3</span><h3>Copy Bridge</h3><p>Bridge seed becomes live state at `$C000-$C1C4`.</p></div>
         <div class="step"><span class="num">4</span><h3>Initialize BASIC</h3><p>Resident sets `$1C01` workspace, `$A000` top, and clears `$1C00-$1C02`.</p></div>
         <div class="step"><span class="num">5</span><h3>Seed REU</h3><p>Hidden helper prestashes registry to `$44` and code pack to `$45`, then enters READY.</p></div>
       </div>
       <div class="callout">
         <strong>Cold-only behavior:</strong> registry and code are copied from
         load-only RAM into REU. Warm resume re-marks bank ownership but avoids
-        rereading `$4000+` because BASIC may own that memory by then.
+        rereading `$2800+`, `$4000+`, `$4800+`, or `$5000+` because BASIC may
+        own that memory by then.
       </div>
     </section>
 

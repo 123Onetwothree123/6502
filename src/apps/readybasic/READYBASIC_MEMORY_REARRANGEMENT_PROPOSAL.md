@@ -30,6 +30,31 @@ ReadyBASIC is now `5122` bytes (5.0K) below stock. Before this branch,
 ReadyBASIC had `26109` bytes (25.5K) free, so the implemented reclaim is
 `7680` bytes (7.5K).
 
+## Current Measured ReadyBASIC Map
+
+This document began as the memory-reclaim proposal, but the current build has
+also added the 128-slot paged command registry and typed screen handles. The
+implemented map now measures:
+
+| Segment | Range | Size | Current role |
+|---|---:|---:|---|
+| `ENTRY` | `$1000-$1102` | `$0103` (259B) | Cold/warm entry and early copies. |
+| `RESIDENT` | `$1200-$1BF9` | `$09FA` (2554B) | Visible parser, hooks, ROM calls, REU DMA, result commit. |
+| `CMDPACK` load image | `$2800-$3FFF` | `$1800` (6.0K reserved) | Cold-only low/hidden overlay seed copied to REU bank `$45`. |
+| `HIDLOAD` | `$4000+` | load-only | Cold-only hidden helper seed copied to `$A000` and `$C280`. |
+| `BRLOAD` | `$4800+` | load-only | Cold-only bridge seed copied to `$C000`. |
+| `REGSEED` | `$5000-$600F` | `$1010` (4112B) | Cold-only registry header and 128 descriptors copied to REU bank `$44`. |
+| `HIDDEN` | `$A000-$A336` | `$0337` (823B) | Hidden helper under BASIC ROM. |
+| `HIDDENPACK` | `$A800-$A84C` | `$004D` (77B) | Hidden worker overlay. |
+| `LOWPACK` | `$A900-$ADDF` | `$04E0` (1248B) | Low command overlay under BASIC ROM. |
+| `BRIDGE` | `$C000-$C1C4` | `$01C5` (453B) | Persistent bridge/state bytes. |
+| Shared frames | `$C200-$C5FF` | `$0400` (1.0K) | Call/result frames, descriptor/name/page buffers, hidden shadow. |
+
+The 128 descriptors live in REU bank `$44` at `$1000-$1FFF`. Lookup fetches a
+256-byte page into `$C500`, scans eight descriptors, and copies a match to
+`$C480`. `SCRCAP` is slot 13; `SCRPUT` is slot 128; zero-filled slots are empty
+fillers.
+
 ## Normal ReadyOS Interactive Run
 
 For manual testing, run ReadyOS normally and do not override `runappfirst`:
@@ -49,7 +74,7 @@ ReadyBASIC should be exercised through the normal ReadyOS launcher/shim flow.
 
 | Area | Current use | Candidate use | ReadyOS safety |
 |---|---|---|---|
-| `$2800-$2FFF` | Command-pack load image only after cold seed. | BASIC workspace after cold boot. | Implemented; warm resume uses REU copies. |
+| `$2800-$3FFF` | Command-pack load image only after cold seed. | BASIC workspace after cold boot. | Implemented; warm resume uses REU copies. |
 | `$2400-$27FF` | Former call/result/descriptor/name/page frames. | BASIC workspace. | Implemented by moving frames to `$C200-$C5FF`. |
 | `$1C00-$23FF` | Former low overlay execution slot. | BASIC workspace beginning at `$1C01`. | Implemented by moving low command execution to `$A900+`. |
 | `$9600-$99FF` | Former runtime snapshot. | BASIC workspace up to `$9FFF`. | Implemented by saving zero page/stack in REU bank `$44` offsets `$0A00/$0B00`. |

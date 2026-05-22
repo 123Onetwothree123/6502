@@ -18,18 +18,21 @@
 - Bank `$45` is packed command code storage.
 - ReadyOS REU type constants are mirrored as `REU_RB_CORE = 14` and `REU_RB_CODE = 15`.
 - ReadyBASIC marks `$C600+$44` and `$C600+$45` during boot so REU viewer and allocator state know those banks are owned.
-- Full registry/code prestash runs only on cold ReadyBasic entry. Warm resume re-marks ownership but does not reread the `REGSEED` load image, because `$4000+` becomes normal BASIC workspace after launch.
+- Full registry/code prestash runs only on cold ReadyBASIC entry. Warm resume
+  re-marks ownership but does not reread `CMDPACK`, hidden/bridge load images,
+  or `REGSEED`, because those load-image addresses become normal BASIC
+  workspace after launch.
 
 ## Bank `$44` Regions
 
 - `$0000`: registry header (`RBPL`, version, descriptor count, descriptor size, frame offsets).
-- `$1000-$1FFF`: 128 compact command descriptor slots, 32 bytes each. Slot 13 is `SCRCAP`, slot 128 is `SCRPUT`, and zero-filled filler slots are unused.
 - `$0400`: current call-frame snapshot.
 - `$0500`: current result-frame snapshot.
 - `$0600`: reserved REU debug ring region.
 - `$0800`: persistent handle metadata snapshot.
 - `$0A00`: ReadyOS suspend/resume zero-page snapshot.
 - `$0B00`: ReadyOS suspend/resume stack-page snapshot.
+- `$1000-$1FFF`: 128 compact command descriptor slots, 32 bytes each. Slot 13 is `SCRCAP`, slot 128 is `SCRPUT`, and zero-filled filler slots are unused.
 - `$8000-$8FFF`: current V1 16-page persistent data heap for sample buffer handles.
 
 ## Bank `$45` Regions
