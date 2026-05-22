@@ -1146,6 +1146,8 @@ def build_help_text(profile: Dict[str, object],
     ])
     for entry in entries:
         lines.append(f"- Drive {entry['drive']}: `{entry['prg']}` - {entry['label']}")
+    if str(profile.get("id")) in {"precog-dual-d71", "precog-dual-d71-rsdebug"}:
+        lines.append("- `readme` is intentionally omitted from the dual-D71 variants to preserve disk space for app growth.")
     lines.extend([
         "",
         "## VICE Setup",
@@ -1232,6 +1234,9 @@ def build_release(profile_id: str,
     previous_manifest = None
     if manifest_path.exists():
         previous_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest_path.unlink()
+    for stale_doc in ("help.md", "helpme.md"):
+        (output_dir / stale_doc).unlink(missing_ok=True)
 
     backups = {}
     if previous_manifest:

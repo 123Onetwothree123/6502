@@ -79,8 +79,7 @@
         { "artifact": "readyirc.prg", "name": "readyirc", "type": "prg" },
         { "artifact": "readybasic.prg", "name": "readybasic", "type": "prg" },
         { "artifact": "ucitest.prg", "name": "ucitest", "type": "prg" },
-        { "artifact": "obj/app_sidetris_dual_d71.seq", "name": "app.sidetris", "type": "seq" },
-        { "artifact": "readme.prg", "name": "readme", "type": "prg" }
+        { "artifact": "obj/app_sidetris_dual_d71.seq", "name": "app.sidetris", "type": "seq" }
       ]
     }
   ]

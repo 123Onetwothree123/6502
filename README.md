@@ -116,7 +116,7 @@ target drive types, disk capacities, and cartridge support are different.
 | Profile | Media | Why It Exists | Boot Flow | App Set |
 | --- | --- | --- | --- | --- |
 | `precog-easyflash` | `CRT` cartridge plus companion `D64` on drive `8` | full cartridge cold-boot path for VICE and Ultimate-family setups that can keep a disk mounted | reset into cartridge boot | full current app catalog |
-| `precog-dual-d71` | two `D71` images on drives `8` and `9` | default full-content profile for `1571` setups and the main local verification target | `PREBOOT -> SETD71 -> BOOT` | full current app catalog |
+| `precog-dual-d71` | two `D71` images on drives `8` and `9` | default full-content profile for `1571` setups and the main local verification target | `PREBOOT -> SETD71 -> BOOT` | current app catalog except `readme`, which is omitted to preserve D71 space |
 | `precog-d81` | one `D81` image on drive `8` | full-content single-disk profile for `1581`/`D81` setups | `PREBOOT -> BOOT` | full current app catalog |
 | `precog-dual-d64` | two `D64` images on drives `8` and `9` | reduced profile for `1541`-compatible capacity limits | `PREBOOT -> BOOT` | curated subset of the current app catalog |
 | `precog-solo-d64-a` | one `D64` image on drive `8` | standalone single-disk subset with editor, reference, and dizzy | `PREBOOT -> BOOT` | `editor`, `hexview`, `readme`, `dizzy` |
