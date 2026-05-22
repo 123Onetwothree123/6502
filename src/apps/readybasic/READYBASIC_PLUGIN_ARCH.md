@@ -4,13 +4,13 @@
 
 - `BASIC_START = $1C01`; BASIC owns `$1C01-$9FFF`, with `33789` empty free bytes (33.0K).
 - `$1000-$1102`: tiny app entry (`$0103`, 259B) that copies hidden helpers and bridge state before BASIC starts.
-- `$1200-$1BF9`: visible resident core (`$09FA`, 2554B). This is the only code that calls BASIC ROM helpers.
+- `$1200-$1BAF`: visible resident core (`$09B0`, 2480B). This is the only code that calls BASIC ROM helpers.
 - `$1C00`: BASIC sentinel byte; it must stay zero before stored-program `RUN`.
-- `$A900-$ADDF`: low command overlay slot under BASIC ROM. Current packed low command image is `$04E0` bytes (1.2K).
+- `$A900-$AEDE`: low command overlay slot under BASIC ROM. Current packed low command image is `$05DF` bytes (1.5K).
 - `$C200-$C5FF`: fixed call frame, result frame, descriptor buffer, command-name buffer, page buffer, and warm-resume staging (`$0400`, 1.0K).
-- `$A000-$A336`: hidden helper code (`$0337`, 0.8K), restored from the visible `$C280` shadow.
+- `$A000-$A376`: hidden helper code (`$0377`, 887B), restored from the visible `$C280` shadow.
 - `$A800-$A84C`: hidden worker overlay slot (`$004D`, 77B) used by `HCRC`.
-- `$C000-$C1C4`: bridge state only (`$01C5`, 453B); the implementation stays below `$C200`.
+- `$C000-$C19A`: bridge state only (`$019B`, 411B); the implementation stays below `$C200`.
 
 ## REU Banks
 
@@ -29,17 +29,19 @@
 - `$0400`: current call-frame snapshot.
 - `$0500`: current result-frame snapshot.
 - `$0600`: reserved REU debug ring region.
-- `$0800`: persistent handle metadata snapshot.
+- `$0800-$09FF`: REU-backed handle directory, 128 descriptors at 4 bytes each.
 - `$0A00`: ReadyOS suspend/resume zero-page snapshot.
 - `$0B00`: ReadyOS suspend/resume stack-page snapshot.
+- `$0C00-$0CFF`: 192-page heap bitmap plus reserved bytes.
 - `$1000-$1FFF`: 128 compact command descriptor slots, 32 bytes each. Slot 13 is `SCRCAP`, slot 128 is `SCRPUT`, and zero-filled filler slots are unused.
-- `$8000-$8FFF`: current V1 16-page persistent data heap for sample buffer handles.
+- `$2000-$3FFF`: reserved common/system expansion space.
+- `$4000-$FFFF`: typed 48KB heap for buffer and screen handles.
 
 ## Bank `$45` Regions
 
 - Offset `$0000`: low overlay pack copied from the linker `LOWPACK` segment.
-- Offset `$04E0`: hidden overlay pack copied from the linker `HIDDENPACK` segment.
-- Descriptors store code offsets and run offsets; normal low commands copy only their slice. Buffer/heap/screen sample commands currently load the whole low pack because their allocator and screen-copy helpers live in the overlay pack rather than resident core RAM.
+- Offset `$05DF`: hidden overlay pack copied from the linker `HIDDENPACK` segment.
+- Descriptors store code offsets and run offsets; normal low commands copy only their slice. Buffer/heap/screen sample commands currently load the whole low pack because their REU descriptor, allocator, bitmap, and screen-copy helpers live in the overlay pack rather than resident core RAM.
 
 ## Descriptor ABI
 
@@ -98,4 +100,4 @@ Each descriptor is 32 bytes:
 - Command lookup is linear over descriptor pages in bank `$44`: one 256-byte page is fetched into `$C500`, eight descriptors are scanned locally, and the matched descriptor is copied into `$C480`.
 - String input currently supports string variables and quoted literals; fully general BASIC string expressions remain a follow-up.
 - V1 integer arrays are explicit base element plus count, e.g. `A%(0),N`.
-- The persistent sample heap currently suballocates inside bank `$44`; handle type `1` is a byte buffer and type `2` is a screen text+color buffer. Future large/long-lived data should allocate extra REU banks and record those banks in the same handle table.
+- The persistent typed heap currently suballocates 48KB inside bank `$44`; handle type `1` is a byte buffer and type `2` is a screen text+color buffer. Future large/long-lived data can allocate extra REU banks and record those banks in the same REU-backed handle directory.

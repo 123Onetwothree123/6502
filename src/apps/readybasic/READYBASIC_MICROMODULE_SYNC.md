@@ -37,7 +37,7 @@ ReadyBASIC now duplicates a small amount of ReadyOS REU and shim knowledge in as
 
 - ReadyBASIC still uses:
   - `SHIM_RETURN = $C80C`
-  - bridge state at `$C000-$C1C4`
+  - bridge state at `$C000-$C19A`
   - shared frames and visible helper shadow at `$C200-$C5FF`
   - app runtime zero-page/stack save in REU bank `$44` offsets `$0A00/$0B00`
 - Do not place ReadyBasic state in `$C800-$C9FF`; that remains shim ABI territory.
@@ -47,12 +47,12 @@ ReadyBASIC now duplicates a small amount of ReadyOS REU and shim knowledge in as
 
 - `BASIC_START = $1C01`; BASIC owns `$1C01-$9FFF`, with `33789` empty free bytes.
 - `ENTRY` lives at `$1000-$1102`.
-- `RESIDENT` lives at `$1200-$1BF9` and must stay below `$1C00`.
+- `RESIDENT` lives at `$1200-$1BAF` and must stay below `$1C00`.
 - `CMDPACK` load-only seed space is `$2800-$3FFF`; it is copied to REU bank `$45` on cold entry.
 - `HIDLOAD` load-only helper seed starts at `$4000`.
 - `BRLOAD` load-only bridge seed starts at `$4800`.
 - `REGSEED` load-only registry seed is `$5000-$600F`, size `$1010`.
-- Runtime `LOWPACK` is `$A900-$ADDF`, size `$04E0`.
+- Runtime `LOWPACK` is `$A900-$AEDE`, size `$05DF`.
 - Runtime `HIDDENPACK` is `$A800-$A84C`, size `$004D`.
 
 ## Bank `$44` ReadyBASIC Core Layout
@@ -61,11 +61,13 @@ ReadyBASIC now duplicates a small amount of ReadyOS REU and shim knowledge in as
 - `$0400`: current call-frame snapshot.
 - `$0500`: current result-frame snapshot.
 - `$0600`: reserved debug region.
-- `$0800`: handle metadata snapshot.
+- `$0800-$09FF`: REU-backed handle directory, 128 descriptors at 4 bytes each.
 - `$0A00`: zero-page snapshot.
 - `$0B00`: stack-page snapshot.
+- `$0C00-$0CFF`: heap page bitmap, 192 pages tracked in REU.
 - `$1000-$1FFF`: 128 command descriptor slots, 32 bytes each.
-- `$8000-$8FFF`: V1 sample data heap for typed handles.
+- `$2000-$3FFF`: reserved common/system expansion space.
+- `$4000-$FFFF`: typed handle heap, 48KB.
 
 Command lookup fetches one 256-byte descriptor page at a time into `$C500`,
 scans eight descriptors locally, and copies the matched descriptor into
@@ -73,8 +75,8 @@ scans eight descriptors locally, and copies the matched descriptor into
 
 ## Bank `$45` Command Code Layout
 
-- `$0000-$04DF`: packed low overlay code fetched to `$A900-$ADDF`.
-- `$04E0-$052C`: packed hidden worker code fetched to `$A800-$A84C`.
+- `$0000-$05DE`: packed low overlay code fetched to `$A900-$AEDE`.
+- `$05DF-$062B`: packed hidden worker code fetched to `$A800-$A84C`.
 
 Cold entry prestashes these bytes once. Warm resume reuses the REU copies and
 must not reread `CMDPACK`, `HIDLOAD`, `BRLOAD`, or `REGSEED` from BASIC-owned
@@ -82,7 +84,8 @@ load-image addresses.
 
 ## Typed Handles
 
-- V1 live handle count remains eight.
+- Live handle count is 128.
+- Handle descriptors and the 192-page heap bitmap are canonical in REU.
 - Type `1` is a byte buffer.
 - Type `2` is a screen text+color buffer.
 - `BUFFILL` accepts only type `1`.

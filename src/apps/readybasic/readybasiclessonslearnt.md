@@ -16,15 +16,19 @@ actual C64/ReadyOS evidence trail rather than a pile of confident guesses.
   at offsets `$0A00/$0B00`; saved SP, mode, and line-chain guards live in bridge metadata.
 - Hidden services live under BASIC ROM RAM at `$A000-$BFFF` and visible
   trampolines/state/mailbox live at `$C000-$C5FF`.
-- A refreshed visible shadow copy of the hidden helper image lives at `$C280-$C5B6`,
+- A refreshed visible shadow copy of the hidden helper image lives at `$C280-$C5F6`,
   inside the ReadyOS app snapshot window. Warm
   entry restores `$A000` from that shadow before using hidden helpers.
-- The plugin spine keeps visible resident code at `$1200-$1BF9`, command
-  overlays under BASIC ROM at `$A900-$ADDF`, shared frames at `$C200-$C5FF`, and fixed
+- The plugin spine keeps visible resident code at `$1200-$1BAF`, command
+  overlays under BASIC ROM at `$A900-$AEDE`, shared frames at `$C200-$C5FF`, and fixed
   ReadyBASIC REU banks `$44/$45`.
 - The current registry has 128 descriptor slots in REU bank `$44` at
   `$1000-$1FFF`. Lookup fetches one 256-byte page at a time into `$C500`, scans
   eight descriptors locally, and copies a match into `$C480`.
+- The current typed handle system supports 128 live handles. Handle descriptors
+  live at REU `$44:$0800-$09FF`, the 192-page bitmap at `$44:$0C00`, and the
+  48KB typed heap at `$44:$4000-$FFFF`; bridge RAM keeps only current-handle
+  scratch.
 - Cold entry prestashes `CMDPACK`, hidden helper/bridge seeds, and `REGSEED`
   into their runtime locations or REU. Warm resume must reuse those runtime/REU
   copies rather than rereading load-only addresses that BASIC may now own.
@@ -256,6 +260,18 @@ direct commands, stored-program commands, `IF ... THEN !`, colon chains, string
 input/output, array input/output, handle commands, error clearing, and resume.
 If the change touches tokenization or command names, the tokenizer/list/run
 matrix is also mandatory.
+
+### Keep Large Handle Tables Canonical In REU
+
+Proven on 2026-05-22 while expanding from eight handles to 128. A direct bridge
+RAM table would have spent hundreds of bytes below `$C200` and reduced space for
+future state. The working model keeps canonical handle descriptors and the heap
+bitmap in REU, pages them through `$C500`, and stores only the current
+bank/page/page-count/type descriptor in bridge scratch.
+
+This preserved `BASIC_START=$1C01`, `BASIC_LIMIT=$A000`, and the `33789` empty
+BASIC free-byte count. The cost moved into the low overlay, which is cold/fetched
+code rather than resident BASIC workspace.
 
 ### ICRNCH Must Preserve The Tokenized Line Length
 

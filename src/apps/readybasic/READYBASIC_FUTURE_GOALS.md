@@ -7,18 +7,15 @@ notes for future implementation work.
 
 ## REU-Backed Handle System
 
-ReadyBASIC should grow from the current small sample handle table into a
-REU-backed handle descriptor system. The default target should be 64 live
-handles, with RAM holding only enough scratch space to fetch, validate, and
-update one descriptor at a time. The canonical descriptor table and allocator
-metadata should live in REU so larger handle counts do not consume scarce
-resident or bridge RAM.
+ReadyBASIC now has a REU-backed handle descriptor system with 128 live handles.
+RAM holds only enough scratch space to fetch, validate, and update one
+descriptor at a time; the canonical descriptor directory and allocator bitmap
+live in REU so the larger handle count does not consume scarce resident or
+bridge RAM.
 
-The current implementation keeps the V1 live-handle table at eight entries but
-now proves the type model with both byte-buffer handles and screen text+color
-handles. That is the stepping stone, not the endpoint: the next handle-table
-growth should move descriptor metadata itself into REU and keep only one
-descriptor-sized RAM buffer resident.
+The implemented heap is a fixed 48KB typed area in ReadyBASIC core bank `$44`.
+Future growth should keep this REU-first shape while adding richer descriptors,
+optional extra banks for very large resources, and stale-handle protection.
 
 Handles should be typed from the start rather than treated as generic memory
 blocks. Some future handles will represent plain byte buffers, but others will

@@ -71,14 +71,14 @@ support, not the final product command catalog.
 | `!HCRC S$,OUT%` | Hidden overlay at `$A800`, copy `$004D` (77B) | string variable or quoted literal, output integer | Returns a simple uppercase-byte checksum. |
 | `!SUMAI A%(0),COUNT,OUT%` | Low overlay at `$A900+$006E`, copy `$0044` | integer array base, count, output integer | Sums integer array elements. |
 | `!RANGEAI START,COUNT,A%(0)` | Low overlay at `$A900+$00B2`, copy `$003D` | start value, count, output array base | Stages consecutive integers, then resident code writes them to the array. |
-| `!BUFNEW LEN,H%` | Low overlay entry `$00EF`, copy full `$04E0` (1.2K) low pack | byte length, output handle | Allocates buffer pages in REU bank `$44` and returns a one-based handle. |
-| `!BUFFILL H%,BYTE` | Low overlay entry `$00F3`, copy full `$04E0` (1.2K) low pack | buffer handle, fill byte | Fills buffer handles through the `$C500` page buffer and rejects non-buffer handles. |
-| `!BUFFREE H%` | Low overlay entry `$00F7`, copy full `$04E0` (1.2K) low pack | handle | Frees any valid handle type and clears metadata/page bitmap state. |
-| `!TEMPSCRATCH LEN,OUT%` | Low overlay entry `$00FB`, copy full `$04E0` (1.2K) low pack | byte length, output integer | Allocates and frees temporary pages, returning page count. |
+| `!BUFNEW LEN,H%` | Low overlay entry `$00EF`, copy full `$05DF` (1.5K) low pack | byte length, output handle | Allocates buffer pages in REU bank `$44` and returns a one-based handle. |
+| `!BUFFILL H%,BYTE` | Low overlay entry `$00F3`, copy full `$05DF` (1.5K) low pack | buffer handle, fill byte | Fills buffer handles through the `$C500` page buffer and rejects non-buffer handles. |
+| `!BUFFREE H%` | Low overlay entry `$00F7`, copy full `$05DF` (1.5K) low pack | handle | Frees any valid handle type and clears metadata/page bitmap state. |
+| `!TEMPSCRATCH LEN,OUT%` | Low overlay entry `$00FB`, copy full `$05DF` (1.5K) low pack | byte length, output integer | Allocates and frees temporary pages, returning page count. |
 | `!FAIL CODE,OUT%` | Low overlay at `$A900+$00FF`, copy `$001B` | error code, output integer | Clears output first, then reports `?RB ERROR code`. |
 | `!FREEMEM` | Low overlay at `$A900+$011A`, copy `$0016` | none | Prints current live BASIC free bytes and refreshes the header. |
-| `!SCRCAP H%` | Low overlay entry `$0130`, copy full `$04E0` (1.2K) low pack | output handle | Captures screen text `$0400-$07E7` and color RAM `$D800-$DBE7` into a typed screen handle. |
-| `!SCRPUT H%` | Slot 128 descriptor; low overlay entry `$0159`, copy full `$04E0` (1.2K) low pack | screen handle | Validates the screen handle type and restores text plus color RAM. |
+| `!SCRCAP H%` | Low overlay entry `$0130`, copy full `$05DF` (1.5K) low pack | output handle | Captures screen text `$0400-$07E7` and color RAM `$D800-$DBE7` into a typed screen handle. |
+| `!SCRPUT H%` | Slot 128 descriptor; low overlay entry `$0159`, copy full `$05DF` (1.5K) low pack | screen handle | Validates the screen handle type and restores text plus color RAM. |
 
 The handle-oriented commands copy the full low pack because their wrappers share
 allocator helper routines that currently live in the packed low overlay. That
@@ -110,10 +110,10 @@ The linker puts packed command bytes in the PRG load image at `CMDPACK`
 
 | Segment | Size | Load/source role | Runtime role |
 |---|---:|---|---|
-| `LOWPACK` | `$04E0` (1.2K) | Packed low command bytes loaded from `CMDPACK` and prestashed to REU bank `$45` offset `$0000`. | Fetched on demand into the banked low overlay slot at `$A900+`, under BASIC ROM. |
-| `HIDDENPACK` | `$004D` (77B) | Packed hidden worker bytes loaded after `LOWPACK` in `CMDPACK` and prestashed to REU bank `$45` offset `$04E0`. | Fetched on demand into hidden RAM at `$A800-$A84C`. |
-| `HIDLOAD` | `$0337` (823B) | Load-only hidden helper seed starting at `$4000`. | Copied on cold boot into `$A000-$A336` and the visible `$C280-$C5B6` warm-resume shadow. |
-| `BRLOAD` | `$01C5` (453B) | Load-only bridge seed starting at `$4800`. | Copied on cold boot into `$C000-$C1C4`. |
+| `LOWPACK` | `$05DF` (1.5K) | Packed low command bytes loaded from `CMDPACK` and prestashed to REU bank `$45` offset `$0000`. | Fetched on demand into the banked low overlay slot at `$A900+`, under BASIC ROM. |
+| `HIDDENPACK` | `$004D` (77B) | Packed hidden worker bytes loaded after `LOWPACK` in `CMDPACK` and prestashed to REU bank `$45` offset `$05DF`. | Fetched on demand into hidden RAM at `$A800-$A84C`. |
+| `HIDLOAD` | `$0377` (887B) | Load-only hidden helper seed starting at `$4000`. | Copied on cold boot into `$A000-$A376` and the visible `$C280-$C5F6` warm-resume shadow. |
+| `BRLOAD` | `$019B` (411B) | Load-only bridge seed starting at `$4800`. | Copied on cold boot into `$C000-$C19A`. |
 | `REGSEED` | `$1010` (4112B) | Load-only registry header and 128 command descriptors at `$5000-$600F`. | Copied on cold boot into REU bank `$44` offsets `$0000` and `$1000`. |
 
 Cold boot is the only time the load-image command pack and `REGSEED` are trusted.
@@ -133,7 +133,7 @@ to fetch:
    `12-13` for entry offset. ReadyBASIC maps RAM under BASIC ROM, fetches into
    `$A000 + entry offset`, and calls the hidden overlay entry.
 3. Commands can fetch a small slice or the whole low pack. The current handle
-   and screen-handle commands fetch the whole `$04E0` low pack because their
+   and screen-handle commands fetch the whole `$05DF` low pack because their
    shared allocator and screen-copy helpers live there.
 
 ## C64 RAM Layout
@@ -144,20 +144,20 @@ metadata and shim space above that are not general ReadyBASIC scratch.
 | Region | Current range | Size | Owner and role |
 |---|---:|---:|---|
 | `ENTRY` | `$1000-$1102` | `$0103` (259B) | Tiny entry, cold/warm discriminator, early hidden/bridge copies. |
-| `RESIDENT` | `$1200-$1BF9` | `$09FA` (2554B) | Visible parser, vector hooks, BASIC ROM calls, REU DMA wrappers, result commit. |
+| `RESIDENT` | `$1200-$1BAF` | `$09B0` (2480B) | Visible parser, vector hooks, BASIC ROM calls, REU DMA wrappers, result commit. |
 | BASIC sentinel | `$1C00` | 1 byte | Must stay zero before stored-program `RUN`. |
 | BASIC workspace | `$1C01-$9FFF` | `$83FF` region, `33789` free bytes (33.0K) | Program text, variables, arrays, string heap. |
 | Command pack load image | `$2800-$3FFF` | `$1800` (6.0K) file range | Low and hidden overlay seed bytes before cold prestash. |
-| Hidden helper load image | `$4000+` | `$0337` (823B) load-only | Hidden helper seed copied to `$A000` and `$C280`. |
-| Bridge load image | `$4800+` | `$01C5` (453B) load-only | Bridge seed copied to `$C000`. |
+| Hidden helper load image | `$4000+` | `$0377` (887B) load-only | Hidden helper seed copied to `$A000` and `$C280`. |
+| Bridge load image | `$4800+` | `$019B` (411B) load-only | Bridge seed copied to `$C000`. |
 | Registry seed load image | `$5000-$600F` | `$1010` (4112B) load-only | Header and 128 descriptors copied to REU bank `$44`. |
 | Runtime snapshot | REU bank `$44`, offsets `$0A00-$0BFF` | `$0200` (0.5K) plus bridge metadata | Saved zero page, stack page, SP, resume mode, line-chain guards. |
-| `HIDDEN` | `$A000-$A336` | `$0337` (0.8K) | Helper code run with RAM mapped under BASIC ROM. |
+| `HIDDEN` | `$A000-$A376` | `$0377` (0.9K) | Helper code run with RAM mapped under BASIC ROM. |
 | `HIDDENPACK` | `$A800-$A84C` | `$004D` (77B) | Hidden worker overlay image. |
-| `LOWPACK` runtime | `$A900-$ADDF` | `$04E0` (1.2K) | Banked low command pack fetched from REU bank `$45`. |
-| `BRIDGE` | `$C000-$C1C4` | `$01C5` (453B) | Persistent bridge state, saved vectors, overlay variables, handle metadata, debug bytes. |
+| `LOWPACK` runtime | `$A900-$AEDE` | `$05DF` (1.5K) | Banked low command pack fetched from REU bank `$45`. |
+| `BRIDGE` | `$C000-$C19A` | `$019B` (411B) | Persistent bridge state, saved vectors, overlay variables, current handle scratch, debug bytes. |
 | Shared frames | `$C200-$C5FF` | `$0400` (1.0K) | Call frame, result frame, descriptor buffer, command-name buffer, page/runtime buffers. |
-| Hidden shadow | `$C280-$C5B6` | `$0337` (0.8K) | Visible-RAM source for restoring `$A000` helper on warm resume; refreshed during `!EXIT`. |
+| Hidden shadow | `$C280-$C5F6` | `$0377` (0.9K) | Visible-RAM source for restoring `$A000` helper on warm resume; refreshed during `!EXIT`. |
 | ReadyOS REU metadata | `$C600-$C7FF` | `$0200` (0.5K) shared | ReadyBASIC only marks REU bank ownership here. |
 | ReadyOS shim ABI | `$C800-$C9FF` | `$0200` (0.5K) shared | ReadyOS jump table and data; not ReadyBASIC RAM. |
 
@@ -272,7 +272,7 @@ names.
 | Result frame | `$C300` | Status, error number, value tag, scalar value, string output buffer, array output buffer. |
 | Descriptor buffer | `$C480` | One descriptor fetched from REU bank `$44`. |
 | Command buffer | `$C4A0` | Uppercase normalized command name. |
-| Page buffer | `$C500` | 256-byte staging page for REU handle operations and warm-resume stack buffer. |
+| Page buffer | `$C500` | 256-byte staging page for descriptor scans, REU handle operations, heap bitmap scans, and warm-resume stack buffer. |
 | REU call snapshot | Bank `$44`, `$0400` | Copy of the current call frame. |
 | REU result snapshot | Bank `$44`, `$0500` | Copy of the current result frame. |
 | Runtime zero-page snapshot | Bank `$44`, `$0A00` | Saved zero page, restored through the temporary buffer at `$C400`. |
@@ -325,31 +325,32 @@ ReadyBASIC marks the ReadyOS REU allocation table at `$C600+$44` and
 | Offset | Region |
 |---:|---|
 | `$0000` | Header: `RBPL`, version, descriptor count, descriptor size, and frame offsets. |
-| `$1000-$1FFF` | 128 command descriptor slots, 32 bytes each. Slot 13 is `SCRCAP`; slot 128 is `SCRPUT`; zero-filled slots are unused fillers. |
 | `$0400` | Current call-frame snapshot. |
 | `$0500` | Current result-frame snapshot. |
 | `$0600` | Reserved debug ring area. |
-| `$0800` | Persistent handle metadata snapshot. |
-| `$0900` | Reserved transient heap/staging area. |
+| `$0800-$09FF` | REU-backed handle directory: 128 descriptors, 4 bytes each. |
 | `$0A00` | Saved zero page for ReadyOS suspend/resume. |
 | `$0B00` | Saved stack page for ReadyOS suspend/resume. |
-| `$8000-$8FFF` | V1 sample data heap: 16 pages of 256 bytes. |
+| `$0C00-$0CFF` | 192-byte heap page bitmap plus reserved bytes. |
+| `$1000-$1FFF` | 128 command descriptor slots, 32 bytes each. Slot 13 is `SCRCAP`; slot 128 is `SCRPUT`; zero-filled slots are unused fillers. |
+| `$2000-$3FFF` | Reserved common/system space for future ReadyBASIC metadata. |
+| `$4000-$FFFF` | Typed handle heap: 192 pages / 48KB. |
 
-The persistent handle model still supports eight live handles in this change.
-Each handle is represented to BASIC as a small integer, while bridge/REU
-metadata records the backing bank, start page, page count, type, and page bitmap
-state. Type `1` is a byte buffer, and type `2` is a screen text+color buffer.
+The persistent handle model supports 128 live handles. Each handle is
+represented to BASIC as a small integer from `1` to `128`, while canonical
+metadata lives in REU and bridge RAM keeps only the current descriptor scratch.
+Type `1` is a byte buffer, and type `2` is a screen text+color buffer.
 `BUFFILL` accepts only buffer handles; `BUFFREE` frees any valid handle;
-`SCRPUT` accepts only screen handles. The current sample heap uses pages
-`$80-$8F` inside bank `$44`; future large or long-lived objects should allocate
-additional REU banks and keep the same small handle model.
+`SCRPUT` accepts only screen handles. The typed heap uses bank `$44` pages
+`$40-$FF`; future large or long-lived objects should allocate additional REU
+banks and keep the same small handle model.
 
 ### Bank `$45`: Packed Command Code
 
 | Offset | Region |
 |---:|---|
-| `$0000-$04DF` | Low overlay pack copied into `$A900-$ADDF`. |
-| `$04E0-$052C` | Hidden overlay pack copied into `$A800-$A84C`. |
+| `$0000-$05DE` | Low overlay pack copied into `$A900-$AEDE`. |
+| `$05DF-$062B` | Hidden overlay pack copied into `$A800-$A84C`. |
 
 Descriptors point into these packed bytes. Normal low commands fetch only their
 slice. The REU handle and screen-handle commands currently fetch the whole low
@@ -452,20 +453,20 @@ Current static layout:
 | Segment | Range | Size |
 |---|---:|---:|
 | `ENTRY` | `$1000-$1102` | `$0103` (259B) |
-| `RESIDENT` | `$1200-$1BF9` | `$09FA` (2554B) |
+| `RESIDENT` | `$1200-$1BAF` | `$09B0` (2480B) |
 | `REGSEED` | `$5000-$600F` | `$1010` (4112B) |
-| `HIDDEN` | `$A000-$A336` | `$0337` (0.8K) |
+| `HIDDEN` | `$A000-$A376` | `$0377` (887B) |
 | `HIDDENPACK` | `$A800-$A84C` | `$004D` (77B) |
-| `LOWPACK` | `$A900-$ADDF` | `$04E0` (1248B) |
-| `BRIDGE` | `$C000-$C1C4` | `$01C5` (453B) |
+| `LOWPACK` | `$A900-$AEDE` | `$05DF` (1503B) |
+| `BRIDGE` | `$C000-$C19A` | `$019B` (411B) |
 
 Recent VICE coverage includes:
 
 | Probe | Coverage |
 |---|---|
-| Plugin command probe | Direct `!` commands, direct `IF 1 THEN !PING`, string/REM safety, leading-comma rejection, `SCRCAP`/`SCRPUT`, slot-128 lookup, wrong-handle-type rejection, screen-handle free, resume. |
+| Plugin command probe | Direct `!` commands, direct `IF 1 THEN !PING`, string/REM safety, leading-comma rejection, `SCRCAP`/`SCRPUT`, slot-128 lookup, 128-handle edge, 48KB heap edge, screen heap exhaustion, wrong-handle-type rejection, screen-handle free, resume. |
 | Program probe | Stored line start, colon chains, true/false `IF ... THEN !`, `FOR/NEXT`, strings, REM, DATA, arrays, hidden worker, handles, failure clearing. |
-| Full visual verification | Human-watchable command, program, screen-handle, resume, and error coverage. |
+| Full visual verification | Human-watchable command, program, screen-handle, handle/heap edge, resume, and error coverage. |
 | Lifecycle probe | Cold entry, `EXIT`, launcher re-entry, READY-mode redraw. |
 | State probe | BASIC variable/string survival and command availability after resume. |
 | `rbtest1` probe | Sample program assembled at the relocated BASIC workspace. |

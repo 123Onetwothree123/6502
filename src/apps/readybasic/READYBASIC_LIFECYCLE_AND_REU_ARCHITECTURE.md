@@ -44,12 +44,12 @@ The current map confirms this layout:
 | Segment | Runtime range | Size | Role |
 |---|---:|---:|---|
 | `ENTRY` | `$1000-$1102` | `$0103` (259B) | App entry, cold/warm discriminator, early copies. |
-| `RESIDENT` | `$1200-$1BF9` | `$09FA` (2554B) | Visible parser, ROM calls, REU DMA wrappers, result commit. |
+| `RESIDENT` | `$1200-$1BAF` | `$09B0` (2480B) | Visible parser, ROM calls, REU DMA wrappers, result commit. |
 | `REGSEED` | `$5000-$600F` | `$1010` (4112B) | Load-only registry header and 128 command descriptors used on cold seed. |
-| `HIDDEN` | `$A000-$A336` | `$0337` (0.8K) | Hidden helper routines under BASIC ROM. |
+| `HIDDEN` | `$A000-$A376` | `$0377` (887B) | Hidden helper routines under BASIC ROM. |
 | `HIDDENPACK` | `$A800-$A84C` | `$004D` (77B) | Hidden worker overlay image, loaded to REU bank `$45`. |
-| `LOWPACK` | `$A900-$ADDF` | `$04E0` (1248B) | Banked low overlay image under BASIC ROM, loaded from REU bank `$45`. |
-| `BRIDGE` | `$C000-$C1C4` | `$01C5` (453B) | Persistent bridge/state bytes, no general scratch. |
+| `LOWPACK` | `$A900-$AEDE` | `$05DF` (1503B) | Banked low overlay image under BASIC ROM, loaded from REU bank `$45`. |
+| `BRIDGE` | `$C000-$C19A` | `$019B` (411B) | Persistent bridge/state bytes, no general scratch. |
 
 ## Technical Philosophy
 
@@ -93,17 +93,17 @@ live inside that contract while also hosting BASIC.
 ```mermaid
 flowchart TB
   A["$1000-$1102 ENTRY<br/>load entry and cold/warm cookie"]
-  B["$1200-$1BF9 RESIDENT<br/>visible parser, vector hook, REU DMA, commit"]
+  B["$1200-$1BAF RESIDENT<br/>visible parser, vector hook, REU DMA, commit"]
   C["$1C00 SENTINEL<br/>must be zero for BASIC RUN"]
   D["$1C01-$9FFF BASIC WORKSPACE<br/>33789 free bytes / 33.0K"]
   E["$2800-$3FFF CMDPACK LOAD IMAGE<br/>low and hidden overlay seed bytes before cold prestash"]
   F["REU $44:$0A00-$0BFF RUNTIME SNAPSHOT<br/>zero page and stack / 0.5K"]
   G["$C200-$C5FF SHARED FRAMES<br/>call/result/descriptor/name/page buffers / 1.0K"]
-  I["$C280-$C5B6 HIDDEN SHADOW<br/>refreshed on EXIT / 0.8K"]
-  J["$A000-$A336 HIDDEN HELPER<br/>runs under BASIC ROM RAM"]
+  I["$C280-$C5F6 HIDDEN SHADOW<br/>refreshed on EXIT / 0.9K"]
+  J["$A000-$A376 HIDDEN HELPER<br/>runs under BASIC ROM RAM"]
   K["$A800-$A84C HIDDEN OVERLAY<br/>HCRC worker copied from REU bank $45"]
-  O["$A900-$ADDF LOW OVERLAY<br/>low workers under BASIC ROM RAM"]
-  L["$C000-$C1C4 BRIDGE STATE<br/>magic, saved vectors, overlay vars, handles, debug"]
+  O["$A900-$AEDE LOW OVERLAY<br/>low workers under BASIC ROM RAM"]
+  L["$C000-$C19A BRIDGE STATE<br/>magic, saved vectors, overlay vars, handle scratch, debug"]
   M["$C600-$C7FF READYOS REU METADATA<br/>only bank ownership tags here"]
   N["$C800-$C9FF SHIM ABI<br/>ReadyOS jump table/data, not app RAM"]
 
@@ -156,28 +156,28 @@ flowchart TB
   C["$0400 Call frame snapshot<br/>copy of $C200 frame"]
   R["$0500 Result frame snapshot<br/>copy of $C300 frame"]
   DBG["$0600 Debug ring reserved<br/>parser/command breadcrumbs"]
-  HM["$0800 Handle metadata<br/>8 handles + page bitmap snapshot"]
-  HP["$0900 Reserved transient heap<br/>future parser/result staging"]
+  HM["$0800-$09FF Handle directory<br/>128 x 4-byte descriptors"]
   ZP["$0A00 Zero-page snapshot<br/>ReadyOS suspend/resume"]
   ST["$0B00 Stack-page snapshot<br/>ReadyOS suspend/resume"]
-  DATA["$8000-$8FFF V1 data heap<br/>16 x 256-byte pages"]
+  BM["$0C00 Heap bitmap<br/>192 pages tracked in REU"]
+  RS["$2000-$3FFF Reserved common space<br/>future typed metadata"]
+  DATA["$4000-$FFFF Typed handle heap<br/>48KB / 192 pages"]
 
-  H --> D --> C --> R --> DBG --> HM --> HP --> ZP --> ST --> DATA
+  H --> C --> R --> DBG --> HM --> ZP --> ST --> BM --> D --> RS --> DATA
 ```
 
-V1 persistent sample buffers use the data heap in bank `$44`, pages `$80-$8F`.
-Each handle records a bank, starting page, page count, type, and bitmap
-ownership. Type `1` is a byte buffer, and type `2` is a screen text+color
-buffer. This is a compact proof of handle lifecycle, not the final large-data
-allocator. Future large or long-lived command data should move into additional
-dynamic banks and keep handles as the stable reference.
+Persistent buffers use the typed heap in bank `$44`, pages `$40-$FF`. Each
+handle records a bank, starting page, page count, and type in the REU-backed
+directory. The page bitmap is also canonical in REU, so resident/bridge RAM only
+needs the current descriptor scratch and a 256-byte page buffer. Type `1` is a
+byte buffer, and type `2` is a screen text+color buffer.
 
 ### Bank `$45`: Packed Command-Code Bank
 
 ```mermaid
 flowchart LR
-  LP["$0000-$04DF Low overlay pack<br/>copied into $A900-$ADDF"]
-  HP["$04E0-$052C Hidden overlay pack<br/>copied into $A800-$A84C"]
+  LP["$0000-$05DE Low overlay pack<br/>copied into $A900-$AEDE"]
+  HP["$05DF-$062B Hidden overlay pack<br/>copied into $A800-$A84C"]
   LP --> HP
 ```
 
@@ -395,7 +395,7 @@ sequenceDiagram
 | Result frame | `$C300` | Status, error, value tag, scalar value, string buffer, array buffer. |
 | Descriptor buffer | `$C480` | One 32-byte descriptor fetched from REU bank `$44`. |
 | Command buffer | `$C4A0` | Normalized command name. |
-| Page buffer | `$C500` | 256-byte fill/stash buffer for handle operations and warm-resume stack staging. |
+| Page buffer | `$C500` | 256-byte descriptor/bitmap page buffer for handle operations and warm-resume stack staging. |
 
 The call and result frames are also mirrored to REU bank `$44` offsets `$0400`
 and `$0500`. This gives crash/debug visibility and gives future worker models a
@@ -443,49 +443,49 @@ BASIC's string heap.
 | `!HCRC S$,OUT%` | Hidden overlay at `$A800` | `$004D` (77B) | string variable or literal, output int | Sums uppercase bytes. |
 | `!SUMAI A%(0),COUNT,OUT%` | Low overlay at `$A900+$006E` | `$0044` (68B) | integer array base/count, output int | Sums integer array values. |
 | `!RANGEAI START,COUNT,A%(0)` | Low overlay at `$A900+$00B2` | `$003D` (61B) | start/count, output array | Stages consecutive integers. |
-| `!BUFNEW LEN,H%` | Low overlay entry `$00EF` | `$04E0` (1.2K) | length, output handle | Allocates persistent buffer pages in bank `$44`. |
-| `!BUFFILL H%,BYTE` | Low overlay entry `$00F3` | `$04E0` (1.2K) | buffer handle, byte | Fills buffer handle pages using `$C500` page buffer. |
-| `!BUFFREE H%` | Low overlay entry `$00F7` | `$04E0` (1.2K) | handle | Frees any valid handle type and clears metadata. |
-| `!TEMPSCRATCH LEN,OUT%` | Low overlay entry `$00FB` | `$04E0` (1.2K) | length, output int | Allocates then frees pages, returns page count. |
+| `!BUFNEW LEN,H%` | Low overlay entry `$00EF` | `$05DF` (1.5K) | length, output handle | Allocates persistent buffer pages in bank `$44`. |
+| `!BUFFILL H%,BYTE` | Low overlay entry `$00F3` | `$05DF` (1.5K) | buffer handle, byte | Fills buffer handle pages using `$C500` page buffer. |
+| `!BUFFREE H%` | Low overlay entry `$00F7` | `$05DF` (1.5K) | handle | Frees any valid handle type and clears metadata. |
+| `!TEMPSCRATCH LEN,OUT%` | Low overlay entry `$00FB` | `$05DF` (1.5K) | length, output int | Allocates then frees pages, returns page count. |
 | `!FAIL CODE,OUT%` | Low overlay at `$A900+$00FF` | `$001B` (27B) | code, output int | Clears output first, then returns `?RB ERROR code`. |
 | `!FREEMEM` | Low overlay at `$A900+$011A` | `$0016` (22B) | none | Prints live free BASIC bytes and refreshes the header. |
-| `!SCRCAP H%` | Low overlay entry `$0130` | `$04E0` (1.2K) | output screen handle | Captures screen text and color RAM into a type-2 handle. |
-| `!SCRPUT H%` | Slot 128; low overlay entry `$0159` | `$04E0` (1.2K) | screen handle | Restores screen text and color RAM after type validation. |
+| `!SCRCAP H%` | Low overlay entry `$0130` | `$05DF` (1.5K) | output screen handle | Captures screen text and color RAM into a type-2 handle. |
+| `!SCRPUT H%` | Slot 128; low overlay entry `$0159` | `$05DF` (1.5K) | screen handle | Restores screen text and color RAM after type validation. |
 
-The heap-oriented commands copy the full `$02F3` low pack because allocator
-helpers currently live in the same overlay pack. That is an implementation
-choice to keep resident RAM lean; a later pass could split a smaller allocator
-resident helper or use finer overlay slices.
+The heap-oriented commands copy the full `$05DF` low pack because allocator,
+REU descriptor, bitmap, and screen-copy helpers live in the same overlay pack.
+That is an implementation choice to keep resident RAM lean; a later pass could
+split a smaller allocator resident helper or use finer overlay slices.
 
 ## Persistent Handle Model
 
-V1 supports up to eight live handles and a 16-page sample heap.
+ReadyBASIC supports up to 128 live handles and a 48KB typed heap.
 
 ```mermaid
 flowchart LR
-  BASIC["BASIC H% handle<br/>small integer 1-8"]
-  META["Bridge handle arrays<br/>bank/page/pages/type + bitmap"]
-  SNAP["REU bank $44 $0800<br/>metadata snapshot"]
-  DATA["REU bank $44 $8000-$8FFF<br/>16 pages of data"]
+  BASIC["BASIC H% handle<br/>small integer 1-128"]
+  SCRATCH["Bridge scratch<br/>current bank/page/pages/type"]
+  DIR["REU bank $44 $0800-$09FF<br/>128 handle descriptors"]
+  BITMAP["REU bank $44 $0C00<br/>192-page bitmap"]
+  DATA["REU bank $44 $4000-$FFFF<br/>48KB typed heap"]
 
-  BASIC --> META --> SNAP
-  META --> DATA
+  BASIC --> SCRATCH --> DIR
+  SCRATCH --> BITMAP --> DATA
 ```
 
 `BUFNEW` converts byte length to 256-byte pages, finds contiguous free pages,
 records type-1 metadata, and returns a one-based handle. `BUFFILL` accepts only
 type-1 buffer handles, fills `$C500` with the byte, and stashes it page by page
-into bank `$44` at page offsets `$80-$8F`. `SCRCAP` creates a type-2 handle and
+into bank `$44` at page offsets `$40-$FF`. `SCRCAP` creates a type-2 handle and
 stashes screen text plus color RAM; `SCRPUT` validates type `2` before restore.
-`BUFFREE` clears both the handle and bitmap for any valid handle type.
-`TEMPSCRATCH` proves temporary allocation by marking pages and freeing them
-before returning.
+`BUFFREE` clears both the handle descriptor and bitmap for any valid handle type.
+`TEMPSCRATCH` proves temporary allocation by finding pages without persisting a
+live descriptor.
 
 This handle model is the right direction for future commands that maintain
-screen buffers, network buffers, caches, or large results. The V1 limitation is
-that data pages are still inside fixed bank `$44`; long-lived large objects
-should allocate additional banks and keep the same small handle as the BASIC
-visible reference.
+screen buffers, network buffers, caches, or large results. The current fixed
+bank heap is intentionally typed and compact; larger future resources can add
+extra banks while keeping the same small BASIC-visible handle.
 
 ## Hidden Code And Banking Contract
 
@@ -537,15 +537,18 @@ The current full visual suite is:
 READYBASIC_VISIBLE=1 /Users/karlprosserpp/dev/c64projects/agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_full_suite_visual_verification.sh
 ```
 
-Latest documented pass on the memory-reclaim branch:
+Latest documented pass on the REU-backed 128-handle branch:
 
 - Run dir:
-  `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260521_202657`
-- Result: 98/98 steps, `FailedStep: null`, no degraded steps.
+  `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260522_154424`
+- Result: 133/133 concrete steps, `FailedStep: null`, no degraded steps; the
+  wrapper reports `partial`, matching the current no-failed-step harness
+  behavior.
 - It validates:
   - Cold ReadyOS boot with `READYOS_CONFIG_RUN_FIRST=readybasic`.
   - Direct-mode scalar, string, hidden worker, array, REU handle, temp heap,
-    failure, and unknown-command paths.
+    128-handle edge, 48KB heap edge, screen heap exhaustion, failure, and
+    unknown-command paths.
   - Menu-based launcher round trip and ReadyBasic redraw.
   - BASIC variable/string state plus registry survival after resume.
   - Stored-program `LIST` and `RUN` for the major command families.

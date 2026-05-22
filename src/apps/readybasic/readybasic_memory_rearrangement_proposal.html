@@ -446,13 +446,13 @@ $A000 - $0801 = 38911 bytes (38.0K)</span>
         <thead><tr><th>Segment</th><th>Range</th><th>Size</th><th>Current role</th></tr></thead>
         <tbody>
           <tr><td><code>ENTRY</code></td><td><code>$1000-$1102</code></td><td><code>$0103</code> (259B)</td><td>Cold/warm entry and early copies.</td></tr>
-          <tr><td><code>RESIDENT</code></td><td><code>$1200-$1BF9</code></td><td><code>$09FA</code> (2554B)</td><td>Visible parser, hooks, ROM calls, REU DMA, result commit.</td></tr>
+          <tr><td><code>RESIDENT</code></td><td><code>$1200-$1BAF</code></td><td><code>$09B0</code> (2480B)</td><td>Visible parser, hooks, ROM calls, REU DMA, result commit.</td></tr>
           <tr><td><code>CMDPACK</code></td><td><code>$2800-$3FFF</code></td><td><code>$1800</code> reserved</td><td>Cold-only overlay seed copied to REU bank <code>$45</code>.</td></tr>
-          <tr><td><code>HIDLOAD</code></td><td><code>$4000+</code></td><td><code>$0337</code> (823B)</td><td>Cold-only hidden helper seed copied to <code>$A000</code> and <code>$C280</code>.</td></tr>
-          <tr><td><code>BRLOAD</code></td><td><code>$4800+</code></td><td><code>$01C5</code> (453B)</td><td>Cold-only bridge seed copied to <code>$C000</code>.</td></tr>
+          <tr><td><code>HIDLOAD</code></td><td><code>$4000+</code></td><td><code>$0377</code> (887B)</td><td>Cold-only hidden helper seed copied to <code>$A000</code> and <code>$C280</code>.</td></tr>
+          <tr><td><code>BRLOAD</code></td><td><code>$4800+</code></td><td><code>$019B</code> (411B)</td><td>Cold-only bridge seed copied to <code>$C000</code>.</td></tr>
           <tr><td><code>REGSEED</code></td><td><code>$5000-$600F</code></td><td><code>$1010</code> (4112B)</td><td>Cold-only 128-slot registry seed copied to REU bank <code>$44:$1000</code>.</td></tr>
-          <tr><td><code>LOWPACK</code></td><td><code>$A900-$ADDF</code></td><td><code>$04E0</code> (1248B)</td><td>Low command overlay under BASIC ROM.</td></tr>
-          <tr><td><code>BRIDGE</code></td><td><code>$C000-$C1C4</code></td><td><code>$01C5</code> (453B)</td><td>Persistent bridge/state bytes.</td></tr>
+          <tr><td><code>LOWPACK</code></td><td><code>$A900-$AEDE</code></td><td><code>$05DF</code> (1503B)</td><td>Low command overlay under BASIC ROM.</td></tr>
+          <tr><td><code>BRIDGE</code></td><td><code>$C000-$C19A</code></td><td><code>$019B</code> (411B)</td><td>Persistent bridge/state bytes.</td></tr>
         </tbody>
       </table>
       <div class="callout good">
@@ -460,6 +460,9 @@ $A000 - $0801 = 38911 bytes (38.0K)</span>
         Lookup fetches one 256-byte page into <code>$C500</code>, scans eight
         descriptors, and copies a match to <code>$C480</code>. <code>SCRCAP</code>
         is slot 13; <code>SCRPUT</code> is slot 128.
+        Handle descriptors live at <code>$44:$0800-$09FF</code>, the heap
+        bitmap lives at <code>$44:$0C00</code>, and the typed heap is
+        <code>$44:$4000-$FFFF</code> / 48KB.
       </div>
       <p>
         For manual testing, use <code>bash ./run.sh --profile precog-d81 --skipbuild</code>
@@ -479,7 +482,7 @@ $A000 - $0801 = 38911 bytes (38.0K)</span>
           <tr><td><code>$9600-$99FF</code></td><td>Former runtime snapshot.</td><td>Now BASIC workspace up to <code>$9FFF</code>.</td><td>Implemented by saving zero page/stack in REU bank <code>$44</code>.</td></tr>
           <tr><td><code>$9A00-$9FFF</code></td><td>Former hidden helper shadow.</td><td>Now BASIC workspace.</td><td>Implemented by refreshing a visible shadow at <code>$C280</code> during <code>!EXIT</code>.</td></tr>
           <tr><td><code>$A000-$BFFF</code></td><td>Hidden helper and hidden overlay.</td><td>Main command overlay arena for most or all workers.</td><td>Safe inside ReadyOS app window, visible only when banking out BASIC ROM.</td></tr>
-          <tr><td><code>$C000-$C5FF</code></td><td>Bridge uses <code>$C000-$C1C4</code> (<code>$01C5</code>, 453B); rest holds shared frames and visible shadow.</td><td>Shared frames, small visible trampolines, loader scratch.</td><td>Safe only below <code>$C600</code>.</td></tr>
+          <tr><td><code>$C000-$C5FF</code></td><td>Bridge uses <code>$C000-$C19A</code> (<code>$019B</code>, 411B); rest holds shared frames and visible shadow.</td><td>Shared frames, small visible trampolines, loader scratch.</td><td>Safe only below <code>$C600</code>.</td></tr>
           <tr><td><code>$C600-$C7FF</code></td><td>ReadyOS REU metadata.</td><td>Not available.</td><td>Reserved.</td></tr>
           <tr><td><code>$C800-$C9FF</code></td><td>ReadyOS shim ABI.</td><td>Not available.</td><td>Reserved.</td></tr>
         </tbody>
@@ -500,7 +503,7 @@ $A000 - $0801 = 38911 bytes (38.0K)</span>
           <tr><td><code>CMDPACK</code> load image</td><td><code>$2800-$3FFF</code></td><td>Cold seed only.</td><td>Let BASIC own this range after code is copied to REU bank <code>$45</code>.</td></tr>
           <tr><td><code>REGSEED</code></td><td><code>$5000-$600F</code> (<code>$1010</code>, 4112B)</td><td>Cold seed only.</td><td>128 descriptor slots; never reread after BASIC owns memory.</td></tr>
           <tr><td>Runtime snapshot</td><td>former <code>$9600-$99FF</code> (<code>$0400</code>, 1.0K)</td><td>Needed only across <code>EXIT</code>/warm resume.</td><td>Save zero page, stack, and mode directly to REU.</td></tr>
-          <tr><td>Hidden shadow</td><td>former <code>$9A00-$9FFF</code> (<code>$0600</code>, 1.5K)</td><td>Needed only to restore <code>$A000</code> helper after app switch.</td><td>Refresh visible <code>$C280-$C5B6</code> (<code>$0337</code>, 0.8K) during <code>!EXIT</code>.</td></tr>
+          <tr><td>Hidden shadow</td><td>former <code>$9A00-$9FFF</code> (<code>$0600</code>, 1.5K)</td><td>Needed only to restore <code>$A000</code> helper after app switch.</td><td>Refresh visible <code>$C280-$C5F6</code> (<code>$0377</code>, 887B) during <code>!EXIT</code>.</td></tr>
           <tr><td>Low overlay slot</td><td>former <code>$1C00-$23FF</code> (<code>$0800</code>, 2.0K)</td><td>Needed only while a command executes.</td><td>Run low workers from banked RAM under BASIC ROM.</td></tr>
           <tr><td>Shared frames</td><td>former <code>$2400-$27FF</code> (<code>$0400</code>, 1.0K)</td><td>Needed during parse/execute/commit.</td><td>Move to <code>$C200-$C5FF</code> (<code>$0400</code>, 1.0K).</td></tr>
         </tbody>
@@ -590,13 +593,13 @@ $A000 - $0801 = 38911 bytes (38.0K)</span>
       <h2>Implemented Rearranged Layout</h2>
       <div class="map">
         <div class="addr">$1000-$1102</div><div class="region r-entry"><b>Entry / warm trampoline</b><small>Only what must run before resident setup.</small></div><div class="size">$0103<br>259B</div>
-        <div class="addr">$1200-$1BF9</div><div class="region r-resident"><b>Visible resident</b><small>Parser, vector hooks, ROM calls, REU DMA, result commit.</small></div><div class="size">$09FA<br>2554B</div>
+        <div class="addr">$1200-$1BAF</div><div class="region r-resident"><b>Visible resident</b><small>Parser, vector hooks, ROM calls, REU DMA, result commit.</small></div><div class="size">$09B0<br>2480B</div>
         <div class="addr">$1C00</div><div class="region r-basic"><b>BASIC sentinel</b><small>Zero byte before BASIC text.</small></div><div class="size">1B</div>
         <div class="addr">$1C01-$9FFF</div><div class="region r-basic"><b>BASIC workspace</b><small>Program text, variables, arrays, string heap.</small></div><div class="size">$83FF<br>33789 free / 33.0K</div>
-        <div class="addr">$A000-$A336</div><div class="region r-hidden"><b>Hidden helper</b><small>Restored from load image on cold entry and from <code>$C280</code> on warm entry.</small></div><div class="size">$0337<br>0.8K</div>
+        <div class="addr">$A000-$A376</div><div class="region r-hidden"><b>Hidden helper</b><small>Restored from load image on cold entry and from <code>$C280</code> on warm entry.</small></div><div class="size">$0377<br>887B</div>
         <div class="addr">$A800-$A84C</div><div class="region r-overlay"><b>Hidden command overlay arena</b><small>Hidden workers execute under BASIC ROM RAM.</small></div><div class="size">$004D<br>77B</div>
-        <div class="addr">$A900-$ADDF</div><div class="region r-overlay"><b>Low command overlay arena</b><small>Low workers execute under BASIC ROM RAM.</small></div><div class="size">$04E0<br>1248B</div>
-        <div class="addr">$C000-$C1C4</div><div class="region r-bridge"><b>Bridge state</b><small>Magic, saved vectors, small persistent bytes.</small></div><div class="size">$01C5<br>453B</div>
+        <div class="addr">$A900-$AEDE</div><div class="region r-overlay"><b>Low command overlay arena</b><small>Low workers execute under BASIC ROM RAM.</small></div><div class="size">$05DF<br>1503B</div>
+        <div class="addr">$C000-$C19A</div><div class="region r-bridge"><b>Bridge state</b><small>Magic, saved vectors, current handle scratch.</small></div><div class="size">$019B<br>411B</div>
         <div class="addr">$C200-$C5FF</div><div class="region r-bridge"><b>Shared frames and shadow</b><small>Frames, resume buffers, and refreshed hidden helper shadow at <code>$C280</code>.</small></div><div class="size">$0400<br>1.0K</div>
         <div class="addr">$C600-$C7FF</div><div class="region r-readyos"><b>ReadyOS REU metadata</b><small>Do not use.</small></div><div class="size">$0200<br>0.5K</div>
         <div class="addr">$C800-$C9FF</div><div class="region r-readyos"><b>ReadyOS shim ABI</b><small>Do not use.</small></div><div class="size">$0200<br>0.5K</div>

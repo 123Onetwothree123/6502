@@ -4,6 +4,50 @@ This is a chronological progress log. Older entries intentionally preserve the
 layout and addresses that were current when the tests were run. For the current
 memory map, use `READYBASIC_CURRENT_DESIGN.md`.
 
+## 2026-05-22: REU-Backed 128 Handles And 48KB Typed Heap
+
+- Commands:
+  - `make readybasic-plugin-static-check`
+  - `make bin/reuviewer.prg`
+  - `make verify`
+  - ReadyBASIC direct, program, lifecycle, state, large-vars, and full visual
+    VICE suites through normal ReadyOS boot paths.
+- Result: static/build verification passed. VICE harness runs completed every
+  concrete assertion with `FailedStep: null`; the wrapper still reported
+  `partial`, matching the current harness behavior when no concrete step fails.
+- Run dirs:
+  - Direct: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260522_153017`
+  - Program: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260522_154145`
+  - Lifecycle: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260522_154246`
+  - State: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260522_154309`
+  - Large vars: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260522_154359`
+  - Full visual: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260522_154424`
+- Current static layout:
+  - `ENTRY` `$1000-$1102`, size `$0103` (259B).
+  - `RESIDENT` `$1200-$1BAF`, size `$09B0` (2480B).
+  - `REGSEED` `$5000-$600F`, size `$1010` (4112B).
+  - `HIDDEN` `$A000-$A376`, size `$0377` (887B).
+  - `HIDDENPACK` `$A800-$A84C`, size `$004D` (77B).
+  - `LOWPACK` `$A900-$AEDE`, size `$05DF` (1503B).
+  - `BRIDGE` `$C000-$C19A`, size `$019B` (411B).
+- BASIC workspace:
+  - `BASIC_START=$1C01`, BASIC top `$A000`.
+  - Empty free space remains `33789` bytes (33.0K), a `0` byte reduction from
+    the pre-change baseline.
+- Handles and heap:
+  - `RB_HANDLE_COUNT=128`.
+  - `RB_HEAP_PAGES=192`, with the typed heap at REU bank `$44:$4000-$FFFF`.
+  - The handle directory is REU-backed at `$44:$0800-$09FF`.
+  - The 192-page heap bitmap is REU-backed at `$44:$0C00`.
+  - Bridge RAM keeps only the current handle descriptor scratch, not a 128-entry
+    resident table.
+- Probe coverage added:
+  - handle `1..128` allocation and handle-table-full on handle 129;
+  - low-handle reuse after free;
+  - 48KB buffer allocation and heap-full rejection;
+  - screen text+color handles filling the 48KB heap;
+  - type rejection and freeing behavior after the expanded table.
+
 ## 2026-05-22: 128-Slot Registry And Typed Screen Handles
 
 - Commands:

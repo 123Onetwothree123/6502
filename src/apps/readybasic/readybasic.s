@@ -160,18 +160,22 @@ RB_REU_CALL_OFF    = $0400
 RB_REU_RESULT_OFF  = $0500
 RB_REU_DEBUG_OFF   = $0600
 RB_REU_HANDLE_OFF  = $0800
-RB_REU_HEAP_OFF    = $0900
+RB_REU_HEAP_OFF    = $0C00
 RB_REU_RUNTIME_ZP_OFF = $0A00
 RB_REU_RUNTIME_STACK_OFF = $0B00
-RB_REU_DATA_OFF    = $8000
+RB_REU_COMMON_LIMIT= $4000
+RB_REU_DATA_OFF    = $4000
 
 RB_CMD_DESC_SIZE   = 32
 RB_CMD_DESC_COUNT  = 128
 RB_CMD_DESC_PER_PAGE = 8
 RB_MAX_NAME        = 15
 RB_MAX_STR         = 64
-RB_HANDLE_COUNT    = 8
-RB_HEAP_PAGES      = 16
+RB_HANDLE_COUNT    = 128
+RB_HANDLE_DESC_SIZE= 4
+RB_HANDLE_PAGE_SLOTS = 64
+RB_HEAP_PAGES      = 192
+RB_HEAP_PAGE_BASE  = >RB_REU_DATA_OFF
 RB_HANDLE_TYPE_BUFFER = 1
 RB_HANDLE_TYPE_SCREEN_TC = 2
 RB_SCREEN_BYTES    = $03E8
@@ -1683,44 +1687,6 @@ rb_stash_result_frame:
         jsr rb_reu_stash
         rts
 
-rb_clear_handle_heap:
-        ldx #0
-        lda #0
-@h:
-        sta rb_handle_bank,x
-        sta rb_handle_page,x
-        sta rb_handle_pages,x
-        sta rb_handle_type,x
-        inx
-        cpx #RB_HANDLE_COUNT
-        bcc @h
-        ldx #0
-@p:
-        sta rb_page_bitmap,x
-        inx
-        cpx #RB_HEAP_PAGES
-        bcc @p
-        jsr rb_stash_handle_meta
-        rts
-
-rb_stash_handle_meta:
-        lda #<rb_handle_bank
-        sta rb_reu_c64_lo
-        lda #>rb_handle_bank
-        sta rb_reu_c64_hi
-        lda #<RB_REU_HANDLE_OFF
-        sta rb_reu_off_lo
-        lda #>RB_REU_HANDLE_OFF
-        sta rb_reu_off_hi
-        lda #RB_REU_CORE_BANK
-        sta rb_reu_bank
-        lda #$80
-        sta rb_reu_len_lo
-        lda #0
-        sta rb_reu_len_hi
-        jsr rb_reu_stash
-        rts
-
         .segment "REGSEED"
 
 rb_reu_header:
@@ -2087,6 +2053,42 @@ rb_mark_reu_banks_hidden:
         sta RB_REU_ALLOC_TABLE + RB_REU_CODE_BANK
         rts
 
+rb_clear_handle_heap:
+        ldx #0
+        lda #0
+@zero:
+        sta RB_PAGEBUF,x
+        inx
+        bne @zero
+        ldx #0
+@stash:
+        lda rb_clear_heap_pages,x
+        sta rb_reu_off_hi
+        lda #0
+        sta rb_reu_off_lo
+        jsr rb_stash_zero_pagebuf
+        inx
+        cpx #3
+        bcc @stash
+        rts
+
+rb_clear_heap_pages:
+        .byte >RB_REU_HANDLE_OFF, >(RB_REU_HANDLE_OFF + $0100), >RB_REU_HEAP_OFF
+
+rb_stash_zero_pagebuf:
+        lda #<RB_PAGEBUF
+        sta rb_reu_c64_lo
+        lda #>RB_PAGEBUF
+        sta rb_reu_c64_hi
+        lda #RB_REU_CORE_BANK
+        sta rb_reu_bank
+        lda #0
+        sta rb_reu_len_lo
+        lda #1
+        sta rb_reu_len_hi
+        jsr rb_reu_stash
+        rts
+
 save_basic_runtime_state:
         tsx
         txa
@@ -2435,15 +2437,16 @@ rb_reu_bank:    .byte 0
 rb_reu_len_lo:  .byte 0
 rb_reu_len_hi:  .byte 0
 
-rb_handle_bank: .res RB_HANDLE_COUNT, 0
-rb_handle_page: .res RB_HANDLE_COUNT, 0
-rb_handle_pages:.res RB_HANDLE_COUNT, 0
-rb_handle_type: .res RB_HANDLE_COUNT, 0
-rb_page_bitmap: .res RB_HEAP_PAGES, 0
+rb_handle_bank: .byte 0
+rb_handle_page: .byte 0
+rb_handle_pages:.byte 0
+rb_handle_type: .byte 0
 rb_handle_index:.byte 0
 rb_needed_pages:.byte 0
 rb_handle_new_type:.byte 0
 rb_found_page:  .byte 0
+rb_handle_desc_off:.byte 0
+rb_handle_scan_base:.byte 0
 rb_fill_page:   .byte 0
 rb_copy_page:   .byte 0
 rb_copy_chunks: .byte 0
@@ -2683,38 +2686,31 @@ rb_screen_handle_alloc:
         sta rb_handle_new_type
 
 rb_handle_alloc_with_pages:
-        ldx #0
-@hloop:
-        lda rb_handle_bank,x
-        beq @got_handle
-        inx
-        cpx #RB_HANDLE_COUNT
-        bcc @hloop
+        jsr rb_find_free_handle
+        bcc @got_handle
         lda #$21
         jmp rb_overlay_fail
 @got_handle:
-        stx rb_handle_index
         jsr rb_find_pages
         bcs @no_pages
-        ldx rb_handle_index
         lda #RB_REU_CORE_BANK
-        sta rb_handle_bank,x
+        sta rb_handle_bank
         lda rb_found_page
         clc
-        adc #$80
-        sta rb_handle_page,x
+        adc #RB_HEAP_PAGE_BASE
+        sta rb_handle_page
         lda rb_needed_pages
-        sta rb_handle_pages,x
+        sta rb_handle_pages
         lda rb_handle_new_type
-        sta rb_handle_type,x
+        sta rb_handle_type
         jsr rb_mark_pages_used
-        jsr rb_stash_handle_meta
-        ldx rb_handle_index
+        jsr rb_store_heap_bitmap
+        jsr rb_handle_store
         lda #0
         sta RF_STATUS
         lda #RB_VAL_INT
         sta RF_TAG
-        txa
+        lda rb_handle_index
         clc
         adc #1
         sta RF_VAL_LO
@@ -2726,19 +2722,11 @@ rb_handle_alloc_with_pages:
         jmp rb_overlay_fail
 
 rb_screen_handle_validate:
-        lda CF_NUM0_LO
-        beq @bad
-        cmp #RB_HANDLE_COUNT + 1
+        jsr rb_handle_load_arg
         bcs @bad
-        sec
-        sbc #1
-        tax
-        lda rb_handle_bank,x
-        beq @bad
-        lda rb_handle_type,x
+        lda rb_handle_type
         cmp #RB_HANDLE_TYPE_SCREEN_TC
         bne @wrong_type
-        stx rb_handle_index
         clc
         rts
 @wrong_type:
@@ -2775,7 +2763,169 @@ rb_len_to_pages:
         sec
         rts
 
+rb_handle_desc_fetch_page:
+        lda rb_handle_index
+        and #$3F
+        asl
+        asl
+        sta rb_handle_desc_off
+        lda #0
+        sta rb_reu_off_lo
+        lda #>RB_REU_HANDLE_OFF
+        ldx rb_handle_index
+        cpx #RB_HANDLE_PAGE_SLOTS
+        bcc :+
+        clc
+        adc #1
+:       sta rb_reu_off_hi
+        lda #<RB_PAGEBUF
+        sta rb_reu_c64_lo
+        lda #>RB_PAGEBUF
+        sta rb_reu_c64_hi
+        lda #RB_REU_CORE_BANK
+        sta rb_reu_bank
+        lda #0
+        sta rb_reu_len_lo
+        lda #1
+        sta rb_reu_len_hi
+        jsr rb_reu_fetch
+        rts
+
+rb_handle_fetch:
+        jsr rb_handle_desc_fetch_page
+        ldy rb_handle_desc_off
+        lda RB_PAGEBUF,y
+        sta rb_handle_bank
+        iny
+        lda RB_PAGEBUF,y
+        sta rb_handle_page
+        iny
+        lda RB_PAGEBUF,y
+        sta rb_handle_pages
+        iny
+        lda RB_PAGEBUF,y
+        sta rb_handle_type
+        rts
+
+rb_handle_store:
+        jsr rb_handle_desc_fetch_page
+        ldy rb_handle_desc_off
+        lda rb_handle_bank
+        sta RB_PAGEBUF,y
+        iny
+        lda rb_handle_page
+        sta RB_PAGEBUF,y
+        iny
+        lda rb_handle_pages
+        sta RB_PAGEBUF,y
+        iny
+        lda rb_handle_type
+        sta RB_PAGEBUF,y
+        lda #<RB_PAGEBUF
+        sta rb_reu_c64_lo
+        lda #>RB_PAGEBUF
+        sta rb_reu_c64_hi
+        lda #RB_REU_CORE_BANK
+        sta rb_reu_bank
+        lda #0
+        sta rb_reu_len_lo
+        lda #1
+        sta rb_reu_len_hi
+        jsr rb_reu_stash
+        rts
+
+rb_find_free_handle:
+        lda #0
+        sta rb_handle_scan_base
+@page:
+        lda rb_handle_scan_base
+        sta rb_handle_index
+        jsr rb_handle_desc_fetch_page
+        ldy #0
+        ldx #0
+@slot:
+        lda RB_PAGEBUF,y
+        beq @found
+        tya
+        clc
+        adc #RB_HANDLE_DESC_SIZE
+        tay
+        inx
+        cpx #RB_HANDLE_PAGE_SLOTS
+        bcc @slot
+        lda rb_handle_scan_base
+        bne @full
+        lda #RB_HANDLE_PAGE_SLOTS
+        sta rb_handle_scan_base
+        jmp @page
+@found:
+        txa
+        clc
+        adc rb_handle_scan_base
+        sta rb_handle_index
+        clc
+        rts
+@full:
+        sec
+        rts
+
+rb_handle_load_arg:
+        lda CF_NUM0_HI
+        bne @bad
+        lda CF_NUM0_LO
+        beq @bad
+        cmp #RB_HANDLE_COUNT + 1
+        bcs @bad
+        sec
+        sbc #1
+        sta rb_handle_index
+        jsr rb_handle_fetch
+        lda rb_handle_bank
+        beq @bad
+        clc
+        rts
+@bad:
+        sec
+        rts
+
+rb_fetch_heap_bitmap:
+        lda #<RB_PAGEBUF
+        sta rb_reu_c64_lo
+        lda #>RB_PAGEBUF
+        sta rb_reu_c64_hi
+        lda #<RB_REU_HEAP_OFF
+        sta rb_reu_off_lo
+        lda #>RB_REU_HEAP_OFF
+        sta rb_reu_off_hi
+        lda #RB_REU_CORE_BANK
+        sta rb_reu_bank
+        lda #0
+        sta rb_reu_len_lo
+        lda #1
+        sta rb_reu_len_hi
+        jsr rb_reu_fetch
+        rts
+
+rb_store_heap_bitmap:
+        lda #<RB_PAGEBUF
+        sta rb_reu_c64_lo
+        lda #>RB_PAGEBUF
+        sta rb_reu_c64_hi
+        lda #<RB_REU_HEAP_OFF
+        sta rb_reu_off_lo
+        lda #>RB_REU_HEAP_OFF
+        sta rb_reu_off_hi
+        lda #RB_REU_CORE_BANK
+        sta rb_reu_bank
+        lda #0
+        sta rb_reu_len_lo
+        lda #1
+        sta rb_reu_len_hi
+        jsr rb_reu_stash
+        rts
+
 rb_find_pages:
+        jsr rb_fetch_heap_bitmap
         lda #0
         sta rb_found_page
 @outer:
@@ -2792,7 +2942,7 @@ rb_find_pages:
         clc
         adc rb_found_page
         tay
-        lda rb_page_bitmap,y
+        lda RB_PAGEBUF,y
         bne @next_start
         inx
         cpx rb_needed_pages
@@ -2811,37 +2961,30 @@ rb_mark_pages_used:
         adc rb_found_page
         tay
         lda #1
-        sta rb_page_bitmap,y
+        sta RB_PAGEBUF,y
         inx
         cpx rb_needed_pages
         bcc @loop
         rts
 
 rb_handle_free:
-        lda CF_NUM0_LO
-        beq @bad
-        cmp #RB_HANDLE_COUNT + 1
+        jsr rb_handle_load_arg
         bcs @bad
+        lda rb_handle_page
         sec
-        sbc #1
-        tax
-        lda rb_handle_bank,x
-        beq @bad
-        stx rb_handle_index
-        lda rb_handle_page,x
-        sec
-        sbc #$80
+        sbc #RB_HEAP_PAGE_BASE
         sta rb_found_page
-        lda rb_handle_pages,x
+        lda rb_handle_pages
         sta rb_needed_pages
+        jsr rb_fetch_heap_bitmap
         jsr rb_mark_pages_free
-        ldx rb_handle_index
         lda #0
-        sta rb_handle_bank,x
-        sta rb_handle_page,x
-        sta rb_handle_pages,x
-        sta rb_handle_type,x
-        jsr rb_stash_handle_meta
+        sta rb_handle_bank
+        sta rb_handle_page
+        sta rb_handle_pages
+        sta rb_handle_type
+        jsr rb_store_heap_bitmap
+        jsr rb_handle_store
         lda #0
         sta RF_STATUS
         sta RF_TAG
@@ -2858,36 +3001,27 @@ rb_mark_pages_free:
         adc rb_found_page
         tay
         lda #0
-        sta rb_page_bitmap,y
+        sta RB_PAGEBUF,y
         inx
         cpx rb_needed_pages
         bcc @loop
         rts
 
 rb_handle_fill:
-        lda CF_NUM0_LO
-        beq @bad
-        cmp #RB_HANDLE_COUNT + 1
+        jsr rb_handle_load_arg
         bcs @bad
-        sec
-        sbc #1
-        tax
-        lda rb_handle_bank,x
-        beq @bad
-        lda rb_handle_type,x
+        lda rb_handle_type
         cmp #RB_HANDLE_TYPE_BUFFER
         bne @wrong_type
-        stx rb_handle_index
         lda CF_NUM1_LO
         ldx #0
 @fillbuf:
         sta RB_PAGEBUF,x
         inx
         bne @fillbuf
-        ldx rb_handle_index
-        lda rb_handle_page,x
+        lda rb_handle_page
         sta rb_fill_page
-        lda rb_handle_pages,x
+        lda rb_handle_pages
         sta rb_needed_pages
 @page:
         lda #<RB_PAGEBUF
@@ -2940,14 +3074,13 @@ rb_temp_alloc:
         jmp rb_overlay_fail
 
 rb_screen_save_text:
-        ldx rb_handle_index
         lda #<SCREEN
         sta rb_reu_c64_lo
         lda #>SCREEN
         sta rb_reu_c64_hi
         lda #0
         sta rb_reu_off_lo
-        lda rb_handle_page,x
+        lda rb_handle_page
         sta rb_reu_off_hi
         lda #RB_REU_CORE_BANK
         sta rb_reu_bank
@@ -2959,14 +3092,13 @@ rb_screen_save_text:
         rts
 
 rb_screen_load_text:
-        ldx rb_handle_index
         lda #<SCREEN
         sta rb_reu_c64_lo
         lda #>SCREEN
         sta rb_reu_c64_hi
         lda #0
         sta rb_reu_off_lo
-        lda rb_handle_page,x
+        lda rb_handle_page
         sta rb_reu_off_hi
         lda #RB_REU_CORE_BANK
         sta rb_reu_bank
@@ -2982,8 +3114,7 @@ rb_screen_save_color:
         sta rb_ptr_lo
         lda #>COLOR_RAM
         sta rb_ptr_hi
-        ldx rb_handle_index
-        lda rb_handle_page,x
+        lda rb_handle_page
         clc
         adc #4
         sta rb_copy_page
@@ -3004,8 +3135,7 @@ rb_screen_load_color:
         sta rb_ptr_lo
         lda #>COLOR_RAM
         sta rb_ptr_hi
-        ldx rb_handle_index
-        lda rb_handle_page,x
+        lda rb_handle_page
         clc
         adc #4
         sta rb_copy_page

@@ -33,27 +33,31 @@ ReadyBASIC had `26109` bytes (25.5K) free, so the implemented reclaim is
 ## Current Measured ReadyBASIC Map
 
 This document began as the memory-reclaim proposal, but the current build has
-also added the 128-slot paged command registry and typed screen handles. The
-implemented map now measures:
+also added the 128-slot paged command registry, typed screen handles, and a
+REU-backed 128-handle / 48KB typed heap. The implemented map now measures:
 
 | Segment | Range | Size | Current role |
 |---|---:|---:|---|
 | `ENTRY` | `$1000-$1102` | `$0103` (259B) | Cold/warm entry and early copies. |
-| `RESIDENT` | `$1200-$1BF9` | `$09FA` (2554B) | Visible parser, hooks, ROM calls, REU DMA, result commit. |
+| `RESIDENT` | `$1200-$1BAF` | `$09B0` (2480B) | Visible parser, hooks, ROM calls, REU DMA, result commit. |
 | `CMDPACK` load image | `$2800-$3FFF` | `$1800` (6.0K reserved) | Cold-only low/hidden overlay seed copied to REU bank `$45`. |
 | `HIDLOAD` | `$4000+` | load-only | Cold-only hidden helper seed copied to `$A000` and `$C280`. |
 | `BRLOAD` | `$4800+` | load-only | Cold-only bridge seed copied to `$C000`. |
 | `REGSEED` | `$5000-$600F` | `$1010` (4112B) | Cold-only registry header and 128 descriptors copied to REU bank `$44`. |
-| `HIDDEN` | `$A000-$A336` | `$0337` (823B) | Hidden helper under BASIC ROM. |
+| `HIDDEN` | `$A000-$A376` | `$0377` (887B) | Hidden helper under BASIC ROM. |
 | `HIDDENPACK` | `$A800-$A84C` | `$004D` (77B) | Hidden worker overlay. |
-| `LOWPACK` | `$A900-$ADDF` | `$04E0` (1248B) | Low command overlay under BASIC ROM. |
-| `BRIDGE` | `$C000-$C1C4` | `$01C5` (453B) | Persistent bridge/state bytes. |
+| `LOWPACK` | `$A900-$AEDE` | `$05DF` (1503B) | Low command overlay under BASIC ROM. |
+| `BRIDGE` | `$C000-$C19A` | `$019B` (411B) | Persistent bridge/state bytes. |
 | Shared frames | `$C200-$C5FF` | `$0400` (1.0K) | Call/result frames, descriptor/name/page buffers, hidden shadow. |
 
 The 128 descriptors live in REU bank `$44` at `$1000-$1FFF`. Lookup fetches a
 256-byte page into `$C500`, scans eight descriptors, and copies a match to
 `$C480`. `SCRCAP` is slot 13; `SCRPUT` is slot 128; zero-filled slots are empty
 fillers.
+
+The handle directory lives in REU bank `$44` at `$0800-$09FF`, the heap bitmap
+at `$0C00`, and typed data pages at `$4000-$FFFF`. BASIC still has `33789` empty
+free bytes before and after this expansion.
 
 ## Normal ReadyOS Interactive Run
 
@@ -95,7 +99,7 @@ resume. These are good candidates for REU-backed relocation.
 | `CMDPACK` load image | `$2800-$3FFF` | Cold seed only. | Let BASIC own this range after `LOWPACK`/`HIDDENPACK` are copied to REU bank `$45`. |
 | `REGSEED` | `$5000-$600F` (`$1010`, 4112B) | Cold seed only. | 128 descriptor slots; never reread after BASIC owns memory. |
 | Runtime snapshot | former `$9600-$99FF` (`$0400`, 1.0K) | Needed only across `EXIT`/warm resume. | Save zero page/stack/mode directly to REU during `EXIT`; restore from REU on warm entry. |
-| Hidden shadow | former `$9A00-$9FFF` (`$0600`, 1.5K) | Needed only to restore `$A000` helper after app switch. | Refresh the visible `$C280-$C5B6` (`$0337`, 0.8K) shadow during `EXIT`. |
+| Hidden shadow | former `$9A00-$9FFF` (`$0600`, 1.5K) | Needed only to restore `$A000` helper after app switch. | Refresh the visible `$C280-$C5F6` (`$0377`, 887B) shadow during `EXIT`. |
 | Low overlay slot | former `$1C00-$23FF` (`$0800`, 2.0K) | Needed only while a command is executing. | Run low workers from banked RAM under BASIC ROM instead, using the hidden-overlay discipline. |
 | Shared frames | former `$2400-$27FF` (`$0400`, 1.0K) | Needed during parse/execute/commit, not as BASIC storage. | Move to mostly free visible RAM below `$C600`, `$C200-$C5FF` (`$0400`, 1.0K). |
 
@@ -231,13 +235,13 @@ This is the most attractive medium-risk target:
 | Region | Size | Implemented use |
 |---|---:|---|
 | `$1000-$1102` | `$0103` (259B) | Tiny entry/warm trampoline. Keep only what must run before resident setup. |
-| `$1200-$1BAB` | `$09AC` (2.4K) | Visible resident parser, vector hooks, ROM calls, REU DMA, result commit. |
+| `$1200-$1BAF` | `$09B0` (2480B) | Visible resident parser, vector hooks, ROM calls, REU DMA, result commit. |
 | `$1C00` | 1B | BASIC sentinel byte. |
 | `$1C01-$9FFF` | `33789` free bytes (33.0K) | BASIC workspace after resume state moves to REU and command workers move under ROM. |
-| `$A000-$A336` | `$0337` (0.8K) | Hidden helper, restored from load image on cold entry and from `$C280` on warm entry. |
+| `$A000-$A376` | `$0377` (887B) | Hidden helper, restored from load image on cold entry and from `$C280` on warm entry. |
 | `$A800-$A84C` | `$004D` (77B) | Hidden command overlay arena. |
-| `$A900-$ABF2` | `$02F3` (0.7K) | Banked low command overlay arena. |
-| `$C000-$C1BD` | `$01BE` (446B) | Bridge state and saved vectors. |
+| `$A900-$AEDE` | `$05DF` (1503B) | Banked low command overlay arena. |
+| `$C000-$C19A` | `$019B` (411B) | Bridge state, saved vectors, and current handle scratch. |
 | `$C200-$C5FF` | `$0400` (1.0K) | Shared frames, resume buffers, and refreshed hidden helper shadow at `$C280`. |
 | `$C600-$C7FF` | `$0200` (0.5K) | ReadyOS REU metadata; do not use. |
 | `$C800-$C9FF` | `$0200` (0.5K) | ReadyOS shim ABI; do not use. |
