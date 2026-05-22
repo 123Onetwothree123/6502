@@ -4,6 +4,54 @@ This is a chronological progress log. Older entries intentionally preserve the
 layout and addresses that were current when the tests were run. For the current
 memory map, use `READYBASIC_CURRENT_DESIGN.md`.
 
+## 2026-05-22: 128-Slot Registry And Typed Screen Handles
+
+- Commands:
+  - `make readybasic-plugin-static-check`
+  - `make bin/reuviewer.prg`
+  - `make verify`
+  - ReadyBASIC direct, program, lifecycle, state, large-vars, and full visual
+    VICE suites through normal ReadyOS boot paths.
+- Result: static/build verification passed. VICE harness runs completed all
+  concrete steps with `FailedStep: null`; the harness process status remained
+  `partial`, matching the pre-change baseline wrapper behavior.
+- Current static layout:
+  - `ENTRY` `$1000-$1102`, size `$0103` (259B).
+  - `RESIDENT` `$1200-$1BF9`, size `$09FA` (2554B).
+  - `REGSEED` `$5000-$600F`, size `$1010` (4112B).
+  - `HIDDEN` `$A000-$A336`, size `$0337` (823B).
+  - `HIDDENPACK` `$A800-$A84C`, size `$004D` (77B).
+  - `LOWPACK` `$A900-$ADDF`, size `$04E0` (1248B).
+  - `BRIDGE` `$C000-$C1C4`, size `$01C5` (453B).
+  - PRG payload `$5200` (20992B).
+- BASIC workspace:
+  - `BASIC_START=$1C01`, BASIC top `$A000`.
+  - Empty free space remains `33789` bytes (33.0K), a `0` byte reduction from
+    the memory-reclaim baseline.
+- Registry:
+  - `RB_CMD_DESC_COUNT=128`.
+  - Descriptor table is cold-seeded from `REGSEED` to REU bank `$44`
+    `$1000-$1FFF`.
+  - Lookup fetches 256-byte descriptor pages into `$C500`, scans eight
+    descriptors locally, and copies a match to `$C480`.
+  - Filler descriptors are zero-filled empty slots.
+  - `SCRCAP` is near the front in slot 13; `SCRPUT` is in slot 128.
+- Handles:
+  - Existing live handle count remains eight.
+  - Type `1` is a byte buffer; type `2` is screen text+color.
+  - `BUFFILL` rejects non-buffer handles with `?RB ERROR 40`.
+  - `BUFFREE` frees any valid handle type.
+  - `SCRCAP H%` captures `$0400-$07E7` and `$D800-$DBE7`.
+  - `SCRPUT H%` validates type `2` and restores screen text plus color RAM.
+  - The originally proposed `SCRSAVE`/`SCRLOAD` names were changed to
+    `SCRCAP`/`SCRPUT` to avoid C64 BASIC tokenizer conflicts.
+- Probe coverage added:
+  - screen capture/restore;
+  - slot-128 lookup;
+  - filler descriptor scanning;
+  - wrong-handle-type rejection in both directions;
+  - freeing a screen handle.
+
 ## 2026-05-21: Memory-Reclaim Layout
 
 - Command: `make readybasic-plugin-static-check`

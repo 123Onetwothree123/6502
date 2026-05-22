@@ -67,8 +67,8 @@ resume. These are good candidates for REU-backed relocation.
 
 | Component | Current location | Lifetime | Reuse idea |
 |---|---:|---|---|
-| `CMDPACK` load image | `$2800-$2FFF` | Cold seed only. | Let BASIC own this range after `LOWPACK`/`HIDDENPACK` are copied to REU bank `$45`. |
-| `REGSEED` | `$4000-$418F` (`$0190`, 400B) | Cold seed only. | Already load-only; never reread after BASIC owns memory. |
+| `CMDPACK` load image | `$2800-$3FFF` | Cold seed only. | Let BASIC own this range after `LOWPACK`/`HIDDENPACK` are copied to REU bank `$45`. |
+| `REGSEED` | `$5000-$600F` (`$1010`, 4112B) | Cold seed only. | 128 descriptor slots; never reread after BASIC owns memory. |
 | Runtime snapshot | former `$9600-$99FF` (`$0400`, 1.0K) | Needed only across `EXIT`/warm resume. | Save zero page/stack/mode directly to REU during `EXIT`; restore from REU on warm entry. |
 | Hidden shadow | former `$9A00-$9FFF` (`$0600`, 1.5K) | Needed only to restore `$A000` helper after app switch. | Refresh the visible `$C280-$C5B6` (`$0337`, 0.8K) shadow during `EXIT`. |
 | Low overlay slot | former `$1C00-$23FF` (`$0800`, 2.0K) | Needed only while a command is executing. | Run low workers from banked RAM under BASIC ROM instead, using the hidden-overlay discipline. |
@@ -185,7 +185,7 @@ parameter/result signature:
 
 - `0` bytes of BASIC workspace.
 - Usually `0` bytes of permanent resident RAM.
-- `32` bytes for one descriptor in REU bank `$44`.
+- `32` bytes for one descriptor slot in REU bank `$44` at `$1000-$1FFF`.
 - Command implementation bytes in a packed REU code bank.
 - Matching load-image bytes, unless future tooling can build command packs
   directly into REU-backed media.
@@ -193,7 +193,7 @@ parameter/result signature:
 If many more commands are added, the next design step should not be lowering
 BASIC top or adding resident command bodies. It should be:
 
-1. Keep descriptors in REU.
+1. Keep descriptors in REU and fetch them a page at a time.
 2. Add more packed command-code banks when `$45` fills.
 3. Add a bank id or pack id to the descriptor format.
 4. Keep shared parser/commit code resident only when several commands reuse it.

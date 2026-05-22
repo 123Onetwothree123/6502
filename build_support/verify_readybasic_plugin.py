@@ -46,8 +46,12 @@ def main() -> None:
     require(r"^BASIC_LIMIT\s*=\s*\$A000\b", asm, "BASIC_LIMIT must be $A000")
     require(r"^RB_REU_CORE_BANK\s*=\s*\$44\b", asm, "ReadyBASIC core bank must be $44")
     require(r"^RB_REU_CODE_BANK\s*=\s*\$45\b", asm, "ReadyBASIC code bank must be $45")
+    require(r"^RB_REU_DESC_OFF\s*=\s*\$1000\b", asm, "descriptor table must live at REU offset $1000")
+    require(r"^RB_CMD_DESC_COUNT\s*=\s*128\b", asm, "command registry must expose 128 descriptor slots")
     require(r"^RB_REU_RUNTIME_ZP_OFF\s*=\s*\$0A00\b", asm, "runtime ZP snapshot must live at REU offset $0A00")
     require(r"^RB_REU_RUNTIME_STACK_OFF\s*=\s*\$0B00\b", asm, "runtime stack snapshot must live at REU offset $0B00")
+    require(r"^SIG_SCRCAP\s*=\s*13\b", asm, "SCRCAP signature must be registered")
+    require(r"^SIG_SCRPUT\s*=\s*14\b", asm, "SCRPUT signature must be registered")
     require(r"#define\s+REU_RB_CORE\s+14\b", reu_hdr, "REU_RB_CORE type must stay in sync")
     require(r"#define\s+REU_RB_CODE\s+15\b", reu_hdr, "REU_RB_CODE type must stay in sync")
     require(r"#define\s+REU_BANK_RB_CORE\s+0x44\b", reu_hdr, "REU_BANK_RB_CORE must be 0x44")
@@ -86,14 +90,14 @@ def main() -> None:
     hidden_shadow_end = 0xC280 + hidden[2] - 1
     if hidden_shadow_end >= 0xC600:
         fail(f"HIDDEN shadow copy must stay below $C600, got $C280-${hidden_shadow_end:04X}")
-    if regseed[2] > 0x0200:
-        fail(f"REGSEED must stay within 512 bytes, got ${regseed[2]:04X}")
-    expected_payload = 0x4200 - 0x1000
+    if regseed[0] != 0x5000 or regseed[2] > 0x1200:
+        fail(f"REGSEED must stay within cold seed $5000-$61FF, got ${regseed[0]:04X} size ${regseed[2]:04X}")
+    expected_payload = 0x6200 - 0x1000
     actual_payload = PRG.stat().st_size - 2
     if actual_payload < expected_payload:
         fail(
             "PRG payload does not cover the load-image seed span "
-            f"$1000-$41FF: got ${actual_payload:04X}, need ${expected_payload:04X}"
+            f"$1000-$61FF: got ${actual_payload:04X}, need ${expected_payload:04X}"
         )
 
     print("readybasic plugin static check OK")

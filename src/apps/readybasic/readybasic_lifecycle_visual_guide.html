@@ -537,24 +537,24 @@
       <div class="memory-map" aria-label="ReadyBASIC memory map">
         <div class="addr">$1000-$1102</div>
         <div class="region r-entry"><span><b>ENTRY</b><small>Cold/warm cookie and early copy code.</small></span><strong>$0103</strong></div>
-        <div class="addr">$1200-$1BAB</div>
-        <div class="region r-resident"><span><b>RESIDENT</b><small>Parser, crunch/execute hooks, BASIC ROM calls, REU DMA, commit path.</small></span><strong>$09AC<br>2.4K</strong></div>
+        <div class="addr">$1200-$1BF9</div>
+        <div class="region r-resident"><span><b>RESIDENT</b><small>Parser, crunch/execute hooks, BASIC ROM calls, REU DMA, commit path.</small></span><strong>$09FA<br>2554B</strong></div>
         <div class="addr">$1C00</div>
         <div class="region r-basic"><span><b>BASIC SENTINEL</b><small>Must be zero for stored BASIC RUN.</small></span><strong>1B</strong></div>
         <div class="addr">$1C01-$9FFF</div>
         <div class="region r-basic"><span><b>BASIC WORKSPACE</b><small>Program text, variables, arrays, string heap.</small></span><strong>$83FF<br>33789 free / 33.0K</strong></div>
-        <div class="addr">$2800-$2FFF</div>
-        <div class="region r-pack"><span><b>CMDPACK LOAD IMAGE</b><small>Low and hidden overlay seed bytes before cold prestash.</small></span><strong>$0800<br>2.0K</strong></div>
+        <div class="addr">$2800-$3FFF</div>
+        <div class="region r-pack"><span><b>CMDPACK LOAD IMAGE</b><small>Low and hidden overlay seed bytes before cold prestash.</small></span><strong>$1800<br>6.0K</strong></div>
         <div class="addr">REU $44:$0A00-$0BFF</div>
         <div class="region r-save"><span><b>RUNTIME SNAPSHOT</b><small>Zero page, stack, saved SP, mode, line-chain guards.</small></span><strong>$0200<br>0.5K</strong></div>
         <div class="addr">$A000-$A336</div>
         <div class="region r-hidden"><span><b>HIDDEN HELPER</b><small>Runs with RAM mapped under BASIC ROM.</small></span><strong>$0337<br>0.8K</strong></div>
         <div class="addr">$A800-$A84C</div>
         <div class="region r-hidden"><span><b>HIDDEN OVERLAY</b><small>HCRC worker slot.</small></span><strong>$004D<br>77B</strong></div>
-        <div class="addr">$A900-$ABF2</div>
-        <div class="region r-low"><span><b>LOW OVERLAY</b><small>Low command pack runs under BASIC ROM RAM.</small></span><strong>$02F3<br>0.7K</strong></div>
-        <div class="addr">$C000-$C1BD</div>
-        <div class="region r-bridge"><span><b>BRIDGE STATE</b><small>Magic, saved vectors, overlay vars, handles, debug bytes.</small></span><strong>$01BE<br>446B</strong></div>
+        <div class="addr">$A900-$ADDF</div>
+        <div class="region r-low"><span><b>LOW OVERLAY</b><small>Low command pack runs under BASIC ROM RAM.</small></span><strong>$04E0<br>1248B</strong></div>
+        <div class="addr">$C000-$C1C4</div>
+        <div class="region r-bridge"><span><b>BRIDGE STATE</b><small>Magic, saved vectors, overlay vars, handles, debug bytes.</small></span><strong>$01C5<br>453B</strong></div>
         <div class="addr">$C200-$C5FF</div>
         <div class="region r-shared"><span><b>SHARED FRAMES</b><small>Call/result frames, descriptor/name/page buffers; hidden shadow at $C280.</small></span><strong>$0400<br>1.0K</strong></div>
         <div class="addr">$C600-$C7FF</div>
@@ -583,7 +583,7 @@
         <div class="bank core">
           <div class="bank-title">REU Bank $44: Core/System</div>
           <div class="slice"><span>$0000</span><span>Header: <strong>RBPL</strong>, version, descriptor count, frame offsets.</span></div>
-          <div class="slice"><span>$0100</span><span>Command descriptors: 12 x 32 bytes.</span></div>
+          <div class="slice"><span>$1000-$1FFF</span><span>Command descriptors: 128 x 32-byte slots; slot 128 holds SCRPUT.</span></div>
           <div class="slice"><span>$0400</span><span>Call frame snapshot from `$C200`.</span></div>
           <div class="slice"><span>$0500</span><span>Result frame snapshot from `$C300`.</span></div>
           <div class="slice"><span>$0600</span><span>Reserved REU debug ring region.</span></div>
@@ -596,8 +596,8 @@
 
         <div class="bank code">
           <div class="bank-title">REU Bank $45: Packed Command Code</div>
-          <div class="slice"><span>$0000</span><span>Low overlay pack, size `$02F3` (0.7K), fetched into `$A900-$ABF2`.</span></div>
-          <div class="slice"><span>$02F3</span><span>Hidden overlay pack, size `$004D`, fetched into `$A800-$A84C`.</span></div>
+          <div class="slice"><span>$0000</span><span>Low overlay pack, size `$04E0` (1.2K), fetched into `$A900-$ADDF`.</span></div>
+          <div class="slice"><span>$04E0</span><span>Hidden overlay pack, size `$004D`, fetched into `$A800-$A84C`.</span></div>
           <div class="slice"><span>desc</span><span>Each descriptor stores code offset, code length, run offset, flags, signature, and name.</span></div>
           <div class="slice"><span>$C600</span><span>ReadyOS allocation table marks `$44` as type 14 and `$45` as type 15.</span></div>
         </div>
@@ -678,8 +678,8 @@
         </div>
         <div class="pipe-card">
           <h3><span class="dot green"></span> 2. Parse</h3>
-          <p>Normalize command name into `$C4A0`, linear-search descriptors from
-          REU bank `$44`, then parse parameters with BASIC ROM helpers.</p>
+          <p>Normalize command name into `$C4A0`, fetch descriptor pages from
+          REU bank `$44`, scan eight descriptors per page, then parse parameters with BASIC ROM helpers.</p>
         </div>
         <div class="pipe-card">
           <h3><span class="dot cyan"></span> 3. Execute</h3>
@@ -701,7 +701,7 @@
           <tr><td>Result frame</td><td><code>$C300</code></td><td>Status, error, tag, scalar value, string buffer, array buffer.</td></tr>
           <tr><td>Descriptor buffer</td><td><code>$C480</code></td><td>One 32-byte descriptor fetched from REU bank `$44`.</td></tr>
           <tr><td>Command buffer</td><td><code>$C4A0</code></td><td>Uppercase normalized command name.</td></tr>
-          <tr><td>Page buffer</td><td><code>$C500</code></td><td>256-byte scratch page for `BUFFILL` stashes and warm-resume stack staging.</td></tr>
+          <tr><td>Page buffer</td><td><code>$C500</code></td><td>256-byte scratch page for descriptor-page scans, handle data, and warm-resume stack staging.</td></tr>
         </tbody>
       </table>
     </section>
@@ -710,7 +710,7 @@
       <h2>Command Code And Data Movement</h2>
       <p>
         These commands are representative samples for the plugin spine. Some are
-        tiny single-slice low overlays; the handle commands currently copy the
+        tiny single-slice low overlays; the handle and screen commands currently copy the
         whole low pack to keep allocator helpers out of resident RAM.
       </p>
 
@@ -732,7 +732,7 @@
         </div>
         <div class="command">
           <h3>!HCRC S$,OUT%</h3>
-          <div class="command-meta"><span class="chip hidden">hidden</span><span class="chip">bank $45+$02F3</span><span class="chip">copy $004D / 77B</span></div>
+          <div class="command-meta"><span class="chip hidden">hidden</span><span class="chip">bank $45+$04E0</span><span class="chip">copy $004D / 77B</span></div>
           <p>Copies hidden code into `$A800`, maps RAM under BASIC ROM, and returns a checksum-like uppercase byte sum.</p>
         </div>
         <div class="command">
@@ -747,22 +747,22 @@
         </div>
         <div class="command">
           <h3>!BUFNEW LEN,H%</h3>
-          <div class="command-meta"><span class="chip low">low $A900</span><span class="chip reu">REU handle</span><span class="chip">copy $02F3 / 0.7K</span></div>
-          <p>Allocates contiguous 256-byte pages inside bank `$44` and returns a one-based handle.</p>
+          <div class="command-meta"><span class="chip low">low $A900</span><span class="chip reu">REU handle</span><span class="chip">copy $04E0 / 1.2K</span></div>
+          <p>Allocates contiguous 256-byte buffer pages inside bank `$44` and returns a one-based handle.</p>
         </div>
         <div class="command">
           <h3>!BUFFILL H%,BYTE</h3>
-          <div class="command-meta"><span class="chip low">low $A900</span><span class="chip reu">REU data</span><span class="chip">copy $02F3 / 0.7K</span></div>
-          <p>Fills `$C500` with a byte and stashes it page by page into the handle's REU pages.</p>
+          <div class="command-meta"><span class="chip low">low $A900</span><span class="chip reu">REU data</span><span class="chip">copy $04E0 / 1.2K</span></div>
+          <p>Fills `$C500` with a byte and stashes it page by page into a type-1 buffer handle.</p>
         </div>
         <div class="command">
           <h3>!BUFFREE H%</h3>
-          <div class="command-meta"><span class="chip low">low $A900</span><span class="chip reu">metadata</span><span class="chip">copy $02F3 / 0.7K</span></div>
-          <p>Clears page bitmap and handle metadata, then mirrors that metadata to bank `$44` offset `$0800`.</p>
+          <div class="command-meta"><span class="chip low">low $A900</span><span class="chip reu">metadata</span><span class="chip">copy $04E0 / 1.2K</span></div>
+          <p>Clears page bitmap and handle metadata for any valid handle type, then mirrors that metadata to bank `$44` offset `$0800`.</p>
         </div>
         <div class="command">
           <h3>!TEMPSCRATCH LEN,OUT%</h3>
-          <div class="command-meta"><span class="chip low">low $A900</span><span class="chip reu">temp heap</span><span class="chip">copy $02F3 / 0.7K</span></div>
+          <div class="command-meta"><span class="chip low">low $A900</span><span class="chip reu">temp heap</span><span class="chip">copy $04E0 / 1.2K</span></div>
           <p>Allocates and immediately frees pages, returning the number of pages required.</p>
         </div>
         <div class="command">
@@ -774,6 +774,16 @@
           <h3>!FREEMEM</h3>
           <div class="command-meta"><span class="chip low">low $A900</span><span class="chip">offset $011A</span><span class="chip">copy $0016 / 22B</span></div>
           <p>Prints current live BASIC free bytes and refreshes the header.</p>
+        </div>
+        <div class="command">
+          <h3>!SCRCAP H%</h3>
+          <div class="command-meta"><span class="chip low">low $A900</span><span class="chip reu">screen handle</span><span class="chip">copy $04E0 / 1.2K</span></div>
+          <p>Captures `$0400-$07E7` screen text and `$D800-$DBE7` color RAM into a type-2 handle.</p>
+        </div>
+        <div class="command">
+          <h3>!SCRPUT H%</h3>
+          <div class="command-meta"><span class="chip low">slot 128</span><span class="chip reu">screen handle</span><span class="chip">copy $04E0 / 1.2K</span></div>
+          <p>Validates a type-2 handle, then restores screen text and color RAM.</p>
         </div>
       </div>
     </section>

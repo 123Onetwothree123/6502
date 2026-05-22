@@ -155,7 +155,7 @@ RB_REU_TYPE_CORE= 14
 RB_REU_TYPE_CODE= 15
 RB_REU_ALLOC_TABLE = $C600
 RB_REU_HEADER_OFF  = $0000
-RB_REU_DESC_OFF    = $0100
+RB_REU_DESC_OFF    = $1000
 RB_REU_CALL_OFF    = $0400
 RB_REU_RESULT_OFF  = $0500
 RB_REU_DEBUG_OFF   = $0600
@@ -166,11 +166,16 @@ RB_REU_RUNTIME_STACK_OFF = $0B00
 RB_REU_DATA_OFF    = $8000
 
 RB_CMD_DESC_SIZE   = 32
-RB_CMD_DESC_COUNT  = 12
+RB_CMD_DESC_COUNT  = 128
+RB_CMD_DESC_PER_PAGE = 8
 RB_MAX_NAME        = 15
 RB_MAX_STR         = 64
 RB_HANDLE_COUNT    = 8
 RB_HEAP_PAGES      = 16
+RB_HANDLE_TYPE_BUFFER = 1
+RB_HANDLE_TYPE_SCREEN_TC = 2
+RB_SCREEN_BYTES    = $03E8
+RB_SCREEN_HANDLE_PAGES = 8
 
 SIG_PING        = 1
 SIG_ADD16       = 2
@@ -184,6 +189,8 @@ SIG_BUFFREE     = 9
 SIG_TEMPSCRATCH = 10
 SIG_FAIL        = 11
 SIG_FREEMEM     = 12
+SIG_SCRCAP      = 13
+SIG_SCRPUT      = 14
 
 CMD_PING        = 1
 CMD_ADD16       = 2
@@ -197,6 +204,8 @@ CMD_BUFFREE     = 9
 CMD_TEMPSCRATCH = 10
 CMD_FAIL        = 11
 CMD_FREEMEM     = 12
+CMD_SCRCAP      = 13
+CMD_SCRPUT      = 14
 
 ; REU registers.
 REU_CMD         = $DF01
@@ -719,30 +728,21 @@ rb_print_z:
 ; ---------------------------------------------------------------------------
 
 rb_plugin_statement:
-        jsr rb_stage_start
         jsr rb_parse_command_name
         bcs @name_ok
         jmp BASIC_SYNERR
 @name_ok:
-        lda #$A1
-        sta rb_debug_ring
         jsr rb_lookup_command
         bcs @found
         lda #$01
         jmp rb_runtime_error
 @found:
-        lda #$A2
-        sta rb_debug_ring
         lda RB_DESC_BUF
         sta CF_CMD_ID
         lda #0
         sta CF_PARAM_COUNT
         jsr rb_clear_result_frame
-        lda #$A3
-        sta rb_debug_ring
         jsr rb_parse_by_signature
-        lda #$A4
-        sta rb_debug_ring
         jsr rb_stash_call_frame
         jsr rb_load_and_call_command
         jsr rb_stash_result_frame
@@ -757,8 +757,9 @@ rb_parse_command_name:
         cmp #$A5
         bne @not_fn_token
         cpx #RB_MAX_NAME - 1
-        bcs @too_long
-        lda #'F'
+        bcc :+
+        jmp @too_long
+:       lda #'F'
         sta RB_CMDBUF,x
         inx
         lda #'N'
@@ -770,7 +771,9 @@ rb_parse_command_name:
         cmp #$B8
         bne @not_fre_token
         cpx #RB_MAX_NAME - 2
-        bcs @too_long
+        bcc :+
+        jmp @too_long
+:       
         lda #'F'
         sta RB_CMDBUF,x
         inx
@@ -783,6 +786,21 @@ rb_parse_command_name:
         jsr rb_raw_chrget
         jmp @loop
 @not_fre_token:
+        cmp #$FF
+        bne @not_pi_token
+        cpx #RB_MAX_NAME - 1
+        bcc :+
+        jmp @too_long
+:       
+        lda #'P'
+        sta RB_CMDBUF,x
+        inx
+        lda #'I'
+        sta RB_CMDBUF,x
+        inx
+        jsr rb_raw_chrget
+        jmp @loop
+@not_pi_token:
         cmp #$C1
         bcc @not_shifted_upper
         cmp #$DB
@@ -842,12 +860,14 @@ rb_raw_chrget:
 
 rb_skip_spaces:
 @loop:
+        ldy #0
         jsr CHRGOT
         cmp #' '
         bne @done
         jsr CHRGET
         jmp @loop
 @done:
+        ldy #0
         rts
 
 rb_parse_arg_sep:
@@ -864,47 +884,80 @@ rb_lookup_command:
         sta rb_reu_off_hi
         lda #0
         sta rb_lookup_index
-@loop:
+@page:
         lda rb_lookup_index
         cmp #RB_CMD_DESC_COUNT
         bcc :+
-        clc
-        rts
-:       lda #<RB_DESC_BUF
+        jmp @miss
+:       lda #<RB_PAGEBUF
         sta rb_reu_c64_lo
-        lda #>RB_DESC_BUF
+        lda #>RB_PAGEBUF
         sta rb_reu_c64_hi
         lda #RB_REU_CORE_BANK
         sta rb_reu_bank
-        lda #RB_CMD_DESC_SIZE
-        sta rb_reu_len_lo
         lda #0
+        sta rb_reu_len_lo
+        lda #1
         sta rb_reu_len_hi
         jsr rb_reu_fetch
-        lda RB_DESC_BUF+15
+        lda #<RB_PAGEBUF
+        sta rb_ptr_lo
+        lda #>RB_PAGEBUF
+        sta rb_ptr_hi
+        lda #RB_CMD_DESC_PER_PAGE
+        sta rb_lookup_slots
+@slot:
+        lda rb_lookup_index
+        cmp #RB_CMD_DESC_COUNT
+        bcc :+
+        jmp @miss
+:       ldy #15
+        lda (rb_ptr_lo),y
         cmp rb_cmd_len
         bne @next
         ldy #0
 @cmp:
         cpy rb_cmd_len
         beq @match
-        lda RB_DESC_BUF+16,y
+        tya
+        pha
+        clc
+        adc #16
+        tay
+        lda (rb_ptr_lo),y
+        sta rb_lookup_char
+        pla
+        tay
+        lda rb_lookup_char
         cmp RB_CMDBUF,y
         bne @next
         iny
         jmp @cmp
 @match:
+        ldy #0
+@copy:
+        lda (rb_ptr_lo),y
+        sta RB_DESC_BUF,y
+        iny
+        cpy #RB_CMD_DESC_SIZE
+        bcc @copy
         sec
         rts
 @next:
         clc
-        lda rb_reu_off_lo
+        lda rb_ptr_lo
         adc #RB_CMD_DESC_SIZE
-        sta rb_reu_off_lo
+        sta rb_ptr_lo
         bcc :+
-        inc rb_reu_off_hi
+        inc rb_ptr_hi
 :       inc rb_lookup_index
-        jmp @loop
+        dec rb_lookup_slots
+        bne @slot
+        inc rb_reu_off_hi
+        jmp @page
+@miss:
+        clc
+        rts
 
 rb_parse_by_signature:
         lda RB_DESC_BUF+14
@@ -932,11 +985,13 @@ rb_parse_by_signature:
         beq parse_sig_fail
         cmp #SIG_FREEMEM
         beq parse_sig_freemem
+        cmp #SIG_SCRCAP
+        beq parse_sig_scrcap
+        cmp #SIG_SCRPUT
+        beq parse_sig_scrput
         jmp BASIC_SYNERR
 
 parse_sig_ping:
-        lda #$31
-        sta rb_debug_ring
         jsr rb_parse_out_int
         rts
 
@@ -998,6 +1053,14 @@ parse_sig_fail:
 
 parse_sig_freemem:
         jsr rb_parse_no_args
+        rts
+
+parse_sig_scrcap:
+        jsr rb_parse_out_int
+        rts
+
+parse_sig_scrput:
+        jsr rb_parse_num0
         rts
 
 rb_parse_no_args:
@@ -1620,11 +1683,6 @@ rb_stash_result_frame:
         jsr rb_reu_stash
         rts
 
-rb_stage_start:
-        lda #'S'
-        sta rb_debug_ring
-        rts
-
 rb_clear_handle_heap:
         ldx #0
         lda #0
@@ -1729,6 +1787,9 @@ rb_command_descriptors:
         CMD_LOW_ALL CMD_TEMPSCRATCH, SIG_TEMPSCRATCH, cmd_tempscratch_low, "TEMPSCRATCH"
         CMD_LOW CMD_FAIL, SIG_FAIL, cmd_fail_low, cmd_fail_low_end, "FAIL"
         CMD_LOW CMD_FREEMEM, SIG_FREEMEM, cmd_freemem_low, cmd_freemem_low_end, "FREEMEM"
+        CMD_LOW_ALL CMD_SCRCAP, SIG_SCRCAP, cmd_scrcap_low, "SCRCAP"
+        .res (RB_CMD_DESC_COUNT - 14) * RB_CMD_DESC_SIZE, 0
+        CMD_LOW_ALL CMD_SCRPUT, SIG_SCRPUT, cmd_scrput_low, "SCRPUT"
 
 ; ---------------------------------------------------------------------------
 ; Hidden helper code, called by visible resident code with BASIC ROM hidden.
@@ -2333,6 +2394,8 @@ rb_crunch_pos:  .byte 0
 
 rb_cmd_len:     .byte 0
 rb_lookup_index:.byte 0
+rb_lookup_slots:.byte 0
+rb_lookup_char: .byte 0
 rb_target_off:  .byte 0
 rb_saved_count_lo:.byte 0
 rb_saved_count_hi:.byte 0
@@ -2379,8 +2442,13 @@ rb_handle_type: .res RB_HANDLE_COUNT, 0
 rb_page_bitmap: .res RB_HEAP_PAGES, 0
 rb_handle_index:.byte 0
 rb_needed_pages:.byte 0
+rb_handle_new_type:.byte 0
 rb_found_page:  .byte 0
 rb_fill_page:   .byte 0
+rb_copy_page:   .byte 0
+rb_copy_chunks: .byte 0
+rb_copy_len_lo: .byte 0
+rb_copy_len_hi: .byte 0
 rb_debug_ring:  .res 32, 0
 
 ; ---------------------------------------------------------------------------
@@ -2565,11 +2633,56 @@ cmd_freemem_low:
         rts
 cmd_freemem_low_end:
 
+cmd_scrcap_low:
+        jsr rb_screen_handle_alloc
+        lda RF_STATUS
+        beq :+
+        rts
+:       jsr rb_screen_save_text
+        jsr rb_screen_save_color
+        lda #0
+        sta RF_STATUS
+        lda #RB_VAL_INT
+        sta RF_TAG
+        ldx rb_handle_index
+        txa
+        clc
+        adc #1
+        sta RF_VAL_LO
+        lda #0
+        sta RF_VAL_HI
+        rts
+cmd_scrcap_low_end:
+
+cmd_scrput_low:
+        jsr rb_screen_handle_validate
+        lda RF_STATUS
+        beq :+
+        rts
+:       jsr rb_screen_load_text
+        jsr rb_screen_load_color
+        lda #0
+        sta RF_STATUS
+        lda #RB_VAL_NONE
+        sta RF_TAG
+        rts
+cmd_scrput_low_end:
+
 rb_handle_alloc:
         jsr rb_len_to_pages
-        bcc @find_handle
+        bcc :+
         jmp rb_overlay_bad_length
-@find_handle:
+:       lda #RB_HANDLE_TYPE_BUFFER
+        sta rb_handle_new_type
+        jmp rb_handle_alloc_with_pages
+
+rb_screen_handle_alloc:
+        lda #RB_SCREEN_HANDLE_PAGES
+        sta rb_needed_pages
+        lda #RB_HANDLE_TYPE_SCREEN_TC
+        sta rb_handle_new_type
+
+rb_handle_alloc_with_pages:
         ldx #0
 @hloop:
         lda rb_handle_bank,x
@@ -2592,7 +2705,7 @@ rb_handle_alloc:
         sta rb_handle_page,x
         lda rb_needed_pages
         sta rb_handle_pages,x
-        lda #1
+        lda rb_handle_new_type
         sta rb_handle_type,x
         jsr rb_mark_pages_used
         jsr rb_stash_handle_meta
@@ -2610,6 +2723,29 @@ rb_handle_alloc:
         rts
 @no_pages:
         lda #$22
+        jmp rb_overlay_fail
+
+rb_screen_handle_validate:
+        lda CF_NUM0_LO
+        beq @bad
+        cmp #RB_HANDLE_COUNT + 1
+        bcs @bad
+        sec
+        sbc #1
+        tax
+        lda rb_handle_bank,x
+        beq @bad
+        lda rb_handle_type,x
+        cmp #RB_HANDLE_TYPE_SCREEN_TC
+        bne @wrong_type
+        stx rb_handle_index
+        clc
+        rts
+@wrong_type:
+        lda #$28
+        jmp rb_overlay_fail
+@bad:
+        lda #$24
         jmp rb_overlay_fail
 
 rb_overlay_bad_length:
@@ -2738,6 +2874,9 @@ rb_handle_fill:
         tax
         lda rb_handle_bank,x
         beq @bad
+        lda rb_handle_type,x
+        cmp #RB_HANDLE_TYPE_BUFFER
+        bne @wrong_type
         stx rb_handle_index
         lda CF_NUM1_LO
         ldx #0
@@ -2776,6 +2915,9 @@ rb_handle_fill:
 @bad:
         lda #$25
         jmp rb_overlay_fail
+@wrong_type:
+        lda #$28
+        jmp rb_overlay_fail
 
 rb_temp_alloc:
         jsr rb_len_to_pages
@@ -2796,6 +2938,184 @@ rb_temp_alloc:
 @bad:
         lda #$26
         jmp rb_overlay_fail
+
+rb_screen_save_text:
+        ldx rb_handle_index
+        lda #<SCREEN
+        sta rb_reu_c64_lo
+        lda #>SCREEN
+        sta rb_reu_c64_hi
+        lda #0
+        sta rb_reu_off_lo
+        lda rb_handle_page,x
+        sta rb_reu_off_hi
+        lda #RB_REU_CORE_BANK
+        sta rb_reu_bank
+        lda #<RB_SCREEN_BYTES
+        sta rb_reu_len_lo
+        lda #>RB_SCREEN_BYTES
+        sta rb_reu_len_hi
+        jsr rb_reu_stash
+        rts
+
+rb_screen_load_text:
+        ldx rb_handle_index
+        lda #<SCREEN
+        sta rb_reu_c64_lo
+        lda #>SCREEN
+        sta rb_reu_c64_hi
+        lda #0
+        sta rb_reu_off_lo
+        lda rb_handle_page,x
+        sta rb_reu_off_hi
+        lda #RB_REU_CORE_BANK
+        sta rb_reu_bank
+        lda #<RB_SCREEN_BYTES
+        sta rb_reu_len_lo
+        lda #>RB_SCREEN_BYTES
+        sta rb_reu_len_hi
+        jsr rb_reu_fetch
+        rts
+
+rb_screen_save_color:
+        lda #<COLOR_RAM
+        sta rb_ptr_lo
+        lda #>COLOR_RAM
+        sta rb_ptr_hi
+        ldx rb_handle_index
+        lda rb_handle_page,x
+        clc
+        adc #4
+        sta rb_copy_page
+        lda #4
+        sta rb_copy_chunks
+@chunk:
+        jsr rb_screen_set_copy_len
+        jsr rb_copy_ptr_to_pagebuf
+        jsr rb_stash_pagebuf_to_copy_page
+        inc rb_ptr_hi
+        inc rb_copy_page
+        dec rb_copy_chunks
+        bne @chunk
+        rts
+
+rb_screen_load_color:
+        lda #<COLOR_RAM
+        sta rb_ptr_lo
+        lda #>COLOR_RAM
+        sta rb_ptr_hi
+        ldx rb_handle_index
+        lda rb_handle_page,x
+        clc
+        adc #4
+        sta rb_copy_page
+        lda #4
+        sta rb_copy_chunks
+@chunk:
+        jsr rb_screen_set_copy_len
+        jsr rb_fetch_pagebuf_from_copy_page
+        jsr rb_copy_pagebuf_to_ptr
+        inc rb_ptr_hi
+        inc rb_copy_page
+        dec rb_copy_chunks
+        bne @chunk
+        rts
+
+rb_screen_set_copy_len:
+        lda rb_copy_chunks
+        cmp #1
+        beq @tail
+        lda #0
+        sta rb_copy_len_lo
+        lda #1
+        sta rb_copy_len_hi
+        rts
+@tail:
+        lda #<RB_SCREEN_BYTES
+        sta rb_copy_len_lo
+        lda #0
+        sta rb_copy_len_hi
+        rts
+
+rb_copy_ptr_to_pagebuf:
+        lda rb_copy_len_hi
+        beq @short
+        ldy #0
+@full:
+        lda (rb_ptr_lo),y
+        sta RB_PAGEBUF,y
+        iny
+        bne @full
+        rts
+@short:
+        ldy #0
+@short_loop:
+        cpy rb_copy_len_lo
+        beq @done
+        lda (rb_ptr_lo),y
+        sta RB_PAGEBUF,y
+        iny
+        jmp @short_loop
+@done:
+        rts
+
+rb_copy_pagebuf_to_ptr:
+        lda rb_copy_len_hi
+        beq @short
+        ldy #0
+@full:
+        lda RB_PAGEBUF,y
+        sta (rb_ptr_lo),y
+        iny
+        bne @full
+        rts
+@short:
+        ldy #0
+@short_loop:
+        cpy rb_copy_len_lo
+        beq @done
+        lda RB_PAGEBUF,y
+        sta (rb_ptr_lo),y
+        iny
+        jmp @short_loop
+@done:
+        rts
+
+rb_stash_pagebuf_to_copy_page:
+        lda #<RB_PAGEBUF
+        sta rb_reu_c64_lo
+        lda #>RB_PAGEBUF
+        sta rb_reu_c64_hi
+        lda #0
+        sta rb_reu_off_lo
+        lda rb_copy_page
+        sta rb_reu_off_hi
+        lda #RB_REU_CORE_BANK
+        sta rb_reu_bank
+        lda rb_copy_len_lo
+        sta rb_reu_len_lo
+        lda rb_copy_len_hi
+        sta rb_reu_len_hi
+        jsr rb_reu_stash
+        rts
+
+rb_fetch_pagebuf_from_copy_page:
+        lda #<RB_PAGEBUF
+        sta rb_reu_c64_lo
+        lda #>RB_PAGEBUF
+        sta rb_reu_c64_hi
+        lda #0
+        sta rb_reu_off_lo
+        lda rb_copy_page
+        sta rb_reu_off_hi
+        lda #RB_REU_CORE_BANK
+        sta rb_reu_bank
+        lda rb_copy_len_lo
+        sta rb_reu_len_lo
+        lda rb_copy_len_hi
+        sta rb_reu_len_hi
+        jsr rb_reu_fetch
+        rts
 
 ; ---------------------------------------------------------------------------
 ; Packed hidden overlay command implementations.  These are copied from REU

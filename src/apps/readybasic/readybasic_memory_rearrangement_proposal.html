@@ -477,8 +477,8 @@ $A000 - $0801 = 38911 bytes (38.0K)</span>
       <table>
         <thead><tr><th>Component</th><th>Current location</th><th>Lifetime</th><th>Reuse idea</th></tr></thead>
         <tbody>
-          <tr><td><code>CMDPACK</code> load image</td><td><code>$2800-$2FFF</code></td><td>Cold seed only.</td><td>Let BASIC own this range after code is copied to REU bank <code>$45</code>.</td></tr>
-          <tr><td><code>REGSEED</code></td><td><code>$4000-$418F</code> (<code>$0190</code>, 400B)</td><td>Cold seed only.</td><td>Already load-only; never reread after BASIC owns memory.</td></tr>
+          <tr><td><code>CMDPACK</code> load image</td><td><code>$2800-$3FFF</code></td><td>Cold seed only.</td><td>Let BASIC own this range after code is copied to REU bank <code>$45</code>.</td></tr>
+          <tr><td><code>REGSEED</code></td><td><code>$5000-$600F</code> (<code>$1010</code>, 4112B)</td><td>Cold seed only.</td><td>128 descriptor slots; never reread after BASIC owns memory.</td></tr>
           <tr><td>Runtime snapshot</td><td>former <code>$9600-$99FF</code> (<code>$0400</code>, 1.0K)</td><td>Needed only across <code>EXIT</code>/warm resume.</td><td>Save zero page, stack, and mode directly to REU.</td></tr>
           <tr><td>Hidden shadow</td><td>former <code>$9A00-$9FFF</code> (<code>$0600</code>, 1.5K)</td><td>Needed only to restore <code>$A000</code> helper after app switch.</td><td>Refresh visible <code>$C280-$C5B6</code> (<code>$0337</code>, 0.8K) during <code>!EXIT</code>.</td></tr>
           <tr><td>Low overlay slot</td><td>former <code>$1C00-$23FF</code> (<code>$0800</code>, 2.0K)</td><td>Needed only while a command executes.</td><td>Run low workers from banked RAM under BASIC ROM.</td></tr>
@@ -544,7 +544,7 @@ $A000 - $0801 = 38911 bytes (38.0K)</span>
           <div class="chips">
             <span class="chip basic">0 BASIC workspace bytes</span>
             <span class="chip">usually 0 resident bytes</span>
-            <span class="chip reu">32-byte descriptor</span>
+            <span class="chip reu">32-byte descriptor slot</span>
             <span class="chip reu">packed command code bytes</span>
           </div>
           <p>
@@ -556,7 +556,7 @@ $A000 - $0801 = 38911 bytes (38.0K)</span>
         <div>
           <h3>Scaling Rules</h3>
           <ul>
-            <li>Keep descriptors in REU.</li>
+            <li>Keep descriptors in REU and fetch them a page at a time.</li>
             <li>Add more packed command-code banks when <code>$45</code> fills.</li>
             <li>Add a bank id or pack id to the descriptor format.</li>
             <li>Keep shared parser/commit code resident only when several commands reuse it.</li>

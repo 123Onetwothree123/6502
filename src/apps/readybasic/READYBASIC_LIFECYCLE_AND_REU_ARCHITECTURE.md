@@ -44,12 +44,12 @@ The current map confirms this layout:
 | Segment | Runtime range | Size | Role |
 |---|---:|---:|---|
 | `ENTRY` | `$1000-$1102` | `$0103` (259B) | App entry, cold/warm discriminator, early copies. |
-| `RESIDENT` | `$1200-$1BAB` | `$09AC` (2.4K) | Visible parser, ROM calls, REU DMA wrappers, result commit. |
-| `REGSEED` | `$4000-$418F` | `$0190` (400B) | Load-only registry header/descriptors used on cold seed. |
+| `RESIDENT` | `$1200-$1BF9` | `$09FA` (2554B) | Visible parser, ROM calls, REU DMA wrappers, result commit. |
+| `REGSEED` | `$5000-$600F` | `$1010` (4112B) | Load-only registry header and 128 command descriptors used on cold seed. |
 | `HIDDEN` | `$A000-$A336` | `$0337` (0.8K) | Hidden helper routines under BASIC ROM. |
 | `HIDDENPACK` | `$A800-$A84C` | `$004D` (77B) | Hidden worker overlay image, loaded to REU bank `$45`. |
-| `LOWPACK` | `$A900-$ABF2` | `$02F3` (0.7K) | Banked low overlay image under BASIC ROM, loaded from REU bank `$45`. |
-| `BRIDGE` | `$C000-$C1BD` | `$01BE` (446B) | Persistent bridge/state bytes, no general scratch. |
+| `LOWPACK` | `$A900-$ADDF` | `$04E0` (1248B) | Banked low overlay image under BASIC ROM, loaded from REU bank `$45`. |
+| `BRIDGE` | `$C000-$C1C4` | `$01C5` (453B) | Persistent bridge/state bytes, no general scratch. |
 
 ## Technical Philosophy
 
@@ -152,7 +152,7 @@ ReadyBASIC marks these in the ReadyOS REU allocation table at `$C600+$44` and
 ```mermaid
 flowchart TB
   H["$0000 Header<br/>RBPL, version, descriptor count, frame offsets"]
-  D["$0100 Descriptors<br/>12 x 32-byte command descriptors"]
+  D["$1000-$1FFF Descriptors<br/>128 x 32-byte command slots"]
   C["$0400 Call frame snapshot<br/>copy of $C200 frame"]
   R["$0500 Result frame snapshot<br/>copy of $C300 frame"]
   DBG["$0600 Debug ring reserved<br/>parser/command breadcrumbs"]
@@ -167,7 +167,8 @@ flowchart TB
 
 V1 persistent sample buffers use the data heap in bank `$44`, pages `$80-$8F`.
 Each handle records a bank, starting page, page count, type, and bitmap
-ownership. This is a compact proof of handle lifecycle, not the final large-data
+ownership. Type `1` is a byte buffer, and type `2` is a screen text+color
+buffer. This is a compact proof of handle lifecycle, not the final large-data
 allocator. Future large or long-lived command data should move into additional
 dynamic banks and keep handles as the stable reference.
 
@@ -175,8 +176,8 @@ dynamic banks and keep handles as the stable reference.
 
 ```mermaid
 flowchart LR
-  LP["$0000-$02F2 Low overlay pack<br/>copied into $A900-$ABF2"]
-  HP["$02F3-$033F Hidden overlay pack<br/>copied into $A800-$A84C"]
+  LP["$0000-$04DF Low overlay pack<br/>copied into $A900-$ADDF"]
+  HP["$04E0-$052C Hidden overlay pack<br/>copied into $A800-$A84C"]
   LP --> HP
 ```
 
@@ -204,7 +205,8 @@ Each command descriptor is 32 bytes:
 | `16-31` | Uppercase command-name bytes, zero padded. |
 
 The current descriptors are seeded from `REGSEED` during cold boot and copied
-to bank `$44` offset `$0100`.
+to bank `$44` offset `$1000`. Lookup fetches 256-byte pages, scans eight
+descriptors per page, and treats zero-filled filler descriptors as empty slots.
 
 ## Cold Boot Lifecycle
 
@@ -441,12 +443,14 @@ BASIC's string heap.
 | `!HCRC S$,OUT%` | Hidden overlay at `$A800` | `$004D` (77B) | string variable or literal, output int | Sums uppercase bytes. |
 | `!SUMAI A%(0),COUNT,OUT%` | Low overlay at `$A900+$006E` | `$0044` (68B) | integer array base/count, output int | Sums integer array values. |
 | `!RANGEAI START,COUNT,A%(0)` | Low overlay at `$A900+$00B2` | `$003D` (61B) | start/count, output array | Stages consecutive integers. |
-| `!BUFNEW LEN,H%` | Low overlay entry `$00EF` | `$02F3` (0.7K) | length, output handle | Allocates persistent pages in bank `$44`. |
-| `!BUFFILL H%,BYTE` | Low overlay entry `$00F3` | `$02F3` (0.7K) | handle, byte | Fills handle pages using `$C500` page buffer. |
-| `!BUFFREE H%` | Low overlay entry `$00F7` | `$02F3` (0.7K) | handle | Frees pages and clears metadata. |
-| `!TEMPSCRATCH LEN,OUT%` | Low overlay entry `$00FB` | `$02F3` (0.7K) | length, output int | Allocates then frees pages, returns page count. |
+| `!BUFNEW LEN,H%` | Low overlay entry `$00EF` | `$04E0` (1.2K) | length, output handle | Allocates persistent buffer pages in bank `$44`. |
+| `!BUFFILL H%,BYTE` | Low overlay entry `$00F3` | `$04E0` (1.2K) | buffer handle, byte | Fills buffer handle pages using `$C500` page buffer. |
+| `!BUFFREE H%` | Low overlay entry `$00F7` | `$04E0` (1.2K) | handle | Frees any valid handle type and clears metadata. |
+| `!TEMPSCRATCH LEN,OUT%` | Low overlay entry `$00FB` | `$04E0` (1.2K) | length, output int | Allocates then frees pages, returns page count. |
 | `!FAIL CODE,OUT%` | Low overlay at `$A900+$00FF` | `$001B` (27B) | code, output int | Clears output first, then returns `?RB ERROR code`. |
 | `!FREEMEM` | Low overlay at `$A900+$011A` | `$0016` (22B) | none | Prints live free BASIC bytes and refreshes the header. |
+| `!SCRCAP H%` | Low overlay entry `$0130` | `$04E0` (1.2K) | output screen handle | Captures screen text and color RAM into a type-2 handle. |
+| `!SCRPUT H%` | Slot 128; low overlay entry `$0159` | `$04E0` (1.2K) | screen handle | Restores screen text and color RAM after type validation. |
 
 The heap-oriented commands copy the full `$02F3` low pack because allocator
 helpers currently live in the same overlay pack. That is an implementation
@@ -455,7 +459,7 @@ resident helper or use finer overlay slices.
 
 ## Persistent Handle Model
 
-V1 supports up to eight handles and a 16-page sample heap.
+V1 supports up to eight live handles and a 16-page sample heap.
 
 ```mermaid
 flowchart LR
@@ -469,10 +473,13 @@ flowchart LR
 ```
 
 `BUFNEW` converts byte length to 256-byte pages, finds contiguous free pages,
-records metadata, and returns a one-based handle. `BUFFILL` fills `$C500` with
-the byte and stashes it page by page into bank `$44` at page offsets `$80-$8F`.
-`BUFFREE` clears both the handle and bitmap. `TEMPSCRATCH` proves temporary
-allocation by marking pages and freeing them before returning.
+records type-1 metadata, and returns a one-based handle. `BUFFILL` accepts only
+type-1 buffer handles, fills `$C500` with the byte, and stashes it page by page
+into bank `$44` at page offsets `$80-$8F`. `SCRCAP` creates a type-2 handle and
+stashes screen text plus color RAM; `SCRPUT` validates type `2` before restore.
+`BUFFREE` clears both the handle and bitmap for any valid handle type.
+`TEMPSCRATCH` proves temporary allocation by marking pages and freeing them
+before returning.
 
 This handle model is the right direction for future commands that maintain
 screen buffers, network buffers, caches, or large results. The V1 limitation is

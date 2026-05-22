@@ -225,6 +225,32 @@ statement is not ReadyBASIC's command, jump through the saved original `$0308`
 vector so ROM BASIC performs its own `CHRGET`/dispatch path from an untouched
 state. Only after raw `!` is proven does ReadyBASIC advance `TXTPTR`.
 
+### Parser Scratch And Register State Are Functional ABI
+
+Reinforced on 2026-05-22 during the 128-slot registry work. Paged descriptor
+lookup, token-name handling, and parameter parsing are not independent pieces:
+they share the live BASIC interpreter path. A change that only appears to touch
+command lookup can still perturb parser scratch, `TXTPTR`, `Y`, processor flags,
+or the conditions that ROM helpers such as `CHRGOT`, `FRMNUM`, `GETADR`, and
+`PTRGET` expect.
+
+The concrete regression was that pointer/register preservation was relaxed while
+renaming and refactoring lookup. Direct commands still reached parts of the
+dispatcher, but parser-sensitive commands such as `BUFNEW` and output-variable
+forms could fail because the follow-on BASIC ROM helper contract was no longer
+exactly intact. The fix was to restore the parser contract, including ensuring
+the whitespace-skip/`CHRGOT` path leaves `Y` in the expected state before
+parameter parsing continues.
+
+Current rule: no functional regression is a hard acceptance criterion. Any
+change to command lookup, name token handling, `TXTPTR` movement, shared scratch
+buffers, low/hidden overlay dispatch, or BASIC ROM helper setup must rerun the
+parser-sensitive probes, not just the new feature probe. At minimum that means
+direct commands, stored-program commands, `IF ... THEN !`, colon chains, string
+input/output, array input/output, handle commands, error clearing, and resume.
+If the change touches tokenization or command names, the tokenizer/list/run
+matrix is also mandatory.
+
 ### ICRNCH Must Preserve The Tokenized Line Length
 
 The BASIC line insertion path calls the crunch vector at `$0304`, then stores
@@ -247,6 +273,36 @@ a private token as long as the BASIC line-chain and `$0308` contracts are intact
 The new program probe verifies `LIST` plus `RUN` for scalar, string, hidden,
 array, handle, and error-path commands. Private token support remains separate
 future work.
+
+### Avoid BASIC Token Substrings In Command Names
+
+Proven on 2026-05-22 while adding screen handle commands. ReadyBASIC command
+names are stored as visible text, but C64 BASIC's cruncher can still tokenize
+reserved words that appear inside the typed command name. Names such as
+`SCRSAVE` and `SCRLOAD` looked safe as raw text but could contain `SAVE` and
+`LOAD` tokens after crunching. The implemented names became `SCRCAP` and
+`SCRPUT` to avoid those embedded tokens.
+
+The same class of problem showed up in shorter examples too: `BUFNEW` can carry
+an `FN` token, `FREEMEM` can carry a `FRE` token, and `PING` can carry a `PI`
+token. ReadyBASIC currently has parser accommodations for the command names we
+ship, but future command names should not rely on adding more special cases.
+
+Current naming rule: prefer command names that do not contain BASIC keywords,
+functions, operators, or pseudo-variables as substrings. Avoid obvious tokens
+such as `SAVE`, `LOAD`, `RUN`, `LIST`, `NEW`, `CLR`, `REM`, `DATA`, `PRINT`,
+`INPUT`, `GET`, `READ`, `RESTORE`, `GOTO`, `GOSUB`, `RETURN`, `IF`, `THEN`,
+`FOR`, `NEXT`, `STEP`, `TO`, `STOP`, `END`, `ON`, `OPEN`, `CLOSE`, `CMD`,
+`SYS`, `POKE`, `PEEK`, `WAIT`, `VERIFY`, `FN`, `FRE`, `POS`, `USR`, `RND`,
+`ABS`, `SGN`, `INT`, `SQR`, `LOG`, `EXP`, `SIN`, `COS`, `TAN`, `ATN`, `TAB`,
+`SPC`, `LEFT$`, `RIGHT$`, `MID$`, `STR$`, `VAL`, `LEN`, `CHR$`, `ASC`, and
+`PI`.
+
+Before accepting a new public command name, add it to a tokenizer probe that
+stores, lists, and runs the command in direct mode, line-start program mode,
+colon chains, and `IF ... THEN !COMMAND` form. If a preferred human name
+conflicts, choose a short synonym instead of expanding resident parser token
+exceptions.
 
 ### Relocated BASIC Needs A Zero Sentinel Byte
 
