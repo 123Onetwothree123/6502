@@ -10,8 +10,9 @@ actual C64/ReadyOS evidence trail rather than a pile of confident guesses.
 - The app PRG loads at `$1000` and must obey the ReadyOS app/shim window:
   `$1000-$C5FF` is app-owned, `$C600-$C9FF` is reserved metadata/shim space.
 - BASIC programs are data inside the host. The scoped BASIC workspace is now
-  `$1C01-$9FFF`, with `33789` empty free bytes (33.0K); raw ReadyBASIC wedge lines are left as text rather than
-  crunched into a private token.
+  `$2101-$9FFF`, with `32509` formula empty free bytes (31.7K) and `32519`
+  live header bytes at the prompt; raw ReadyBASIC extension lines are left as
+  text rather than crunched into private tokens.
 - ReadyBASIC suspend state keeps zero-page and stack snapshots in REU bank `$44`
   at offsets `$0A00/$0B00`; saved SP, mode, and line-chain guards live in bridge metadata.
 - Hidden services live under BASIC ROM RAM at `$A000-$BFFF` and visible
@@ -19,8 +20,8 @@ actual C64/ReadyOS evidence trail rather than a pile of confident guesses.
 - A refreshed visible shadow copy of the hidden helper image lives at `$C280-$C5F6`,
   inside the ReadyOS app snapshot window. Warm
   entry restores `$A000` from that shadow before using hidden helpers.
-- The plugin spine keeps visible resident code at `$1200-$1BAF`, command
-  overlays under BASIC ROM at `$A900-$AEDE`, shared frames at `$C200-$C5FF`, and fixed
+- The plugin spine keeps visible resident code at `$1200-$20F3`, command
+  overlays under BASIC ROM at `$A900-$AF19`, shared frames at `$C200-$C5FF`, and fixed
   ReadyBASIC REU banks `$44/$45`.
 - The current registry has 128 descriptor slots in REU bank `$44` at
   `$1000-$1FFF`. Lookup fetches one 256-byte page at a time into `$C500`, scans
@@ -270,8 +271,9 @@ bitmap in REU, pages them through `$C500`, and stores only the current
 bank/page/page-count/type descriptor in bridge scratch.
 
 This preserved `BASIC_START=$1C01`, `BASIC_LIMIT=$A000`, and the `33789` empty
-BASIC free-byte count. The cost moved into the low overlay, which is cold/fetched
-code rather than resident BASIC workspace.
+BASIC free-byte count at the time. Later native `PROC`/`FUNC` support moved
+`BASIC_START` to `$2101`; the handle lesson still stands because its cost moved
+into fetched overlay code rather than forcing that relocation.
 
 ### ICRNCH Must Preserve The Tokenized Line Length
 
@@ -281,9 +283,9 @@ returns the wrong `Y` can corrupt line insertion.
 
 Current POC rule: do not tokenize ReadyBASIC commands yet. `ICRNCH` must call
 the original ROM cruncher first, preserve its returned line length contract, and
-only then apply the tiny `THEN !` to `THEN :!` normalizer. Proper private token
-support must be reintroduced only with a cruncher that preserves all required
-register and buffer contracts.
+only then apply tiny normalizers such as `THEN !` to `THEN :!` and `THEN EXEC`
+to `THEN :EXEC`. Proper private token support must be reintroduced only with a
+cruncher that preserves all required register and buffer contracts.
 
 2026-05-11 follow-up: a private `$CC` token experiment made stored `!` lines
 compact, but the visible probe then blanked/crashed during `LIST`. The stable
@@ -295,6 +297,26 @@ a private token as long as the BASIC line-chain and `$0308` contracts are intact
 The new program probe verifies `LIST` plus `RUN` for scalar, string, hidden,
 array, handle, and error-path commands. Private token support remains separate
 future work.
+
+### PROC/FUNC Formals Are BASIC Globals
+
+Proven on 2026-05-22 while adding native `PROC`/`FUNC`. Binding formals through
+BASIC ROM `PTRGET` means those formals are ordinary C64 BASIC variables, not
+locals. A function declared as `FUNC ADDI A%,B%,R%` and called as
+`EXEC ADDI,4,5,A%` will clear the caller's output actual while parsing it; because
+the first formal has the same BASIC variable name, the function then sees `A%=0`.
+
+Current rule: document that V1 has no locals and choose formal names that do not
+collide with caller output variables in examples (`X%,Y%,R%` rather than
+`A%,B%,R%`). A future locals model would need a real variable save/restore or
+private frame mechanism, not just more parser glue.
+
+### THEN EXEC Has The Same Stored-Form Rule As THEN Bang
+
+Proven on 2026-05-22 with `rbproc1`. Interactive ReadyBASIC entry can normalize
+`IF 1 THEN EXEC ADDI,1,2,A%` to `IF 1 THEN :EXEC ADDI,1,2,A%`, but `petcat`
+builds stored programs without running ReadyBASIC's crunch hook. Sample `.bas`
+files built by `petcat` should therefore use the normalized `THEN :EXEC` form.
 
 ### Avoid BASIC Token Substrings In Command Names
 
@@ -578,8 +600,16 @@ contract is fully proven.
   `READYBASIC_VISIBLE=1 bash ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_program_probe.sh`
   This interviews each command style early: first `LIST`/`RUN` for `ZECHO1`,
   then same-line continuation, strings, hidden workers, arrays, handles, and
-  failure clearing. It should fail fast at the first command family that
-  regresses.
+	  failure clearing. It should fail fast at the first command family that
+	  regresses.
+- For native `PROC`/`FUNC` positive coverage, load `RBPROC1` from the D81 and run
+  it. It covers no-param `PROC`, `%` and `$` inputs, `%` and `$` `FUNC` returns,
+  colon-chain use, normalized `IF THEN :EXEC`, nested depth 2, and readable
+  `LIST`.
+- For native `PROC`/`FUNC` negative coverage, load `RBPROCERR` and run sections
+  by line number (`RUN 100`, `RUN 200`, ... `RUN 800`). It covers unknown
+  routine, wrong count/type, missing `FUNC` output, `PROC` extra actual, bare
+  `ENDP`, and return-stack overflow.
 - For manual-`EXIT` BASIC-state probes, use:
   `bash ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_state_probe.sh`
 - For the larger direct-variable/string/array stress case, use:
@@ -599,7 +629,7 @@ contract is fully proven.
   final automatic REU debug-ring fetch returned short after the successful plan.
 - Confirm `readybasic.prg` load address is `$1000`.
 - Confirm compact PRG load span remains below `$C600`.
-- Confirm runtime `BRIDGE` remains below `$C600`.
+- Confirm runtime `BRIDGE` remains below `$C200`, leaving shared frames intact.
 - In ReadyBASIC direct mode:
   - `print "hello"` should print `hello` and return to `ready.` with no error.
   - `10 print 1` should enter without screen corruption or lockup.

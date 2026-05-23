@@ -2,15 +2,15 @@
 
 ## Current V1 Layout
 
-- `BASIC_START = $1C01`; BASIC owns `$1C01-$9FFF`, with `33789` empty free bytes (33.0K).
+- `BASIC_START = $2101`; BASIC owns `$2101-$9FFF`, with `32509` formula empty free bytes (31.7K) and `32519` live header bytes at the prompt.
 - `$1000-$1102`: tiny app entry (`$0103`, 259B) that copies hidden helpers and bridge state before BASIC starts.
-- `$1200-$1BB3`: visible resident core (`$09B4`, 2484B). This is the only code that calls BASIC ROM helpers.
-- `$1C00`: BASIC sentinel byte; it must stay zero before stored-program `RUN`.
+- `$1200-$20F3`: visible resident core (`$0EF4`, 3828B). This is the only code that calls BASIC ROM helpers.
+- `$2100`: BASIC sentinel byte; it must stay zero before stored-program `RUN`.
 - `$A900-$AF19`: low command overlay slot under BASIC ROM. Current packed low command image is `$061A` bytes (1.5K, 1562 exact bytes).
 - `$C200-$C5FF`: fixed call frame, result frame, descriptor buffer, command-name buffer, page buffer, and warm-resume staging (`$0400`, 1.0K).
 - `$A000-$A376`: hidden helper code (`$0377`, 887B), restored from the visible `$C280` shadow.
 - `$A800-$A84C`: hidden worker overlay slot (`$004D`, 77B) used by `ZHIDDENRAM`.
-- `$C000-$C19A`: bridge state only (`$019B`, 411B); the implementation stays below `$C200`.
+- `$C000-$C1FA`: bridge state plus native routine return stack (`$01FB`, 507B); the implementation stays below `$C200`.
 
 ## REU Banks
 
@@ -22,6 +22,8 @@
   re-marks ownership but does not reread `CMDPACK`, hidden/bridge load images,
   or `REGSEED`, because those load-image addresses become normal BASIC
   workspace after launch.
+- Native `PROC`/`FUNC` definitions are ordinary BASIC program text. They do not
+  use descriptors, `LOWPACK`, `HIDDENPACK`, or bank `$45` command-code storage.
 
 ## Bank `$44` Regions
 
@@ -70,6 +72,10 @@ Each descriptor is 32 bytes:
 - Numeric expressions are evaluated through BASIC ROM `FRMNUM` and `GETADR`.
 - Variable and array references use BASIC ROM `PTRGET`; output integers are cleared before command execution.
 - String output heap mutation happens in visible resident code only.
+- Native `EXEC` reuses the same BASIC ROM expression and variable helpers where
+  possible: numeric inputs use `FRMNUM`/`GETADR`, output actuals use the existing
+  output-variable capture and result commit paths, and string values use the
+  existing 64-byte staging cap.
 
 ## Implemented Commands
 
@@ -89,16 +95,28 @@ Each descriptor is 32 bytes:
 - `!SCRCAP H%`: low overlay, captures screen text plus color RAM into a typed screen handle.
 - `!SCRPUT H%`: low overlay, validates a typed screen handle and restores screen text plus color RAM. This descriptor lives in slot 128 to prove full-table lookup.
 
+Native reusable BASIC routines:
+
+- `PROC NAME P%,S$ ... ENDP`: input-only routine, called with `EXEC NAME,...`.
+- `FUNC NAME P%,S$,R$ ... ENDP`: final formal is the single output formal, so the caller passes a matching final output actual.
+- `EXEC NAME,...`: scans stored BASIC text for the matching `PROC` or `FUNC`, binds `%`/`$` actuals to formals, pushes a four-entry return stack in bridge state, and resumes at the routine body.
+- `CALL` remains reserved for a future non-returning named transfer and is not implemented.
+
 ## Known V1 Boundaries
 
 - No private command token: stored lines remain visible `!COMMAND args`, so
   regular BASIC `LIST` shows the `!` command text.
 - A tiny crunch hook delegates to ROM first, then normalizes tokenized
-  `THEN !COMMAND` to `THEN :!COMMAND` so BASIC's existing statement dispatcher
-  reaches the `$0308` execute hook. String, `REM`, and `DATA` text are left alone.
+  `THEN !COMMAND` and `THEN EXEC ...` to `THEN :!COMMAND` / `THEN :EXEC ...` so
+  BASIC's existing statement dispatcher reaches the `$0308` execute hook. String,
+  `REM`, and `DATA` text are left alone.
 - Raw stored-program `RUN` is supported through the `$0308` execute hook; the
   relocated BASIC sentinel byte at `BASIC_START-1` must stay zero.
 - Command lookup is linear over descriptor pages in bank `$44`: one 256-byte page is fetched into `$C500`, eight descriptors are scanned locally, and the matched descriptor is copied into `$C480`.
 - String input currently supports string variables and quoted literals; fully general BASIC string expressions remain a follow-up.
 - V1 integer arrays are explicit base element plus count, e.g. `A%(0),N`.
+- Native routine V1 formals support only `%` and `$`, no arrays, no locals, no
+  plain floating variables, and one output formal only for `FUNC`.
+- Native routine definitions should be placed after `END`; fall-through into
+  `PROC`/`FUNC` is invalid in V1.
 - The persistent typed heap currently suballocates 48KB inside bank `$44`; handle type `1` is a byte buffer and type `2` is a screen text+color buffer. Future large/long-lived data can allocate extra REU banks and record those banks in the same REU-backed handle directory.

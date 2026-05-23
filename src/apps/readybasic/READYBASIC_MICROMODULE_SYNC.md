@@ -37,7 +37,7 @@ ReadyBASIC now duplicates a small amount of ReadyOS REU and shim knowledge in as
 
 - ReadyBASIC still uses:
   - `SHIM_RETURN = $C80C`
-  - bridge state at `$C000-$C19A`
+  - bridge state at `$C000-$C1FA`
   - shared frames and visible helper shadow at `$C200-$C5FF`
   - app runtime zero-page/stack save in REU bank `$44` offsets `$0A00/$0B00`
 - Do not place ReadyBasic state in `$C800-$C9FF`; that remains shim ABI territory.
@@ -45,15 +45,17 @@ ReadyBASIC now duplicates a small amount of ReadyOS REU and shim knowledge in as
 
 ## Current ReadyBASIC Memory Snapshot
 
-- `BASIC_START = $1C01`; BASIC owns `$1C01-$9FFF`, with `33789` empty free bytes.
+- `BASIC_START = $2101`; BASIC owns `$2101-$9FFF`, with `32509` formula empty free bytes and `32519` live header bytes.
 - `ENTRY` lives at `$1000-$1102`.
-- `RESIDENT` lives at `$1200-$1BAF` and must stay below `$1C00`.
+- `RESIDENT` lives at `$1200-$20F3` and must stay below `$2100`.
 - `CMDPACK` load-only seed space is `$2800-$3FFF`; it is copied to REU bank `$45` on cold entry.
 - `HIDLOAD` load-only helper seed starts at `$4000`.
 - `BRLOAD` load-only bridge seed starts at `$4800`.
 - `REGSEED` load-only registry seed is `$5000-$600F`, size `$1010`.
-- Runtime `LOWPACK` is `$A900-$AEDE`, size `$05DF`.
+- Runtime `LOWPACK` is `$A900-$AF19`, size `$061A`.
 - Runtime `HIDDENPACK` is `$A800-$A84C`, size `$004D`.
+- Runtime `BRIDGE` is `$C000-$C1FA`, size `$01FB`; the native `PROC`/`FUNC`
+  return stack lives here and must stay below shared frames at `$C200`.
 
 ## Bank `$44` ReadyBASIC Core Layout
 
@@ -81,6 +83,10 @@ scans eight descriptors locally, and copies the matched descriptor into
 Cold entry prestashes these bytes once. Warm resume reuses the REU copies and
 must not reread `CMDPACK`, `HIDLOAD`, `BRLOAD`, or `REGSEED` from BASIC-owned
 load-image addresses.
+
+Native `PROC`/`FUNC` routines are deliberately absent from bank `$45`: their
+bodies are BASIC program text, found by scanning the stored program during
+`EXEC`. They add no descriptor slots and no command-code bank bytes.
 
 ## Typed Handles
 

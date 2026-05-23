@@ -74,6 +74,8 @@ READYIRC = $(BIN_DIR)/readyirc.prg
 RIRC_RRNET = $(BIN_DIR)/rirc-rrnet.prg
 READYBASIC = $(BIN_DIR)/readybasic.prg
 READYBASIC_RBTEST1 = $(OBJ_DIR)/rbtest1.prg
+READYBASIC_RBPROC1 = $(OBJ_DIR)/rbproc1.prg
+READYBASIC_RBPROCERR = $(OBJ_DIR)/rbprocerr.prg
 UCITEST = $(BIN_DIR)/ucitest.prg
 VERSION_HEADER = $(GEN_DIR)/build_version.h
 VERSION_ASM_INC = $(GEN_DIR)/msg_version.inc
@@ -362,7 +364,7 @@ LIB_UCITEST = $(TUI_UCITEST) $(TUI_HOTKEY_SRC)
 EASYFLASH_PAYLOADS = $(LAUNCHER_EASYFLASH) $(READYSHELL_EASYFLASH) $(EDITOR) $(QUICKNOTES) $(CALCPLUS) $(HEXVIEW) $(CLIPMGR) $(REUVIEWER) $(SYSINFO) $(TASKLIST) $(SIMPLEFILES) $(SIMPLECELLS) $(GAME2048) $(DEMINER) $(SIDETRIS) $(CAL26) $(DIZZY) $(READYIRC) $(RIRC_RRNET) $(READYBASIC) $(UCITEST) $(READMEAPP) $(READYSHELL_OVL1_PRG) $(READYSHELL_OVL2_PRG) $(READYSHELL_OVL3_PRG) $(READYSHELL_OVL4_PRG) $(READYSHELL_OVL5_PRG) $(READYSHELL_OVL6_PRG) $(READYSHELL_OVL7_PRG) $(READYSHELL_OVL8_PRG) $(READYSHELL_OVL9_PRG)
 
 # Primary binaries shared across profiles
-PROGRAMS = $(BOOT) $(PREBOOT) $(SETD71) $(SHOWCFG) $(TEST_REU) $(LAUNCHER) $(EDITOR) $(QUICKNOTES) $(CALCPLUS) $(HEXVIEW) $(CLIPMGR) $(REUVIEWER) $(SYSINFO) $(TASKLIST) $(SIMPLEFILES) $(SIMPLECELLS) $(GAME2048) $(DEMINER) $(SIDETRIS) $(CAL26) $(DIZZY) $(READYIRC) $(RIRC_RRNET) $(READYBASIC) $(READYBASIC_RBTEST1) $(UCITEST) $(READMEAPP) $(READYSHELL)
+PROGRAMS = $(BOOT) $(PREBOOT) $(SETD71) $(SHOWCFG) $(TEST_REU) $(LAUNCHER) $(EDITOR) $(QUICKNOTES) $(CALCPLUS) $(HEXVIEW) $(CLIPMGR) $(REUVIEWER) $(SYSINFO) $(TASKLIST) $(SIMPLEFILES) $(SIMPLECELLS) $(GAME2048) $(DEMINER) $(SIDETRIS) $(CAL26) $(DIZZY) $(READYIRC) $(RIRC_RRNET) $(READYBASIC) $(READYBASIC_RBTEST1) $(READYBASIC_RBPROC1) $(READYBASIC_RBPROCERR) $(UCITEST) $(READMEAPP) $(READYSHELL)
 
 $(BIN_DIR):
 	@mkdir -p "$@"
@@ -630,10 +632,18 @@ $(READYBASIC): $(APPS_DIR)/readybasic/readybasic.s $(CFG_DIR)/ready_app_readybas
 readybasic-plugin-static-check: $(READYBASIC) $(BUILD_SUPPORT_DIR)/verify_readybasic_plugin.py
 	$(PYTHON) $(BUILD_SUPPORT_DIR)/verify_readybasic_plugin.py
 
-# ReadyBASIC sample program (relocated to ReadyBASIC's $1C01 BASIC workspace).
+# ReadyBASIC sample program (relocated to ReadyBASIC's $2101 BASIC workspace).
 $(READYBASIC_RBTEST1): $(APPS_DIR)/readybasic/rbtest1.bas
 	@mkdir -p "$(OBJ_DIR)"
-	$(PETCAT) -w2 -l 1C01 -o $@ -- $<
+	$(PETCAT) -w2 -l 2101 -o $@ -- $<
+
+$(READYBASIC_RBPROC1): $(APPS_DIR)/readybasic/rbproc1.bas
+	@mkdir -p "$(OBJ_DIR)"
+	$(PETCAT) -w2 -l 2101 -o $@ -- $<
+
+$(READYBASIC_RBPROCERR): $(APPS_DIR)/readybasic/rbprocerr.bas
+	@mkdir -p "$(OBJ_DIR)"
+	$(PETCAT) -w2 -l 2101 -o $@ -- $<
 
 # UCI tester app (loads at $1000)
 $(UCITEST): $(APPS_DIR)/ucitest/ucitest.c $(APPS_DIR)/ucitest/ucitest_catalog.c $(APPS_DIR)/ucitest/ucitest_format.c $(APPS_DIR)/ucitest/ucitest_uci.c $(APPS_DIR)/ucitest/ucitest_uci_asm.s $(LIB_UCITEST)

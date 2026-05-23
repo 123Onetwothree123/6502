@@ -44,12 +44,12 @@ The current map confirms this layout:
 | Segment | Runtime range | Size | Role |
 |---|---:|---:|---|
 | `ENTRY` | `$1000-$1102` | `$0103` (259B) | App entry, cold/warm discriminator, early copies. |
-| `RESIDENT` | `$1200-$1BB3` | `$09B4` (2.4K, 2484 exact bytes) | Visible parser, ROM calls, REU DMA wrappers, result commit. |
+| `RESIDENT` | `$1200-$20F3` | `$0EF4` (3.7K, 3828 exact bytes) | Visible parser, ROM calls, REU DMA wrappers, result commit, native `PROC`/`FUNC` dispatch. |
 | `REGSEED` | `$5000-$600F` | `$1010` (4.0K, 4112 exact bytes) | Load-only registry header and 128 command descriptors used on cold seed. |
 | `HIDDEN` | `$A000-$A376` | `$0377` (0.9K, 887 exact bytes) | Hidden helper routines under BASIC ROM. |
 | `HIDDENPACK` | `$A800-$A84C` | `$004D` (77B) | Hidden worker overlay image, loaded to REU bank `$45`. |
 | `LOWPACK` | `$A900-$AF19` | `$061A` (1.5K, 1562 exact bytes) | Banked low overlay image under BASIC ROM, loaded from REU bank `$45`. |
-| `BRIDGE` | `$C000-$C19A` | `$019B` (411B) | Persistent bridge/state bytes, no general scratch. |
+| `BRIDGE` | `$C000-$C1FA` | `$01FB` (507B) | Persistent bridge/state bytes plus the four-entry native routine return stack. |
 
 ## Technical Philosophy
 
@@ -80,7 +80,7 @@ The V1 spine intentionally avoids a few attractive but expensive abstractions:
 - No per-command REU bank.
 - No command-per-bank storage.
 - No private command token or custom lister yet.
-- Only a tiny post-ROM-crunch `THEN !` normalizer is installed.
+- Only tiny post-ROM-crunch `THEN !` and `THEN EXEC` normalizers are installed.
 - No generalized signature bytecode interpreter yet; signatures are dispatched
   by compact hand-written routines.
 
@@ -93,9 +93,9 @@ live inside that contract while also hosting BASIC.
 ```mermaid
 flowchart TB
   A["$1000-$1102 ENTRY<br/>load entry and cold/warm cookie"]
-  B["$1200-$1BB3 RESIDENT<br/>visible parser, vector hook, REU DMA, commit"]
-  C["$1C00 SENTINEL<br/>must be zero for BASIC RUN"]
-  D["$1C01-$9FFF BASIC WORKSPACE<br/>33789 free bytes / 33.0K"]
+  B["$1200-$20F3 RESIDENT<br/>visible parser, vector hook, REU DMA, commit, PROC/FUNC"]
+  C["$2100 SENTINEL<br/>must be zero for BASIC RUN"]
+  D["$2101-$9FFF BASIC WORKSPACE<br/>32509 formula free bytes / 31.7K"]
   E["$2800-$3FFF CMDPACK LOAD IMAGE<br/>low and hidden overlay seed bytes before cold prestash"]
   F["REU $44:$0A00-$0BFF RUNTIME SNAPSHOT<br/>zero page and stack / 0.5K"]
   G["$C200-$C5FF SHARED FRAMES<br/>call/result/descriptor/name/page buffers / 1.0K"]
@@ -103,7 +103,7 @@ flowchart TB
   J["$A000-$A376 HIDDEN HELPER<br/>runs under BASIC ROM RAM"]
   K["$A800-$A84C HIDDEN OVERLAY<br/>ZHIDDENRAM worker copied from REU bank $45"]
   O["$A900-$AF19 LOW OVERLAY<br/>low workers under BASIC ROM RAM"]
-  L["$C000-$C19A BRIDGE STATE<br/>magic, saved vectors, overlay vars, handle scratch, debug"]
+  L["$C000-$C1FA BRIDGE STATE<br/>magic, saved vectors, overlay vars, handle scratch, PROC/FUNC stack"]
   M["$C600-$C7FF READYOS REU METADATA<br/>only bank ownership tags here"]
   N["$C800-$C9FF SHIM ABI<br/>ReadyOS jump table/data, not app RAM"]
 
@@ -119,14 +119,14 @@ runtime-visible resident core:
 | Load-time range | Purpose |
 |---:|---|
 | `$1000-$11FF` | Entry image, including entry-local warm cookie. |
-| `$1200-$1BFF` | Resident core image. |
-| `$1C00-$27FF` | Padding in the PRG load image; after cold setup, BASIC uses `$1C01+`. |
+| `$1200-$20FF` | Resident core image. |
+| `$2100-$27FF` | Padding in the PRG load image; after cold setup, BASIC uses `$2101+`. |
 | `$2800-$3FFF` | Command pack seed bytes, copied to REU bank `$45` only on cold entry. |
 | `$4000+` | Hidden helper seed bytes, copied to `$A000` and the visible `$C280` shadow. |
 | `$4800+` | Bridge seed bytes, copied to `$C000`. |
 | `$5000-$600F` | Registry seed bytes, copied to REU bank `$44` only on cold entry. |
 
-After cold setup, BASIC owns `$1C01-$9FFF`. This is why warm resume must **not**
+After cold setup, BASIC owns `$2101-$9FFF`. This is why warm resume must **not**
 try to reread the load-only seed tables at `$2800+`, `$4000+`, `$4800+`, or
 `$5000+`: that memory may now be BASIC program or variable storage.
 
@@ -136,16 +136,16 @@ ReadyBASIC has two different memory pictures that must not be merged:
 
 | Stage | What is in C64 RAM | What counts against BASIC free bytes |
 |---|---|---|
-| ReadyOS load | The PRG load image includes `CMDPACK` at `$2800-$3FFF`, `HIDLOAD` at `$4000+`, `BRLOAD` at `$4800+`, and `REGSEED` at `$5000-$600F`. | Nothing user-visible yet; BASIC has not been handed `$1C01-$9FFF`. |
+| ReadyOS load | The PRG load image includes `CMDPACK` at `$2800-$3FFF`, `HIDLOAD` at `$4000+`, `BRLOAD` at `$4800+`, and `REGSEED` at `$5000-$600F`. | Nothing user-visible yet; BASIC has not been handed `$2101-$9FFF`. |
 | Cold seed | Hidden helper code copies the registry/header to REU bank `$44`, copies packed command code to REU bank `$45`, and copies live hidden/bridge code to `$A000/$C000`. | The load-only ranges are still temporary seed bytes. |
-| Ready prompt | BASIC owns `$1C01-$9FFF`, including the former load-image addresses. `CMDPACK`, `HIDLOAD`, `BRLOAD`, and `REGSEED` must be treated as gone. | Empty BASIC free bytes are `33789`. |
+| Ready prompt | BASIC owns `$2101-$9FFF`, including the former load-image addresses. `CMDPACK`, `HIDLOAD`, `BRLOAD`, and `REGSEED` must be treated as gone. | Empty BASIC free bytes are `32509` formula bytes; the live header reports `32519`. |
 | Command execution | Packed command code is fetched from REU bank `$45` into `$A800/$A900` under BASIC ROM RAM, then control returns to resident commit code. | No per-command BASIC workspace loss. |
 
 `CMDPACK` is therefore both visually inside the BASIC address span and
 steady-state free. The current reservation is `$1800` (6.0K); the implemented
 packed content is `LOWPACK` `$061A` plus `HIDDENPACK` `$004D`, about 1.6K. That
 reserved command-pack area can grow toward 6.0K during cold load without
-changing `BASIC_START`, `BASIC_LIMIT`, or the `33789` empty BASIC free-byte
+changing `BASIC_START`, `BASIC_LIMIT`, or the `32509` empty BASIC free-byte
 measurement, because it is prestashed to REU before BASIC owns the range.
 
 There are two separate limits:
@@ -153,7 +153,7 @@ There are two separate limits:
 | Layer | Current size | What it means |
 |---|---:|---|
 | C64 `CMDPACK` cold-load window | `$1800` / 6.0K | The linker currently places the initial packed command seed bytes at `$2800-$3FFF` before cold setup copies them out. This is a seed window, not the architectural command-code ceiling. |
-| REU bank `$45` command-code bank | `$10000` / 64.0K | The current descriptor format uses 16-bit offsets/sizes into this bank, so one code bank can address up to 64K of packed command bodies. Current used space is `$0667` / 1.6K, leaving `$F999` / 62.4K in bank `$45`. |
+| REU bank `$45` command-code bank | `$10000` / 64.0K | The current descriptor format uses 16-bit offsets/sizes into this bank, so one code bank can address up to 64K of packed command bodies. Current used space is `$0667` / 1.6K, leaving `$F999` / 62.4K in bank `$45`. Native `PROC`/`FUNC` definitions are BASIC text and do not use this bank. |
 | Beyond one code bank | More than 64K | Requires a descriptor/loader extension for additional code banks or a bank-selection field. That is future architecture, not the current single-bank ABI. |
 
 So, with the current descriptor and REU command-code architecture, packed command
@@ -164,16 +164,16 @@ That kind of seed expansion should still be reclaimed and should not reduce
 steady-state BASIC free bytes.
 
 The proportional HTML view uses these exact subranges inside the raw
-`$1C01-$9FFF` span (`$83FF`, 33.0K, 33791 exact bytes):
+`$2101-$9FFF` span (`$7EFF`, 31.7K, 32511 exact bytes):
 
 | Subrange | Cold-load role | Hex size | Display size | Exact bytes |
 |---|---|---:|---:|---:|
-| `$1C01-$27FF` | Future BASIC bytes before `CMDPACK`. | `$0BFF` | 3.0K | 3071 |
+| `$2101-$27FF` | Future BASIC bytes before `CMDPACK`. | `$06FF` | 1.7K | 1791 |
 | `$2800-$3FFF` | `CMDPACK` reserved cold-load image. | `$1800` | 6.0K | 6144 |
 | `$4000-$4376` | `HIDLOAD` seed. | `$0377` | 0.9K | 887 |
 | `$4377-$47FF` | Padding / future BASIC after cold seed. | `$0489` | 1.1K | 1161 |
-| `$4800-$499A` | `BRLOAD` seed. | `$019B` | 411B | 411 |
-| `$499B-$4FFF` | Padding / future BASIC after cold seed. | `$0665` | 1.6K | 1637 |
+| `$4800-$49FA` | `BRLOAD` seed. | `$01FB` | 507B | 507 |
+| `$49FB-$4FFF` | Padding / future BASIC after cold seed. | `$0605` | 1.5K | 1541 |
 | `$5000-$600F` | `REGSEED` header plus 128 descriptors. | `$1010` | 4.0K | 4112 |
 | `$6010-$9FFF` | Future BASIC bytes after `REGSEED`. | `$3FF0` | 16.0K | 16368 |
 
@@ -311,7 +311,7 @@ flowchart TD
   RB["Jump to rb_boot"]
   V["Reset KERNAL/BASIC vectors"]
   I["Install $0308 execute hook"]
-  W["Initialize BASIC workspace at $1C01"]
+  W["Initialize BASIC workspace at $2101"]
   S["Cold seed REU banks $44/$45"]
   P["Clear screen, lowercase VIC mode, banner"]
   R["Enter BASIC_READY"]
@@ -321,18 +321,18 @@ flowchart TD
 
 The cold setup performs these important operations:
 
-1. It copies hidden helper code before BASIC owns `$1C01+`.
+1. It copies hidden helper code before BASIC owns `$2101+`.
 2. It stores a visible shadow copy at `$C280` because `$A000` code cannot be trusted
    after a ReadyOS app switch.
 3. It copies bridge state to `$C000`.
 4. It resets KERNAL and BASIC vectors, then installs only the execute vector
    hook at `$0308/$0309`.
 5. It relocates BASIC:
-   - `TXTTAB = $1C01`
-   - `VARTAB = ARYTAB = STREND = $1C03`
+   - `TXTTAB = $2101`
+   - `VARTAB = ARYTAB = STREND = $2103`
    - `FRETOP = MEMSIZ = $A000`
-   - KERNAL memory bottom/top = `$1C00/$A000`
-6. It clears `$1C00`, `$1C01`, and `$1C02`. The `$1C00` byte is a hard
+   - KERNAL memory bottom/top = `$2100/$A000`
+6. It clears `$2100`, `$2101`, and `$2102`. The `$2100` byte is a hard
    invariant: C64 BASIC `RUN` expects the byte before `TXTTAB` to be zero.
 7. It seeds REU bank `$44` and `$45`.
 8. It draws the ReadyBASIC banner and enters `BASIC_READY`.
@@ -605,9 +605,9 @@ These invariants are the current safety rails:
 
 - ReadyBASIC must be booted through normal ReadyOS profile/run flow, not as a
   standalone app.
-- `BASIC_START` stays `$1C01`.
-- `$1C00` stays zero before stored-program `RUN`.
-- `RESIDENT` stays below `$1C00`.
+- `BASIC_START` stays `$2101`.
+- `$2100` stays zero before stored-program `RUN`.
+- `RESIDENT` stays below `$2100`.
 - `BRIDGE` stays below `$C200`, leaving `$C200-$C5FF` for shared frames.
 - `$C600-$C7FF` is ReadyOS REU metadata, not ReadyBASIC scratch.
 - `$C800-$C9FF` remains shim ABI.

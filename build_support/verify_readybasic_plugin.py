@@ -42,7 +42,7 @@ def main() -> None:
         fail("bin/readybasic.prg is missing; build it first")
     segments = parse_segments(MAP.read_text())
 
-    require(r"^BASIC_START\s*=\s*\$1C01\b", asm, "BASIC_START must be $1C01")
+    require(r"^BASIC_START\s*=\s*\$2101\b", asm, "BASIC_START must be $2101")
     require(r"^BASIC_LIMIT\s*=\s*\$A000\b", asm, "BASIC_LIMIT must be $A000")
     require(r"^RB_REU_CORE_BANK\s*=\s*\$44\b", asm, "ReadyBASIC core bank must be $44")
     require(r"^RB_REU_CODE_BANK\s*=\s*\$45\b", asm, "ReadyBASIC code bank must be $45")
@@ -76,8 +76,8 @@ def main() -> None:
     bridge = segments["BRIDGE"]
     regseed = segments["REGSEED"]
 
-    if resident[0] != 0x1200 or resident[1] >= 0x1C00:
-        fail(f"RESIDENT must fit in $1200-$1BFF, got ${resident[0]:04X}-${resident[1]:04X}")
+    if resident[0] != 0x1200 or resident[1] >= 0x2100:
+        fail(f"RESIDENT must fit in $1200-$20FF, got ${resident[0]:04X}-${resident[1]:04X}")
     if lowpack[0] != 0xA900 or lowpack[1] > 0xBFFF:
         fail(f"LOWPACK must fit under BASIC ROM at $A900-$BFFF, got ${lowpack[0]:04X}-${lowpack[1]:04X}")
     if hidden[0] != 0xA000 or hidden[1] > 0xA5FF:

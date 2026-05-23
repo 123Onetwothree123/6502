@@ -40,6 +40,13 @@ command. The goal is not a large dynamic parser, but a small data-driven layer
 for common forms such as numeric inputs, string inputs, array base/count pairs,
 typed handles, and optional output targets.
 
+Native `PROC`/`FUNC` now covers reusable BASIC-level routines with `%` and `$`
+formals, one `FUNC` output, `EXEC`, and `ENDP`. Future routine work should build
+from that implemented base: possible follow-ups are `CALL` for non-returning
+named transfer, fall-through skipping of definitions, richer parameter types,
+and optionally a small formal metadata cache if repeated `EXEC` scans become too
+slow.
+
 ## Command Naming
 
 Future public command names should be screened against C64 BASIC tokenization
@@ -50,8 +57,9 @@ that means avoiding embedded words such as `SAVE`, `LOAD`, `RUN`, `LIST`, `NEW`,
 synonym over adding another resident parser exception.
 
 Every new name should have direct and stored-program probes that cover `LIST`,
-`RUN`, colon chains, and `IF ... THEN !COMMAND`. This catches tokenizer surprises
-before the command becomes part of the user-facing vocabulary.
+`RUN`, colon chains, and `IF ... THEN !COMMAND` or `IF ... THEN EXEC`. This
+catches tokenizer surprises before the command becomes part of the user-facing
+vocabulary.
 
 ## Resource-Oriented Commands
 

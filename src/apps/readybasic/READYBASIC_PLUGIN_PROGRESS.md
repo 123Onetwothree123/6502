@@ -10,6 +10,49 @@ the demo/proof commands. Older entries below may mention historical names such
 as `PING`, `ADD16`, `STRUP`, `HCRC`, `SUMAI`, `RANGEAI`, `TEMPSCRATCH`, and
 `FAIL`; those are retained as dated notes, not current aliases.
 
+## 2026-05-22: Native PROC/FUNC/EXEC/ENDP
+
+- Implemented bare native BASIC routines:
+  - `PROC NAME P%,S$ ... ENDP` for input-only reusable BASIC code.
+  - `FUNC NAME P%,S$,R$ ... ENDP` with the final formal as one output.
+  - `EXEC NAME,...` for both `PROC` and `FUNC`.
+  - `CALL` remains reserved and unimplemented.
+- V1 limits:
+  - `%` and `$` formals only; no arrays, locals, plain floating formals, by-ref
+    parameters, or multiple outputs.
+  - Four active nested `EXEC` calls; overflow reports `?RB ERROR 33`.
+  - Definitions should live after `END`; fall-through into `PROC`/`FUNC` is a
+    syntax error.
+  - `IF ... THEN EXEC ...` is normalized by the ReadyBASIC crunch hook to
+    `IF ... THEN :EXEC ...`; `petcat` sample sources use the normalized stored
+    form.
+- Memory comparison against the pre-PROC baseline:
+  - `BASIC_START`: `$1C01` -> `$2101`.
+  - Empty BASIC free bytes: `33789` -> `32509` formula bytes (`32519` live header
+    bytes).
+  - `bin/readybasic.prg`: `20994` -> `20994` bytes.
+  - `RESIDENT`: `$1200-$1BB3`, `$09B4` (2484B) -> `$1200-$20F3`, `$0EF4`
+    (3828B), delta `+$0540` / `+1344B`.
+  - `LOWPACK`: `$061A` unchanged; command overlay delta `0B`.
+  - `HIDDEN`: `$0377` unchanged; `HIDDENPACK`: `$004D` unchanged.
+  - `BRIDGE`: `$C000-$C19A`, `$019B` (411B) -> `$C000-$C1FA`, `$01FB` (507B),
+    delta `+$0060` / `+96B`.
+  - `REGSEED`: `$1010` unchanged.
+- Verification:
+  - `make readybasic-plugin-static-check`
+  - Positive `RBPROC1` stored-program probe:
+    `/Users/karlprosserpp/dev/c64projects/readyosprecog/logs/vice_auto_20260522_174557`
+  - Negative `RBPROCERR` stored-program probe with screen clear between cases:
+    `/Users/karlprosserpp/dev/c64projects/readyosprecog/logs/vice_auto_20260522_180449`
+  - Existing `rbtest1` probe:
+    `/Users/karlprosserpp/dev/c64projects/readyosprecog/logs/vice_auto_20260522_174629`
+  - Existing direct command probe:
+    `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260522_174650`
+  - Existing lifecycle probe:
+    `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260522_174916`
+  - Existing stored-program command probe:
+    `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260522_174948`
+
 ## 2026-05-22: Command Rename, LOWER, And Making-Command Guide
 
 - Commands:

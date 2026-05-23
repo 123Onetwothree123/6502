@@ -16,6 +16,13 @@
       --reu: #e7ecff;
       --warn: #fff4d8;
       --code: #101828;
+      --code-line: #1d2939;
+      --label: #7dd3fc;
+      --op: #fcd34d;
+      --directive: #c4b5fd;
+      --symbol: #86efac;
+      --comment: #98a2b3;
+      --string: #fda4af;
       --radius: 8px;
     }
     * { box-sizing: border-box; }
@@ -33,6 +40,7 @@
     p { margin: 0 0 14px; }
     .muted { color: var(--muted); }
     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+    .flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin-top: 14px; }
     .card {
       background: var(--panel);
       border: 1px solid var(--line);
@@ -61,21 +69,81 @@
       border-radius: var(--radius);
       font-size: 13px;
       line-height: 1.45;
+      tab-size: 8;
     }
-    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
     table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); }
     th, td { border-bottom: 1px solid var(--line); padding: 10px; text-align: left; vertical-align: top; }
     th { background: #eef2f7; }
+    .teaching {
+      background: #fff;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+    .lesson {
+      border-left: 4px solid #4f46e5;
+    }
+    .annotate th:first-child, .annotate td:first-child {
+      width: 34%;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+    }
+    .term td:first-child {
+      width: 28%;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+      color: #344054;
+    }
+    .tok-label { color: var(--label); font-weight: 700; }
+    .tok-op { color: var(--op); font-weight: 650; }
+    .tok-dir { color: var(--directive); font-weight: 650; }
+    .tok-symbol { color: var(--symbol); }
+    .tok-comment { color: var(--comment); font-style: italic; }
+    .tok-string { color: var(--string); }
   </style>
 </head>
 <body>
   <header>
     <h1>ReadyBASIC Making Command Guide</h1>
-    <p class="muted">How current <code>!COMMAND</code> examples are wired into descriptors, parser signatures, low overlays, hidden overlays, and REU handles.</p>
+    <p class="muted">A teaching guide for how current <code>!COMMAND</code> examples are wired into descriptors, parser signatures, low overlays, hidden overlays, and REU handles.</p>
     <p><span class="chip">128 descriptor slots</span><span class="chip">SCRCAP slot 14</span><span class="chip">SCRPUT slot 128</span><span class="chip">LOWPACK $061A</span></p>
   </header>
 
+	  <section class="teaching">
+	    <h2>What You Are Building</h2>
+	    <p>A ReadyBASIC command is not just one assembler routine. It is a contract between BASIC text, resident parser code, a cold REU descriptor, and an overlay worker copied into C64 RAM only when needed.</p>
+	    <div class="card warn">
+	      <p>Native <code>PROC</code>/<code>FUNC</code> routines are not plugin commands. They are ordinary BASIC program text called by <code>EXEC</code>, so they do not need descriptors, command ids, signature ids, <code>LOWPACK</code>, <code>HIDDENPACK</code>, or REU bank <code>$45</code> code bytes. Use this guide when adding new <code>!COMMAND</code> overlays.</p>
+	    </div>
+	    <div class="flow">
+      <div class="card lesson"><h3>1. User Types</h3><p><code>!ZADD16 4,5,A%</code> is visible BASIC text. The command name must survive C64 tokenization.</p></div>
+      <div class="card lesson"><h3>2. Lookup</h3><p>ReadyBASIC pages descriptor records from REU bank <code>$44</code> and finds the matching command name.</p></div>
+      <div class="card lesson"><h3>3. Parse</h3><p>The descriptor's signature id selects resident parser code, which fills <code>CF_*</code> call-frame fields.</p></div>
+      <div class="card lesson"><h3>4. Execute</h3><p>The descriptor tells ReadyBASIC which packed code bytes to copy from REU bank <code>$45</code> and where to call them.</p></div>
+      <div class="card lesson"><h3>5. Commit</h3><p>The worker writes <code>RF_*</code> result-frame fields. Resident code commits the result to BASIC only on success.</p></div>
+    </div>
+	  </section>
+
   <section>
+    <h2>When To Use PROC/FUNC Instead</h2>
+    <p>Use a native routine when reusable logic is naturally BASIC code and should live in the user's program.</p>
+<pre><code>1000 PROC DRAW P%,N$
+1010 PRINT P%;N$
+1020 ENDP
+
+1100 FUNC ADDI X%,Y%,R%
+1110 R%=X%+Y%
+1120 ENDP
+
+10 EXEC DRAW,3,"PLAYER"
+20 EXEC ADDI,4,5,A%</code></pre>
+    <div class="card">
+      <p><code>PROC</code> has input formals only. <code>FUNC</code> uses its final formal as one output formal. V1 supports only <code>%</code> integer and <code>$</code> string formals, no arrays, locals, plain floating variables, by-reference parameters, or multiple outputs. Definitions should live after <code>END</code>; fall-through into a definition is invalid.</p>
+      <p>Use a <code>!COMMAND</code> overlay when the routine needs hidden RAM, REU handles, fast machine-code loops, direct screen/color memory, or shared command behavior.</p>
+    </div>
+  </section>
+
+	  <section>
     <h2>Naming Rules</h2>
     <div class="card warn">
       <p>ReadyBASIC names are visible BASIC text after <code>!</code>, not private tokens. Avoid substrings that C64 BASIC can tokenize inside the command name.</p>
@@ -121,6 +189,17 @@
         .byte name
         .res 16 - .strlen(name), 0
 .endmacro</code></pre>
+    <table class="annotate">
+      <thead><tr><th>Descriptor field</th><th>What it teaches</th></tr></thead>
+      <tbody>
+        <tr><td><code>id</code></td><td>Internal command id. It is stable command identity, separate from the command's slot number.</td></tr>
+        <tr><td><code>sig</code></td><td>Parser signature id. This is how lookup chooses which resident parser routine fills the call frame.</td></tr>
+        <tr><td><code>label</code> / <code>endlabel</code></td><td>Assembler labels that define both the packed-code offset and the exact number of bytes to copy.</td></tr>
+        <tr><td><code>RB_CMD_F_LOW</code></td><td>Flag saying the worker runs from the low overlay window at <code>$A900</code>.</td></tr>
+        <tr><td><code>RB_CMD_F_HIDDEN</code></td><td>Flag saying the worker runs under BASIC ROM RAM at <code>$A800</code>.</td></tr>
+        <tr><td><code>CMD_LOW_ALL</code></td><td>Used when a tiny command wrapper calls shared helpers elsewhere in the low pack, so the whole low pack must be available.</td></tr>
+      </tbody>
+    </table>
   </section>
 
   <section>
@@ -147,6 +226,19 @@ cmd_zecho1_low:
 cmd_zecho1_low_end:</code></pre>
 <pre><code>CMD_LOW CMD_ZECHO1, SIG_ZECHO1,
         cmd_zecho1_low, cmd_zecho1_low_end, "ZECHO1"</code></pre>
+        <table class="annotate">
+          <thead><tr><th>Line or group</th><th>Teaching note</th></tr></thead>
+          <tbody>
+            <tr><td><code>parse_sig_zecho1:</code></td><td>The resident parser entry selected by <code>SIG_ZECHO1</code>.</td></tr>
+            <tr><td><code>jsr rb_parse_out_int</code></td><td>Captures the output integer variable address and clears it before command execution.</td></tr>
+            <tr><td><code>cmd_zecho1_low:</code></td><td>The overlay worker entry. The descriptor stores this address as an offset from <code>RB_LOW_BASE</code>.</td></tr>
+            <tr><td><code>RF_STATUS = 0</code></td><td>Marks success. Resident code commits results only when this is zero.</td></tr>
+            <tr><td><code>RF_TAG = RB_VAL_INT</code></td><td>Says the result frame contains a BASIC integer.</td></tr>
+            <tr><td><code>RF_VAL_LO/HI = 1</code></td><td>Stages the little-endian integer value that will be written to the captured output variable.</td></tr>
+            <tr><td><code>cmd_zecho1_low_end:</code></td><td>End marker for copy-size math. It is not an executable target.</td></tr>
+            <tr><td><code>CMD_LOW ... "ZECHO1"</code></td><td>Publishes the public command name and binds parser signature to worker slice.</td></tr>
+          </tbody>
+        </table>
       </div>
       <div class="card">
         <h3>ZADD16</h3>
@@ -173,6 +265,18 @@ cmd_zadd16_low:
         rts</code></pre>
 <pre><code>CMD_LOW CMD_ZADD16, SIG_ZADD16,
         cmd_zadd16_low, cmd_zadd16_low_end, "ZADD16"</code></pre>
+        <table class="annotate">
+          <thead><tr><th>Line or group</th><th>Teaching note</th></tr></thead>
+          <tbody>
+            <tr><td><code>rb_parse_num0</code>, <code>rb_parse_num1</code></td><td>Resident parser helpers evaluate BASIC numeric expressions into <code>CF_NUM0_*</code> and <code>CF_NUM1_*</code>.</td></tr>
+            <tr><td><code>rb_parse_out_int</code></td><td>Captures the integer output target and clears it before execution.</td></tr>
+            <tr><td><code>clc</code></td><td>Clears carry before two-byte addition. Without this, stale CPU carry would corrupt the result.</td></tr>
+            <tr><td><code>adc CF_NUM1_LO</code></td><td>Adds low bytes and leaves carry ready for the high-byte addition.</td></tr>
+            <tr><td><code>adc CF_NUM1_HI</code></td><td>Adds high bytes plus carry, producing a 16-bit result.</td></tr>
+            <tr><td><code>RF_VAL_LO/HI</code></td><td>Holds the staged result. The overlay does not write BASIC variables directly.</td></tr>
+            <tr><td><code>CMD_LOW ... "ZADD16"</code></td><td>The descriptor connects the visible command to this parser and this exact low-overlay copy range.</td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </section>
@@ -212,6 +316,19 @@ cmd_lower_low:
         cmd_upper_low, cmd_upper_low_end, "UPPER"
 CMD_LOW CMD_LOWER, SIG_LOWER,
         cmd_lower_low, cmd_lower_low_end, "LOWER"</code></pre>
+    <table class="annotate">
+      <thead><tr><th>Line or group</th><th>Teaching note</th></tr></thead>
+      <tbody>
+        <tr><td><code>parse_sig_string_out:</code></td><td>Shared parser shape for commands that take one string value and one output string variable.</td></tr>
+        <tr><td><code>rb_parse_string_value</code></td><td>Accepts a string expression or literal and stages the bytes in <code>CF_STR_BUF</code>.</td></tr>
+        <tr><td><code>rb_parse_out_string</code></td><td>Captures the destination string variable. BASIC string heap mutation is still resident-code work.</td></tr>
+        <tr><td><code>RF_STR_LEN = CF_STR_LEN</code></td><td>Copies the input length because case conversion preserves length.</td></tr>
+        <tr><td><code>@loop</code> / <code>cpy CF_STR_LEN</code></td><td>Walks the staged string one byte at a time using Y as the index.</td></tr>
+        <tr><td><code>cmp #'A'</code> ... <code>adc #$20</code></td><td>Converts ordinary ASCII uppercase bytes to lowercase bytes.</td></tr>
+        <tr><td><code>sta RF_STR_BUF,y</code></td><td>Writes transformed bytes to the result frame, not directly to BASIC string memory.</td></tr>
+        <tr><td><code>CMD_LOW ... "UPPER"/"LOWER"</code></td><td>Two public commands share the same parser shape but point at different byte-transform workers.</td></tr>
+      </tbody>
+    </table>
     <p class="muted">The source also handles shifted C64 letter bytes. Tests assert <code>ASC()</code> values because visual case depends on the active C64 charset.</p>
   </section>
 
@@ -254,6 +371,17 @@ CMD_LOW CMD_ZRANGENUMARRAY, SIG_ZRANGENUMARRAY,
         "ZRANGENUMARRAY"</code></pre>
       </div>
     </div>
+    <table class="annotate">
+      <thead><tr><th>Line or group</th><th>Teaching note</th></tr></thead>
+      <tbody>
+        <tr><td><code>rb_parse_int_array_input</code></td><td>Parses a base element such as <code>A%(0)</code> plus a count. The base element matters because BASIC arrays are not passed as whole objects.</td></tr>
+        <tr><td><code>rb_resolve_int_array_input_ptr</code></td><td>Converts the parsed array reference into a direct pointer in <code>CF_PTR0_LO/HI</code>.</td></tr>
+        <tr><td><code>ldy #1</code> then <code>dey</code></td><td>Reads the low byte and high byte of each C64 integer array element.</td></tr>
+        <tr><td><code>adc #2</code></td><td>Advances the indirect pointer to the next two-byte integer element.</td></tr>
+        <tr><td><code>ZRANGENUMARRAY</code></td><td>Demonstrates the sibling pattern: stage multiple output values first, then let resident commit write the BASIC array after success.</td></tr>
+        <tr><td><code>CMD_LOW ... "ZSUMNUMARRAY"</code></td><td>Publishes a read-array proof command. The name uses <code>NUM</code>, not <code>INT</code>, to avoid the BASIC tokenizer trap.</td></tr>
+      </tbody>
+    </table>
   </section>
 
   <section>
@@ -290,6 +418,19 @@ CMD_LOW_ALL CMD_BUFFILL, SIG_BUFFILL, cmd_buffill_low, "BUFFILL"
 CMD_LOW_ALL CMD_BUFFREE, SIG_BUFFREE, cmd_buffree_low, "BUFFREE"
 CMD_LOW_ALL CMD_SCRCAP, SIG_SCRCAP, cmd_scrcap_low, "SCRCAP"
 CMD_LOW_ALL CMD_SCRPUT, SIG_SCRPUT, cmd_scrput_low, "SCRPUT"</code></pre>
+    <table class="annotate">
+      <thead><tr><th>Line or group</th><th>Teaching note</th></tr></thead>
+      <tbody>
+        <tr><td><code>rb_handle_alloc</code></td><td>Finds a free handle id, reserves heap pages in REU, writes canonical metadata, and stages the handle number as an integer result.</td></tr>
+        <tr><td><code>rb_handle_fill</code></td><td>Validates that the handle is a generic buffer before writing data. This is where type safety lives.</td></tr>
+        <tr><td><code>rb_handle_free</code></td><td>Accepts any valid typed handle and releases both descriptor metadata and heap pages.</td></tr>
+        <tr><td><code>rb_screen_handle_alloc</code></td><td>Allocates a type-2 screen text+color handle, sized for the screen snapshot resource.</td></tr>
+        <tr><td><code>lda RF_STATUS</code> / <code>beq :+</code></td><td>Stops immediately if allocation or validation failed, preserving the error status for resident code.</td></tr>
+        <tr><td><code>rb_screen_save_text/color</code></td><td>Copies text RAM and color RAM into the typed REU handle.</td></tr>
+        <tr><td><code>rb_screen_load_text/color</code></td><td>Restores text RAM and color RAM only after the handle type has been validated.</td></tr>
+        <tr><td><code>CMD_LOW_ALL ...</code></td><td>These commands call shared helpers, so the descriptor copies the whole low pack instead of just the wrapper bytes.</td></tr>
+      </tbody>
+    </table>
     <p class="muted">The handle lesson is to keep BASIC-visible values small, keep canonical resource metadata in REU, and validate handle type at command boundaries. <code>BUFFILL</code> accepts only type-1 buffer handles; <code>SCRPUT</code> accepts only type-2 screen text+color handles; <code>BUFFREE</code> frees any valid type.</p>
   </section>
 
@@ -306,5 +447,109 @@ CMD_LOW_ALL CMD_SCRPUT, SIG_SCRPUT, cmd_scrput_low, "SCRPUT"</code></pre>
       <li>Update Markdown and HTML docs with measured map values after tests pass.</li>
     </ol>
   </section>
+
+  <section>
+    <h2>Appendix: Descriptor And Registry Labels</h2>
+    <table class="term">
+      <tbody>
+        <tr><td><code>REGSEED</code></td><td>Cold-load descriptor image. It is copied to REU and then reclaimed so BASIC free bytes do not shrink.</td></tr>
+        <tr><td><code>RB_CMD_DESC_COUNT</code></td><td>Registry capacity, currently 128 command descriptors.</td></tr>
+        <tr><td><code>$44:$1000-$1FFF</code></td><td>REU location of the descriptor table. Lookup pages through this range.</td></tr>
+        <tr><td><code>RB_PAGEBUF</code></td><td>RAM page buffer used to fetch one 256-byte descriptor page, eight descriptors at a time.</td></tr>
+        <tr><td><code>RB_DESC_BUF</code></td><td>Resident copy of the single matched descriptor.</td></tr>
+        <tr><td><code>__LOWPACK_RUN__</code></td><td>Linker symbol for the packed low-overlay image before prestash to REU bank <code>$45</code>.</td></tr>
+        <tr><td><code>__LOWPACK_SIZE__</code></td><td>Measured full low-pack size, currently <code>$061A</code>.</td></tr>
+        <tr><td><code>RB_LOW_BASE</code></td><td>Runtime low-overlay base address, currently <code>$A900</code>.</td></tr>
+        <tr><td><code>RB_HIDDEN_BASE</code></td><td>Runtime hidden-overlay base address, currently <code>$A800</code>.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Appendix: Call And Result Frames</h2>
+    <table class="term">
+      <tbody>
+        <tr><td><code>CF_NUM0_LO/HI</code>, <code>CF_NUM1_LO/HI</code></td><td>Numeric inputs evaluated by resident parser helpers.</td></tr>
+        <tr><td><code>CF_STR_BUF</code>, <code>CF_STR_LEN</code></td><td>Staged string input bytes and length.</td></tr>
+        <tr><td><code>CF_PTR0_LO/HI</code></td><td>Resolved pointer to a BASIC array or structured input.</td></tr>
+        <tr><td><code>CF_COUNT0_LO</code></td><td>Count associated with an array-style input.</td></tr>
+        <tr><td><code>RF_STATUS</code></td><td>Command status. Zero means resident code may commit the staged result.</td></tr>
+        <tr><td><code>RF_TAG</code></td><td>Result type marker such as <code>RB_VAL_INT</code>, <code>RB_VAL_STRING</code>, or <code>RB_VAL_NONE</code>.</td></tr>
+        <tr><td><code>RF_VAL_LO/HI</code></td><td>Staged 16-bit integer result or handle number.</td></tr>
+        <tr><td><code>RF_STR_BUF</code>, <code>RF_STR_LEN</code></td><td>Staged string result. Resident code allocates BASIC heap storage afterward.</td></tr>
+        <tr><td><code>RF_ARR_BUF</code></td><td>Staging area for array output before resident commit writes BASIC variables.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Appendix: Helper Routines</h2>
+    <table class="term">
+      <tbody>
+        <tr><td><code>rb_parse_num0</code>, <code>rb_parse_num1</code></td><td>Evaluate BASIC numeric expressions into call-frame numeric slots.</td></tr>
+        <tr><td><code>rb_parse_string_value</code></td><td>Reads a string value into <code>CF_STR_BUF</code>.</td></tr>
+        <tr><td><code>rb_parse_out_int</code>, <code>rb_parse_out_string</code></td><td>Capture output variables and clear them before execution.</td></tr>
+        <tr><td><code>rb_parse_int_array_input</code></td><td>Parse a BASIC integer-array base element and count.</td></tr>
+        <tr><td><code>rb_parse_int_array_output</code></td><td>Parse a BASIC integer-array output target for staged commit.</td></tr>
+        <tr><td><code>rb_handle_alloc</code>, <code>rb_handle_free</code></td><td>Allocate and free REU-backed typed handles.</td></tr>
+        <tr><td><code>rb_screen_handle_validate</code></td><td>Checks that a handle exists and is the screen text+color type.</td></tr>
+        <tr><td><code>rb_screen_save_text/color</code></td><td>Save text RAM and color RAM into a screen handle.</td></tr>
+        <tr><td><code>rb_screen_load_text/color</code></td><td>Restore text RAM and color RAM from a screen handle.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <script>
+    (function () {
+      const opcodes = new Set(["adc", "bcc", "bcs", "beq", "bne", "clc", "cmp", "cpy", "dey", "dex", "inc", "iny", "jmp", "jsr", "lda", "ldx", "ldy", "rts", "sbc", "sec", "sta"]);
+      const esc = (text) => text.replace(/[&<>]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[ch]));
+      const tokenRe = /"[^"]*"|\.[A-Za-z_][A-Za-z0-9_]*|[A-Z][A-Z0-9_]+|[a-z]{3}\b/g;
+      const colorCodePart = (text) => {
+        let out = "";
+        let pos = 0;
+        for (const match of text.matchAll(tokenRe)) {
+          out += esc(text.slice(pos, match.index));
+          const tok = match[0];
+          if (tok.startsWith('"')) {
+            out += '<span class="tok-string">' + esc(tok) + '</span>';
+          } else if (tok.startsWith(".")) {
+            out += '<span class="tok-dir">' + esc(tok) + '</span>';
+          } else if (opcodes.has(tok)) {
+            out += '<span class="tok-op">' + esc(tok) + '</span>';
+          } else if (/^[A-Z]/.test(tok)) {
+            out += '<span class="tok-symbol">' + esc(tok) + '</span>';
+          } else {
+            out += esc(tok);
+          }
+          pos = match.index + tok.length;
+        }
+        out += esc(text.slice(pos));
+        return out;
+      };
+      const colorLine = (line) => {
+        let code = line;
+        let comment = "";
+        const commentAt = line.indexOf(";");
+        if (commentAt >= 0) {
+          code = line.slice(0, commentAt);
+          comment = line.slice(commentAt);
+        }
+        const labelMatch = code.match(/^(\s*)([A-Za-z_@][A-Za-z0-9_@]*:)(.*)$/);
+        let html = "";
+        if (labelMatch) {
+          html = esc(labelMatch[1]) + '<span class="tok-label">' + esc(labelMatch[2]) + '</span>' + colorCodePart(labelMatch[3]);
+        } else {
+          html = colorCodePart(code);
+        }
+        if (comment) {
+          html += '<span class="tok-comment">' + esc(comment) + '</span>';
+        }
+        return html;
+      };
+      document.querySelectorAll("pre code").forEach((node) => {
+        node.innerHTML = node.textContent.split("\n").map(colorLine).join("\n");
+      });
+    }());
+  </script>
 </body>
 </html>
