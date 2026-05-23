@@ -4,13 +4,13 @@
 
 - `BASIC_START = $2401`; BASIC owns `$2401-$9FFF`, with `31741` formula empty free bytes (31.0K).
 - `$1000-$1102`: tiny app entry (`$0103`, 259B) that copies hidden helpers and bridge state before BASIC starts.
-- `$1200-$23DE`: visible resident core (`$11DF`, 4575B). This is the only code that calls BASIC ROM helpers.
+- `$1200-$23F3`: visible resident core (`$11F4`, 4596B). This is the only code that calls BASIC ROM helpers.
 - `$2400`: BASIC sentinel byte; it must stay zero before stored-program `RUN`.
 - `$A900-$AF19`: low command overlay slot under BASIC ROM. Current packed low command image is `$061A` bytes (1.5K, 1562 exact bytes).
 - `$C200-$C5FF`: fixed call frame, result frame, descriptor buffer, command-name buffer, page buffer, and warm-resume staging (`$0400`, 1.0K).
 - `$A000-$A376`: hidden helper code (`$0377`, 887B), restored from the visible `$C280` shadow.
 - `$A800-$A84C`: hidden worker overlay slot (`$004D`, 77B) used by `ZHIDDENRAM`.
-- `$C000-$C1FF`: bridge state plus native routine return stack (`$0200`, 512B); the implementation stays below `$C200`.
+- `$C000-$C1F4`: bridge state plus native routine return stack (`$01F5`, 501B); the implementation stays below `$C200`.
 
 ## REU Banks
 
@@ -97,9 +97,9 @@ Each descriptor is 32 bytes:
 
 Native reusable BASIC routines:
 
-- `PROC NAME P%,S$ ... ENDP`: input-only routine, called with `EXEC NAME,...`.
-- `FUNC NAME P%,S$,R$ ... ENDP`: final formal is the single output formal, so the caller passes a matching final output actual.
-- `EXEC NAME,...`: scans stored BASIC text for the matching `PROC` or `FUNC`, binds `%`/`$` actuals to formals, pushes a four-entry return stack in bridge state, and resumes at the routine body.
+- `PROC NAME(P%,S$) ... ENDP`: input-only routine, called with `EXEC NAME(...)`.
+- `FUNC NAME(P%,S$) ... RET expr ... ENDP`: input formals only; `RET`, `RET%`, or `RET$` supplies the return value.
+- `EXEC NAME(...)`: scans stored BASIC text for the matching `PROC` or `FUNC`, binds `%`/`$` actuals to formals, pushes a four-entry return stack in bridge state, and resumes at the routine body. Statement `EXEC` calls to `FUNC` pass one extra final output actual for the return value.
 - `CALL` remains reserved for a future non-returning named transfer and is not implemented.
 
 ## Known V1 Boundaries
@@ -107,7 +107,7 @@ Native reusable BASIC routines:
 - No private command token: stored lines remain visible `COMMAND(...)` text, so
   regular BASIC `LIST` shows the command text.
 - A tiny crunch hook delegates to ROM first, then normalizes tokenized
-  `THEN COMMAND(...)`, legacy `THEN !COMMAND`, and `THEN EXEC ...` to colon-prefixed statements so
+  `THEN COMMAND(...)` and `THEN EXEC ...` to colon-prefixed statements so
   BASIC's existing statement dispatcher reaches the `$0308` execute hook. String,
   `REM`, and `DATA` text are left alone.
 - Raw stored-program `RUN` is supported through the `$0308` execute hook; the
@@ -115,8 +115,9 @@ Native reusable BASIC routines:
 - Command lookup is linear over descriptor pages in bank `$44`: one 256-byte page is fetched into `$C500`, eight descriptors are scanned locally, and the matched descriptor is copied into `$C480`.
 - String input currently supports string variables and quoted literals; fully general BASIC string expressions remain a follow-up.
 - V1 integer arrays are explicit base element plus count, e.g. `A%(0),N`.
-- Native routine V1 formals support only `%` and `$`, no arrays, no locals, no
-  plain floating variables, and one output formal only for `FUNC`.
+- Native routine V1 formals support only `%` and `$`, no arrays, no locals, and
+  no plain floating variables. `FUNC` returns through `RET` and has one returned
+  value.
 - Native routine definitions should be placed after `END`; fall-through into
   `PROC`/`FUNC` is invalid in V1.
 - The persistent typed heap currently suballocates 48KB inside bank `$44`; handle type `1` is a byte buffer and type `2` is a screen text+color buffer. Future large/long-lived data can allocate extra REU banks and record those banks in the same REU-backed handle directory.
@@ -131,15 +132,16 @@ calls.
 - Command expressions: `ZECHO1()`, `ZADD16(a,b)`, `ZHIDDENRAM(s$)`,
   `ZSUMNUMARRAY(a%(0),n)`, `BUFNEW(n)`, `ZTEMPSCRATCH(n)`, and `SCRCAP()`
   return integers or handles; `UPPER(s$)` and `LOWER(s$)` return strings.
-- Parenthesized routine syntax: `PROC NAME(P%,S$)`, `FUNC NAME(S$,R$)`, and
+- Parenthesized routine syntax: `PROC NAME(P%,S$)`, `FUNC NAME(S$)`, and
   `EXEC NAME(actuals...)` for non-empty argument lists.
 - Zero-argument routines use `EXEC NAME`; empty parentheses were omitted to keep
   resident code smaller.
-- `FUNC` expressions scan the first statement on the line after `FUNC` for
-  assignment to the final formal. String returns use the ROM string evaluator
-  with a re-entry guard; numeric returns use a tiny integer RHS evaluator instead
-  of re-entering the full ROM numeric expression parser.
+- `FUNC` returns use `RET expr`, with optional `RET% expr` and `RET$ expr`
+  markers to make the return type explicit. Statement `EXEC` runs the routine
+  body, so assignments before `RET` take effect. Expression `FUNC` calls scan to
+  the routine's `RET` statement and evaluate that expression without executing
+  arbitrary earlier statements in the body.
 
 Measured branch layout: `BASIC_START=$2401`; BASIC owns `$2401-$9FFF`, for
-`31741` formula empty free bytes. `RESIDENT` is `$1200-$23DE` (`4575` bytes),
-`BRIDGE` is `$C000-$C1FF` (`512` bytes), and command overlays remain unchanged.
+`31741` formula empty free bytes. `RESIDENT` is `$1200-$23F3` (`4596` bytes),
+`BRIDGE` is `$C000-$C1F4` (`501` bytes), and command overlays remain unchanged.

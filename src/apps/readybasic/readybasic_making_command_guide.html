@@ -131,15 +131,16 @@
 1010 PRINT P%;N$
 1020 ENDP
 
-1100 FUNC ADDI(X%,Y%,R%)
+1100 FUNC ADDI(X%,Y%)
 1110 R%=X%+Y%
-1120 ENDP
+1120 RET R%
+1130 ENDP
 
 10 EXEC DRAW(3,"PLAYER")
 20 EXEC ADDI(4,5,A%)
 30 PRINT ADDI(6,7)</code></pre>
     <div class="card">
-      <p><code>PROC</code> has input formals only. <code>FUNC</code> uses its final formal as one output formal. V1 supports only <code>%</code> integer and <code>$</code> string formals, no arrays, locals, plain floating variables, by-reference parameters, or multiple outputs. Definitions should live after <code>END</code>; fall-through into a definition is invalid.</p>
+      <p><code>PROC</code> has input formals only. <code>FUNC</code> also declares input formals only and returns with <code>RET expr</code>; use <code>RET% expr</code> or <code>RET$ expr</code> when the return type should be explicit. Statement <code>EXEC</code> calls to a <code>FUNC</code> pass one extra final output actual. V1 supports only <code>%</code> integer and <code>$</code> string formals, no arrays, locals, plain floating variables, by-reference parameters, or multiple outputs. Definitions should live after <code>END</code>; fall-through into a definition is invalid.</p>
       <p>Use a descriptor-backed command overlay when the routine needs hidden RAM, REU handles, fast machine-code loops, direct screen/color memory, or shared command behavior.</p>
     </div>
   </section>
@@ -345,7 +346,7 @@ CMD_LOW CMD_LOWER, SIG_LOWER,
       </div>
       <div class="card">
         <h3>ZSUMNUMARRAY</h3>
-        <p>Uses an explicit base element plus count: <code>!ZSUMNUMARRAY A%(0),3,S%</code>. Resident code resolves the array pointer before the overlay runs.</p>
+        <p>Uses an explicit base element plus count: <code>ZSUMNUMARRAY(A%(0),3,S%)</code>. Resident code resolves the array pointer before the overlay runs.</p>
 <pre><code>parse_sig_zsumnumarray:
         jsr rb_parse_int_array_input
         jsr rb_parse_out_int
@@ -512,12 +513,13 @@ CMD_LOW_ALL CMD_SCRPUT, SIG_SCRPUT, cmd_scrput_low, "SCRPUT"</code></pre>
     </p>
     <p>
       Native routines accept parenthesized non-empty argument lists:
-      <code>PROC SHOWI(P%)</code> and <code>EXEC SHOWI(7)</code>. String
-      <code>FUNC</code> routines can be used as expressions when the first statement
-      after the definition assigns the final formal, for example
-      <code>A$=GREET("READY")</code> or <code>PRINT ADDI(6,7)</code>. Numeric returns
-      use a small integer RHS evaluator instead of re-entering the ROM numeric
-      parser.
+      <code>PROC SHOWI(P%)</code> and <code>EXEC SHOWI(7)</code>. <code>FUNC</code>
+      routines return through <code>RET expr</code>, with optional
+      <code>RET% expr</code> and <code>RET$ expr</code> markers. Statement
+      <code>EXEC</code> runs the body, so assignment before <code>RET R%</code>
+      works. Expression calls such as <code>A$=GREET("READY")</code> or
+      <code>PRINT ADDI(6,7)</code> scan to the routine's <code>RET</code>
+      statement and evaluate that expression.
     </p>
   </section>
 

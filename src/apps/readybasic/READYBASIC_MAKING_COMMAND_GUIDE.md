@@ -15,8 +15,8 @@ machine-code command overlays.
 
 ReadyBASIC command names are visible BASIC text; they are not private tokens.
 Current code prefers bare `COMMAND(...)` statements and selected
-`COMMAND(...)` expressions. The older `!COMMAND args` statement form remains as
-a compatibility path. Avoid substrings that C64 BASIC can tokenize inside the command name.
+`COMMAND(...)` expressions. The older `!COMMAND args` statement form was removed
+on the expression-style branch. Avoid substrings that C64 BASIC can tokenize inside the command name.
 That is why the demo/proof commands use the `Z...` namespace and why the array
 examples use `NUM` instead of `INT`.
 
@@ -54,19 +54,22 @@ ship with, or be typed into, the user's BASIC program:
 1010 PRINT P%;N$
 1020 ENDP
 
-1100 FUNC ADDI(X%,Y%,R%)
+1100 FUNC ADDI(X%,Y%)
 1110 R%=X%+Y%
-1120 ENDP
+1120 RET R%
+1130 ENDP
 
 10 EXEC DRAW(3,"PLAYER")
 20 EXEC ADDI(4,5,A%)
 30 PRINT ADDI(6,7)
 ```
 
-`PROC` has input formals only. `FUNC` uses its final formal as the one output
-formal. Version 1 supports only `%` integer and `$` string formals, no arrays,
-locals, plain floating variables, or multiple outputs. Definitions should live
-after `END`; fall-through into a definition is invalid. Because formals are just
+`PROC` has input formals only. `FUNC` also declares input formals only and
+returns with `RET expr`; use `RET% expr` or `RET$ expr` when the return type
+should be explicit. Statement `EXEC` calls to a `FUNC` pass one extra final
+output actual. Version 1 supports only `%` integer and `$` string formals, no
+arrays, locals, plain floating variables, or multiple outputs. Definitions
+should live after `END`; fall-through into a definition is invalid. Because formals are just
 ordinary C64 BASIC globals, choose formal names that will not collide with caller
 variables you care about.
 
@@ -364,7 +367,7 @@ For example:
 ```basic
 DIM A%(3)
 A%(0)=1:A%(1)=2:A%(2)=3
-!ZSUMNUMARRAY A%(0),3,S%
+ZSUMNUMARRAY(A%(0),3,S%)
 ```
 
 The resident parser resolves the array reference and stores a direct pointer in
@@ -621,17 +624,17 @@ Native routines also accept parenthesized `EXEC` and definitions:
 10 EXEC SHOWI(7)
 ```
 
-String and numeric `FUNC` routines can be used as expressions when the first
-body statement after the `FUNC` line assigns the final formal:
+String and numeric `FUNC` routines return through `RET`. Use `RET%` or `RET$`
+when the return type should be explicit:
 
 ```basic
-200 FUNC GREET(N$,R$)
-210 R$="HI "+N$
+200 FUNC GREET(N$)
+210 RET$ "HI "+N$
 220 ENDP
 10 A$=GREET("READY")
 20 PRINT ADDI(6,7)
 ```
 
-String returns use the ROM string evaluator behind a re-entry guard. Numeric
-returns use a tiny integer RHS evaluator instead of re-entering the full ROM
-numeric expression parser from inside the eval hook.
+Statement `EXEC` mode runs the routine body, so assignment before `RET R%`
+works. Expression calls scan to the routine's `RET` statement and evaluate that
+expression; they do not execute arbitrary earlier statements in the body.

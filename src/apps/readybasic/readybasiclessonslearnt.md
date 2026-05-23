@@ -10,9 +10,9 @@ actual C64/ReadyOS evidence trail rather than a pile of confident guesses.
 - The app PRG loads at `$1000` and must obey the ReadyOS app/shim window:
   `$1000-$C5FF` is app-owned, `$C600-$C9FF` is reserved metadata/shim space.
 - BASIC programs are data inside the host. The scoped BASIC workspace is now
-  `$2101-$9FFF`, with `32509` formula empty free bytes (31.7K) and `32519`
-  live header bytes at the prompt; raw ReadyBASIC extension lines are left as
-  text rather than crunched into private tokens.
+  `$2401-$9FFF`, with `31741` formula empty free bytes (31.0K); ReadyBASIC
+  extension lines are left as readable text rather than crunched into private
+  tokens.
 - ReadyBASIC suspend state keeps zero-page and stack snapshots in REU bank `$44`
   at offsets `$0A00/$0B00`; saved SP, mode, and line-chain guards live in bridge metadata.
 - Hidden services live under BASIC ROM RAM at `$A000-$BFFF` and visible
@@ -20,7 +20,7 @@ actual C64/ReadyOS evidence trail rather than a pile of confident guesses.
 - A refreshed visible shadow copy of the hidden helper image lives at `$C280-$C5F6`,
   inside the ReadyOS app snapshot window. Warm
   entry restores `$A000` from that shadow before using hidden helpers.
-- The plugin spine keeps visible resident code at `$1200-$20F3`, command
+- The plugin spine keeps visible resident code at `$1200-$23F3`, command
   overlays under BASIC ROM at `$A900-$AF19`, shared frames at `$C200-$C5FF`, and fixed
   ReadyBASIC REU banks `$44/$45`.
 - The current registry has 128 descriptor slots in REU bank `$44` at
@@ -283,9 +283,10 @@ returns the wrong `Y` can corrupt line insertion.
 
 Current POC rule: do not tokenize ReadyBASIC commands yet. `ICRNCH` must call
 the original ROM cruncher first, preserve its returned line length contract, and
-only then apply tiny normalizers such as `THEN !` to `THEN :!` and `THEN EXEC`
-to `THEN :EXEC`. Proper private token support must be reintroduced only with a
-cruncher that preserves all required register and buffer contracts.
+only then apply tiny normalizers such as `THEN COMMAND(...)` to
+`THEN :COMMAND(...)` and `THEN EXEC` to `THEN :EXEC`. Proper private token
+support must be reintroduced only with a cruncher that preserves all required
+register and buffer contracts.
 
 2026-05-11 follow-up: a private `$CC` token experiment made stored `!` lines
 compact, but the visible probe then blanked/crashed during `LIST`. The stable
@@ -306,15 +307,19 @@ locals. A function declared as `FUNC ADDI A%,B%,R%` and called as
 `EXEC ADDI,4,5,A%` will clear the caller's output actual while parsing it; because
 the first formal has the same BASIC variable name, the function then sees `A%=0`.
 
-Current rule: document that V1 has no locals and choose formal names that do not
-collide with caller output variables in examples (`X%,Y%,R%` rather than
-`A%,B%,R%`). A future locals model would need a real variable save/restore or
-private frame mechanism, not just more parser glue.
+2026-05-23 expression-branch follow-up: `FUNC` definitions now avoid a dummy
+output formal and return through `RET expr`, with optional `RET% expr` and
+`RET$ expr`. Statement `EXEC` still captures one final output actual for the
+return destination, but that output variable is no longer also a formal in the
+callee. Current rule: document that V1 has no locals and choose input formal
+names that do not collide with caller variables. A future locals model would
+need a real variable save/restore or private frame mechanism, not just more
+parser glue.
 
-### THEN EXEC Has The Same Stored-Form Rule As THEN Bang
+### THEN EXEC Has The Same Stored-Form Rule As THEN Commands
 
 Proven on 2026-05-22 with `rbproc1`. Interactive ReadyBASIC entry can normalize
-`IF 1 THEN EXEC ADDI,1,2,A%` to `IF 1 THEN :EXEC ADDI,1,2,A%`, but `petcat`
+`IF 1 THEN EXEC ADDI(1,2,A%)` to `IF 1 THEN :EXEC ADDI(1,2,A%)`, but `petcat`
 builds stored programs without running ReadyBASIC's crunch hook. Sample `.bas`
 files built by `petcat` should therefore use the normalized `THEN :EXEC` form.
 
@@ -653,9 +658,11 @@ resident parser wrapper.
 
 Numeric `FUNC` expression returns are different: trying to call the ROM numeric
 expression evaluator from inside the eval hook produced incorrect values and
-left BASIC in a bad parse state. The working branch uses a tiny purpose-built
-integer RHS evaluator for the first-assignment form instead. Keep this path
-narrow unless a larger expression engine is explicitly budgeted.
+left BASIC in a bad parse state. The current branch uses `RET` as the function
+return marker. Statement `EXEC` mode runs the body, so assignment before
+`RET R%` works. Expression mode remains deliberately narrower: it scans to the
+routine's `RET` statement and evaluates that expression, rather than executing
+all earlier BASIC statements in the function body.
 
 ## Open Questions
 

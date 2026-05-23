@@ -37,7 +37,7 @@ ReadyBASIC now duplicates a small amount of ReadyOS REU and shim knowledge in as
 
 - ReadyBASIC still uses:
   - `SHIM_RETURN = $C80C`
-  - bridge state at `$C000-$C1FA`
+  - bridge state at `$C000-$C1F4`
   - shared frames and visible helper shadow at `$C200-$C5FF`
   - app runtime zero-page/stack save in REU bank `$44` offsets `$0A00/$0B00`
 - Do not place ReadyBasic state in `$C800-$C9FF`; that remains shim ABI territory.
@@ -45,16 +45,16 @@ ReadyBASIC now duplicates a small amount of ReadyOS REU and shim knowledge in as
 
 ## Current ReadyBASIC Memory Snapshot
 
-- `BASIC_START = $2101`; BASIC owns `$2101-$9FFF`, with `32509` formula empty free bytes and `32519` live header bytes.
+- `BASIC_START = $2401`; BASIC owns `$2401-$9FFF`, with `31741` formula empty free bytes.
 - `ENTRY` lives at `$1000-$1102`.
-- `RESIDENT` lives at `$1200-$20F3` and must stay below `$2100`.
+- `RESIDENT` lives at `$1200-$23F3` and must stay below `$2400`.
 - `CMDPACK` load-only seed space is `$2800-$3FFF`; it is copied to REU bank `$45` on cold entry.
 - `HIDLOAD` load-only helper seed starts at `$4000`.
 - `BRLOAD` load-only bridge seed starts at `$4800`.
 - `REGSEED` load-only registry seed is `$5000-$600F`, size `$1010`.
 - Runtime `LOWPACK` is `$A900-$AF19`, size `$061A`.
 - Runtime `HIDDENPACK` is `$A800-$A84C`, size `$004D`.
-- Runtime `BRIDGE` is `$C000-$C1FA`, size `$01FB`; the native `PROC`/`FUNC`
+- Runtime `BRIDGE` is `$C000-$C1F4`, size `$01F5`; the native `PROC`/`FUNC`
   return stack lives here and must stay below shared frames at `$C200`.
 
 ## Bank `$44` ReadyBASIC Core Layout
@@ -99,16 +99,18 @@ Branch-specific sync points:
 
 - `BASIC_START = $2401`; BASIC owns `$2401-$9FFF`, with `31741` formula empty
   free bytes.
-- `RESIDENT = $1200-$23DE`, size `$11DF` / 4575B.
-- `BRIDGE = $C000-$C1FF`, size `$0200` / 512B.
+- `RESIDENT = $1200-$23F3`, size `$11F4` / 4596B.
+- `BRIDGE = $C000-$C1F4`, size `$01F5` / 501B.
 - `LOWPACK` remains `$061A`; command overlay bytes did not grow.
-- Bare statement commands use the same descriptor/signature parser as the legacy
-  `!` path.
+- Bare statement commands use the same descriptor/signature parser as expression
+  commands; the legacy `!` statement path is removed on this branch.
 - Command expressions cover scalar/string-result signatures such as
   `ZECHO1()`, `ZADD16(a,b)`, `UPPER(s$)`, `LOWER(s$)`, `ZHIDDENRAM(s$)`,
   `BUFNEW(n)`, `ZTEMPSCRATCH(n)`, `SCRCAP()`, and `ZSUMNUMARRAY(a%(0),n)`.
-- String and numeric `FUNC` calls can return as BASIC expressions when the first
-  statement after the definition assigns the final formal.
+- String and numeric `FUNC` calls return through `RET`, `RET%`, or `RET$`.
+  Statement `EXEC` runs the body and commits the return to the final output
+  actual; expression calls scan to the routine's `RET` statement and evaluate
+  that expression.
 
 ## Typed Handles
 

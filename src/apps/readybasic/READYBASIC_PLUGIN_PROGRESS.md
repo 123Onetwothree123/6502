@@ -15,30 +15,36 @@ as `PING`, `ADD16`, `STRUP`, `HCRC`, `SUMAI`, `RANGEAI`, `TEMPSCRATCH`, and
 - Branch: `exp/readybasic-expression-style`.
 - Added bare `COMMAND(...)` statement dispatch, sharing the existing descriptor
   lookup, signature parser, overlay loader, and result commit path. The legacy
-  `!COMMAND args` statement form remains available as compatibility.
+  `!COMMAND args` statement form was later removed on this branch to keep the
+  natural BASIC syntax lean.
 - Added `$030A/$030B` eval-vector hook for selected expression returns:
   `ZECHO1()`, `ZADD16(a,b)`, `UPPER(s$)`, `LOWER(s$)`, `ZHIDDENRAM(s$)`,
   `ZSUMNUMARRAY(a%(0),n)`, `BUFNEW(n)`, `ZTEMPSCRATCH(n)`, and `SCRCAP()`.
 - Added parenthesized `PROC`/`FUNC` definitions and parenthesized non-empty
   `EXEC` actual lists. Zero-argument routines still use `EXEC NAME`; `EXEC
   NAME()` was cut for resident size.
-- Added string and numeric `FUNC` expression returns when the first statement
-  after the `FUNC` definition assigns the final formal. String returns use the
-  ROM string evaluator under a re-entry guard; numeric returns use a small
-  integer RHS evaluator instead of re-entering the full ROM numeric parser.
+- Reworked `FUNC` so definitions have input formals only and return with
+  `RET expr`. Optional `RET% expr` and `RET$ expr` markers make the return type
+  explicit. Statement `EXEC` to a `FUNC` still supplies one extra final output
+  actual, and now supports the common "assign later, then `RET R%`" pattern.
+  Expression `FUNC` calls scan to `RET` and evaluate that expression; they do
+  not execute arbitrary earlier statements in the body.
 - Memory impact versus the native PROC/FUNC baseline:
   - `BASIC_START`: `$2101` -> `$2401`.
   - Empty BASIC free bytes: `32509` -> `31741`, delta `-768`.
-  - `RESIDENT`: `$0EF4` / 3828B -> `$11DF` / 4575B, delta `+747`.
-  - `BRIDGE`: `$01FB` / 507B -> `$0200` / 512B, delta `+5`.
+  - `RESIDENT`: `$0EF4` / 3828B -> `$11F4` / 4596B, delta `+768`.
+  - `BRIDGE`: `$01FB` / 507B -> `$01F5` / 501B, delta `-6`.
   - `LOWPACK`: unchanged at `$061A` / 1562B.
   - `bin/readybasic.prg`: unchanged at `20994` bytes.
 - Verification:
   - `make readybasic-plugin-static-check`: pass.
   - Focused VICE expression probe: pass for bare command statements, command
-    expressions, parenthesized `EXEC`, numeric `FUNC` through output actual,
-    numeric `FUNC` expression return/assignment, and string `FUNC` expression
-    return.
+    expressions, parenthesized `EXEC`, statement `FUNC` with later assignment
+    plus `RET`, numeric `FUNC` expression return/assignment, and string `FUNC`
+    expression return.
+  - `RBPROC1` stored-program probe: pass for no-param `PROC`, `%`/`$` inputs,
+    `%`/`$` returns, explicit `RET%`/`RET$`, colon chain, normalized
+    `IF THEN :EXEC`, nested depth 2, expression `FUNC`, and readable `LIST`.
   - Parenthesized `RBPROCERR` negative VICE probe: pass for unknown routine,
     missing/wrong args, missing `FUNC` output, extra `PROC` actual, bare `ENDP`,
     and stack overflow.

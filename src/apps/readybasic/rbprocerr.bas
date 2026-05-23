@@ -20,8 +20,8 @@
 1010 endp
 1100 proc needs(s$)
 1110 endp
-1200 func fni(p%,r%)
-1210 r%=p%+1
+1200 func fni(p%)
+1210 ret p%+1
 1220 endp
 1300 proc nop(p%)
 1310 endp

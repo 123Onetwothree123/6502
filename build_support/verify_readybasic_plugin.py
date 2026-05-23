@@ -78,14 +78,24 @@ def main() -> None:
 
     if resident[0] != 0x1200 or resident[1] >= 0x2400:
         fail(f"RESIDENT must fit in $1200-$23FF, got ${resident[0]:04X}-${resident[1]:04X}")
+    if resident[2] > 0x11F4:
+        fail(f"RESIDENT grew past measured expression-style budget $11F4, got ${resident[2]:04X}")
     if lowpack[0] != 0xA900 or lowpack[1] > 0xBFFF:
         fail(f"LOWPACK must fit under BASIC ROM at $A900-$BFFF, got ${lowpack[0]:04X}-${lowpack[1]:04X}")
+    if lowpack[2] != 0x061A:
+        fail(f"LOWPACK size changed from measured $061A, got ${lowpack[2]:04X}")
     if hidden[0] != 0xA000 or hidden[1] > 0xA5FF:
         fail(f"HIDDEN helper must fit in $A000-$A5FF, got ${hidden[0]:04X}-${hidden[1]:04X}")
+    if hidden[2] != 0x0377:
+        fail(f"HIDDEN helper size changed from measured $0377, got ${hidden[2]:04X}")
     if hiddenpack[0] < 0xA000 or hiddenpack[1] > 0xBFFF:
         fail(f"HIDDENPACK must fit in $A000-$BFFF, got ${hiddenpack[0]:04X}-${hiddenpack[1]:04X}")
+    if hiddenpack[2] != 0x004D:
+        fail(f"HIDDENPACK size changed from measured $004D, got ${hiddenpack[2]:04X}")
     if bridge[0] != 0xC000 or bridge[1] >= 0xC200:
         fail(f"BRIDGE must stay below relocated shared frames at $C200, got ${bridge[0]:04X}-${bridge[1]:04X}")
+    if bridge[2] > 0x01F5:
+        fail(f"BRIDGE grew past measured expression-style budget $01F5, got ${bridge[2]:04X}")
     require(r"^RB_CF\s*=\s*\$C200\b", asm, "RB_CF must be relocated to $C200")
     require(r"^RB_RF\s*=\s*\$C300\b", asm, "RB_RF must be relocated to $C300")
     require(r"^RB_DESC_BUF\s*=\s*\$C480\b", asm, "RB_DESC_BUF must be relocated to $C480")
