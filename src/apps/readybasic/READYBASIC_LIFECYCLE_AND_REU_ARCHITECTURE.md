@@ -44,12 +44,12 @@ The current map confirms this layout:
 | Segment | Runtime range | Size | Role |
 |---|---:|---:|---|
 | `ENTRY` | `$1000-$1102` | `$0103` (259B) | App entry, cold/warm discriminator, early copies. |
-| `RESIDENT` | `$1200-$20F3` | `$0EF4` (3.7K, 3828 exact bytes) | Visible parser, ROM calls, REU DMA wrappers, result commit, native `PROC`/`FUNC` dispatch. |
+| `RESIDENT` | `$1200-$23DE` | `$11DF` (4.5K, 4575 exact bytes) | Visible parser, ROM calls, REU DMA wrappers, result commit, bare command dispatch, eval hook, native `PROC`/`FUNC` dispatch. |
 | `REGSEED` | `$5000-$600F` | `$1010` (4.0K, 4112 exact bytes) | Load-only registry header and 128 command descriptors used on cold seed. |
 | `HIDDEN` | `$A000-$A376` | `$0377` (0.9K, 887 exact bytes) | Hidden helper routines under BASIC ROM. |
 | `HIDDENPACK` | `$A800-$A84C` | `$004D` (77B) | Hidden worker overlay image, loaded to REU bank `$45`. |
 | `LOWPACK` | `$A900-$AF19` | `$061A` (1.5K, 1562 exact bytes) | Banked low overlay image under BASIC ROM, loaded from REU bank `$45`. |
-| `BRIDGE` | `$C000-$C1FA` | `$01FB` (507B) | Persistent bridge/state bytes plus the four-entry native routine return stack. |
+| `BRIDGE` | `$C000-$C1FF` | `$0200` (512B) | Persistent bridge/state bytes plus the four-entry native routine return stack. |
 
 ## Technical Philosophy
 
@@ -93,9 +93,9 @@ live inside that contract while also hosting BASIC.
 ```mermaid
 flowchart TB
   A["$1000-$1102 ENTRY<br/>load entry and cold/warm cookie"]
-  B["$1200-$20F3 RESIDENT<br/>visible parser, vector hook, REU DMA, commit, PROC/FUNC"]
+  B["$1200-$23DE RESIDENT<br/>visible parser, vector hooks, REU DMA, commit, PROC/FUNC"]
   C["$2100 SENTINEL<br/>must be zero for BASIC RUN"]
-  D["$2101-$9FFF BASIC WORKSPACE<br/>32509 formula free bytes / 31.7K"]
+  D["$2401-$9FFF BASIC WORKSPACE<br/>31741 formula free bytes / 31.0K"]
   E["$2800-$3FFF CMDPACK LOAD IMAGE<br/>low and hidden overlay seed bytes before cold prestash"]
   F["REU $44:$0A00-$0BFF RUNTIME SNAPSHOT<br/>zero page and stack / 0.5K"]
   G["$C200-$C5FF SHARED FRAMES<br/>call/result/descriptor/name/page buffers / 1.0K"]
@@ -103,7 +103,7 @@ flowchart TB
   J["$A000-$A376 HIDDEN HELPER<br/>runs under BASIC ROM RAM"]
   K["$A800-$A84C HIDDEN OVERLAY<br/>ZHIDDENRAM worker copied from REU bank $45"]
   O["$A900-$AF19 LOW OVERLAY<br/>low workers under BASIC ROM RAM"]
-  L["$C000-$C1FA BRIDGE STATE<br/>magic, saved vectors, overlay vars, handle scratch, PROC/FUNC stack"]
+  L["$C000-$C1FF BRIDGE STATE<br/>magic, saved vectors, overlay vars, handle scratch, PROC/FUNC stack"]
   M["$C600-$C7FF READYOS REU METADATA<br/>only bank ownership tags here"]
   N["$C800-$C9FF SHIM ABI<br/>ReadyOS jump table/data, not app RAM"]
 
@@ -206,7 +206,7 @@ flowchart TB
   H["$0000 Header<br/>RBPL, version, descriptor count, frame offsets"]
   D["$1000-$1FFF Descriptors<br/>128 x 32-byte command slots"]
   C["$0400 Call frame snapshot<br/>copy of $C200 frame"]
-  R["$0500 Result frame snapshot<br/>copy of $C300 frame"]
+  R["$0400 Result frame snapshot<br/>copy of $C300 frame"]
   DBG["$0600 Debug ring reserved<br/>parser/command breadcrumbs"]
   HM["$0800-$09FF Handle directory<br/>128 x 4-byte descriptors"]
   ZP["$0A00 Zero-page snapshot<br/>ReadyOS suspend/resume"]
@@ -225,7 +225,7 @@ Exact bank `$44` suballocation sizes:
 | `$0000-$000F` | Header. | `$0010` | 16B | 16 |
 | `$0010-$03FF` | Reserved common/system metadata space before frames. | `$03F0` | 1.0K | 1008 |
 | `$0400-$04FF` | Call frame snapshot. | `$0100` | 256B | 256 |
-| `$0500-$05FF` | Result frame snapshot. | `$0100` | 256B | 256 |
+| `$0400-$05FF` | Result frame snapshot. | `$0100` | 256B | 256 |
 | `$0600-$07FF` | Reserved REU debug ring. | `$0200` | 0.5K | 512 |
 | `$0800-$09FF` | 128-handle directory, 4 bytes per descriptor. | `$0200` | 0.5K | 512 |
 | `$0A00-$0AFF` | Zero-page snapshot. | `$0100` | 256B | 256 |
@@ -471,7 +471,7 @@ sequenceDiagram
     RES->>HID: Call with RAM under BASIC visible
     HID-->>RES: Result frame at $C300
   end
-  RES->>R44: Stash result frame $C300 -> $0500
+  RES->>R44: Stash result frame $C300 -> $0400
   RES->>RES: Commit result to BASIC variable/string/array
   RES-->>BASIC: BASIC_NEXT_STMT
 ```
@@ -487,7 +487,7 @@ sequenceDiagram
 | Page buffer | `$C500` | 256-byte descriptor/bitmap page buffer for handle operations and warm-resume stack staging. |
 
 The call and result frames are also mirrored to REU bank `$44` offsets `$0400`
-and `$0500`. This gives crash/debug visibility and gives future worker models a
+and `$0400`. This gives crash/debug visibility and gives future worker models a
 stable mailbox shape.
 
 ## Parameter And Result Semantics
@@ -526,15 +526,15 @@ BASIC's string heap.
 
 | Command | Code placement | REU code bytes copied | Parameters | Result behavior |
 |---|---|---:|---|---|
-| `!ZECHO1 OUT%` | Low overlay at `$A900+$0000` | `$0015` (21B) | output int | Returns `1`. |
-| `!ZADD16 A,B,OUT%` | Low overlay at `$A900+$0015` | `$001E` (30B) | two numeric expressions, output int | Returns 16-bit sum. |
-| `!UPPER S$,OUT$` | Low overlay at `$A900+$0033` | `$003B` (59B) | string variable or literal, output string | Uppercases staged bytes. |
-| `!LOWER S$,OUT$` | Low overlay at `$A900+$006E` | `$003B` (59B) | string variable or literal, output string | Lowercases staged byte values; tests assert `ASC()` bytes because C64 display case is charset-dependent. |
-| `!ZHIDDENRAM S$,OUT%` | Hidden overlay at `$A800` | `$004D` (77B) | string variable or literal, output int | Sums uppercase bytes. |
-| `!ZSUMNUMARRAY A%(0),COUNT,OUT%` | Low overlay at `$A900+$00A9` | `$0044` (68B) | integer array base/count, output int | Sums integer array values. |
-| `!ZRANGENUMARRAY START,COUNT,A%(0)` | Low overlay at `$A900+$00ED` | `$003D` (61B) | start/count, output array | Stages consecutive integers. |
-| `!BUFNEW LEN,H%` | Low overlay entry `$012A` | `$061A` (1.5K) | length, output handle | Allocates persistent buffer pages in bank `$44`. |
-| `!BUFFILL H%,BYTE` | Low overlay entry `$012E` | `$061A` (1.5K) | buffer handle, byte | Fills buffer handle pages using `$C500` page buffer. |
+| `ZECHO1(OUT%)` / `ZECHO1()` | Low overlay at `$A900+$0000` | `$0015` (21B) | output int or expression int | Returns `1`. |
+| `ZADD16(A,B,OUT%)` / `ZADD16(A,B)` | Low overlay at `$A900+$0015` | `$001E` (30B) | two numeric expressions, output or expression int | Returns 16-bit sum. |
+| `UPPER(S$,OUT$)` / `UPPER(S$)` | Low overlay at `$A900+$0033` | `$003B` (59B) | string variable or literal, output/expression string | Uppercases staged bytes. |
+| `LOWER(S$,OUT$)` / `LOWER(S$)` | Low overlay at `$A900+$006E` | `$003B` (59B) | string variable or literal, output/expression string | Lowercases staged byte values; tests assert `ASC()` bytes because C64 display case is charset-dependent. |
+| `ZHIDDENRAM(S$,OUT%)` / `ZHIDDENRAM(S$)` | Hidden overlay at `$A800` | `$004D` (77B) | string variable or literal, output/expression int | Sums uppercase bytes. |
+| `ZSUMNUMARRAY(A%(0),COUNT,OUT%)` / `ZSUMNUMARRAY(A%(0),COUNT)` | Low overlay at `$A900+$00A9` | `$0044` (68B) | integer array base/count, output/expression int | Sums integer array values. |
+| `ZRANGENUMARRAY(START,COUNT,A%(0))` | Low overlay at `$A900+$00ED` | `$003D` (61B) | start/count, output array | Stages consecutive integers. |
+| `BUFNEW(LEN,H%)` / `BUFNEW(LEN)` | Low overlay entry `$012A` | `$061A` (1.5K) | length, output/expression handle | Allocates persistent buffer pages in bank `$44`. |
+| `BUFFILL(H%,BYTE)` | Low overlay entry `$012E` | `$061A` (1.5K) | buffer handle, byte | Fills buffer handle pages using `$C500` page buffer. |
 | `!BUFFREE H%` | Low overlay entry `$0132` | `$061A` (1.5K) | handle | Frees any valid handle type and clears metadata. |
 | `!ZTEMPSCRATCH LEN,OUT%` | Low overlay entry `$0136` | `$061A` (1.5K) | length, output int | Allocates then frees pages, returns page count. |
 | `!ZFAIL CODE,OUT%` | Low overlay at `$A900+$013A` | `$001B` (27B) | code, output int | Clears output first, then returns `?RB ERROR code`. |
@@ -605,9 +605,30 @@ These invariants are the current safety rails:
 
 - ReadyBASIC must be booted through normal ReadyOS profile/run flow, not as a
   standalone app.
-- `BASIC_START` stays `$2101`.
-- `$2100` stays zero before stored-program `RUN`.
-- `RESIDENT` stays below `$2100`.
+- On the native PROC/FUNC baseline, `BASIC_START` stays `$2101`.
+
+## Expression-Style Branch Delta
+
+The `exp/readybasic-expression-style` branch moves the live BASIC workspace to
+`$2401-$9FFF` so the resident eval-vector experiment can fit. This supersedes
+the `$2101` current-layout values on that branch only; older sections above
+retain the measurements that were current when written.
+
+| Segment | Range | Size |
+|---|---:|---:|
+| `RESIDENT` | `$1200-$23DE` | `$11DF` / 4575B |
+| `PADLOW` | `$2400-$27FF` | `$0400` / 1280B |
+| `REGSEED` | `$5000-$600F` | `$1010` / 4112B |
+| `HIDDEN` | `$A000-$A376` | `$0377` / 887B |
+| `HIDDENPACK` | `$A800-$A84C` | `$004D` / 77B |
+| `LOWPACK` | `$A900-$AF19` | `$061A` / 1562B |
+| `BRIDGE` | `$C000-$C1FF` | `$0200` / 512B |
+
+Formula empty BASIC free bytes are `31741`, a `768` byte reduction from the
+native PROC/FUNC `$2101` layout. Command overlays and REU descriptor layout are
+unchanged.
+- On that baseline, `$2100` stays zero before stored-program `RUN`.
+- On that baseline, `RESIDENT` stays below `$2100`.
 - `BRIDGE` stays below `$C200`, leaving `$C200-$C5FF` for shared frames.
 - `$C600-$C7FF` is ReadyOS REU metadata, not ReadyBASIC scratch.
 - `$C800-$C9FF` remains shim ABI.

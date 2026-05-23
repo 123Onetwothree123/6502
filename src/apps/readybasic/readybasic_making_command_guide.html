@@ -105,7 +105,7 @@
 <body>
   <header>
     <h1>ReadyBASIC Making Command Guide</h1>
-    <p class="muted">A teaching guide for how current <code>!COMMAND</code> examples are wired into descriptors, parser signatures, low overlays, hidden overlays, and REU handles.</p>
+    <p class="muted">A teaching guide for how current bare <code>COMMAND(...)</code> examples are wired into descriptors, parser signatures, low overlays, hidden overlays, and REU handles.</p>
     <p><span class="chip">128 descriptor slots</span><span class="chip">SCRCAP slot 14</span><span class="chip">SCRPUT slot 128</span><span class="chip">LOWPACK $061A</span></p>
   </header>
 
@@ -113,10 +113,10 @@
 	    <h2>What You Are Building</h2>
 	    <p>A ReadyBASIC command is not just one assembler routine. It is a contract between BASIC text, resident parser code, a cold REU descriptor, and an overlay worker copied into C64 RAM only when needed.</p>
 	    <div class="card warn">
-	      <p>Native <code>PROC</code>/<code>FUNC</code> routines are not plugin commands. They are ordinary BASIC program text called by <code>EXEC</code>, so they do not need descriptors, command ids, signature ids, <code>LOWPACK</code>, <code>HIDDENPACK</code>, or REU bank <code>$45</code> code bytes. Use this guide when adding new <code>!COMMAND</code> overlays.</p>
+	      <p>Native <code>PROC</code>/<code>FUNC</code> routines are not plugin commands. They are ordinary BASIC program text called by <code>EXEC</code>, so they do not need descriptors, command ids, signature ids, <code>LOWPACK</code>, <code>HIDDENPACK</code>, or REU bank <code>$45</code> code bytes. Use this guide when adding new descriptor-backed command overlays.</p>
 	    </div>
 	    <div class="flow">
-      <div class="card lesson"><h3>1. User Types</h3><p><code>!ZADD16 4,5,A%</code> is visible BASIC text. The command name must survive C64 tokenization.</p></div>
+      <div class="card lesson"><h3>1. User Types</h3><p><code>ZADD16(4,5,A%)</code> is visible BASIC text. The command name must survive C64 tokenization.</p></div>
       <div class="card lesson"><h3>2. Lookup</h3><p>ReadyBASIC pages descriptor records from REU bank <code>$44</code> and finds the matching command name.</p></div>
       <div class="card lesson"><h3>3. Parse</h3><p>The descriptor's signature id selects resident parser code, which fills <code>CF_*</code> call-frame fields.</p></div>
       <div class="card lesson"><h3>4. Execute</h3><p>The descriptor tells ReadyBASIC which packed code bytes to copy from REU bank <code>$45</code> and where to call them.</p></div>
@@ -127,26 +127,27 @@
   <section>
     <h2>When To Use PROC/FUNC Instead</h2>
     <p>Use a native routine when reusable logic is naturally BASIC code and should live in the user's program.</p>
-<pre><code>1000 PROC DRAW P%,N$
+<pre><code>1000 PROC DRAW(P%,N$)
 1010 PRINT P%;N$
 1020 ENDP
 
-1100 FUNC ADDI X%,Y%,R%
+1100 FUNC ADDI(X%,Y%,R%)
 1110 R%=X%+Y%
 1120 ENDP
 
-10 EXEC DRAW,3,"PLAYER"
-20 EXEC ADDI,4,5,A%</code></pre>
+10 EXEC DRAW(3,"PLAYER")
+20 EXEC ADDI(4,5,A%)
+30 PRINT ADDI(6,7)</code></pre>
     <div class="card">
       <p><code>PROC</code> has input formals only. <code>FUNC</code> uses its final formal as one output formal. V1 supports only <code>%</code> integer and <code>$</code> string formals, no arrays, locals, plain floating variables, by-reference parameters, or multiple outputs. Definitions should live after <code>END</code>; fall-through into a definition is invalid.</p>
-      <p>Use a <code>!COMMAND</code> overlay when the routine needs hidden RAM, REU handles, fast machine-code loops, direct screen/color memory, or shared command behavior.</p>
+      <p>Use a descriptor-backed command overlay when the routine needs hidden RAM, REU handles, fast machine-code loops, direct screen/color memory, or shared command behavior.</p>
     </div>
   </section>
 
 	  <section>
     <h2>Naming Rules</h2>
     <div class="card warn">
-      <p>ReadyBASIC names are visible BASIC text after <code>!</code>, not private tokens. Avoid substrings that C64 BASIC can tokenize inside the command name.</p>
+      <p>ReadyBASIC names are visible BASIC text, not private tokens. Avoid substrings that C64 BASIC can tokenize inside the command name.</p>
       <p>Proof/demo commands use <code>Z...</code>. Array demos use <code>NUM</code> instead of <code>INT</code>. Historical names like <code>PING</code>, <code>ADD16</code>, <code>STRUP</code>, <code>HCRC</code>, <code>SUMAI</code>, and <code>RANGEAI</code> are not aliases.</p>
       <p>The current proof/demo names are <code>ZECHO1</code>, <code>ZADD16</code>, <code>ZHIDDENRAM</code>, <code>ZSUMNUMARRAY</code>, <code>ZRANGENUMARRAY</code>, <code>ZTEMPSCRATCH</code>, and <code>ZFAIL</code>. The useful string commands are <code>UPPER</code> and <code>LOWER</code>.</p>
     </div>
@@ -497,6 +498,27 @@ CMD_LOW_ALL CMD_SCRPUT, SIG_SCRPUT, cmd_scrput_low, "SCRPUT"</code></pre>
         <tr><td><code>rb_screen_load_text/color</code></td><td>Restore text RAM and color RAM from a screen handle.</td></tr>
       </tbody>
     </table>
+  </section>
+
+  <section>
+    <h2>Expression-Style Experiment</h2>
+    <p>
+      The 2026-05-23 expression branch adds bare statement calls and an eval-vector
+      hook for a small expression-safe subset. Commands can run as
+      <code>ZADD16(4,5,A%)</code> or return values as <code>ZADD16(5,10)</code> and
+      <code>UPPER("ready")</code>. Commands with array outputs or no scalar result
+      remain statement-only; scalar handle returns such as <code>BUFNEW(n)</code>
+      and <code>SCRCAP()</code> are expression-enabled.
+    </p>
+    <p>
+      Native routines accept parenthesized non-empty argument lists:
+      <code>PROC SHOWI(P%)</code> and <code>EXEC SHOWI(7)</code>. String
+      <code>FUNC</code> routines can be used as expressions when the first statement
+      after the definition assigns the final formal, for example
+      <code>A$=GREET("READY")</code> or <code>PRINT ADDI(6,7)</code>. Numeric returns
+      use a small integer RHS evaluator instead of re-entering the ROM numeric
+      parser.
+    </p>
   </section>
 
   <script>

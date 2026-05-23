@@ -2,10 +2,10 @@
 ; readybasic.s - lean ReadyBASIC REU plugin command spine
 ;
 ; Load address: $1000
-; Visible resident core: $1200-$20FF
+; Visible resident core: $1200-$23FF
 ; Low command overlay: $A900-$BFFF, under BASIC ROM
 ; Shared call/result buffers: $C200-$C5FF
-; BASIC workspace: $2101-$9FFF
+; BASIC workspace: $2401-$9FFF
 ; Runtime zero page/stack snapshot: REU bank $44 offsets $0A00/$0B00
 ; Hidden helper shadow: $C280+, restored to $A000+ on warm entry
 ; Bridge state/trampolines: $C000-$C1FF
@@ -22,10 +22,13 @@ CHRGOT          = $0079
 BASIC_READY     = $A474
 BASIC_NEXT_STMT = $A7AE
 BASIC_GONE      = $A7E4
+BASIC_EVAL      = $AE86
+BASIC_FRMEVL    = $AD9E
 BASIC_FRMNUM    = $AD8A
 BASIC_CHKCOM    = $AEFD
 BASIC_SYNERR    = $AF08
 BASIC_PTRGET    = $B08B
+BASIC_GIVAYF    = $B391
 BASIC_GETADR    = $B7F7
 BASIC_LINPRT    = $BDCD
 BASIC_RESTORE_VECTORS = $E453
@@ -53,12 +56,17 @@ TXTPTR          = $7A
 DFLTN           = $99
 VARPNT          = $47
 SUBFLG          = $10
+DSCPTR          = $64
+DSCPTR_HI       = $65
+FAC_EXP         = $61
+FAC_MANT1       = $62
+FAC_MANT2       = $63
 KEYD_COUNT      = $00C6
 COLOR_CODE      = $0286
 KERNAL_MEMTOP   = $0281
 KERNAL_MEMBOT   = $0283
 
-BASIC_START     = $2101
+BASIC_START     = $2401
 BASIC_SENTINEL  = BASIC_START - 1
 BASIC_LIMIT     = $A000
 BASIC_BYTES_FREE = BASIC_LIMIT - (BASIC_START + 2)
@@ -94,6 +102,8 @@ RB_RESUME_RUN   = 1
 TOKEN_THEN      = $A7
 TOKEN_END       = $80
 TOKEN_REM       = $8F
+TOKEN_PLUS      = $AA
+TOKEN_EQUAL     = $B2
 
 RAM_UNDER_BASIC = $FD
 RAM_UNDER_BASIC_KEEP_KERNAL = $FE
@@ -159,7 +169,7 @@ RB_REU_ALLOC_TABLE = $C600
 RB_REU_HEADER_OFF  = $0000
 RB_REU_DESC_OFF    = $1000
 RB_REU_CALL_OFF    = $0400
-RB_REU_RESULT_OFF  = $0500
+RB_REU_RESULT_OFF  = $0400
 RB_REU_DEBUG_OFF   = $0600
 RB_REU_HANDLE_OFF  = $0800
 RB_REU_HEAP_OFF    = $0C00
@@ -367,7 +377,7 @@ rb_entry_magic2:.byte 0
 rb_entry_cpu:   .byte 0
 
         .segment "PADLOW"
-        .res $0700, 0
+        .res $0400, 0
 
 ; ---------------------------------------------------------------------------
 ; Visible resident core.
@@ -462,6 +472,10 @@ install_vectors:
         sta $0308
         lda #>rb_execute
         sta $0309
+        lda #<rb_eval
+        sta $030A
+        lda #>rb_eval
+        sta $030B
         rts
 
 restore_vectors:
@@ -479,6 +493,10 @@ restore_vectors:
         sta $0308
         lda rb_orig_execute_hi
         sta $0309
+        lda #<BASIC_EVAL
+        sta $030A
+        lda #>BASIC_EVAL
+        sta $030B
 @done:
         rts
 
@@ -500,7 +518,7 @@ rb_execute:
         beq @maybe_e
         cmp #TOKEN_END
         beq @maybe_endp
-        jmp rb_call_orig_execute
+        jmp rb_maybe_bare_command
 @got_bang:
         lda rb_peek_lo
         sta TXTPTR
@@ -534,6 +552,34 @@ rb_execute:
 
 rb_call_orig_execute:
         jmp (rb_orig_execute_lo)
+
+rb_maybe_bare_command:
+        lda rb_peek_lo
+        sta TXTPTR
+        lda rb_peek_hi
+        sta TXTPTR+1
+        jsr rb_parse_command_name
+        bcc @fallback
+        jsr CHRGOT
+        cmp #'('
+        bne @fallback
+        jsr rb_lookup_command
+        bcc @fallback
+        jsr CHRGET
+        jsr rb_plugin_statement_found
+        jsr rb_expr_expect_close
+        jmp BASIC_NEXT_STMT
+@fallback:
+        lda rb_peek_lo
+        bne :+
+        dec rb_peek_hi
+:
+        dec rb_peek_lo
+        lda rb_peek_lo
+        sta TXTPTR
+        lda rb_peek_hi
+        sta TXTPTR+1
+        jmp rb_call_orig_execute
 
 rb_peek_next_nonspace:
         lda TXTPTR
@@ -904,6 +950,7 @@ rb_exec_statement:
 :       lda #0
         sta CF_PARAM_COUNT
         sta rb_exec_out_type
+        sta rb_expr_type
         jsr rb_bind_exec_args
         bcs :+
         jmp BASIC_SYNERR
@@ -1263,6 +1310,7 @@ rb_bind_exec_args:
         rts
 :       jsr BASIC_FRMNUM
         jsr BASIC_GETADR
+@got_int:
         lda TXTPTR
         sta rb_actual_lo
         lda TXTPTR+1
@@ -1277,6 +1325,7 @@ rb_bind_exec_args:
         iny
         lda LINNUM
         sta (rb_ptr_lo),y
+        inc CF_PARAM_COUNT
         jmp @advance_form
 @string:
         lda rb_found_kind
@@ -1291,6 +1340,11 @@ rb_bind_exec_args:
         sta rb_exec_formal_lo
         lda rb_formal_hi
         sta rb_exec_formal_hi
+        lda rb_expr_type
+        beq :+
+        jsr rb_actual_at_end
+        rts
+:
         jsr rb_exec_next_actual
         bcs :+
         rts
@@ -1361,6 +1415,19 @@ rb_next_formal:
         lda rb_form_hi
         sta TXTPTR+1
         jsr rb_skip_spaces
+        cmp #'('
+        bne :+
+        jsr CHRGET
+        jsr rb_skip_spaces
+:       cmp #')'
+        bne :+
+        jsr CHRGET
+        lda TXTPTR
+        sta rb_form_lo
+        lda TXTPTR+1
+        sta rb_form_hi
+        jmp @no
+:
         cmp #','
         bne :+
         jsr CHRGET
@@ -1396,11 +1463,17 @@ rb_exec_next_actual:
         lda rb_actual_hi
         sta TXTPTR+1
         jsr rb_skip_spaces
+        ldx CF_PARAM_COUNT
+        bne @comma
+        cmp #'('
+        beq @take
+@comma:
         cmp #','
         beq :+
         clc
         rts
-:       jsr CHRGET
+:
+@take:  jsr CHRGET
         jsr rb_skip_spaces
         lda TXTPTR
         sta rb_actual_lo
@@ -1415,6 +1488,11 @@ rb_actual_at_end:
         lda rb_actual_hi
         sta TXTPTR+1
         jsr rb_skip_spaces
+        cmp #')'
+        bne :+
+        jsr CHRGET
+        jsr rb_skip_spaces
+:
         cmp #0
         beq @ok
         cmp #':'
@@ -1439,6 +1517,10 @@ rb_plugin_statement:
         lda #$01
         jmp rb_runtime_error
 @found:
+        jsr rb_plugin_statement_found
+        jmp BASIC_NEXT_STMT
+
+rb_plugin_statement_found:
         lda RB_DESC_BUF
         sta CF_CMD_ID
         lda #0
@@ -1449,7 +1531,7 @@ rb_plugin_statement:
         jsr rb_load_and_call_command
         jsr rb_stash_result_frame
         jsr rb_commit_result
-        jmp BASIC_NEXT_STMT
+        rts
 
 rb_parse_command_name:
         jsr rb_skip_spaces
@@ -1773,6 +1855,8 @@ rb_parse_no_args:
         beq @ok
         cmp #':'
         beq @ok
+        cmp #')'
+        beq @ok
         jmp BASIC_SYNERR
 @ok:
         rts
@@ -1981,6 +2065,311 @@ rb_parse_quoted_string:
 
 rb_parse_type_error:
         jmp BASIC_SYNERR
+
+; ---------------------------------------------------------------------------
+; Expression-style command calls.
+; ---------------------------------------------------------------------------
+
+RB_EXPR_INT     = 1
+RB_EXPR_STRING  = 2
+
+rb_eval:
+        lda rb_crunch_pos
+        beq :+
+        jmp BASIC_EVAL
+:
+        lda TXTPTR
+        sta rb_eval_save_lo
+        lda TXTPTR+1
+        sta rb_eval_save_hi
+        jsr CHRGET
+        jsr rb_parse_command_name
+        bcs :+
+        jmp rb_eval_fallback
+:       jsr CHRGOT
+        cmp #'('
+        beq :+
+        jmp rb_eval_fallback
+:       jsr rb_lookup_command
+        bcs :+
+        jsr rb_eval_func
+        bcs @done
+        jmp rb_eval_fallback
+:       jsr CHRGET
+        lda RB_DESC_BUF
+        sta CF_CMD_ID
+        lda #0
+        sta CF_PARAM_COUNT
+        sta rb_out_count
+        sta INTFLG
+        lda #RB_EXPR_INT
+        sta rb_expr_type
+        jsr rb_clear_result_frame
+        jsr rb_parse_expr_signature
+        jsr rb_expr_expect_close
+        jsr rb_stash_call_frame
+        jsr rb_load_and_call_command
+        jsr rb_stash_result_frame
+        lda RF_STATUS
+        beq :+
+        lda RF_ERROR
+        bne @runtime
+        lda RF_STATUS
+@runtime:
+        jmp rb_runtime_error
+:       lda rb_expr_type
+        cmp #RB_EXPR_STRING
+        beq rb_expr_return_string
+        lda RF_TAG
+        cmp #RB_VAL_INT
+        bne rb_expr_bad_type
+        lda RF_VAL_HI
+        ldy RF_VAL_LO
+        jmp BASIC_GIVAYF
+@done: rts
+
+rb_expr_return_string:
+        lda RF_TAG
+        cmp #RB_VAL_STRING
+        bne rb_expr_bad_type
+        lda RF_STR_LEN
+        beq @empty
+        jsr rb_alloc_string_heap
+        bcs @string_error
+        jmp @descriptor
+@empty:
+        lda #0
+        sta rb_ptr_lo
+        sta rb_ptr_hi
+@descriptor:
+        lda #$FF
+        sta VALTYP
+        lda RF_STR_LEN
+        sta FAC_EXP
+        lda rb_ptr_lo
+        sta FAC_MANT1
+        lda rb_ptr_hi
+        sta FAC_MANT2
+        lda #<FAC_EXP
+        sta DSCPTR
+        lda #0
+        sta DSCPTR_HI
+        rts
+@string_error:
+        lda #$02
+        jmp rb_runtime_error
+rb_expr_bad_type:
+        jmp BASIC_SYNERR
+
+rb_eval_fallback:
+        lda rb_eval_save_lo
+        sta TXTPTR
+        lda rb_eval_save_hi
+        sta TXTPTR+1
+        jmp BASIC_EVAL
+
+rb_eval_func:
+        lda TXTPTR
+        sta rb_actual_lo
+        lda TXTPTR+1
+        sta rb_actual_hi
+        jsr rb_find_routine
+        bcs :+
+        clc
+        rts
+:       lda rb_found_kind
+        cmp #RB_ROUT_FUNC
+        beq :+
+        clc
+        rts
+:       lda #0
+        sta CF_PARAM_COUNT
+        sta rb_exec_out_type
+        lda #1
+        sta rb_expr_type
+        jsr rb_bind_exec_args
+        bcs :+
+        jmp BASIC_SYNERR
+:       lda TXTPTR
+        sta rb_eval_after_lo
+        lda TXTPTR+1
+        sta rb_eval_after_hi
+        jsr rb_expr_find_return_rhs
+        bcs :+
+        jmp BASIC_SYNERR
+:       lda rb_exec_out_type
+        cmp #RB_OUT_STRING
+        beq @string
+        jsr rb_expr_eval_int_rhs
+        jsr @restore
+        lda LINNUM+1
+        ldy LINNUM
+        jsr BASIC_GIVAYF
+        sec
+        rts
+@string:
+        lda #1
+        sta rb_crunch_pos
+        jsr BASIC_FRMEVL
+        lda #0
+        sta rb_crunch_pos
+@restore:
+        lda rb_eval_after_lo
+        sta TXTPTR
+        lda rb_eval_after_hi
+        sta TXTPTR+1
+        sec
+        rts
+
+rb_expr_find_return_rhs:
+        lda rb_scan_line_lo
+        sta rb_ptr_lo
+        lda rb_scan_line_hi
+        sta rb_ptr_hi
+        ldy #0
+        lda (rb_ptr_lo),y
+        sta rb_scan_line_lo
+        iny
+        lda (rb_ptr_lo),y
+        sta rb_scan_line_hi
+        lda rb_scan_line_lo
+        ora rb_scan_line_hi
+        bne :+
+        clc
+        rts
+:       clc
+        lda rb_scan_line_lo
+        adc #4
+        sta rb_stmt_lo
+        lda rb_scan_line_hi
+        adc #0
+        sta rb_stmt_hi
+        jsr rb_skip_stmt_spaces
+        lda rb_stmt_lo
+        sta TXTPTR
+        lda rb_stmt_hi
+        sta TXTPTR+1
+        lda #0
+        sta SUBFLG
+        jsr BASIC_PTRGET
+        lda VARPNT
+        cmp rb_exec_formal_lo
+        bne @no
+        lda VARPNT+1
+        cmp rb_exec_formal_hi
+        bne @no
+        jsr rb_skip_spaces
+        cmp #TOKEN_EQUAL
+        bne @no
+        jsr CHRGET
+        sec
+        rts
+@no:
+        clc
+        rts
+
+rb_expr_eval_int_rhs:
+        jsr rb_expr_read_int_term
+        lda LINNUM
+        sta rb_saved_count_lo
+        lda LINNUM+1
+        sta rb_saved_count_hi
+        jsr rb_skip_spaces
+        cmp #TOKEN_PLUS
+        bne @done
+        jsr CHRGET
+        jsr rb_expr_read_int_term
+        clc
+        lda LINNUM
+        adc rb_saved_count_lo
+        sta LINNUM
+        lda LINNUM+1
+        adc rb_saved_count_hi
+        sta LINNUM+1
+@done:
+        rts
+
+rb_expr_read_int_term:
+        jsr rb_skip_spaces
+        lda #0
+        sta SUBFLG
+        jsr BASIC_PTRGET
+        lda VALTYP
+        beq :+
+        jmp rb_expr_bad_type
+:
+        lda INTFLG
+        cmp #$80
+        beq :+
+        jmp rb_expr_bad_type
+:
+        lda VARPNT
+        sta rb_ptr_lo
+        lda VARPNT+1
+        sta rb_ptr_hi
+        ldy #0
+        lda (rb_ptr_lo),y
+        sta LINNUM+1
+        iny
+        lda (rb_ptr_lo),y
+        sta LINNUM
+        rts
+
+rb_parse_expr_signature:
+        lda RB_DESC_BUF+14
+        cmp #SIG_ZECHO1
+        beq parse_expr_no_args
+        cmp #SIG_ZADD16
+        beq parse_expr_zadd16
+        cmp #SIG_UPPER
+        beq parse_expr_string_out
+        cmp #SIG_LOWER
+        beq parse_expr_string_out
+        cmp #SIG_ZHIDDENRAM
+        beq parse_expr_int_string
+        cmp #SIG_BUFNEW
+        beq parse_expr_num0
+        cmp #SIG_ZTEMPSCRATCH
+        beq parse_expr_num0
+        cmp #SIG_SCRCAP
+        beq parse_expr_no_args
+        cmp #SIG_ZSUMNUMARRAY
+        beq parse_expr_zsumnumarray
+        jmp BASIC_SYNERR
+
+parse_expr_no_args:
+        rts
+
+parse_expr_zadd16:
+        jsr rb_parse_num0
+        jsr rb_parse_num1
+        rts
+
+parse_expr_num0:
+        jsr rb_parse_num0
+        rts
+
+parse_expr_int_string:
+        jsr rb_parse_string_value
+        rts
+
+parse_expr_zsumnumarray:
+        jsr rb_parse_int_array_input
+        jsr rb_resolve_int_array_input_ptr
+        rts
+
+parse_expr_string_out:
+        jsr rb_parse_string_value
+        lda #RB_EXPR_STRING
+        sta rb_expr_type
+        rts
+
+rb_expr_expect_close:
+        jsr rb_skip_spaces
+        cmp #')'
+        beq :+
+        jmp BASIC_SYNERR
+:       jmp CHRGET
 
 rb_resolve_int_array_input_ptr:
         clc
@@ -3103,6 +3492,11 @@ rb_peek_lo:     .byte 0
 rb_peek_hi:     .byte 0
 rb_crunch_len:  .byte 0
 rb_crunch_pos:  .byte 0
+rb_eval_save_lo:.byte 0
+rb_eval_save_hi:.byte 0
+rb_eval_after_lo:.byte 0
+rb_eval_after_hi:.byte 0
+rb_expr_type:   .byte 0
 
 rb_cmd_len:     .byte 0
 rb_lookup_index:.byte 0

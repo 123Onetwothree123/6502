@@ -10,6 +10,40 @@ the demo/proof commands. Older entries below may mention historical names such
 as `PING`, `ADD16`, `STRUP`, `HCRC`, `SUMAI`, `RANGEAI`, `TEMPSCRATCH`, and
 `FAIL`; those are retained as dated notes, not current aliases.
 
+## 2026-05-23: Bare Commands And Expression-Style Experiment
+
+- Branch: `exp/readybasic-expression-style`.
+- Added bare `COMMAND(...)` statement dispatch, sharing the existing descriptor
+  lookup, signature parser, overlay loader, and result commit path. The legacy
+  `!COMMAND args` statement form remains available as compatibility.
+- Added `$030A/$030B` eval-vector hook for selected expression returns:
+  `ZECHO1()`, `ZADD16(a,b)`, `UPPER(s$)`, `LOWER(s$)`, `ZHIDDENRAM(s$)`,
+  `ZSUMNUMARRAY(a%(0),n)`, `BUFNEW(n)`, `ZTEMPSCRATCH(n)`, and `SCRCAP()`.
+- Added parenthesized `PROC`/`FUNC` definitions and parenthesized non-empty
+  `EXEC` actual lists. Zero-argument routines still use `EXEC NAME`; `EXEC
+  NAME()` was cut for resident size.
+- Added string and numeric `FUNC` expression returns when the first statement
+  after the `FUNC` definition assigns the final formal. String returns use the
+  ROM string evaluator under a re-entry guard; numeric returns use a small
+  integer RHS evaluator instead of re-entering the full ROM numeric parser.
+- Memory impact versus the native PROC/FUNC baseline:
+  - `BASIC_START`: `$2101` -> `$2401`.
+  - Empty BASIC free bytes: `32509` -> `31741`, delta `-768`.
+  - `RESIDENT`: `$0EF4` / 3828B -> `$11DF` / 4575B, delta `+747`.
+  - `BRIDGE`: `$01FB` / 507B -> `$0200` / 512B, delta `+5`.
+  - `LOWPACK`: unchanged at `$061A` / 1562B.
+  - `bin/readybasic.prg`: unchanged at `20994` bytes.
+- Verification:
+  - `make readybasic-plugin-static-check`: pass.
+  - Focused VICE expression probe: pass for bare command statements, command
+    expressions, parenthesized `EXEC`, numeric `FUNC` through output actual,
+    numeric `FUNC` expression return/assignment, and string `FUNC` expression
+    return.
+  - Parenthesized `RBPROCERR` negative VICE probe: pass for unknown routine,
+    missing/wrong args, missing `FUNC` output, extra `PROC` actual, bare `ENDP`,
+    and stack overflow.
+  - `make verify`: pass after rebuilding the normal `precog-dual-d71` profile.
+
 ## 2026-05-22: Native PROC/FUNC/EXEC/ENDP
 
 - Implemented bare native BASIC routines:

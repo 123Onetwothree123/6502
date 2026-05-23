@@ -47,6 +47,12 @@ named transfer, fall-through skipping of definitions, richer parameter types,
 and optionally a small formal metadata cache if repeated `EXEC` scans become too
 slow.
 
+The expression-style experiment proved a useful split: expression-safe command
+returns, string `FUNC` expression returns, and narrow numeric `FUNC` expression
+returns are viable. The numeric success depends on a purpose-built integer RHS
+path rather than nested ROM numeric expression parsing. Future work should
+either keep that path deliberately small or budget a real expression engine.
+
 ## Command Naming
 
 Future public command names should be screened against C64 BASIC tokenization
@@ -57,7 +63,7 @@ that means avoiding embedded words such as `SAVE`, `LOAD`, `RUN`, `LIST`, `NEW`,
 synonym over adding another resident parser exception.
 
 Every new name should have direct and stored-program probes that cover `LIST`,
-`RUN`, colon chains, and `IF ... THEN !COMMAND` or `IF ... THEN EXEC`. This
+`RUN`, colon chains, and `IF ... THEN COMMAND(...)` or `IF ... THEN EXEC`. This
 catches tokenizer surprises before the command becomes part of the user-facing
 vocabulary.
 

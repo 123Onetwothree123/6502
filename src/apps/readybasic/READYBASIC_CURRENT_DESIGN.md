@@ -5,55 +5,60 @@ This is the current ReadyBASIC design as implemented by
 and verified against the current `obj/readybasic.map`.
 
 ReadyBASIC is a ReadyOS app that hosts a relocated C64 BASIC V2 workspace and
-adds a lean command spine for raw `!COMMAND args` statements plus native bare
-`PROC`/`FUNC` reusable BASIC routines. It is not a private BASIC token system.
-Stored program lines remain readable, `LIST` shows visible `!`, `PROC`, `FUNC`,
-`EXEC`, and `ENDP` text, and the execute hook recognizes extensions when BASIC
-dispatches a statement.
+adds a lean command spine for bare `COMMAND(...)` statements and selected
+`COMMAND(...)` expressions, plus native bare `PROC`/`FUNC` reusable BASIC
+routines. It is not a private BASIC token system. Stored program lines remain
+readable, `LIST` shows visible `PROC`, `FUNC`, `EXEC`, `ENDP`, and command text,
+and the execute/eval hooks recognize extensions when BASIC dispatches a
+statement or expression.
 
 ## Current Syntax And Statement Behavior
 
-ReadyBASIC commands use this form:
+ReadyBASIC commands now prefer ordinary-looking parenthesized BASIC syntax:
 
 ```basic
-!COMMAND first,arg,arg
+COMMAND(arg,arg,out%)
+PRINT COMMAND(arg,arg)
 ```
 
-The command name follows `!`. The first argument is separated by whitespace, and
-later arguments use normal comma separation. A leading comma after the command
-name is a syntax error, so `!ZADD16,1,2,A%` is rejected.
+Statement commands keep the existing output-variable convention. Expression
+commands return the scalar or string result directly. The old `!COMMAND args`
+statement path remains as a compatibility path, but current examples and tests
+use bare `COMMAND(...)`.
 
-The `!` prefix is special only where BASIC is about to dispatch a statement:
+Bare commands are recognized only where BASIC is about to dispatch a statement
+or evaluate an expression:
 
 | Context | Supported | Notes |
 |---|---:|---|
-| Immediate mode | Yes | Example: `!ZECHO1 P%`. |
-| Stored program line start | Yes | Raw `!` survives `LIST` and runs through `$0308`. |
-| After `:` | Yes | Example: `PRINT "A":!ZECHO1 P%`. |
+| Immediate mode statement | Yes | Example: `ZECHO1(P%)`. |
+| Stored program line start | Yes | Raw command text survives `LIST` and runs through `$0308`. |
+| After `:` | Yes | Example: `PRINT "A":ZECHO1(P%)`. |
 | Inside `FOR/NEXT` body | Yes | Use it as a statement in the loop body. |
-| After `IF ... THEN` | Yes | The crunch hook rewrites `THEN !` to `THEN :!`. |
-| Inside `PRINT`, expressions, or `FOR` clauses | No | `!` is not an expression operator or clause syntax. |
+| After `IF ... THEN` | Yes | The crunch hook rewrites `THEN COMMAND(...)` to `THEN :COMMAND(...)` for known command names. |
+| Inside `PRINT`, assignments, or larger expressions | Selected commands only | `ZADD16(2,3)+7`, `UPPER(S$)`, and numeric/string `FUNC` expression returns are supported. |
 | Inside strings, `REM`, or `DATA` | Ordinary text | These are not rewritten or dispatched. |
 | After `ELSE` | No native support | BASIC V2 has no `ELSE`; ReadyBASIC does not add it. |
 
-`IF 1 THEN !ZECHO1 P%` works, but the stored/listed form becomes
-`IF 1 THEN :!ZECHO1 P%`. That is an intentional size-saving normalization. It lets
-BASIC's existing statement dispatcher reach the normal ReadyBASIC execute hook
-without adding a larger custom IF parser.
+`IF 1 THEN ZECHO1(P%)` works when typed interactively, but the stored/listed form
+becomes `IF 1 THEN :ZECHO1(P%)`. That is an intentional size-saving
+normalization. It lets BASIC's existing statement dispatcher reach the normal
+ReadyBASIC execute hook without adding a larger custom IF parser.
 
 Native routines use ordinary BASIC program text:
 
 ```basic
-1000 PROC SHOW P%,M$
+1000 PROC SHOW(P%,M$)
 1010 PRINT P%;M$
 1020 ENDP
 
-1100 FUNC ADDI X%,Y%,R%
+1100 FUNC ADDI(X%,Y%,R%)
 1110 R%=X%+Y%
 1120 ENDP
 
-10 EXEC SHOW,3,"READY"
-20 EXEC ADDI,4,5,A%
+10 EXEC SHOW(3,"READY")
+20 EXEC ADDI(4,5,A%)
+30 PRINT ADDI(6,7)
 ```
 
 `EXEC` calls either a `PROC` or a `FUNC`. `PROC` has input formals only. `FUNC`
@@ -73,8 +78,8 @@ variables generally, formal variables are global by name. Avoid reusing a
 function's input formal name as the caller's output actual, because parsing the
 output actual clears that global variable before the function body runs.
 
-`IF 1 THEN EXEC ADDI,1,2,A%` works when typed into ReadyBASIC and is normalized by
-the crunch hook to `IF 1 THEN :EXEC ADDI,1,2,A%`. `petcat`-built stored examples
+`IF 1 THEN EXEC ADDI(1,2,A%)` works when typed into ReadyBASIC and is normalized by
+the crunch hook to `IF 1 THEN :EXEC ADDI(1,2,A%)`. `petcat`-built stored examples
 should use the already-normalized `THEN :EXEC` form because they bypass the
 interactive crunch hook.
 
@@ -103,21 +108,21 @@ support, not the final product command catalog.
 
 | Command | Code placement | Parameters | Result behavior |
 |---|---|---|---|
-| `!ZECHO1 OUT%` | Low overlay at `$A900+$0000`, copy `$0015` | output integer | Returns `1`. |
-| `!ZADD16 A,B,OUT%` | Low overlay at `$A900+$0015`, copy `$001E` | two numeric expressions, output integer | Returns 16-bit sum. |
-| `!UPPER S$,OUT$` | Low overlay at `$A900+$0033`, copy `$003B` | string variable or quoted literal, output string | Uppercases staged bytes. |
-| `!LOWER S$,OUT$` | Low overlay at `$A900+$006E`, copy `$003B` | string variable or quoted literal, output string | Lowercases staged byte values. On the default C64 screen this is verified by `ASC()` values, because display case is charset-dependent. |
-| `!ZHIDDENRAM S$,OUT%` | Hidden overlay at `$A800`, copy `$004D` (77B) | string variable or quoted literal, output integer | Returns a simple uppercase-byte checksum. |
-| `!ZSUMNUMARRAY A%(0),COUNT,OUT%` | Low overlay at `$A900+$00A9`, copy `$0044` | integer array base, count, output integer | Sums integer array elements. |
-| `!ZRANGENUMARRAY START,COUNT,A%(0)` | Low overlay at `$A900+$00ED`, copy `$003D` | start value, count, output array base | Stages consecutive integers, then resident code writes them to the array. |
-| `!BUFNEW LEN,H%` | Low overlay entry `$012A`, copy full `$061A` (1.5K) low pack | byte length, output handle | Allocates buffer pages in REU bank `$44` and returns a one-based handle. |
-| `!BUFFILL H%,BYTE` | Low overlay entry `$012E`, copy full `$061A` (1.5K) low pack | buffer handle, fill byte | Fills buffer handles through the `$C500` page buffer and rejects non-buffer handles. |
-| `!BUFFREE H%` | Low overlay entry `$0132`, copy full `$061A` (1.5K) low pack | handle | Frees any valid handle type and clears metadata/page bitmap state. |
-| `!ZTEMPSCRATCH LEN,OUT%` | Low overlay entry `$0136`, copy full `$061A` (1.5K) low pack | byte length, output integer | Allocates and frees temporary pages, returning page count. |
-| `!ZFAIL CODE,OUT%` | Low overlay at `$A900+$013A`, copy `$001B` | error code, output integer | Clears output first, then reports `?RB ERROR code`. |
-| `!FREEMEM` | Low overlay at `$A900+$0155`, copy `$0016` | none | Prints current live BASIC free bytes and refreshes the header. |
-| `!SCRCAP H%` | Slot 14 descriptor; low overlay entry `$016B`, copy full `$061A` (1.5K) low pack | output handle | Captures screen text `$0400-$07E7` and color RAM `$D800-$DBE7` into a typed screen handle. |
-| `!SCRPUT H%` | Slot 128 descriptor; low overlay entry `$0194`, copy full `$061A` (1.5K) low pack | screen handle | Validates the screen handle type and restores text plus color RAM. |
+| `ZECHO1(OUT%)` / `ZECHO1()` | Low overlay at `$A900+$0000`, copy `$0015` | output integer, or expression integer | Returns `1`. |
+| `ZADD16(A,B,OUT%)` / `ZADD16(A,B)` | Low overlay at `$A900+$0015`, copy `$001E` | two numeric expressions, output integer or expression integer | Returns 16-bit sum. |
+| `UPPER(S$,OUT$)` / `UPPER(S$)` | Low overlay at `$A900+$0033`, copy `$003B` | string variable or quoted literal, output string or expression string | Uppercases staged bytes. |
+| `LOWER(S$,OUT$)` / `LOWER(S$)` | Low overlay at `$A900+$006E`, copy `$003B` | string variable or quoted literal, output string or expression string | Lowercases staged byte values. On the default C64 screen this is verified by `ASC()` values, because display case is charset-dependent. |
+| `ZHIDDENRAM(S$,OUT%)` / `ZHIDDENRAM(S$)` | Hidden overlay at `$A800`, copy `$004D` (77B) | string variable or quoted literal, output integer or expression integer | Returns a simple uppercase-byte checksum. |
+| `ZSUMNUMARRAY(A%(0),COUNT,OUT%)` / `ZSUMNUMARRAY(A%(0),COUNT)` | Low overlay at `$A900+$00A9`, copy `$0044` | integer array base, count, output integer or expression integer | Sums integer array elements. |
+| `ZRANGENUMARRAY(START,COUNT,A%(0))` | Low overlay at `$A900+$00ED`, copy `$003D` | start value, count, output array base | Stages consecutive integers, then resident code writes them to the array. |
+| `BUFNEW(LEN,H%)` / `BUFNEW(LEN)` | Low overlay entry `$012A`, copy full `$061A` (1.5K) low pack | byte length, output handle or expression handle | Allocates buffer pages in REU bank `$44` and returns a one-based handle. |
+| `BUFFILL(H%,BYTE)` | Low overlay entry `$012E`, copy full `$061A` (1.5K) low pack | buffer handle, fill byte | Fills buffer handles through the `$C500` page buffer and rejects non-buffer handles. |
+| `BUFFREE(H%)` | Low overlay entry `$0132`, copy full `$061A` (1.5K) low pack | handle | Frees any valid handle type and clears metadata/page bitmap state. |
+| `ZTEMPSCRATCH(LEN,OUT%)` / `ZTEMPSCRATCH(LEN)` | Low overlay entry `$0136`, copy full `$061A` (1.5K) low pack | byte length, output integer or expression integer | Allocates and frees temporary pages, returning page count. |
+| `ZFAIL(CODE,OUT%)` | Low overlay at `$A900+$013A`, copy `$001B` | error code, output integer | Clears output first, then reports `?RB ERROR code`. |
+| `FREEMEM()` | Low overlay at `$A900+$0155`, copy `$0016` | none | Prints current live BASIC free bytes and refreshes the header. |
+| `SCRCAP(H%)` / `SCRCAP()` | Slot 14 descriptor; low overlay entry `$016B`, copy full `$061A` (1.5K) low pack | output handle or expression handle | Captures screen text `$0400-$07E7` and color RAM `$D800-$DBE7` into a typed screen handle. |
+| `SCRPUT(H%)` | Slot 128 descriptor; low overlay entry `$0194`, copy full `$061A` (1.5K) low pack | screen handle | Validates the screen handle type and restores text plus color RAM. |
 
 The handle-oriented commands copy the full low pack because their wrappers share
 allocator helper routines that currently live in the packed low overlay. That
@@ -191,27 +196,27 @@ metadata and shim space above that are not general ReadyBASIC scratch.
 | Region | Current range | Size | Owner and role |
 |---|---:|---:|---|
 | `ENTRY` | `$1000-$1102` | `$0103` (259B) | Tiny entry, cold/warm discriminator, early hidden/bridge copies. |
-| `RESIDENT` | `$1200-$20F3` | `$0EF4` (3.7K, 3828 exact bytes) | Visible parser, vector hooks, BASIC ROM calls, REU DMA wrappers, result commit, native `PROC`/`FUNC` dispatch. |
-| BASIC sentinel | `$2100` | 1 byte | Must stay zero before stored-program `RUN`. |
-| BASIC workspace | `$2101-$9FFF` | `$7EFF` region, `32509` formula free bytes (31.7K) | Program text, variables, arrays, string heap. |
+| `RESIDENT` | `$1200-$23DE` | `$11DF` (4.5K, 4575 exact bytes) | Visible parser, vector hooks, BASIC ROM calls, REU DMA wrappers, result commit, bare command dispatch, expression hook, native `PROC`/`FUNC` dispatch. |
+| BASIC sentinel | `$2400` | 1 byte | Must stay zero before stored-program `RUN`. |
+| BASIC workspace | `$2401-$9FFF` | `$7BFF` region, `31741` formula free bytes (31.0K) | Program text, variables, arrays, string heap. |
 | Command pack load image | `$2800-$3FFF` | `$1800` (6.0K) file range | Low and hidden overlay seed bytes before cold prestash. |
 | Hidden helper load image | `$4000+` | `$0377` (0.9K, 887 exact bytes) load-only | Hidden helper seed copied to `$A000` and `$C280`. |
-| Bridge load image | `$4800+` | `$01FB` (507B) load-only | Bridge seed copied to `$C000`. |
+| Bridge load image | `$4800+` | `$0200` (512B) load-only | Bridge seed copied to `$C000`. |
 | Registry seed load image | `$5000-$600F` | `$1010` (4.0K, 4112 exact bytes) load-only | Header and 128 descriptors copied to REU bank `$44`. |
 | Runtime snapshot | REU bank `$44`, offsets `$0A00-$0BFF` | `$0200` (0.5K) plus bridge metadata | Saved zero page, stack page, SP, resume mode, line-chain guards. |
 | `HIDDEN` | `$A000-$A376` | `$0377` (0.9K) | Helper code run with RAM mapped under BASIC ROM. |
 | `HIDDENPACK` | `$A800-$A84C` | `$004D` (77B) | Hidden worker overlay image. |
 | `LOWPACK` runtime | `$A900-$AF19` | `$061A` (1.5K) | Banked low command pack fetched from REU bank `$45`. |
-| `BRIDGE` | `$C000-$C1FA` | `$01FB` (507B) | Persistent bridge state, saved vectors, overlay variables, current handle scratch, debug bytes, native routine return stack. |
+| `BRIDGE` | `$C000-$C1FF` | `$0200` (512B) | Persistent bridge state, saved vectors, overlay variables, current handle scratch, debug bytes, native routine return stack. |
 | Shared frames | `$C200-$C5FF` | `$0400` (1.0K) | Call frame, result frame, descriptor buffer, command-name buffer, page/runtime buffers. |
-| Hidden shadow | `$C280-$C5F6` | `$0377` (0.9K) | Visible-RAM source for restoring `$A000` helper on warm resume; refreshed during `!EXIT`. |
+| Hidden shadow | `$C280-$C5F6` | `$0377` (0.9K) | Visible-RAM source for restoring `$A000` helper on warm resume; refreshed during `EXIT`. |
 | ReadyOS REU metadata | `$C600-$C7FF` | `$0200` (0.5K) shared | ReadyBASIC only marks REU bank ownership here. |
 | ReadyOS shim ABI | `$C800-$C9FF` | `$0200` (0.5K) shared | ReadyOS jump table and data; not ReadyBASIC RAM. |
 
 The PRG load image is larger than the live resident core. On cold entry,
 ReadyBASIC copies the hidden helper seed from the load image to `$A000` and
 the visible shadow at `$C280`, copies the bridge seed to `$C000`, and prestashes
-registry/code seed data into REU. After that, BASIC owns `$2101-$9FFF`. Warm resume must therefore
+registry/code seed data into REU. After that, BASIC owns `$2401-$9FFF`. Warm resume must therefore
 not reread load-only seed tables at `$4000+`, because that address range may now
 be BASIC program or variable storage.
 
@@ -223,8 +228,8 @@ not a contradiction; it is a time-of-use distinction.
 | Stage | C64 RAM ownership | BASIC-visible effect |
 |---|---|---|
 | PRG load / cold seed | `CMDPACK` is loaded at `$2800-$3FFF`, `HIDLOAD` at `$4000+`, `BRLOAD` at `$4800+`, and `REGSEED` at `$5000-$600F`. These ranges are inside the future BASIC workspace but BASIC is not live there yet. | No user BASIC program or variables exist yet, so the load image can safely occupy this space temporarily. |
-| End of cold seed | `LOWPACK`/`HIDDENPACK` have been copied from `CMDPACK` to REU bank `$45`; the registry has been copied to REU bank `$44`; hidden and bridge live copies are in their runtime homes. | `$2101-$9FFF` becomes the BASIC workspace. The former load-image bytes are now disposable. |
-| Ready prompt / running BASIC | BASIC owns `$2101-$9FFF`, including the old `$2800-$600F` load ranges. Command code is fetched from REU into `$A800/$A900` under BASIC ROM only while a command runs. | Empty BASIC free space is `32509` formula bytes; the header probe reports `32519` live bytes at the prompt. Warm resume never trusts the old load-image addresses. |
+| End of cold seed | `LOWPACK`/`HIDDENPACK` have been copied from `CMDPACK` to REU bank `$45`; the registry has been copied to REU bank `$44`; hidden and bridge live copies are in their runtime homes. | `$2401-$9FFF` becomes the BASIC workspace. The former load-image bytes are now disposable. |
+| Ready prompt / running BASIC | BASIC owns `$2401-$9FFF`, including the old `$2800-$600F` load ranges. Command code is fetched from REU into `$A800/$A900` under BASIC ROM only while a command runs. | Empty BASIC free space is `31741` formula bytes. Warm resume never trusts the old load-image addresses. |
 | Future command growth | The current `CMDPACK` reservation is `$1800` (6.0K). Today it carries `LOWPACK` `$061A` plus `HIDDENPACK` `$004D`, about 1.6K of actual packed command code. | The remaining reserved `CMDPACK` capacity can absorb more packed command code without reducing steady-state BASIC free bytes. Growing beyond the reserved load-only area may increase PRG size or require another cold-only seed range, but it should still be reclaimed before BASIC owns the workspace. |
 
 The visual way to read this: `CMDPACK` looks like it overlaps BASIC RAM in the
@@ -239,7 +244,7 @@ bank can hold up to `$10000` bytes (64.0K) of packed command bodies. The build
 currently uses `$062C` (1.5K, 1580 exact bytes), leaving `$F9D4` (62.5K, 63956
 exact bytes) available in bank `$45`. To actually seed beyond the current 6.0K
 `CMDPACK` linker window, the cold-load layout would need a larger or additional
-load-only seed range, copied to REU before BASIC owns `$2101-$9FFF`. Going
+load-only seed range, copied to REU before BASIC owns `$2401-$9FFF`. Going
 beyond one 64K code bank would require a descriptor/loader extension for
 additional command-code banks.
 
@@ -248,28 +253,28 @@ additional command-code banks.
 Stock C64 BASIC V2 starts at `$0801` and normally has memory top at `$A000`,
 which gives about `38911` bytes free on an empty machine.
 
-ReadyBASIC relocates BASIC to `$2101` and uses `$A000` as the BASIC memory top.
-On an empty ReadyBASIC workspace, variables begin at `$2103`, so the practical
+ReadyBASIC relocates BASIC to `$2401` and uses `$A000` as the BASIC memory top.
+On an empty ReadyBASIC workspace, variables begin at `$2403`, so the practical
 empty BASIC free space is:
 
 ```text
-$A000 - $2103 = 32509 bytes (31.7K)
+$A000 - $2403 = 31741 bytes (31.0K)
 ```
 
-That is `6402` bytes (6.3K) less than stock C64 BASIC, or about `83.5%` of the
-stock empty BASIC free space. The extra `$0500` loss from the previous `$1C01`
-layout pays for resident native `PROC`/`FUNC` dispatch while keeping the resident
-segment below `$2100`.
+That is `7170` bytes (7.0K) less than stock C64 BASIC, or about `81.6%` of the
+stock empty BASIC free space. The extra `$0300` loss from the native
+`PROC`/`FUNC` `$2101` layout pays for the bare-command and eval-vector expression
+syntax while keeping the resident segment below `$2400`.
 
 | Environment | BASIC text start | BASIC top | Empty free bytes |
 |---|---:|---:|---:|
 | Stock C64 BASIC V2 | `$0801` | `$A000` | `38911` (38.0K) |
-| ReadyBASIC current layout | `$2101` | `$A000` | `32509` (31.7K) |
-| Difference | - | - | `-6402` (-6.3K) |
+| ReadyBASIC current layout | `$2401` | `$A000` | `31741` (31.0K) |
+| Difference | - | - | `-7170` (-7.0K) |
 
 Strategies to maximize BASIC RAM while adding many more commands:
 
-- Keep the resident core below `$2100`; every resident byte is permanent C64 RAM
+- Keep the resident core below `$2400`; every resident byte is permanent C64 RAM
   pressure.
 - Put command implementation code in packed REU code banks and copy it into the
   existing overlay slots only when invoked.
@@ -301,8 +306,9 @@ ReadyBASIC saves the original BASIC vectors, then installs:
 
 | Vector | Address | ReadyBASIC role |
 |---|---:|---|
-| Crunch | `$0304/$0305` | Calls ROM crunch first, then normalizes tokenized `THEN !` into `THEN :!`. |
-| Execute | `$0308/$0309` | Peeks for `!` or `EXIT`; otherwise tail-calls the original execute vector without advancing `TXTPTR`. |
+| Crunch | `$0304/$0305` | Calls ROM crunch first, then normalizes tokenized `THEN COMMAND(...)` and legacy `THEN !COMMAND` into a colon-prefixed statement. |
+| Execute | `$0308/$0309` | Peeks for `EXIT`, `PROC`, `FUNC`, `EXEC`, `ENDP`, legacy `!`, or a bare descriptor command; otherwise tail-calls the original execute vector without advancing `TXTPTR`. |
+| Eval | `$030A/$030B` | Recognizes selected `COMMAND(...)` and `FUNC(...)` expression returns, then falls back to ROM expression evaluation. |
 | List | `$0306/$0307` | Saved/restored, but V1 leaves normal ROM listing behavior. |
 
 Page-3 vectors are global machine state. `EXIT` restores the original vectors
@@ -313,11 +319,12 @@ cannot accidentally dispatch through stale ReadyBASIC code.
 
 1. BASIC dispatches a statement through the execute vector.
 2. ReadyBASIC peeks at the next non-space byte without mutating `TXTPTR`.
-3. If the statement is neither `!` nor `EXIT`, ReadyBASIC tail-calls the saved
-   ROM execute vector.
-4. For `!`, ReadyBASIC advances past the raw bang, parses and normalizes the
-   command name into `$C4A0`, and rejects an empty name, a too-long name, or a
-   leading comma.
+3. If the statement is neither `EXIT`, a native routine keyword, legacy `!`, nor
+   a known bare descriptor command followed by `(`, ReadyBASIC tail-calls the
+   saved ROM execute vector.
+4. For a bare command, ReadyBASIC parses and normalizes the command name into
+   `$C4A0`, requires `(`, and reuses the same descriptor lookup and signature
+   parser as the legacy `!` path.
 5. Command lookup linearly scans up to 128 fixed 32-byte descriptors in REU
    bank `$44` at `$1000-$1FFF`. It fetches one 256-byte page into `$C500`,
    scans eight descriptors locally, and copies a match into `$C480`. Zero-filled
@@ -329,7 +336,7 @@ cannot accidentally dispatch through stale ReadyBASIC code.
 9. Command code is fetched from REU bank `$45` into the low overlay slot
    `$A900` or hidden overlay slot `$A800`.
 10. The worker writes a compact result frame at `$C300`.
-11. The result frame is mirrored to REU bank `$44` offset `$0500`.
+11. The result frame is mirrored to REU bank `$44` offset `$0400`.
 12. Resident code checks status, prints `?RB ERROR n` on failure, or commits
     integer, string, or array results to the captured BASIC output reference.
 
@@ -348,7 +355,7 @@ names.
 | Command buffer | `$C4A0` | Uppercase normalized command name. |
 | Page buffer | `$C500` | 256-byte staging page for descriptor scans, REU handle operations, heap bitmap scans, and warm-resume stack buffer. |
 | REU call snapshot | Bank `$44`, `$0400` | Copy of the current call frame. |
-| REU result snapshot | Bank `$44`, `$0500` | Copy of the current result frame. |
+| REU result snapshot | Bank `$44`, `$0400` | Copy of the current result frame. |
 | Runtime zero-page snapshot | Bank `$44`, `$0A00` | Saved zero page, restored through the temporary buffer at `$C400`. |
 | Runtime stack snapshot | Bank `$44`, `$0B00` | Saved stack page, restored through the temporary buffer at `$C500`. |
 
@@ -400,7 +407,7 @@ ReadyBASIC marks the ReadyOS REU allocation table at `$C600+$44` and
 |---:|---|
 | `$0000` | Header: `RBPL`, version, descriptor count, descriptor size, and frame offsets. |
 | `$0400` | Current call-frame snapshot. |
-| `$0500` | Current result-frame snapshot. |
+| `$0400` | Current result-frame snapshot. |
 | `$0600` | Reserved debug ring area. |
 | `$0800-$09FF` | REU-backed handle directory: 128 descriptors, 4 bytes each. |
 | `$0A00` | Saved zero page for ReadyOS suspend/resume. |
@@ -536,12 +543,12 @@ Current static layout:
 | Segment | Range | Size |
 |---|---:|---:|
 | `ENTRY` | `$1000-$1102` | `$0103` (259B) |
-| `RESIDENT` | `$1200-$20F3` | `$0EF4` (3.7K, 3828 exact bytes) |
+| `RESIDENT` | `$1200-$23DE` | `$11DF` (4.5K, 4575 exact bytes) |
 | `REGSEED` | `$5000-$600F` | `$1010` (4.0K, 4112 exact bytes) |
 | `HIDDEN` | `$A000-$A376` | `$0377` (0.9K, 887 exact bytes) |
 | `HIDDENPACK` | `$A800-$A84C` | `$004D` (77B) |
 | `LOWPACK` | `$A900-$AF19` | `$061A` (1.5K, 1562 exact bytes) |
-| `BRIDGE` | `$C000-$C1FA` | `$01FB` (507B) |
+| `BRIDGE` | `$C000-$C1FF` | `$0200` (512B) |
 
 Before/after for native `PROC`/`FUNC`:
 
@@ -558,12 +565,30 @@ Before/after for native `PROC`/`FUNC`:
 | Bridge/shared-state delta | - | `+$0060` / `+96B` |
 | `REGSEED` | `$1010` / 4112B | `$1010` / 4112B |
 
+Before/after for full bare-command and expression syntax versus the native
+`PROC`/`FUNC` baseline:
+
+| Measure | Native PROC/FUNC baseline | Current branch |
+|---|---:|---:|
+| `BASIC_START` | `$2101` | `$2401` |
+| Empty BASIC free bytes | `32509` | `31741` |
+| BASIC-free delta | - | `-768` bytes |
+| `bin/readybasic.prg` size | `20994` | `20994` |
+| `RESIDENT` | `$0EF4` / 3828B | `$11DF` / 4575B |
+| Resident delta | - | `+$02EB` / `+747B` |
+| `LOWPACK` | `$061A` / 1562B | `$061A` / 1562B |
+| Command overlay delta | - | `0B` |
+| `BRIDGE` | `$01FB` / 507B | `$0200` / 512B |
+| Bridge/shared-state delta | - | `+$0005` / `+5B` |
+| `REGSEED` | `$1010` / 4112B | `$1010` / 4112B |
+
 Recent VICE coverage includes:
 
 | Probe | Coverage |
 |---|---|
-| Plugin command probe | Direct `!` commands, direct `IF 1 THEN !ZECHO1`, `UPPER`/`LOWER`, old-name rejection, string/REM safety, leading-comma rejection, `SCRCAP`/`SCRPUT`, slot-128 lookup, 128-handle edge, 48KB heap edge, screen heap exhaustion, wrong-handle-type rejection, screen-handle free, resume. |
-| Program probe | Stored line start, colon chains, true/false `IF ... THEN !`, `FOR/NEXT`, strings, REM, DATA, arrays, hidden worker, handles, failure clearing. |
+| Full expression probe | Direct bare command statements, command expressions, parenthesized `EXEC`, numeric `FUNC` expression return, numeric `FUNC` assignment, string `FUNC` expression return, and readable `LIST`. |
+| Plugin command probe | Direct command statements, direct `IF 1 THEN ZECHO1(P%)`, `UPPER`/`LOWER`, old-name rejection, string/REM safety, leading-comma rejection, `SCRCAP`/`SCRPUT`, slot-128 lookup, 128-handle edge, 48KB heap edge, screen heap exhaustion, wrong-handle-type rejection, screen-handle free, resume. |
+| Program probe | Stored line start, colon chains, true/false `IF ... THEN COMMAND(...)`, `FOR/NEXT`, strings, REM, DATA, arrays, hidden worker, handles, failure clearing. |
 | `rbproc1` probe | Stored positive `PROC`/`FUNC`: no-param PROC, `%`, `$`, `%` return, `$` return, colon chain, normalized `IF THEN :EXEC`, nested depth 2, and readable `LIST`. |
 | `rbprocerr` probe | Stored negative `PROC`/`FUNC`: unknown routine, wrong count/type, missing FUNC output, PROC extra actual, `ENDP` without `EXEC`, and return-stack overflow. |
 | Full visual verification | Human-watchable command, program, screen-handle, handle/heap edge, resume, and error coverage. |
@@ -577,3 +602,65 @@ Recent VICE coverage includes:
 Some harness wrappers can report a process-level `partial` status even when
 every step is `ok` and `FailedStep` is `null`; for ReadyBASIC these were treated
 as harness shutdown-status quirks, not command failures.
+
+## Bare Command And Expression Branch: 2026-05-23
+
+This branch makes parenthesized calls the preferred syntax and enables BASIC
+expression returns while keeping the resident implementation tight.
+
+Supported command expressions:
+
+```basic
+ZECHO1(P%)
+ZADD16(4,5,A%)
+PRINT ZADD16(5,10)
+A=ZADD16(8,9)
+T$=UPPER("ready")
+PRINT ZHIDDENRAM("A")
+```
+
+Supported native routine forms:
+
+```basic
+100 PROC SHOWI(P%)
+110 PRINT P%
+120 ENDP
+
+200 FUNC GREET(N$,R$)
+210 R$="HI "+N$
+220 ENDP
+
+10 EXEC SHOWI(7)
+20 T$=GREET("READY"):PRINT T$
+```
+
+`PROC`/`FUNC` definitions and `EXEC` calls accept parentheses for non-empty
+argument lists. Zero-argument routines still use `EXEC NAME`; `EXEC NAME()` was
+cut to save resident bytes. Numeric and string `FUNC` calls can now return as
+BASIC expressions when the first statement after the `FUNC` line assigns the
+final formal. The numeric path intentionally uses a tiny purpose-built integer
+RHS evaluator for the common integer-formal assignment shape, such as
+`R%=X%+Y%`, instead of re-entering the full ROM numeric expression parser from
+inside the eval hook.
+
+Memory comparison against the native PROC/FUNC baseline:
+
+| Measure | PROC/FUNC baseline | Expression branch |
+|---|---:|---:|
+| `BASIC_START` | `$2101` | `$2401` |
+| Empty BASIC free bytes | `32509` | `31741` |
+| BASIC-free delta | - | `-768` bytes |
+| `RESIDENT` | `$0EF4` / 3828B | `$11DF` / 4575B |
+| Resident delta | - | `+747` bytes |
+| `BRIDGE` | `$01FB` / 507B | `$0200` / 512B |
+| Bridge delta | - | `+5` bytes |
+| `LOWPACK` | `$061A` / 1562B | `$061A` / 1562B |
+| Command overlay delta | - | `0` bytes |
+| `bin/readybasic.prg` size | `20994` | `20994` |
+
+Verification for this branch:
+
+| Probe | Result |
+|---|---|
+| `make readybasic-plugin-static-check` | Pass |
+| Focused VICE expression probe | Pass: bare statement commands, `ZADD16()`, `UPPER()`, `ZHIDDENRAM()`, parenthesized `EXEC`, numeric `FUNC` via output actual, numeric `FUNC` expression return, numeric `FUNC` assignment, and string `FUNC` expression return. |

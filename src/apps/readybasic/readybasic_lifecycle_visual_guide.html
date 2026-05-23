@@ -677,7 +677,7 @@
       <h1>Lifecycle, Memory Ownership, REU Plugin Spine</h1>
       <p class="lead">
         A visual map of how ReadyBASIC loads, relocates BASIC, seeds fixed REU
-        banks, dispatches raw <code>!COMMAND args</code> statements, survives
+        banks, dispatches bare <code>COMMAND(...)</code> statements, survives
         ReadyOS suspend/resume, and keeps command workers lean.
       </p>
       <div class="hero-grid">
@@ -787,7 +787,7 @@
         <div class="addr">$2100</div>
         <div class="region r-basic"><span><b>BASIC SENTINEL</b><small>Must be zero for stored BASIC RUN.</small></span><strong>1B</strong></div>
         <div class="addr">$2101-$9FFF</div>
-        <div class="region r-basic"><span><b>BASIC WORKSPACE</b><small>Program text, variables, arrays, string heap.</small></span><strong>$7EFF<br>32509 free / 31.7K</strong></div>
+        <div class="region r-basic"><span><b>BASIC WORKSPACE</b><small>Program text, variables, arrays, string heap.</small></span><strong>$7EFF<br>31741 free / 31.0K</strong></div>
         <div class="addr">$2800-$3FFF</div>
         <div class="region r-pack"><span><b>CMDPACK LOAD IMAGE</b><small>Low and hidden overlay seed bytes before cold prestash.</small></span><strong>$1800<br>6.0K</strong></div>
         <div class="addr">$4000+</div>
@@ -1015,7 +1015,7 @@
       <h2>Command Pipeline</h2>
       <p>
         The current path is raw text at execute time. BASIC `LIST` still shows
-        <code>!COMMAND args</code>; ReadyBASIC recognizes it when ROM BASIC dispatches the
+        <code>COMMAND(...)</code>; ReadyBASIC recognizes it when ROM BASIC dispatches the
         statement.
       </p>
       <div class="pipeline">
@@ -1064,17 +1064,17 @@
 
       <div class="command-grid">
         <div class="command">
-          <h3>!ZECHO1 OUT%</h3>
+          <h3>ZECHO1(OUT%) / ZECHO1()</h3>
           <div class="command-meta"><span class="chip low">low $A900</span><span class="chip">offset $0000</span><span class="chip">copy $0015 / 21B</span></div>
           <p>Returns integer `1`. Proves output variable clearing and scalar result commit.</p>
         </div>
         <div class="command">
-          <h3>!ZADD16 A,B,OUT%</h3>
+          <h3>ZADD16(A,B,OUT%) / ZADD16(A,B)</h3>
           <div class="command-meta"><span class="chip low">low $A900</span><span class="chip">offset $0015</span><span class="chip">copy $001E / 30B</span></div>
           <p>Parses two numeric expressions through BASIC ROM and returns a 16-bit sum.</p>
         </div>
         <div class="command">
-          <h3>!UPPER S$,OUT$</h3>
+          <h3>UPPER(S$,OUT$) / UPPER(S$)</h3>
           <div class="command-meta"><span class="chip low">low $A900</span><span class="chip">offset $0033</span><span class="chip">copy $003B / 59B</span></div>
           <p>Copies a string variable or quoted literal into the call frame, uppercases it, and lets resident code allocate the BASIC string result.</p>
         </div>

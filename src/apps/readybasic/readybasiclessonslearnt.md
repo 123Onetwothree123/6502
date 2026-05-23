@@ -643,6 +643,20 @@ contract is fully proven.
 - `CTRL+B`/F-key interception remains deferred until the editor-safe hook is
   implemented and proven.
 
+### Expression Hooks Need Narrow, Purpose-Built Paths
+
+Proven on 2026-05-23 in the expression-style branch. Returning command results
+through the BASIC eval vector is practical when the command has already produced
+a scalar/string result, as with `ZADD16(a,b)` and `UPPER(s$)`. Bare statement
+commands can also reuse the existing descriptor/signature path with only a small
+resident parser wrapper.
+
+Numeric `FUNC` expression returns are different: trying to call the ROM numeric
+expression evaluator from inside the eval hook produced incorrect values and
+left BASIC in a bad parse state. The working branch uses a tiny purpose-built
+integer RHS evaluator for the first-assignment form instead. Keep this path
+narrow unless a larger expression engine is explicitly budgeted.
+
 ## Open Questions
 
 - Deferred hypothesis: ReadyBASIC may leave KERNAL `MSGFLG` (`$009D`) nonzero

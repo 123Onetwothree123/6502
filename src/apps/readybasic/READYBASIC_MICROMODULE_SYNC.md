@@ -61,7 +61,7 @@ ReadyBASIC now duplicates a small amount of ReadyOS REU and shim knowledge in as
 
 - `$0000`: registry header.
 - `$0400`: current call-frame snapshot.
-- `$0500`: current result-frame snapshot.
+- `$0400`: current result-frame snapshot.
 - `$0600`: reserved debug region.
 - `$0800-$09FF`: REU-backed handle directory, 128 descriptors at 4 bytes each.
 - `$0A00`: zero-page snapshot.
@@ -87,6 +87,28 @@ load-image addresses.
 Native `PROC`/`FUNC` routines are deliberately absent from bank `$45`: their
 bodies are BASIC program text, found by scanning the stored program during
 `EXEC`. They add no descriptor slots and no command-code bank bytes.
+
+## Expression-Style Branch Note
+
+The `exp/readybasic-expression-style` branch adds bare `COMMAND(...)`
+statements plus an eval-vector hook, but keeps command overlays unchanged.
+Expression-safe command calls are resident dispatch wrappers over existing
+descriptors.
+
+Branch-specific sync points:
+
+- `BASIC_START = $2401`; BASIC owns `$2401-$9FFF`, with `31741` formula empty
+  free bytes.
+- `RESIDENT = $1200-$23DE`, size `$11DF` / 4575B.
+- `BRIDGE = $C000-$C1FF`, size `$0200` / 512B.
+- `LOWPACK` remains `$061A`; command overlay bytes did not grow.
+- Bare statement commands use the same descriptor/signature parser as the legacy
+  `!` path.
+- Command expressions cover scalar/string-result signatures such as
+  `ZECHO1()`, `ZADD16(a,b)`, `UPPER(s$)`, `LOWER(s$)`, `ZHIDDENRAM(s$)`,
+  `BUFNEW(n)`, `ZTEMPSCRATCH(n)`, `SCRCAP()`, and `ZSUMNUMARRAY(a%(0),n)`.
+- String and numeric `FUNC` calls can return as BASIC expressions when the first
+  statement after the definition assigns the final formal.
 
 ## Typed Handles
 

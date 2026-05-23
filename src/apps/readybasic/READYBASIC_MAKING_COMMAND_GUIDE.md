@@ -8,12 +8,15 @@ This guide explains how current ReadyBASIC commands are made in
 Native `PROC`/`FUNC` routines are intentionally not plugin commands. They are
 ordinary BASIC program text called with bare `EXEC`, and they do not need
 descriptors, command ids, signature ids, `LOWPACK`, `HIDDENPACK`, or bank `$45`
-code bytes. Use this command guide only when adding new `!COMMAND` overlays.
+code bytes. Use this command guide only when adding new descriptor-backed
+machine-code command overlays.
 
 ## Naming Rules
 
-ReadyBASIC command names are visible BASIC text after `!`; they are not private
-tokens. Avoid substrings that C64 BASIC can tokenize inside the command name.
+ReadyBASIC command names are visible BASIC text; they are not private tokens.
+Current code prefers bare `COMMAND(...)` statements and selected
+`COMMAND(...)` expressions. The older `!COMMAND args` statement form remains as
+a compatibility path. Avoid substrings that C64 BASIC can tokenize inside the command name.
 That is why the demo/proof commands use the `Z...` namespace and why the array
 examples use `NUM` instead of `INT`.
 
@@ -47,16 +50,17 @@ Use a native routine when the reusable logic is naturally BASIC code and should
 ship with, or be typed into, the user's BASIC program:
 
 ```basic
-1000 PROC DRAW P%,N$
+1000 PROC DRAW(P%,N$)
 1010 PRINT P%;N$
 1020 ENDP
 
-1100 FUNC ADDI X%,Y%,R%
+1100 FUNC ADDI(X%,Y%,R%)
 1110 R%=X%+Y%
 1120 ENDP
 
-10 EXEC DRAW,3,"PLAYER"
-20 EXEC ADDI,4,5,A%
+10 EXEC DRAW(3,"PLAYER")
+20 EXEC ADDI(4,5,A%)
+30 PRINT ADDI(6,7)
 ```
 
 `PROC` has input formals only. `FUNC` uses its final formal as the one output
@@ -66,8 +70,9 @@ after `END`; fall-through into a definition is invalid. Because formals are just
 ordinary C64 BASIC globals, choose formal names that will not collide with caller
 variables you care about.
 
-Use a `!COMMAND` overlay instead when the routine needs hidden RAM, REU handles,
-fast machine-code loops, direct screen/color memory, or shared command behavior.
+Use a descriptor-backed command overlay instead when the routine needs hidden
+RAM, REU handles, fast machine-code loops, direct screen/color memory, or shared
+command behavior.
 
 ## Descriptor Shape
 
@@ -98,7 +103,7 @@ Descriptor commentary:
 | `id` | The stable internal command id. Runtime behavior should not rely on the command's slot number. |
 | `sig` | The parser signature id. Resident dispatch uses it to select the `parse_sig_*` routine before the overlay runs. |
 | `label` / `endlabel` | Assembler labels bracketing the worker code. Their difference is the exact copy size. |
-| `name` | The visible text after `!`, padded to the descriptor's 16-byte name field. |
+| `name` | The visible command text, padded to the descriptor's 16-byte name field. |
 | `RB_CMD_F_LOW` | Descriptor flag telling lookup to copy low overlay code and call the `$A900` entry. |
 | `label - __LOWPACK_RUN__` | Offset of this worker inside the packed LOWPACK image stored in REU bank `$45`. |
 | `endlabel - label` | Number of bytes to copy for this command. Small wrappers copy only themselves. |
@@ -587,3 +592,46 @@ accepts only type-2 screen text+color handles; `BUFFREE` frees any valid type.
 | `rb_screen_handle_validate` | Validates that a handle exists and is type-2 before `SCRPUT`. |
 | `rb_screen_save_text`, `rb_screen_save_color` | Save text RAM and color RAM into a screen handle. |
 | `rb_screen_load_text`, `rb_screen_load_color` | Restore text RAM and color RAM from a screen handle. |
+
+## Appendix E: Expression-Style Experiment
+
+The 2026-05-23 expression branch adds bare statement calls and a small
+eval-vector hook for selected returning commands:
+
+```basic
+ZADD16(4,5,A%)
+PRINT ZADD16(5,10)
+A=ZADD16(8,9)
+T$=UPPER("ready")
+```
+
+This is intentionally not automatic for every command descriptor. The resident
+parser currently recognizes only command signatures that can return safely
+inside BASIC expressions without output variables. Commands with array outputs
+or no scalar result stay statement-only; handle-producing commands such as
+`BUFNEW(n)` and `SCRCAP()` are expression-enabled because their scalar return is
+the handle.
+
+Native routines also accept parenthesized `EXEC` and definitions:
+
+```basic
+100 PROC SHOWI(P%)
+110 PRINT P%
+120 ENDP
+10 EXEC SHOWI(7)
+```
+
+String and numeric `FUNC` routines can be used as expressions when the first
+body statement after the `FUNC` line assigns the final formal:
+
+```basic
+200 FUNC GREET(N$,R$)
+210 R$="HI "+N$
+220 ENDP
+10 A$=GREET("READY")
+20 PRINT ADDI(6,7)
+```
+
+String returns use the ROM string evaluator behind a re-entry guard. Numeric
+returns use a tiny integer RHS evaluator instead of re-entering the full ROM
+numeric expression parser from inside the eval hook.
