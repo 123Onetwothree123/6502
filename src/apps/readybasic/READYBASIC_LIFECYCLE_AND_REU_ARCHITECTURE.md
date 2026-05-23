@@ -45,7 +45,7 @@ The current map confirms this layout:
 | Segment | Runtime range | Size | Role |
 |---|---:|---:|---|
 | `ENTRY` | `$1000-$1102` | `$0103` (259B) | App entry, cold/warm discriminator, early copies. |
-| `RESIDENT` | `$1200-$23F3` | `$11F4` (4.5K, 4596 exact bytes) | Visible parser, ROM calls, REU DMA wrappers, result commit, bare command dispatch, eval hook, native `PROC`/`FUNC`/`RET` dispatch. |
+| `RESIDENT` | `$1200-$23FD` | `$11FE` (4.5K, 4606 exact bytes) | Visible parser, ROM calls, REU DMA wrappers, result commit, bare command dispatch, eval hook, native `PROC`/`FUNC`/`RET` dispatch. |
 | `REGSEED` | `$5000-$600F` | `$1010` (4.0K, 4112 exact bytes) | Load-only registry header and 128 command descriptors used on cold seed. |
 | `HIDDEN` | `$A000-$A376` | `$0377` (0.9K, 887 exact bytes) | Hidden helper routines under BASIC ROM. |
 | `HIDDENPACK` | `$A800-$A84C` | `$004D` (77B) | Hidden worker overlay image, loaded to REU bank `$45`. |
@@ -95,7 +95,7 @@ live inside that contract while also hosting BASIC.
 ```mermaid
 flowchart TB
   A["$1000-$1102 ENTRY<br/>load entry and cold/warm cookie"]
-  B["$1200-$23F3 RESIDENT<br/>visible parser, vector hooks, REU DMA, commit, PROC/FUNC/RET"]
+  B["$1200-$23FD RESIDENT<br/>visible parser, vector hooks, REU DMA, commit, PROC/FUNC/RET"]
   C["$2400 SENTINEL<br/>must be zero for BASIC RUN"]
   D["$2401-$9FFF BASIC WORKSPACE<br/>31741 formula free bytes / 31.0K"]
   E["$2800-$3FFF CMDPACK LOAD IMAGE<br/>low and hidden overlay seed bytes before cold prestash"]
@@ -621,7 +621,7 @@ measurements remain in `READYBASIC_PLUGIN_PROGRESS.md`.
 
 | Segment | Range | Size |
 |---|---:|---:|
-| `RESIDENT` | `$1200-$23F3` | `$11F4` / 4596B |
+| `RESIDENT` | `$1200-$23FD` | `$11FE` / 4606B |
 | `PADLOW` | `$2400-$27FF` | `$0400` / 1280B |
 | `REGSEED` | `$5000-$600F` | `$1010` / 4112B |
 | `HIDDEN` | `$A000-$A376` | `$0377` / 887B |

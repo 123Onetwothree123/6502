@@ -506,10 +506,6 @@ rb_execute:
         beq @maybe_proc
         cmp #'p'
         beq @maybe_proc
-        cmp #'R'
-        beq @maybe_ret
-        cmp #'r'
-        beq @maybe_ret
         cmp #'F'
         beq @maybe_func
         cmp #'f'
@@ -525,10 +521,6 @@ rb_execute:
         jsr rb_match_proc
         bcc rb_call_orig_execute
         jmp rb_skip_routine_def
-@maybe_ret:
-        jsr rb_match_ret
-        bcc rb_maybe_bare_command
-        jmp rb_ret_statement
 @maybe_func:
         jsr rb_match_func
         bcc rb_call_orig_execute
@@ -955,8 +947,11 @@ rb_exec_statement:
         jmp rb_runtime_error
 :       lda #0
         sta CF_PARAM_COUNT
-        sta rb_exec_out_type
-        sta rb_expr_type
+        lda rb_found_kind
+        cmp #RB_ROUT_PROC
+        beq :+
+        jmp BASIC_SYNERR
+:
         jsr rb_bind_exec_args
         bcs :+
         jmp BASIC_SYNERR
@@ -974,12 +969,6 @@ rb_exec_statement:
         sta rb_proc_cur_lo,x
         lda CURLIN+1
         sta rb_proc_cur_hi,x
-        lda rb_exec_out_type
-        sta rb_proc_out_type,x
-        lda rb_exec_out_lo
-        sta rb_proc_out_lo,x
-        lda rb_exec_out_hi
-        sta rb_proc_out_hi,x
         inc rb_proc_depth
         lda rb_found_line_lo
         sta CURLIN
@@ -1000,93 +989,6 @@ rb_endp_statement:
         ldx rb_proc_depth
         jmp rb_proc_restore
 
-rb_ret_statement:
-        jsr CHRGET
-        sta rb_kw_char
-        lda rb_proc_depth
-        bne :+
-        lda #$22
-        jmp rb_runtime_error
-:       tax
-        dex
-        lda rb_proc_out_type,x
-        bne :+
-        jmp BASIC_SYNERR
-:       sta rb_out_type
-        lda rb_kw_char
-        cmp #'%'
-        beq @skip_marker
-        cmp #'$'
-        bne @type_ready
-@skip_marker:
-        jsr CHRGET
-@type_ready:
-        lda rb_out_type
-        cmp #RB_OUT_STRING
-        beq @string
-        lda #1
-        sta rb_crunch_pos
-        jsr BASIC_FRMNUM
-        lda #0
-        sta rb_crunch_pos
-        jsr BASIC_GETADR
-        lda #0
-        sta RF_STATUS
-        lda #RB_VAL_INT
-        sta RF_TAG
-        lda LINNUM+1
-        sta RF_VAL_HI
-        lda LINNUM
-        sta RF_VAL_LO
-        jmp @commit
-@string:
-        lda #1
-        sta rb_crunch_pos
-        jsr BASIC_FRMEVL
-        lda #0
-        sta rb_crunch_pos
-        lda VALTYP
-        cmp #$FF
-        beq :+
-        jmp rb_parse_type_error
-:       lda FAC_EXP
-        cmp #RB_MAX_STR + 1
-        bcc :+
-        lda #RB_MAX_STR
-:       sta RF_STR_LEN
-        lda FAC_MANT1
-        sta rb_ptr2_lo
-        lda FAC_MANT2
-        sta rb_ptr2_hi
-        ldy #0
-@copy:
-        cpy RF_STR_LEN
-        beq @string_ready
-        lda (rb_ptr2_lo),y
-        sta RF_STR_BUF,y
-        iny
-        jmp @copy
-@string_ready:
-        lda #0
-        sta RF_STATUS
-        lda #RB_VAL_STRING
-        sta RF_TAG
-@commit:
-        dec rb_proc_depth
-        ldx rb_proc_depth
-        lda rb_proc_out_type,x
-        sta rb_out_type
-        lda rb_proc_out_lo,x
-        sta rb_out_ptr_lo
-        lda rb_proc_out_hi,x
-        sta rb_out_ptr_hi
-        lda #1
-        sta rb_out_count
-        txa
-        pha
-        jsr rb_commit_result
-        pla
-        tax
 rb_proc_restore:
         lda rb_proc_ret_lo,x
         sta TXTPTR
@@ -1287,15 +1189,6 @@ rb_bind_exec_args:
 @loop:
         jsr rb_next_formal
         bcs @formal
-        lda rb_found_kind
-        cmp #RB_ROUT_FUNC
-        bne @check_extra
-        lda rb_expr_type
-        bne @check_extra
-        jsr rb_parse_func_output_actual
-        bcs @check_extra
-        rts
-@check_extra:
         jsr rb_actual_at_end
         rts
 @formal:
@@ -1372,56 +1265,6 @@ rb_bind_exec_args:
         lda rb_form_next_hi
         sta rb_form_hi
         jmp @loop
-
-rb_parse_func_output_actual:
-        jsr rb_exec_next_actual
-        bcs :+
-        clc
-        rts
-:       lda #0
-        sta SUBFLG
-        jsr BASIC_PTRGET
-        lda VALTYP
-        cmp #$FF
-        beq @string
-        lda INTFLG
-        cmp #$80
-        beq @int
-        jmp rb_parse_type_error
-@int:
-        lda #RB_OUT_INT
-        sta rb_exec_out_type
-        lda VARPNT
-        sta rb_exec_out_lo
-        lda VARPNT+1
-        sta rb_exec_out_hi
-        ldy #0
-        lda #0
-        sta (VARPNT),y
-        iny
-        sta (VARPNT),y
-        jmp @done
-@string:
-        lda #RB_OUT_STRING
-        sta rb_exec_out_type
-        lda VARPNT
-        sta rb_exec_out_lo
-        lda VARPNT+1
-        sta rb_exec_out_hi
-        ldy #0
-        lda #0
-        sta (VARPNT),y
-        iny
-        sta (VARPNT),y
-        iny
-        sta (VARPNT),y
-@done:
-        lda TXTPTR
-        sta rb_actual_lo
-        lda TXTPTR+1
-        sta rb_actual_hi
-        sec
-        rts
 
 rb_stage_cf_string_result:
         lda #0
@@ -2198,17 +2041,21 @@ rb_eval_func:
         sta rb_eval_after_lo
         lda TXTPTR+1
         sta rb_eval_after_hi
-        jsr rb_expr_find_return_rhs
+        jsr rb_expr_run_to_return
         bcs :+
         jmp BASIC_SYNERR
 :       lda rb_exec_out_type
         cmp #RB_OUT_STRING
         beq @string
-        lda #1
-        sta rb_crunch_pos
+        lda rb_eval_after_lo
+        pha
+        lda rb_eval_after_hi
+        pha
         jsr BASIC_FRMNUM
-        lda #0
-        sta rb_crunch_pos
+        pla
+        sta rb_eval_after_hi
+        pla
+        sta rb_eval_after_lo
         jsr BASIC_GETADR
         jsr @restore
         lda LINNUM+1
@@ -2217,11 +2064,15 @@ rb_eval_func:
         sec
         rts
 @string:
-        lda #1
-        sta rb_crunch_pos
+        lda rb_eval_after_lo
+        pha
+        lda rb_eval_after_hi
+        pha
         jsr BASIC_FRMEVL
-        lda #0
-        sta rb_crunch_pos
+        pla
+        sta rb_eval_after_hi
+        pla
+        sta rb_eval_after_lo
 @restore:
         lda rb_eval_after_lo
         sta TXTPTR
@@ -2230,7 +2081,7 @@ rb_eval_func:
         sec
         rts
 
-rb_expr_find_return_rhs:
+rb_expr_run_to_return:
         jsr rb_expr_next_body_line
         bcs @line
         rts
@@ -2268,8 +2119,10 @@ rb_expr_find_return_rhs:
         sta rb_peek_hi
         jsr rb_match_endp
         bcs @no
-        jsr rb_skip_to_stmt_end
-        jmp @stmt
+        jsr rb_expr_exec_assignment
+        bcs @stmt
+        clc
+        rts
 @ret:
         jsr CHRGET
         jsr rb_skip_spaces
@@ -2278,6 +2131,160 @@ rb_expr_find_return_rhs:
         rts
 @no:
         clc
+        rts
+
+rb_expr_exec_assignment:
+        jsr rb_expr_assignment_shape
+        bcs :+
+        rts
+:       lda rb_stmt_lo
+        sta TXTPTR
+        lda rb_stmt_hi
+        sta TXTPTR+1
+        lda #0
+        sta SUBFLG
+        jsr BASIC_PTRGET
+        lda VARPNT
+        sta rb_exec_out_lo
+        lda VARPNT+1
+        sta rb_exec_out_hi
+        lda VALTYP
+        pha
+        jsr rb_skip_spaces
+        cmp #TOKEN_EQUAL
+        beq :+
+        cmp #'='
+        beq :+
+        pla
+        clc
+        rts
+:       jsr CHRGET
+        pla
+        cmp #$FF
+        beq @string
+        jsr rb_expr_push_state
+        jsr BASIC_FRMNUM
+        jsr rb_expr_pop_state
+        jsr BASIC_GETADR
+        lda rb_exec_out_lo
+        sta rb_ptr_lo
+        lda rb_exec_out_hi
+        sta rb_ptr_hi
+        ldy #0
+        lda LINNUM+1
+        sta (rb_ptr_lo),y
+        iny
+        lda LINNUM
+        sta (rb_ptr_lo),y
+        jmp @done
+@string:
+        jsr rb_expr_push_state
+        jsr BASIC_FRMEVL
+        jsr rb_expr_pop_state
+        jsr rb_stage_fac_string_result
+        lda #RB_OUT_STRING
+        sta rb_out_type
+        lda rb_exec_out_lo
+        sta rb_out_ptr_lo
+        lda rb_exec_out_hi
+        sta rb_out_ptr_hi
+        lda #1
+        sta rb_out_count
+        jsr rb_commit_result
+@done:
+        lda TXTPTR
+        sta rb_stmt_lo
+        lda TXTPTR+1
+        sta rb_stmt_hi
+        sec
+        rts
+
+rb_expr_push_state:
+        pla
+        sta rb_ptr_lo
+        pla
+        sta rb_ptr_hi
+        lda rb_scan_line_lo
+        pha
+        lda rb_scan_line_hi
+        pha
+        lda rb_eval_after_lo
+        pha
+        lda rb_eval_after_hi
+        pha
+        lda rb_ptr_hi
+        pha
+        lda rb_ptr_lo
+        pha
+        rts
+
+rb_expr_pop_state:
+        pla
+        sta rb_ptr_lo
+        pla
+        sta rb_ptr_hi
+        pla
+        sta rb_eval_after_hi
+        pla
+        sta rb_eval_after_lo
+        pla
+        sta rb_scan_line_hi
+        pla
+        sta rb_scan_line_lo
+        lda rb_ptr_hi
+        pha
+        lda rb_ptr_lo
+        pha
+        rts
+
+rb_expr_assignment_shape:
+        lda rb_stmt_lo
+        sta rb_ptr_lo
+        lda rb_stmt_hi
+        sta rb_ptr_hi
+        ldy #0
+@spaces:
+        lda (rb_ptr_lo),y
+        cmp #' '
+        bne @first
+        iny
+        bne @spaces
+@first:
+        jsr rb_fold_a
+        cmp #'A'
+        bcc @no
+        cmp #'Z' + 1
+        bcs @no
+        iny
+@name:
+        lda (rb_ptr_lo),y
+        cmp #'%'
+        beq @type
+        cmp #'$'
+        beq @type
+        jsr rb_fold_a
+        jsr rb_is_name_char
+        bcc @after_name
+        iny
+        bne @name
+@type:
+        iny
+@after_name:
+        lda (rb_ptr_lo),y
+        cmp #' '
+        bne @equal
+        iny
+        bne @after_name
+@equal:
+        cmp #TOKEN_EQUAL
+        beq @ok
+        cmp #'='
+        beq @ok
+@no:
+        clc
+        rts
+@ok:
+        sec
         rts
 
 rb_expr_next_body_line:
@@ -2331,6 +2338,35 @@ rb_expr_detect_ret_type:
 @int:
         lda #RB_OUT_INT
         sta rb_exec_out_type
+        rts
+
+rb_stage_fac_string_result:
+        lda VALTYP
+        cmp #$FF
+        beq :+
+        jmp rb_parse_type_error
+:       lda FAC_EXP
+        cmp #RB_MAX_STR + 1
+        bcc :+
+        lda #RB_MAX_STR
+:       sta RF_STR_LEN
+        lda FAC_MANT1
+        sta rb_ptr2_lo
+        lda FAC_MANT2
+        sta rb_ptr2_hi
+        ldy #0
+@copy:
+        cpy RF_STR_LEN
+        beq @ready
+        lda (rb_ptr2_lo),y
+        sta RF_STR_BUF,y
+        iny
+        jmp @copy
+@ready:
+        lda #0
+        sta RF_STATUS
+        lda #RB_VAL_STRING
+        sta RF_TAG
         rts
 
 rb_parse_expr_signature:
@@ -3562,9 +3598,6 @@ rb_proc_ret_lo:.res RB_PROC_DEPTH
 rb_proc_ret_hi:.res RB_PROC_DEPTH
 rb_proc_cur_lo:.res RB_PROC_DEPTH
 rb_proc_cur_hi:.res RB_PROC_DEPTH
-rb_proc_out_type:.res RB_PROC_DEPTH
-rb_proc_out_lo:.res RB_PROC_DEPTH
-rb_proc_out_hi:.res RB_PROC_DEPTH
 
 RUNTIME_MAGIC1:  .byte 0
 RUNTIME_MAGIC2:  .byte 0

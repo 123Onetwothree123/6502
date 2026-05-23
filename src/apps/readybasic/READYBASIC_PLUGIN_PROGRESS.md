@@ -25,28 +25,28 @@ as `PING`, `ADD16`, `STRUP`, `HCRC`, `SUMAI`, `RANGEAI`, `TEMPSCRATCH`, and
   NAME()` was cut for resident size.
 - Reworked `FUNC` so definitions have input formals only and return with
   `RET expr`. Optional `RET% expr` and `RET$ expr` markers make the return type
-  explicit. Statement `EXEC` to a `FUNC` still supplies one extra final output
-  actual, and now supports the common "assign later, then `RET R%`" pattern.
-  Expression `FUNC` calls scan to `RET` and evaluate that expression; they do
-  not execute arbitrary earlier statements in the body.
+  explicit. `FUNC` is now expression-only and returns directly to the expression
+  evaluator; `EXEC FUNC(...)` is rejected. `FUNC` bodies support the common
+  "assign later, then `RET R%`" pattern with simple scalar assignments before
+  `RET`, including nested ReadyBASIC function/command calls on the RHS.
 - Memory impact versus the native PROC/FUNC baseline:
   - `BASIC_START`: `$2101` -> `$2401`.
   - Empty BASIC free bytes: `32509` -> `31741`, delta `-768`.
-  - `RESIDENT`: `$0EF4` / 3828B -> `$11F4` / 4596B, delta `+768`.
+  - `RESIDENT`: `$0EF4` / 3828B -> `$11FE` / 4606B, delta `+778`.
   - `BRIDGE`: `$01FB` / 507B -> `$01F5` / 501B, delta `-6`.
   - `LOWPACK`: unchanged at `$061A` / 1562B.
   - `bin/readybasic.prg`: unchanged at `20994` bytes.
 - Verification:
   - `make readybasic-plugin-static-check`: pass.
   - Focused VICE expression probe: pass for bare command statements, command
-    expressions, parenthesized `EXEC`, statement `FUNC` with later assignment
+    expressions, parenthesized `EXEC PROC`, `FUNC` with later assignment
     plus `RET`, numeric `FUNC` expression return/assignment, and string `FUNC`
     expression return.
   - `RBPROC1` stored-program probe: pass for no-param `PROC`, `%`/`$` inputs,
     `%`/`$` returns, explicit `RET%`/`RET$`, colon chain, normalized
     `IF THEN :EXEC`, nested depth 2, expression `FUNC`, and readable `LIST`.
   - Parenthesized `RBPROCERR` negative VICE probe: pass for unknown routine,
-    missing/wrong args, missing `FUNC` output, extra `PROC` actual, bare `ENDP`,
+    missing/wrong args, statement `EXEC` to `FUNC`, extra `PROC` actual, bare `ENDP`,
     and stack overflow.
   - `make verify`: pass after rebuilding the normal `precog-dual-d71` profile.
 

@@ -2,19 +2,19 @@
 20 exec show0
 30 exec showi(7)
 40 exec shows("yo")
-50 exec addlate(4,5,a%)
+50 a%=addlate(4,5)
 60 print "sum";a%
-70 exec greet("ready",a$)
+70 a$=greet("ready")
 80 print a$
 90 print "chain":exec showi(8):print "after"
-100 if 1 then :exec addi(1,2,a%)
+100 if 1 then :a%=addi(1,2)
 110 print "if";a%
-120 exec outer(3,a%)
+120 a%=outer(3)
 130 print "nested";a%
 140 print "efn";addi(6,7)
 150 b=addi(2,3):print "efass";b
 160 t$=greet("expr"):print t$
-170 exec idi(9,a%):print "ret%";a%
+170 a%=idi(9):print "ret%";a%
 180 t$=ids("ok"):print "ret$ ";t$
 190 end
 1000 proc show0()
@@ -30,13 +30,14 @@
 1310 ret x%+y%
 1320 endp
 1400 func greet(n$)
-1410 ret "hi "+n$
-1420 endp
+1410 r$="hi "+n$
+1420 ret r$
+1430 endp
 1500 func inner(x%)
 1510 ret x%+10
 1520 endp
 1600 func outer(x%)
-1610 exec inner(x%,r%)
+1610 r%=inner(x%)
 1620 r%=r%+1
 1630 ret r%
 1640 endp

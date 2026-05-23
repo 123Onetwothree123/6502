@@ -137,10 +137,10 @@
 1130 ENDP
 
 10 EXEC DRAW(3,"PLAYER")
-20 EXEC ADDI(4,5,A%)
+20 A%=ADDI(4,5)
 30 PRINT ADDI(6,7)</code></pre>
     <div class="card">
-      <p><code>PROC</code> has input formals only. <code>FUNC</code> also declares input formals only and returns with <code>RET expr</code>; use <code>RET% expr</code> or <code>RET$ expr</code> when the return type should be explicit. Statement <code>EXEC</code> calls to a <code>FUNC</code> pass one extra final output actual. V1 supports only <code>%</code> integer and <code>$</code> string formals, no arrays, locals, plain floating variables, by-reference parameters, or multiple outputs. Definitions should live after <code>END</code>; fall-through into a definition is invalid.</p>
+      <p><code>PROC</code> has input formals only. <code>FUNC</code> also declares input formals only and returns with <code>RET expr</code>; use <code>RET% expr</code> or <code>RET$ expr</code> when the return type should be explicit. <code>FUNC</code> is called as an expression and does not take a final output actual. V1 supports only <code>%</code> integer and <code>$</code> string formals, no arrays, locals, plain floating variables, by-reference parameters, or multiple outputs. Definitions should live after <code>END</code>; fall-through into a definition is invalid.</p>
       <p>Use a descriptor-backed command overlay when the routine needs hidden RAM, REU handles, fast machine-code loops, direct screen/color memory, or shared command behavior.</p>
     </div>
   </section>
@@ -515,11 +515,10 @@ CMD_LOW_ALL CMD_SCRPUT, SIG_SCRPUT, cmd_scrput_low, "SCRPUT"</code></pre>
       Native routines accept parenthesized non-empty argument lists:
       <code>PROC SHOWI(P%)</code> and <code>EXEC SHOWI(7)</code>. <code>FUNC</code>
       routines return through <code>RET expr</code>, with optional
-      <code>RET% expr</code> and <code>RET$ expr</code> markers. Statement
-      <code>EXEC</code> runs the body, so assignment before <code>RET R%</code>
-      works. Expression calls such as <code>A$=GREET("READY")</code> or
-      <code>PRINT ADDI(6,7)</code> scan to the routine's <code>RET</code>
-      statement and evaluate that expression.
+      <code>RET% expr</code> and <code>RET$ expr</code> markers. Expression
+      calls run simple scalar assignments before <code>RET</code>; calls such as
+      <code>A$=GREET("READY")</code> or <code>PRINT ADDI(6,7)</code> return the
+      <code>RET</code> expression directly.
     </p>
   </section>
 

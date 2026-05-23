@@ -41,18 +41,17 @@ for common forms such as numeric inputs, string inputs, array base/count pairs,
 typed handles, and optional output targets.
 
 Native `PROC`/`FUNC` now covers reusable BASIC-level routines with `%` and `$`
-formals, `EXEC`, `RET`, and `ENDP`. `FUNC` definitions have input formals only;
-statement `EXEC` supplies one extra final output actual, while expression calls
-return directly. Future routine work should build from that implemented base:
+formals, `EXEC`, `RET`, and `ENDP`. `FUNC` definitions have input formals only
+and return directly as BASIC expressions; `EXEC` is for `PROC`. Future routine
+work should build from that implemented base:
 possible follow-ups are `CALL` for non-returning named transfer, fall-through
 skipping of definitions, richer parameter types, and optionally a small formal
 metadata cache if repeated `EXEC` scans become too slow.
 
 The expression-style experiment proved a useful split: expression-safe command
-returns, string `FUNC` expression returns, statement `FUNC` bodies with later
-assignment plus `RET`, and numeric `FUNC` expression returns are viable.
-Expression `FUNC` calls still scan to a `RET` statement and evaluate that return
-expression instead of executing arbitrary earlier BASIC statements in the body.
+returns, string/numeric `FUNC` expression returns, and `FUNC` bodies with simple
+assignments before `RET` are viable. Future work can consider richer in-body
+statements, but V1 intentionally keeps that surface small.
 
 ## Command Naming
 

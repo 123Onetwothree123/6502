@@ -641,7 +641,7 @@
           </p>
           <div class="callout good">
             <strong>IF normalization:</strong> <code>IF 1 THEN ZECHO1(P%)</code> and
-            <code>IF 1 THEN EXEC ADDI(1,2,A%)</code> work, but store/list with a colon after
+            <code>IF 1 THEN EXEC SHOWI(7)</code> work, but store/list with a colon after
             <code>THEN</code> so BASIC reaches the normal statement dispatcher.
           </div>
         </div>
@@ -663,26 +663,28 @@
       <div class="grid-2">
         <div>
           <p>Reusable BASIC routines are ordinary BASIC program text, not command overlays or descriptors.</p>
-          <pre><code>1000 PROC SHOW P%,M$
+          <pre><code>1000 PROC SHOW(P%,M$)
 1010 PRINT P%;M$
 1020 ENDP
 
-1100 FUNC ADDI X%,Y%,R%
+1100 FUNC ADDI(X%,Y%)
 1110 R%=X%+Y%
-1120 ENDP
+1120 RET R%
+1130 ENDP
 
-10 EXEC SHOW,3,"READY"
-20 EXEC ADDI,4,5,A%</code></pre>
+10 EXEC SHOW(3,"READY")
+20 A%=ADDI(4,5)
+30 PRINT ADDI(6,7)</code></pre>
         </div>
         <div>
           <ul class="status-list">
             <li><span class="pill">PROC</span><span>Input formals only; called through <code>EXEC</code>.</span></li>
-            <li><span class="pill">FUNC</span><span>Final formal is the single output formal and needs a final output actual.</span></li>
-            <li><span class="pill">ENDP</span><span>Returns from both <code>PROC</code> and <code>FUNC</code>.</span></li>
+            <li><span class="pill">FUNC</span><span>Input formals only; called as an expression and returns through <code>RET</code>.</span></li>
+            <li><span class="pill">ENDP</span><span>Ends both <code>PROC</code> and <code>FUNC</code> definitions.</span></li>
             <li><span class="pill">V1</span><span>Only <code>%</code> and <code>$</code> formals; no locals, arrays, floats, by-ref, or multiple outputs.</span></li>
             <li><span class="pill">Depth 4</span><span>A fifth active <code>EXEC</code> reports <code>?RB ERROR 33</code>.</span></li>
           </ul>
-          <div class="callout warn">Place definitions after <code>END</code>. Fall-through into <code>PROC</code> or <code>FUNC</code> is invalid in V1. Formals are ordinary BASIC globals, so avoid name collisions with caller output variables.</div>
+          <div class="callout warn">Place definitions after <code>END</code>. Fall-through into <code>PROC</code> or <code>FUNC</code> is invalid in V1. Formals are ordinary BASIC globals, so avoid unintended name collisions with caller variables.</div>
         </div>
       </div>
     </section>

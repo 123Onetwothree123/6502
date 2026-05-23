@@ -4,7 +4,7 @@
 
 - `BASIC_START = $2401`; BASIC owns `$2401-$9FFF`, with `31741` formula empty free bytes (31.0K).
 - `$1000-$1102`: tiny app entry (`$0103`, 259B) that copies hidden helpers and bridge state before BASIC starts.
-- `$1200-$23F3`: visible resident core (`$11F4`, 4596B). This is the only code that calls BASIC ROM helpers.
+- `$1200-$23FD`: visible resident core (`$11FE`, 4606B). This is the only code that calls BASIC ROM helpers.
 - `$2400`: BASIC sentinel byte; it must stay zero before stored-program `RUN`.
 - `$A900-$AF19`: low command overlay slot under BASIC ROM. Current packed low command image is `$061A` bytes (1.5K, 1562 exact bytes).
 - `$C200-$C5FF`: fixed call frame, result frame, descriptor buffer, command-name buffer, page buffer, and warm-resume staging (`$0400`, 1.0K).
@@ -99,7 +99,7 @@ Native reusable BASIC routines:
 
 - `PROC NAME(P%,S$) ... ENDP`: input-only routine, called with `EXEC NAME(...)`.
 - `FUNC NAME(P%,S$) ... RET expr ... ENDP`: input formals only; `RET`, `RET%`, or `RET$` supplies the return value.
-- `EXEC NAME(...)`: scans stored BASIC text for the matching `PROC` or `FUNC`, binds `%`/`$` actuals to formals, pushes a four-entry return stack in bridge state, and resumes at the routine body. Statement `EXEC` calls to `FUNC` pass one extra final output actual for the return value.
+- `EXEC NAME(...)`: scans stored BASIC text for the matching `PROC`, binds `%`/`$` actuals to formals, pushes a four-entry return stack in bridge state, and resumes at the routine body. `FUNC` is expression-only; `EXEC FUNC(...)` is rejected.
 - `CALL` remains reserved for a future non-returning named transfer and is not implemented.
 
 ## Known V1 Boundaries
@@ -137,11 +137,10 @@ calls.
 - Zero-argument routines use `EXEC NAME`; empty parentheses were omitted to keep
   resident code smaller.
 - `FUNC` returns use `RET expr`, with optional `RET% expr` and `RET$ expr`
-  markers to make the return type explicit. Statement `EXEC` runs the routine
-  body, so assignments before `RET` take effect. Expression `FUNC` calls scan to
-  the routine's `RET` statement and evaluate that expression without executing
-  arbitrary earlier statements in the body.
+  markers to make the return type explicit. Expression `FUNC` calls scan the
+  routine body, execute simple scalar assignments before `RET`, and then
+  evaluate the return expression.
 
 Measured branch layout: `BASIC_START=$2401`; BASIC owns `$2401-$9FFF`, for
-`31741` formula empty free bytes. `RESIDENT` is `$1200-$23F3` (`4596` bytes),
+`31741` formula empty free bytes. `RESIDENT` is `$1200-$23FD` (`4606` bytes),
 `BRIDGE` is `$C000-$C1F4` (`501` bytes), and command overlays remain unchanged.

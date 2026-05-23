@@ -60,13 +60,13 @@ ship with, or be typed into, the user's BASIC program:
 1130 ENDP
 
 10 EXEC DRAW(3,"PLAYER")
-20 EXEC ADDI(4,5,A%)
+20 A%=ADDI(4,5)
 30 PRINT ADDI(6,7)
 ```
 
 `PROC` has input formals only. `FUNC` also declares input formals only and
 returns with `RET expr`; use `RET% expr` or `RET$ expr` when the return type
-should be explicit. Statement `EXEC` calls to a `FUNC` pass one extra final
+should be explicit. `FUNC` is called as an expression and does not take a final
 output actual. Version 1 supports only `%` integer and `$` string formals, no
 arrays, locals, plain floating variables, or multiple outputs. Definitions
 should live after `END`; fall-through into a definition is invalid. Because formals are just
@@ -635,6 +635,6 @@ when the return type should be explicit:
 20 PRINT ADDI(6,7)
 ```
 
-Statement `EXEC` mode runs the routine body, so assignment before `RET R%`
-works. Expression calls scan to the routine's `RET` statement and evaluate that
-expression; they do not execute arbitrary earlier statements in the body.
+Expression `FUNC` calls scan the routine body, run simple scalar assignments
+before `RET`, and evaluate the return expression. They do not execute arbitrary
+earlier statements in the body.
