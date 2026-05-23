@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ReadyBASIC Making Command Guide</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5c6678;
+      --line: #d8dee8;
+      --paper: #f6f8fb;
+      --panel: #ffffff;
+      --low: #dff3ec;
+      --hidden: #f4e4ef;
+      --reu: #e7ecff;
+      --warn: #fff4d8;
+      --code: #101828;
+      --radius: 8px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--paper);
+    }
+    header, section { max-width: 1120px; margin: 0 auto; padding: 28px 22px; }
+    header { padding-top: 42px; }
+    h1 { margin: 0 0 8px; font-size: 34px; letter-spacing: 0; }
+    h2 { margin: 0 0 14px; font-size: 24px; letter-spacing: 0; }
+    h3 { margin: 0 0 8px; font-size: 18px; letter-spacing: 0; }
+    p { margin: 0 0 14px; }
+    .muted { color: var(--muted); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+    .chip {
+      display: inline-block;
+      padding: 2px 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      font-size: 13px;
+      margin: 0 4px 6px 0;
+    }
+    .low { background: var(--low); }
+    .hidden { background: var(--hidden); }
+    .reu { background: var(--reu); }
+    .warn { background: var(--warn); }
+    pre {
+      margin: 12px 0 0;
+      padding: 14px;
+      overflow: auto;
+      color: #f2f5ff;
+      background: var(--code);
+      border-radius: var(--radius);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); }
+    th, td { border-bottom: 1px solid var(--line); padding: 10px; text-align: left; vertical-align: top; }
+    th { background: #eef2f7; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>ReadyBASIC Making Command Guide</h1>
+    <p class="muted">How current <code>!COMMAND</code> examples are wired into descriptors, parser signatures, low overlays, hidden overlays, and REU handles.</p>
+    <p><span class="chip">128 descriptor slots</span><span class="chip">SCRCAP slot 14</span><span class="chip">SCRPUT slot 128</span><span class="chip">LOWPACK $061A</span></p>
+  </header>
+
+  <section>
+    <h2>Naming Rules</h2>
+    <div class="card warn">
+      <p>ReadyBASIC names are visible BASIC text after <code>!</code>, not private tokens. Avoid substrings that C64 BASIC can tokenize inside the command name.</p>
+      <p>Proof/demo commands use <code>Z...</code>. Array demos use <code>NUM</code> instead of <code>INT</code>. Historical names like <code>PING</code>, <code>ADD16</code>, <code>STRUP</code>, <code>HCRC</code>, <code>SUMAI</code>, and <code>RANGEAI</code> are not aliases.</p>
+      <p>The current proof/demo names are <code>ZECHO1</code>, <code>ZADD16</code>, <code>ZHIDDENRAM</code>, <code>ZSUMNUMARRAY</code>, <code>ZRANGENUMARRAY</code>, <code>ZTEMPSCRATCH</code>, and <code>ZFAIL</code>. The useful string commands are <code>UPPER</code> and <code>LOWER</code>.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Descriptor Shape</h2>
+    <p>Descriptors are cold-seeded into REU bank <code>$44:$1000-$1FFF</code>. Runtime lookup fetches one 256-byte page, scans eight descriptors, then copies the match to <code>RB_DESC_BUF</code>.</p>
+<pre><code>.macro CMD_LOW id, sig, label, endlabel, name
+        .byte id, RB_CMD_F_LOW
+        .word label - __LOWPACK_RUN__ ; offset in REU bank $45
+        .word endlabel - label        ; copy length
+        .word 0, 0
+        .word label - RB_LOW_BASE     ; run offset from $A900
+        .word 0
+        .byte sig, .strlen(name)
+        .byte name
+        .res 16 - .strlen(name), 0
+.endmacro</code></pre>
+<pre><code>.macro CMD_LOW_ALL id, sig, label, name
+        .byte id, RB_CMD_F_LOW
+        .word 0                    ; whole LOWPACK
+        .word __LOWPACK_SIZE__
+        .word 0, 0
+        .word label - RB_LOW_BASE
+        .word 0
+        .byte sig, .strlen(name)
+        .byte name
+        .res 16 - .strlen(name), 0
+.endmacro
+
+.macro CMD_HIDDEN id, sig, label, endlabel, name
+        .byte id, RB_CMD_F_HIDDEN
+        .word 0, 0
+        .word label - __HIDDENPACK_RUN__
+        .word endlabel - label
+        .word 0
+        .word label - RB_HIDDEN_BASE
+        .byte sig, .strlen(name)
+        .byte name
+        .res 16 - .strlen(name), 0
+.endmacro</code></pre>
+  </section>
+
+  <section>
+    <h2>Small Commands</h2>
+    <div class="grid">
+      <div class="card">
+        <h3>ZECHO1</h3>
+        <p><span class="chip low">low overlay</span><span class="chip">output int</span></p>
+        <p>Minimum output-command skeleton: parse <code>OUT%</code>, stage integer <code>1</code>, commit.</p>
+<pre><code>parse_sig_zecho1:
+        jsr rb_parse_out_int
+        rts
+
+cmd_zecho1_low:
+        lda #0
+        sta RF_STATUS
+        lda #RB_VAL_INT
+        sta RF_TAG
+        lda #1
+        sta RF_VAL_LO
+        lda #0
+        sta RF_VAL_HI
+        rts
+cmd_zecho1_low_end:</code></pre>
+<pre><code>CMD_LOW CMD_ZECHO1, SIG_ZECHO1,
+        cmd_zecho1_low, cmd_zecho1_low_end, "ZECHO1"</code></pre>
+      </div>
+      <div class="card">
+        <h3>ZADD16</h3>
+        <p><span class="chip low">low overlay</span><span class="chip">two numeric inputs</span></p>
+        <p>Proves BASIC ROM expression parsing in resident code, then simple arithmetic in the overlay.</p>
+<pre><code>parse_sig_zadd16:
+        jsr rb_parse_num0
+        jsr rb_parse_num1
+        jsr rb_parse_out_int
+        rts
+
+cmd_zadd16_low:
+        clc
+        lda CF_NUM0_LO
+        adc CF_NUM1_LO
+        sta RF_VAL_LO
+        lda CF_NUM0_HI
+        adc CF_NUM1_HI
+        sta RF_VAL_HI
+        lda #0
+        sta RF_STATUS
+        lda #RB_VAL_INT
+        sta RF_TAG
+        rts</code></pre>
+<pre><code>CMD_LOW CMD_ZADD16, SIG_ZADD16,
+        cmd_zadd16_low, cmd_zadd16_low_end, "ZADD16"</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>String Commands</h2>
+    <p><code>UPPER</code> and <code>LOWER</code> share <code>parse_sig_string_out</code>. The overlay transforms bytes into <code>RF_STR_BUF</code>; resident code owns BASIC string heap allocation.</p>
+<pre><code>parse_sig_string_out:
+        jsr rb_parse_string_value
+        jsr rb_parse_out_string
+        rts
+
+cmd_lower_low:
+        lda #0
+        sta RF_STATUS
+        lda #RB_VAL_STRING
+        sta RF_TAG
+        lda CF_STR_LEN
+        sta RF_STR_LEN
+        ldy #0
+@loop:
+        cpy CF_STR_LEN
+        beq @done
+        lda CF_STR_BUF,y
+        cmp #'A'
+        bcc :+
+        cmp #'Z' + 1
+        bcs :+
+        clc
+        adc #$20
+:       sta RF_STR_BUF,y
+        iny
+        jmp @loop
+@done:
+        rts</code></pre>
+<pre><code>CMD_LOW CMD_UPPER, SIG_UPPER,
+        cmd_upper_low, cmd_upper_low_end, "UPPER"
+CMD_LOW CMD_LOWER, SIG_LOWER,
+        cmd_lower_low, cmd_lower_low_end, "LOWER"</code></pre>
+    <p class="muted">The source also handles shifted C64 letter bytes. Tests assert <code>ASC()</code> values because visual case depends on the active C64 charset.</p>
+  </section>
+
+  <section>
+    <h2>Array And Hidden Examples</h2>
+    <div class="grid">
+      <div class="card hidden">
+        <h3>ZHIDDENRAM</h3>
+        <p>Uses <code>CMD_HIDDEN</code>, fetches code into <code>$A800</code>, maps RAM under BASIC ROM, runs a checksum-like worker, and restores banking.</p>
+<pre><code>CMD_HIDDEN CMD_ZHIDDENRAM, SIG_ZHIDDENRAM,
+           cmd_zhiddenram_hidden, cmd_zhiddenram_hidden_end,
+           "ZHIDDENRAM"</code></pre>
+      </div>
+      <div class="card">
+        <h3>ZSUMNUMARRAY</h3>
+        <p>Uses an explicit base element plus count: <code>!ZSUMNUMARRAY A%(0),3,S%</code>. Resident code resolves the array pointer before the overlay runs.</p>
+<pre><code>parse_sig_zsumnumarray:
+        jsr rb_parse_int_array_input
+        jsr rb_parse_out_int
+        jsr rb_resolve_int_array_input_ptr
+        rts</code></pre>
+      </div>
+      <div class="card">
+        <h3>ZRANGENUMARRAY</h3>
+        <p>Output-array sibling for <code>ZSUMNUMARRAY</code>. It proves the result-frame path for writing several integer elements after the command has succeeded.</p>
+<pre><code>parse_sig_zrangenumarray:
+        jsr rb_parse_num0
+        jsr rb_parse_num1
+        jsr rb_parse_int_array_output
+        rts
+
+cmd_zrangenumarray_low:
+        ; stage output bytes in RF_ARR_BUF
+        ; resident commit copies them into A%()</code></pre>
+<pre><code>CMD_LOW CMD_ZSUMNUMARRAY, SIG_ZSUMNUMARRAY,
+        cmd_zsumnumarray_low, cmd_zsumnumarray_low_end,
+        "ZSUMNUMARRAY"
+CMD_LOW CMD_ZRANGENUMARRAY, SIG_ZRANGENUMARRAY,
+        cmd_zrangenumarray_low, cmd_zrangenumarray_low_end,
+        "ZRANGENUMARRAY"</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>REU Handle Commands</h2>
+    <p>BASIC sees a small integer handle. Canonical descriptors live in REU bank <code>$44:$0800-$09FF</code>, the bitmap at <code>$44:$0C00</code>, and data in the 48KB typed heap at <code>$44:$4000-$FFFF</code>.</p>
+    <table>
+      <thead><tr><th>Command</th><th>Pattern</th></tr></thead>
+      <tbody>
+        <tr><td><code>BUFNEW</code></td><td>Allocate pages, store type-1 descriptor, return one-based handle.</td></tr>
+        <tr><td><code>BUFFILL</code></td><td>Validate type-1 buffer handle, fill pages through <code>$C500</code>.</td></tr>
+        <tr><td><code>BUFFREE</code></td><td>Free any valid handle type and clear metadata.</td></tr>
+        <tr><td><code>SCRCAP</code></td><td>Allocate type-2 screen text+color handle and stash text/color RAM.</td></tr>
+        <tr><td><code>SCRPUT</code></td><td>Validate type-2 handle and restore text/color RAM from slot-128 lookup.</td></tr>
+      </tbody>
+    </table>
+<pre><code>cmd_bufnew_low:
+        jsr rb_handle_alloc
+        rts
+
+cmd_scrput_low:
+        jsr rb_screen_handle_validate
+        lda RF_STATUS
+        beq :+
+        rts
+:       jsr rb_screen_load_text
+        jsr rb_screen_load_color
+        lda #0
+        sta RF_STATUS
+        lda #RB_VAL_NONE
+        sta RF_TAG
+        rts</code></pre>
+<pre><code>CMD_LOW_ALL CMD_BUFNEW, SIG_BUFNEW, cmd_bufnew_low, "BUFNEW"
+CMD_LOW_ALL CMD_BUFFILL, SIG_BUFFILL, cmd_buffill_low, "BUFFILL"
+CMD_LOW_ALL CMD_BUFFREE, SIG_BUFFREE, cmd_buffree_low, "BUFFREE"
+CMD_LOW_ALL CMD_SCRCAP, SIG_SCRCAP, cmd_scrcap_low, "SCRCAP"
+CMD_LOW_ALL CMD_SCRPUT, SIG_SCRPUT, cmd_scrput_low, "SCRPUT"</code></pre>
+    <p class="muted">The handle lesson is to keep BASIC-visible values small, keep canonical resource metadata in REU, and validate handle type at command boundaries. <code>BUFFILL</code> accepts only type-1 buffer handles; <code>SCRPUT</code> accepts only type-2 screen text+color handles; <code>BUFFREE</code> frees any valid type.</p>
+  </section>
+
+  <section>
+    <h2>Naming Lessons And Add-Command Checklist</h2>
+    <ol>
+      <li>Choose a tokenizer-safe name.</li>
+      <li>Add command id and signature id.</li>
+      <li>Add or reuse a parser signature that fills the call frame and clears outputs.</li>
+      <li>Add a low or hidden worker that writes the result frame only on success.</li>
+      <li>Add a descriptor entry; use <code>CMD_LOW_ALL</code> only when shared helpers require the full low pack.</li>
+      <li>Keep resident growth minimal; prefer REU metadata and existing scratch pages.</li>
+      <li>Add direct, stored-program, error-path, and resume/slot coverage.</li>
+      <li>Update Markdown and HTML docs with measured map values after tests pass.</li>
+    </ol>
+  </section>
+</body>
+</html>

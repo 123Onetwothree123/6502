@@ -306,9 +306,16 @@ reserved words that appear inside the typed command name. Names such as
 `SCRPUT` to avoid those embedded tokens.
 
 The same class of problem showed up in shorter examples too: `BUFNEW` can carry
-an `FN` token, `FREEMEM` can carry a `FRE` token, and `PING` can carry a `PI`
-token. ReadyBASIC currently has parser accommodations for the command names we
-ship, but future command names should not rely on adding more special cases.
+an `FN` token, `FREEMEM` can carry a `FRE` token, and historical `PING` could
+carry a `PI` token. ReadyBASIC currently has parser accommodations for shipped
+names that still need them, but future command names should not rely on adding
+more special cases.
+
+The 2026-05-22 command rename pass made that rule practical: proof/demo
+commands now live under a `Z...` namespace, `STRUP` became useful command
+`UPPER`, sibling `LOWER` was added, and array demos use `NUM` instead of
+`INT` so the BASIC tokenizer will not silently insert an `INT` token inside the
+command name.
 
 Current naming rule: prefer command names that do not contain BASIC keywords,
 functions, operators, or pseudo-variables as substrings. Avoid obvious tokens
@@ -569,9 +576,10 @@ contract is fully proven.
   registry function after resume.
 - For the stored-program command contract, use:
   `READYBASIC_VISIBLE=1 bash ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_program_probe.sh`
-  This interviews each command style early: first `LIST`/`RUN` for `PING`, then
-  same-line continuation, strings, hidden workers, arrays, handles, and failure
-  clearing. It should fail fast at the first command family that regresses.
+  This interviews each command style early: first `LIST`/`RUN` for `ZECHO1`,
+  then same-line continuation, strings, hidden workers, arrays, handles, and
+  failure clearing. It should fail fast at the first command family that
+  regresses.
 - For manual-`EXIT` BASIC-state probes, use:
   `bash ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_state_probe.sh`
 - For the larger direct-variable/string/array stress case, use:

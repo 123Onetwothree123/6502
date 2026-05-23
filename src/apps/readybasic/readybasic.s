@@ -181,35 +181,37 @@ RB_HANDLE_TYPE_SCREEN_TC = 2
 RB_SCREEN_BYTES    = $03E8
 RB_SCREEN_HANDLE_PAGES = 8
 
-SIG_PING        = 1
-SIG_ADD16       = 2
-SIG_STRUP       = 3
-SIG_HCRC        = 4
-SIG_SUMAI       = 5
-SIG_RANGEAI     = 6
-SIG_BUFNEW      = 7
-SIG_BUFFILL     = 8
-SIG_BUFFREE     = 9
-SIG_TEMPSCRATCH = 10
-SIG_FAIL        = 11
-SIG_FREEMEM     = 12
-SIG_SCRCAP      = 13
-SIG_SCRPUT      = 14
+SIG_ZECHO1      = 1
+SIG_ZADD16      = 2
+SIG_UPPER       = 3
+SIG_LOWER       = 4
+SIG_ZHIDDENRAM  = 5
+SIG_ZSUMNUMARRAY = 6
+SIG_ZRANGENUMARRAY = 7
+SIG_BUFNEW      = 8
+SIG_BUFFILL     = 9
+SIG_BUFFREE     = 10
+SIG_ZTEMPSCRATCH = 11
+SIG_ZFAIL       = 12
+SIG_FREEMEM     = 13
+SIG_SCRCAP      = 14
+SIG_SCRPUT      = 15
 
-CMD_PING        = 1
-CMD_ADD16       = 2
-CMD_STRUP       = 3
-CMD_HCRC        = 4
-CMD_SUMAI       = 5
-CMD_RANGEAI     = 6
-CMD_BUFNEW      = 7
-CMD_BUFFILL     = 8
-CMD_BUFFREE     = 9
-CMD_TEMPSCRATCH = 10
-CMD_FAIL        = 11
-CMD_FREEMEM     = 12
-CMD_SCRCAP      = 13
-CMD_SCRPUT      = 14
+CMD_ZECHO1      = 1
+CMD_ZADD16      = 2
+CMD_UPPER       = 3
+CMD_LOWER       = 4
+CMD_ZHIDDENRAM  = 5
+CMD_ZSUMNUMARRAY = 6
+CMD_ZRANGENUMARRAY = 7
+CMD_BUFNEW      = 8
+CMD_BUFFILL     = 9
+CMD_BUFFREE     = 10
+CMD_ZTEMPSCRATCH = 11
+CMD_ZFAIL       = 12
+CMD_FREEMEM     = 13
+CMD_SCRCAP      = 14
+CMD_SCRPUT      = 15
 
 ; REU registers.
 REU_CMD         = $DF01
@@ -965,28 +967,30 @@ rb_lookup_command:
 
 rb_parse_by_signature:
         lda RB_DESC_BUF+14
-        cmp #SIG_PING
-        beq parse_sig_ping
-        cmp #SIG_ADD16
-        beq parse_sig_add16
-        cmp #SIG_STRUP
-        beq parse_sig_strup
-        cmp #SIG_HCRC
-        beq parse_sig_hcrc
-        cmp #SIG_SUMAI
-        beq parse_sig_sumai
-        cmp #SIG_RANGEAI
-        beq parse_sig_rangeai
+        cmp #SIG_ZECHO1
+        beq parse_sig_zecho1
+        cmp #SIG_ZADD16
+        beq parse_sig_zadd16
+        cmp #SIG_UPPER
+        beq parse_sig_string_out
+        cmp #SIG_LOWER
+        beq parse_sig_string_out
+        cmp #SIG_ZHIDDENRAM
+        beq parse_sig_zhiddenram
+        cmp #SIG_ZSUMNUMARRAY
+        beq parse_sig_zsumnumarray
+        cmp #SIG_ZRANGENUMARRAY
+        beq parse_sig_zrangenumarray
         cmp #SIG_BUFNEW
         beq parse_sig_bufnew
         cmp #SIG_BUFFILL
         beq parse_sig_buffill
         cmp #SIG_BUFFREE
         beq parse_sig_buffree
-        cmp #SIG_TEMPSCRATCH
-        beq parse_sig_tempscratch
-        cmp #SIG_FAIL
-        beq parse_sig_fail
+        cmp #SIG_ZTEMPSCRATCH
+        beq parse_sig_ztempscratch
+        cmp #SIG_ZFAIL
+        beq parse_sig_zfail
         cmp #SIG_FREEMEM
         beq parse_sig_freemem
         cmp #SIG_SCRCAP
@@ -995,33 +999,33 @@ rb_parse_by_signature:
         beq parse_sig_scrput
         jmp BASIC_SYNERR
 
-parse_sig_ping:
+parse_sig_zecho1:
         jsr rb_parse_out_int
         rts
 
-parse_sig_add16:
+parse_sig_zadd16:
         jsr rb_parse_num0
         jsr rb_parse_num1
         jsr rb_parse_out_int
         rts
 
-parse_sig_strup:
+parse_sig_string_out:
         jsr rb_parse_string_value
         jsr rb_parse_out_string
         rts
 
-parse_sig_hcrc:
+parse_sig_zhiddenram:
         jsr rb_parse_string_value
         jsr rb_parse_out_int
         rts
 
-parse_sig_sumai:
+parse_sig_zsumnumarray:
         jsr rb_parse_int_array_input
         jsr rb_parse_out_int
         jsr rb_resolve_int_array_input_ptr
         rts
 
-parse_sig_rangeai:
+parse_sig_zrangenumarray:
         jsr rb_parse_num0
         jsr rb_parse_num1
         lda CF_NUM1_LO
@@ -1045,12 +1049,12 @@ parse_sig_buffree:
         jsr rb_parse_num0
         rts
 
-parse_sig_tempscratch:
+parse_sig_ztempscratch:
         jsr rb_parse_num0
         jsr rb_parse_out_int
         rts
 
-parse_sig_fail:
+parse_sig_zfail:
         jsr rb_parse_num0
         jsr rb_parse_out_int
         rts
@@ -1741,20 +1745,21 @@ rb_reu_header_end:
 .endmacro
 
 rb_command_descriptors:
-        CMD_LOW CMD_PING, SIG_PING, cmd_ping_low, cmd_ping_low_end, "PING"
-        CMD_LOW CMD_ADD16, SIG_ADD16, cmd_add16_low, cmd_add16_low_end, "ADD16"
-        CMD_LOW CMD_STRUP, SIG_STRUP, cmd_strup_low, cmd_strup_low_end, "STRUP"
-        CMD_HIDDEN CMD_HCRC, SIG_HCRC, cmd_hcrc_hidden, cmd_hcrc_hidden_end, "HCRC"
-        CMD_LOW CMD_SUMAI, SIG_SUMAI, cmd_sumai_low, cmd_sumai_low_end, "SUMAI"
-        CMD_LOW CMD_RANGEAI, SIG_RANGEAI, cmd_rangeai_low, cmd_rangeai_low_end, "RANGEAI"
+        CMD_LOW CMD_ZECHO1, SIG_ZECHO1, cmd_zecho1_low, cmd_zecho1_low_end, "ZECHO1"
+        CMD_LOW CMD_ZADD16, SIG_ZADD16, cmd_zadd16_low, cmd_zadd16_low_end, "ZADD16"
+        CMD_LOW CMD_UPPER, SIG_UPPER, cmd_upper_low, cmd_upper_low_end, "UPPER"
+        CMD_LOW CMD_LOWER, SIG_LOWER, cmd_lower_low, cmd_lower_low_end, "LOWER"
+        CMD_HIDDEN CMD_ZHIDDENRAM, SIG_ZHIDDENRAM, cmd_zhiddenram_hidden, cmd_zhiddenram_hidden_end, "ZHIDDENRAM"
+        CMD_LOW CMD_ZSUMNUMARRAY, SIG_ZSUMNUMARRAY, cmd_zsumnumarray_low, cmd_zsumnumarray_low_end, "ZSUMNUMARRAY"
+        CMD_LOW CMD_ZRANGENUMARRAY, SIG_ZRANGENUMARRAY, cmd_zrangenumarray_low, cmd_zrangenumarray_low_end, "ZRANGENUMARRAY"
         CMD_LOW_ALL CMD_BUFNEW, SIG_BUFNEW, cmd_bufnew_low, "BUFNEW"
         CMD_LOW_ALL CMD_BUFFILL, SIG_BUFFILL, cmd_buffill_low, "BUFFILL"
         CMD_LOW_ALL CMD_BUFFREE, SIG_BUFFREE, cmd_buffree_low, "BUFFREE"
-        CMD_LOW_ALL CMD_TEMPSCRATCH, SIG_TEMPSCRATCH, cmd_tempscratch_low, "TEMPSCRATCH"
-        CMD_LOW CMD_FAIL, SIG_FAIL, cmd_fail_low, cmd_fail_low_end, "FAIL"
+        CMD_LOW_ALL CMD_ZTEMPSCRATCH, SIG_ZTEMPSCRATCH, cmd_ztempscratch_low, "ZTEMPSCRATCH"
+        CMD_LOW CMD_ZFAIL, SIG_ZFAIL, cmd_zfail_low, cmd_zfail_low_end, "ZFAIL"
         CMD_LOW CMD_FREEMEM, SIG_FREEMEM, cmd_freemem_low, cmd_freemem_low_end, "FREEMEM"
         CMD_LOW_ALL CMD_SCRCAP, SIG_SCRCAP, cmd_scrcap_low, "SCRCAP"
-        .res (RB_CMD_DESC_COUNT - 14) * RB_CMD_DESC_SIZE, 0
+        .res (RB_CMD_DESC_COUNT - 15) * RB_CMD_DESC_SIZE, 0
         CMD_LOW_ALL CMD_SCRPUT, SIG_SCRPUT, cmd_scrput_low, "SCRPUT"
 
 ; ---------------------------------------------------------------------------
@@ -2461,7 +2466,7 @@ rb_debug_ring:  .res 32, 0
 
         .segment "LOWPACK"
 
-cmd_ping_low:
+cmd_zecho1_low:
         lda #0
         sta RF_STATUS
         lda #RB_VAL_INT
@@ -2471,9 +2476,9 @@ cmd_ping_low:
         lda #0
         sta RF_VAL_HI
         rts
-cmd_ping_low_end:
+cmd_zecho1_low_end:
 
-cmd_add16_low:
+cmd_zadd16_low:
         clc
         lda CF_NUM0_LO
         adc CF_NUM1_LO
@@ -2486,9 +2491,9 @@ cmd_add16_low:
         lda #RB_VAL_INT
         sta RF_TAG
         rts
-cmd_add16_low_end:
+cmd_zadd16_low_end:
 
-cmd_strup_low:
+cmd_upper_low:
         lda #0
         sta RF_STATUS
         lda #RB_VAL_STRING
@@ -2520,9 +2525,43 @@ cmd_strup_low:
         jmp @loop
 @done:
         rts
-cmd_strup_low_end:
+cmd_upper_low_end:
 
-cmd_sumai_low:
+cmd_lower_low:
+        lda #0
+        sta RF_STATUS
+        lda #RB_VAL_STRING
+        sta RF_TAG
+        lda CF_STR_LEN
+        sta RF_STR_LEN
+        ldy #0
+@loop:
+        cpy CF_STR_LEN
+        beq @done
+        lda CF_STR_BUF,y
+        cmp #$C1
+        bcc @ascii_case
+        cmp #$DB
+        bcs @ascii_case
+        sec
+        sbc #$60
+        jmp @store
+@ascii_case:
+        cmp #'A'
+        bcc :+
+        cmp #'Z' + 1
+        bcs :+
+        clc
+        adc #$20
+@store:
+:       sta RF_STR_BUF,y
+        iny
+        jmp @loop
+@done:
+        rts
+cmd_lower_low_end:
+
+cmd_zsumnumarray_low:
         lda CF_PTR0_LO
         sta rb_ptr_lo
         lda CF_PTR0_HI
@@ -2556,9 +2595,9 @@ cmd_sumai_low:
         lda #RB_VAL_INT
         sta RF_TAG
         rts
-cmd_sumai_low_end:
+cmd_zsumnumarray_low_end:
 
-cmd_rangeai_low:
+cmd_zrangenumarray_low:
         lda #0
         sta RF_STATUS
         lda #RB_VAL_ARRAYI
@@ -2588,7 +2627,7 @@ cmd_rangeai_low:
         bne @loop
 @done:
         rts
-cmd_rangeai_low_end:
+cmd_zrangenumarray_low_end:
 
 cmd_bufnew_low:
         jsr rb_handle_alloc
@@ -2605,12 +2644,12 @@ cmd_buffree_low:
         rts
 cmd_buffree_low_end:
 
-cmd_tempscratch_low:
+cmd_ztempscratch_low:
         jsr rb_temp_alloc
         rts
-cmd_tempscratch_low_end:
+cmd_ztempscratch_low_end:
 
-cmd_fail_low:
+cmd_zfail_low:
         lda CF_NUM0_LO
         bne :+
         lda #$7F
@@ -2622,7 +2661,7 @@ cmd_fail_low:
         sta RF_VAL_LO
         sta RF_VAL_HI
         rts
-cmd_fail_low_end:
+cmd_zfail_low_end:
 
 cmd_freemem_low:
         jsr rb_print_live_free
@@ -3254,7 +3293,7 @@ rb_fetch_pagebuf_from_copy_page:
 
         .segment "HIDDENPACK"
 
-cmd_hcrc_hidden:
+cmd_zhiddenram_hidden:
         lda #0
         sta RF_VAL_LO
         sta RF_VAL_HI
@@ -3294,4 +3333,4 @@ cmd_hcrc_hidden:
         lda #RB_VAL_INT
         sta RF_TAG
         rts
-cmd_hcrc_hidden_end:
+cmd_zhiddenram_hidden_end:

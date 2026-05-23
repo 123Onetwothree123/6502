@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ReadyBASIC Memory Rearrangement Implementation</title>
+  <title>OLD ReadyBASIC Memory Rearrangement Implementation</title>
   <style>
     :root {
       --ink: #17202c;
@@ -181,6 +181,10 @@
       border-left: 5px solid var(--basic);
       border-radius: 0 var(--radius) var(--radius) 0;
       background: var(--basic-bg);
+    }
+    .callout.old {
+      border-left-color: var(--risk);
+      background: var(--risk-bg);
     }
     .callout.good { border-left-color: var(--resident); background: var(--resident-bg); }
     .callout.warn { border-left-color: var(--readyos); background: var(--readyos-bg); }
@@ -388,12 +392,12 @@
 <body>
   <header>
     <div class="page">
-      <div class="eyebrow">ReadyBASIC memory implementation</div>
-      <h1>Reclaiming BASIC RAM With REU-Backed Overlays And Resume State</h1>
+      <div class="eyebrow">Old ReadyBASIC memory implementation note</div>
+      <h1>OLD: Reclaiming BASIC RAM With REU-Backed Overlays And Resume State</h1>
       <p class="lead">
-        The implemented rearrangement of ReadyBASIC so load-only bytes, command
-        workers, shared frames, hidden shadows, and resume snapshots stop
-        permanently reducing BASIC workspace.
+        Historical implementation/proposal notes for work that is already done.
+        The current live references are the ReadyBASIC Current Design and
+        Lifecycle/REU Architecture docs.
       </p>
       <div class="dashboard">
         <div class="metric"><b>33789 bytes</b><span>33.0K current empty ReadyBASIC BASIC workspace.</span></div>
@@ -419,6 +423,11 @@
 
   <main class="page">
     <section id="baseline" class="band">
+      <div class="callout old">
+        <strong>This document is old.</strong> The memory rearrangement it
+        describes has already been implemented. It remains here in the private
+        reports area for historical context, not as the main current design doc.
+      </div>
       <h2>Current Baseline</h2>
       <div class="grid-2">
         <div>
@@ -627,8 +636,8 @@ $A000 - $0801 = 38911 bytes (38.0K)</span>
   <footer>
     <div class="page">
       Content source:
-      <code>src/apps/readybasic/READYBASIC_MEMORY_REARRANGEMENT_PROPOSAL.md</code>.
-      This HTML is hand-authored from the implementation note.
+      <code>privatedocs/reports/OLD_READYBASIC_MEMORY_REARRANGEMENT_IMPLEMENTED.md</code>.
+      This historical HTML is hand-authored from the old implementation note.
     </div>
   </footer>
 </body>

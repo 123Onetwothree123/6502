@@ -1,9 +1,16 @@
-# ReadyBASIC Memory Rearrangement Implementation
+# OLD ReadyBASIC Memory Rearrangement Implementation
+
+This is an old planning/proposal document kept in `privatedocs/reports` for
+history. The memory rearrangement described here has already been implemented.
+Do not use this as the main current reference; use
+`src/apps/readybasic/READYBASIC_CURRENT_DESIGN.md` and
+`src/apps/readybasic/READYBASIC_LIFECYCLE_AND_REU_ARCHITECTURE.md` for the
+live design.
 
 This note records the implemented memory-reclaim branch. The original proposal
 was to move shared frames, command workers, and suspend/resume state out of the
 BASIC workspace while preserving the ReadyOS app contract. The branch implements
-that plan; `READYBASIC_CURRENT_DESIGN.md` is the detailed current reference.
+that plan; the current ReadyBASIC docs are the detailed live reference.
 
 ## Result
 

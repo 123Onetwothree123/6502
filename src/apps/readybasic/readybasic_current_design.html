@@ -351,6 +351,98 @@
     .r-bridge { background: var(--bridge-bg); }
     .r-readyos { background: var(--readyos-bg); }
 
+    .stage-memory {
+      display: grid;
+      gap: 14px;
+      margin: 18px 0;
+    }
+    .stage-panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      overflow: hidden;
+    }
+    .stage-panel h3 {
+      margin: 0;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      background: #f8fafc;
+    }
+    .stage-body {
+      padding: 14px;
+    }
+    .stage-bar {
+      display: flex;
+      min-height: 50px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: #f8fafc;
+    }
+    .stage-seg {
+      min-width: 52px;
+      padding: 8px 9px;
+      border-right: 1px solid rgba(24, 32, 42, 0.12);
+      font-size: 12px;
+      line-height: 1.25;
+    }
+    .stage-seg:last-child { border-right: none; }
+    .stage-seg b { display: block; font-size: 13px; }
+    .stage-note {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .cmdpack-meter {
+      position: relative;
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--overlay-bg);
+      overflow: hidden;
+      margin-top: 10px;
+    }
+    .cmdpack-meter span {
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 25.7%;
+      background: var(--overlay);
+    }
+    .cmdpack-meter strong {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      height: 100%;
+      min-height: 42px;
+      padding: 7px 10px;
+      color: #102330;
+      font-size: 12px;
+      line-height: 1.25;
+    }
+    .capacity-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .capacity-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 13px;
+    }
+    .capacity-card b {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 17px;
+    }
+    .capacity-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
     .flow {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
@@ -487,6 +579,14 @@
         bottom: -9px;
       }
       .memory-map { grid-template-columns: 112px 1fr 76px; }
+      .stage-bar { flex-direction: column; }
+      .capacity-grid { grid-template-columns: 1fr; }
+      .stage-seg {
+        width: 100% !important;
+        border-right: none;
+        border-bottom: 1px solid rgba(24, 32, 42, 0.12);
+      }
+      .stage-seg:last-child { border-bottom: none; }
       .invariants { columns: 1; }
     }
   </style>
@@ -503,7 +603,7 @@
       </p>
       <div class="dashboard">
         <div class="metric"><b>!COMMAND args</b><span>First arg after whitespace, later args comma-separated.</span></div>
-        <div class="metric"><b>$1200-$1BAF</b><span>Visible resident core, $09B0 (2480B). Parser, hooks, ROM calls, REU DMA, commit.</span></div>
+        <div class="metric"><b>$1200-$1BAF</b><span>Visible resident core, $09B0 (2.4K, 2480 exact bytes). Parser, hooks, ROM calls, REU DMA, commit.</span></div>
         <div class="metric"><b>REU $44 / $45</b><span>Core/system bank and packed command-code bank.</span></div>
         <div class="metric"><b>128 slots</b><span>Command registry pages in REU, with screen-handle commands proving slot-128 lookup.</span></div>
       </div>
@@ -537,14 +637,14 @@
             and later arguments use commas. A leading comma after the command name is rejected.
           </p>
           <div class="callout good">
-            <strong>IF normalization:</strong> <code>IF 1 THEN !PING P%</code> works, but stores/lists as
-            <code>IF 1 THEN :!PING P%</code> so BASIC reaches the normal statement dispatcher.
+            <strong>IF normalization:</strong> <code>IF 1 THEN !ZECHO1 P%</code> works, but stores/lists as
+            <code>IF 1 THEN :!ZECHO1 P%</code> so BASIC reaches the normal statement dispatcher.
           </div>
         </div>
         <ul class="status-list">
-          <li><span class="pill">Yes</span><span>Immediate mode, for example <code>!PING P%</code>.</span></li>
+          <li><span class="pill">Yes</span><span>Immediate mode, for example <code>!ZECHO1 P%</code>.</span></li>
           <li><span class="pill">Yes</span><span>Stored program line start.</span></li>
-          <li><span class="pill">Yes</span><span>After <code>:</code>, for example <code>PRINT "A":!PING P%</code>.</span></li>
+          <li><span class="pill">Yes</span><span>After <code>:</code>, for example <code>PRINT "A":!ZECHO1 P%</code>.</span></li>
           <li><span class="pill">Yes</span><span>Inside a <code>FOR/NEXT</code> body as a normal statement.</span></li>
           <li><span class="pill">Yes</span><span>After <code>IF ... THEN</code>, through the lean crunch rewrite.</span></li>
           <li><span class="pill text">Text</span><span>Inside strings, <code>REM</code>, and <code>DATA</code>; not rewritten or dispatched.</span></li>
@@ -563,22 +663,22 @@
       <div class="category-grid">
         <div class="category">
           <h3>Scalar Outputs <span class="chip low">low overlay</span></h3>
-          <div class="cmd-row"><span class="chip">PING</span><span class="chip">ADD16</span></div>
+          <div class="cmd-row"><span class="chip">ZECHO1</span><span class="chip">ZADD16</span></div>
           <p>Prove integer output variables, numeric expression parsing, output clearing, and scalar commit.</p>
         </div>
         <div class="category">
           <h3>String Transfer/Transform <span class="chip low">low overlay</span></h3>
-          <div class="cmd-row"><span class="chip">STRUP</span></div>
+          <div class="cmd-row"><span class="chip">UPPER</span><span class="chip">LOWER</span></div>
           <p>Captures string variables or quoted literals, stages transformed bytes, and lets resident code allocate the BASIC string result.</p>
         </div>
         <div class="category">
           <h3>Hidden Banked Worker <span class="chip hidden">hidden</span></h3>
-          <div class="cmd-row"><span class="chip">HCRC</span></div>
+          <div class="cmd-row"><span class="chip">ZHIDDENRAM</span></div>
           <p>Runs worker code under BASIC ROM RAM in the <code>$A800</code> hidden overlay slot and returns an integer result.</p>
         </div>
         <div class="category">
           <h3>Integer Array Transfer <span class="chip low">low overlay</span></h3>
-          <div class="cmd-row"><span class="chip">SUMAI</span><span class="chip">RANGEAI</span></div>
+          <div class="cmd-row"><span class="chip">ZSUMNUMARRAY</span><span class="chip">ZRANGENUMARRAY</span></div>
           <p>Uses explicit base element plus count, for example <code>A%(0),N</code>, to read or write integer arrays.</p>
         </div>
         <div class="category">
@@ -588,12 +688,12 @@
         </div>
         <div class="category">
           <h3>Temporary REU Workspace <span class="chip reu">temp pages</span></h3>
-          <div class="cmd-row"><span class="chip">TEMPSCRATCH</span></div>
+          <div class="cmd-row"><span class="chip">ZTEMPSCRATCH</span></div>
           <p>Allocates and immediately frees pages, proving temporary workspace without persistent state leaks.</p>
         </div>
         <div class="category">
           <h3>Error/Failure Contract <span class="chip error">error path</span></h3>
-          <div class="cmd-row"><span class="chip">FAIL</span></div>
+          <div class="cmd-row"><span class="chip">ZFAIL</span></div>
           <p>Clears output first, then reports <code>?RB ERROR n</code> without committing stale results.</p>
         </div>
         <div class="category">
@@ -610,22 +710,30 @@
       <table>
         <thead><tr><th>Command</th><th>Placement</th><th>Parameters</th><th>Result</th></tr></thead>
         <tbody>
-          <tr><td><code>!PING OUT%</code></td><td>Low <code>$A900+$0000</code>, copy <code>$0015</code></td><td>output integer</td><td>Returns <code>1</code>.</td></tr>
-          <tr><td><code>!ADD16 A,B,OUT%</code></td><td>Low <code>$A900+$0015</code>, copy <code>$001E</code></td><td>two numeric expressions, output integer</td><td>Returns 16-bit sum.</td></tr>
-          <tr><td><code>!STRUP S$,OUT$</code></td><td>Low <code>$A900+$0033</code>, copy <code>$003B</code></td><td>string variable or quoted literal, output string</td><td>Uppercases staged bytes.</td></tr>
-          <tr><td><code>!HCRC S$,OUT%</code></td><td>Hidden <code>$A800</code>, copy <code>$004D</code></td><td>string variable or quoted literal, output integer</td><td>Returns uppercase-byte checksum.</td></tr>
-          <tr><td><code>!SUMAI A%(0),COUNT,OUT%</code></td><td>Low <code>$A900+$006E</code>, copy <code>$0044</code></td><td>array base, count, output integer</td><td>Sums integer array elements.</td></tr>
-          <tr><td><code>!RANGEAI START,COUNT,A%(0)</code></td><td>Low <code>$A900+$00B2</code>, copy <code>$003D</code></td><td>start, count, output array base</td><td>Stages consecutive integers for resident commit.</td></tr>
-          <tr><td><code>!BUFNEW LEN,H%</code></td><td>Low entry <code>$00EF</code>, copy <code>$05DF</code></td><td>byte length, output handle</td><td>Allocates buffer pages and returns one-based handle.</td></tr>
-          <tr><td><code>!BUFFILL H%,BYTE</code></td><td>Low entry <code>$00F3</code>, copy <code>$05DF</code></td><td>buffer handle, fill byte</td><td>Fills buffer handles and rejects non-buffer handles.</td></tr>
-          <tr><td><code>!BUFFREE H%</code></td><td>Low entry <code>$00F7</code>, copy <code>$05DF</code></td><td>handle</td><td>Frees any valid handle type.</td></tr>
-          <tr><td><code>!TEMPSCRATCH LEN,OUT%</code></td><td>Low entry <code>$00FB</code>, copy <code>$05DF</code></td><td>byte length, output integer</td><td>Returns pages required after temporary allocation/free.</td></tr>
-          <tr><td><code>!FAIL CODE,OUT%</code></td><td>Low <code>$A900+$00FF</code>, copy <code>$001B</code></td><td>error code, output integer</td><td>Clears output, then reports <code>?RB ERROR code</code>.</td></tr>
-          <tr><td><code>!FREEMEM</code></td><td>Low <code>$A900+$011A</code>, copy <code>$0016</code></td><td>none</td><td>Prints live BASIC free bytes and refreshes the header.</td></tr>
-          <tr><td><code>!SCRCAP H%</code></td><td>Low entry <code>$0130</code>, copy <code>$05DF</code></td><td>output screen handle</td><td>Captures screen text and color RAM into a type-2 handle.</td></tr>
-          <tr><td><code>!SCRPUT H%</code></td><td>Slot 128; low entry <code>$0159</code>, copy <code>$05DF</code></td><td>screen handle</td><td>Restores screen text and color RAM after type validation.</td></tr>
+          <tr><td><code>!ZECHO1 OUT%</code></td><td>Low <code>$A900+$0000</code>, copy <code>$0015</code></td><td>output integer</td><td>Returns <code>1</code>.</td></tr>
+          <tr><td><code>!ZADD16 A,B,OUT%</code></td><td>Low <code>$A900+$0015</code>, copy <code>$001E</code></td><td>two numeric expressions, output integer</td><td>Returns 16-bit sum.</td></tr>
+          <tr><td><code>!UPPER S$,OUT$</code></td><td>Low <code>$A900+$0033</code>, copy <code>$003B</code></td><td>string variable or quoted literal, output string</td><td>Uppercases staged bytes.</td></tr>
+          <tr><td><code>!LOWER S$,OUT$</code></td><td>Low <code>$A900+$006E</code>, copy <code>$003B</code></td><td>string variable or quoted literal, output string</td><td>Lowercases staged byte values; tests use <code>ASC()</code> because display case is charset-dependent.</td></tr>
+          <tr><td><code>!ZHIDDENRAM S$,OUT%</code></td><td>Hidden <code>$A800</code>, copy <code>$004D</code></td><td>string variable or quoted literal, output integer</td><td>Returns uppercase-byte checksum.</td></tr>
+          <tr><td><code>!ZSUMNUMARRAY A%(0),COUNT,OUT%</code></td><td>Low <code>$A900+$00A9</code>, copy <code>$0044</code></td><td>array base, count, output integer</td><td>Sums integer array elements.</td></tr>
+          <tr><td><code>!ZRANGENUMARRAY START,COUNT,A%(0)</code></td><td>Low <code>$A900+$00ED</code>, copy <code>$003D</code></td><td>start, count, output array base</td><td>Stages consecutive integers for resident commit.</td></tr>
+          <tr><td><code>!BUFNEW LEN,H%</code></td><td>Low entry <code>$012A</code>, copy <code>$061A</code></td><td>byte length, output handle</td><td>Allocates buffer pages and returns one-based handle.</td></tr>
+          <tr><td><code>!BUFFILL H%,BYTE</code></td><td>Low entry <code>$012E</code>, copy <code>$061A</code></td><td>buffer handle, fill byte</td><td>Fills buffer handles and rejects non-buffer handles.</td></tr>
+          <tr><td><code>!BUFFREE H%</code></td><td>Low entry <code>$0132</code>, copy <code>$061A</code></td><td>handle</td><td>Frees any valid handle type.</td></tr>
+          <tr><td><code>!ZTEMPSCRATCH LEN,OUT%</code></td><td>Low entry <code>$0136</code>, copy <code>$061A</code></td><td>byte length, output integer</td><td>Returns pages required after temporary allocation/free.</td></tr>
+          <tr><td><code>!ZFAIL CODE,OUT%</code></td><td>Low <code>$A900+$013A</code>, copy <code>$001B</code></td><td>error code, output integer</td><td>Clears output, then reports <code>?RB ERROR code</code>.</td></tr>
+          <tr><td><code>!FREEMEM</code></td><td>Low <code>$A900+$0155</code>, copy <code>$0016</code></td><td>none</td><td>Prints live BASIC free bytes and refreshes the header.</td></tr>
+          <tr><td><code>!SCRCAP H%</code></td><td>Slot 14; low entry <code>$016B</code>, copy <code>$061A</code></td><td>output screen handle</td><td>Captures screen text and color RAM into a type-2 handle.</td></tr>
+          <tr><td><code>!SCRPUT H%</code></td><td>Slot 128; low entry <code>$0194</code>, copy <code>$061A</code></td><td>screen handle</td><td>Restores screen text and color RAM after type validation.</td></tr>
         </tbody>
       </table>
+      <p>
+        Historical proof names such as <code>PING</code>, <code>ADD16</code>, <code>STRUP</code>,
+        <code>HCRC</code>, <code>SUMAI</code>, <code>RANGEAI</code>, <code>TEMPSCRATCH</code>,
+        and <code>FAIL</code> are no longer runtime aliases. The current proof/demo
+        commands use the <code>Z...</code> namespace, and array demo names use
+        <code>NUM</code> rather than <code>INT</code> to avoid the BASIC tokenizer.
+      </p>
     </section>
 
     <section id="overlays" class="band">
@@ -646,6 +754,7 @@
               <tr><td><code>Makefile</code></td><td>Assembles, links, and writes <code>bin/readybasic.prg</code> plus <code>obj/readybasic.map</code>.</td></tr>
               <tr><td><code>obj/readybasic.map</code></td><td>Current source of truth for segment ranges and sizes.</td></tr>
               <tr><td><code>rbtest1.bas</code></td><td>Sample BASIC program only; not part of the command overlay mechanism.</td></tr>
+              <tr><td><code>READYBASIC_MAKING_COMMAND_GUIDE.md</code> / <code>readybasic_making_command_guide.html</code></td><td>Annotated walkthrough for adding commands using current demo, string, array, hidden, and REU-handle examples.</td></tr>
             </tbody>
           </table>
         </div>
@@ -663,11 +772,11 @@
       <table>
         <thead><tr><th>Segment</th><th>Size</th><th>Load/source role</th><th>Runtime role</th></tr></thead>
         <tbody>
-          <tr><td><code>LOWPACK</code></td><td><code>$05DF</code> (1.5K)</td><td>Packed low command bytes in <code>CMDPACK</code>, prestashed to bank <code>$45</code> offset <code>$0000</code>.</td><td>Fetched on demand into banked RAM under BASIC ROM at <code>$A900+</code>.</td></tr>
-          <tr><td><code>HIDDENPACK</code></td><td><code>$004D</code> (77B)</td><td>Packed hidden worker bytes after <code>LOWPACK</code>, prestashed to bank <code>$45</code> offset <code>$05DF</code>.</td><td>Fetched on demand into hidden RAM at <code>$A800-$A84C</code>.</td></tr>
-          <tr><td><code>HIDLOAD</code></td><td><code>$0377</code> (887B)</td><td>Load-only hidden helper seed starting at <code>$4000</code>.</td><td>Copied on cold boot into <code>$A000-$A376</code> and the visible <code>$C280-$C5F6</code> warm-resume shadow.</td></tr>
+          <tr><td><code>LOWPACK</code></td><td><code>$061A</code> (1.5K, 1562 exact bytes)</td><td>Packed low command bytes in <code>CMDPACK</code>, prestashed to bank <code>$45</code> offset <code>$0000</code>.</td><td>Fetched on demand into banked RAM under BASIC ROM at <code>$A900+</code>.</td></tr>
+          <tr><td><code>HIDDENPACK</code></td><td><code>$004D</code> (77B)</td><td>Packed hidden worker bytes after <code>LOWPACK</code>, prestashed to bank <code>$45</code> offset <code>$061A</code>.</td><td>Fetched on demand into hidden RAM at <code>$A800-$A84C</code>.</td></tr>
+          <tr><td><code>HIDLOAD</code></td><td><code>$0377</code> (0.9K, 887 exact bytes)</td><td>Load-only hidden helper seed starting at <code>$4000</code>.</td><td>Copied on cold boot into <code>$A000-$A376</code> and the visible <code>$C280-$C5F6</code> warm-resume shadow.</td></tr>
           <tr><td><code>BRLOAD</code></td><td><code>$019B</code> (411B)</td><td>Load-only bridge seed starting at <code>$4800</code>.</td><td>Copied on cold boot into <code>$C000-$C19A</code>.</td></tr>
-          <tr><td><code>REGSEED</code></td><td><code>$1010</code> (4112B)</td><td>Load-only registry header and 128 command descriptors at <code>$5000-$600F</code>.</td><td>Copied on cold boot into bank <code>$44</code> offsets <code>$0000</code> and <code>$1000</code>.</td></tr>
+          <tr><td><code>REGSEED</code></td><td><code>$1010</code> (4.0K, 4112 exact bytes)</td><td>Load-only registry header and 128 command descriptors at <code>$5000-$600F</code>.</td><td>Copied on cold boot into bank <code>$44</code> offsets <code>$0000</code> and <code>$1000</code>.</td></tr>
         </tbody>
       </table>
       <div class="callout warn">
@@ -686,17 +795,17 @@
       </p>
       <div class="memory-map" aria-label="C64 RAM map">
         <div class="addr">$1000-$1102</div><div class="region r-entry"><b>ENTRY</b><small>Cold/warm discriminator and early copy code.</small></div><div class="size">$0103<br><span>259B</span></div>
-        <div class="addr">$1200-$1BAF</div><div class="region r-resident"><b>RESIDENT</b><small>Parser, hooks, BASIC ROM calls, REU DMA, result commit.</small></div><div class="size">$09B0<br><span>2480B</span></div>
+        <div class="addr">$1200-$1BB3</div><div class="region r-resident"><b>RESIDENT</b><small>Parser, hooks, BASIC ROM calls, REU DMA, result commit.</small></div><div class="size">$09B4<br><span>2.4K</span></div>
         <div class="addr">$1C00</div><div class="region r-basic"><b>BASIC Sentinel</b><small>Must stay zero before stored-program RUN.</small></div><div class="size">1 byte</div>
         <div class="addr">$1C01-$9FFF</div><div class="region r-basic"><b>BASIC Workspace</b><small>Program text, variables, arrays, string heap.</small></div><div class="size">$83FF<br><span>33789 free / 33.0K</span></div>
         <div class="addr">$2800-$3FFF</div><div class="region r-overlay"><b>Command Pack Load Image</b><small>Low and hidden overlay seed bytes before cold prestash.</small></div><div class="size">$1800<br><span>6.0K</span></div>
-        <div class="addr">$4000+</div><div class="region r-hidden"><b>HIDLOAD Image</b><small>Hidden helper seed copied to $A000 and $C280.</small></div><div class="size">$0377<br><span>887B</span></div>
+        <div class="addr">$4000+</div><div class="region r-hidden"><b>HIDLOAD Image</b><small>Hidden helper seed copied to $A000 and $C280.</small></div><div class="size">$0377<br><span>0.9K</span></div>
         <div class="addr">$4800+</div><div class="region r-bridge"><b>BRLOAD Image</b><small>Bridge seed copied to $C000.</small></div><div class="size">$019B<br><span>411B</span></div>
-        <div class="addr">$5000-$600F</div><div class="region r-shared"><b>REGSEED Load-Only Image</b><small>Cold 128-slot descriptor seed copied to REU, then this range may be BASIC-owned.</small></div><div class="size">$1010<br><span>4112B</span></div>
+        <div class="addr">$5000-$600F</div><div class="region r-shared"><b>REGSEED Load-Only Image</b><small>Cold 128-slot descriptor seed copied to REU, then this range may be BASIC-owned.</small></div><div class="size">$1010<br><span>4.0K</span></div>
         <div class="addr">REU $44:$0A00-$0BFF</div><div class="region r-readyos"><b>Runtime Snapshot</b><small>Zero page, stack, SP, mode, line-chain guards.</small></div><div class="size">$0200<br><span>0.5K</span></div>
-        <div class="addr">$A000-$A376</div><div class="region r-hidden"><b>HIDDEN</b><small>Helper code under BASIC ROM RAM.</small></div><div class="size">$0377<br><span>887B</span></div>
+        <div class="addr">$A000-$A376</div><div class="region r-hidden"><b>HIDDEN</b><small>Helper code under BASIC ROM RAM.</small></div><div class="size">$0377<br><span>0.9K</span></div>
         <div class="addr">$A800-$A84C</div><div class="region r-hidden"><b>HIDDENPACK</b><small>Hidden worker overlay image.</small></div><div class="size">$004D<br><span>77B</span></div>
-        <div class="addr">$A900-$AEDE</div><div class="region r-overlay"><b>LOWPACK Runtime</b><small>Banked low command pack fetched from REU.</small></div><div class="size">$05DF<br><span>1503B</span></div>
+        <div class="addr">$A900-$AF19</div><div class="region r-overlay"><b>LOWPACK Runtime</b><small>Banked low command pack fetched from REU.</small></div><div class="size">$061A<br><span>1.5K</span></div>
         <div class="addr">$C000-$C19A</div><div class="region r-bridge"><b>BRIDGE</b><small>Magic, saved vectors, overlay vars, current handle scratch, debug bytes.</small></div><div class="size">$019B<br><span>411B</span></div>
         <div class="addr">$C200-$C5FF</div><div class="region r-shared"><b>Shared Frames</b><small>Call/result frames, descriptor/name/page buffers; hidden shadow is refreshed at <code>$C280</code> on <code>!EXIT</code>.</small></div><div class="size">$0400<br><span>1.0K</span></div>
         <div class="addr">$C600-$C7FF</div><div class="region r-readyos"><b>ReadyOS REU Metadata</b><small>ReadyBASIC only marks REU bank ownership here.</small></div><div class="size">$0200<br><span>0.5K</span></div>
@@ -707,6 +816,59 @@
         registry, and command seeds out of the PRG load image. After that,
         BASIC owns <code>$1C01-$9FFF</code>, so warm resume must not reread cold-only seed
         tables at <code>$5000+</code>.
+      </div>
+
+      <div class="stage-memory" aria-label="Cold-load and steady-state memory use">
+        <div class="stage-panel">
+          <h3>Cold Load View: Temporary Seed Bytes Inside The Future BASIC Span</h3>
+          <div class="stage-body">
+            <div class="stage-bar">
+              <div class="stage-seg r-basic" style="width: 9.1%"><b>$1C01-$27FF</b>future BASIC bytes</div>
+              <div class="stage-seg r-overlay" style="width: 18.2%"><b>$2800-$3FFF</b>CMDPACK reserved 6.0K</div>
+              <div class="stage-seg r-hidden" style="width: 9.5%"><b>$4000+</b>HIDLOAD seed</div>
+              <div class="stage-seg r-bridge" style="width: 5.2%"><b>$4800+</b>BRLOAD seed</div>
+              <div class="stage-seg r-shared" style="width: 12.2%"><b>$5000-$600F</b>REGSEED 4.0K</div>
+              <div class="stage-seg r-basic" style="width: 45.8%"><b>$6010-$9FFF</b>future BASIC bytes</div>
+            </div>
+            <p class="stage-note">
+              These seed bytes are real during loading, but no user BASIC program
+              exists yet. Cold setup copies them to REU or runtime homes before
+              the Ready prompt.
+            </p>
+          </div>
+        </div>
+
+        <div class="stage-panel">
+          <h3>Ready Prompt View: BASIC Owns The Whole Workspace</h3>
+          <div class="stage-body">
+            <div class="stage-bar">
+              <div class="stage-seg r-basic" style="width: 100%"><b>$1C01-$9FFF</b>BASIC program, variables, arrays, and strings; 33789 empty free bytes</div>
+            </div>
+            <div class="cmdpack-meter" aria-label="CMDPACK reserved capacity">
+              <span></span>
+              <strong>CMDPACK capacity: 1.5K used now inside today's 6.0K cold-load seed window; this is not the long-term command-code ceiling</strong>
+            </div>
+            <p class="stage-note">
+              Growing packed command code toward the current 6.0K CMDPACK
+              reservation increases cold-load content and PRG payload, not
+              steady-state BASIC free bytes.
+            </p>
+            <div class="capacity-grid" aria-label="Command code capacity tiers">
+              <div class="capacity-card">
+                <b>6.0K current seed</b>
+                <p><code>CMDPACK</code> is the current C64 cold-load window at <code>$2800-$3FFF</code>.</p>
+              </div>
+              <div class="capacity-card">
+                <b>64.0K current code bank</b>
+                <p>REU bank <code>$45</code> is addressed by 16-bit descriptor offsets and sizes; current free code-bank room is <code>$F9D4</code> / 62.5K.</p>
+              </div>
+              <div class="capacity-card">
+                <b>More later</b>
+                <p>More than one 64K code bank needs a descriptor/loader extension for additional command-code banks.</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -913,9 +1075,18 @@
       <h2>Current Verification Evidence</h2>
       <p>Static guardrails are checked with <code>make readybasic-plugin-static-check</code>.</p>
       <table>
+        <thead><tr><th>Measure</th><th>Before Rename/LOWER</th><th>After</th></tr></thead>
+        <tbody>
+          <tr><td>Empty BASIC free bytes</td><td>33789</td><td>33789</td></tr>
+          <tr><td><code>RESIDENT</code></td><td><code>$09B0</code> / 2480B</td><td><code>$09B4</code> / 2484B</td></tr>
+          <tr><td><code>LOWPACK</code></td><td><code>$05DF</code> / 1503B</td><td><code>$061A</code> / 1562B</td></tr>
+          <tr><td><code>REGSEED</code></td><td><code>$1010</code> / 4.0K / 4112 exact bytes</td><td><code>$1010</code> / 4.0K / 4112 exact bytes</td></tr>
+        </tbody>
+      </table>
+      <table>
         <thead><tr><th>Probe</th><th>Coverage</th></tr></thead>
         <tbody>
-          <tr><td>Plugin command probe</td><td>Direct <code>!</code> commands, direct <code>IF 1 THEN !PING</code>, string/REM safety, leading-comma rejection, <code>SCRCAP</code>/<code>SCRPUT</code>, slot-128 lookup, 128-handle edge, 48KB heap edge, screen heap exhaustion, wrong-handle-type rejection, screen-handle free, resume.</td></tr>
+          <tr><td>Plugin command probe</td><td>Direct <code>!</code> commands, direct <code>IF 1 THEN !ZECHO1</code>, <code>UPPER</code>/<code>LOWER</code>, old-name rejection, string/REM safety, leading-comma rejection, <code>SCRCAP</code>/<code>SCRPUT</code>, slot-128 lookup, 128-handle edge, 48KB heap edge, screen heap exhaustion, wrong-handle-type rejection, screen-handle free, resume.</td></tr>
           <tr><td>Program probe</td><td>Stored line start, colon chains, true/false <code>IF ... THEN !</code>, <code>FOR/NEXT</code>, strings, REM, DATA, arrays, hidden worker, handles, failure clearing.</td></tr>
           <tr><td>Full visual verification</td><td>Human-watchable command, program, screen-handle, handle/heap edge, resume, and error coverage.</td></tr>
           <tr><td>Lifecycle probe</td><td>Cold entry, <code>EXIT</code>, launcher re-entry, READY-mode redraw.</td></tr>

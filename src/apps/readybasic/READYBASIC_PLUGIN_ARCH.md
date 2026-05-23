@@ -4,12 +4,12 @@
 
 - `BASIC_START = $1C01`; BASIC owns `$1C01-$9FFF`, with `33789` empty free bytes (33.0K).
 - `$1000-$1102`: tiny app entry (`$0103`, 259B) that copies hidden helpers and bridge state before BASIC starts.
-- `$1200-$1BAF`: visible resident core (`$09B0`, 2480B). This is the only code that calls BASIC ROM helpers.
+- `$1200-$1BB3`: visible resident core (`$09B4`, 2484B). This is the only code that calls BASIC ROM helpers.
 - `$1C00`: BASIC sentinel byte; it must stay zero before stored-program `RUN`.
-- `$A900-$AEDE`: low command overlay slot under BASIC ROM. Current packed low command image is `$05DF` bytes (1.5K).
+- `$A900-$AF19`: low command overlay slot under BASIC ROM. Current packed low command image is `$061A` bytes (1.5K, 1562 exact bytes).
 - `$C200-$C5FF`: fixed call frame, result frame, descriptor buffer, command-name buffer, page buffer, and warm-resume staging (`$0400`, 1.0K).
 - `$A000-$A376`: hidden helper code (`$0377`, 887B), restored from the visible `$C280` shadow.
-- `$A800-$A84C`: hidden worker overlay slot (`$004D`, 77B) used by `HCRC`.
+- `$A800-$A84C`: hidden worker overlay slot (`$004D`, 77B) used by `ZHIDDENRAM`.
 - `$C000-$C19A`: bridge state only (`$019B`, 411B); the implementation stays below `$C200`.
 
 ## REU Banks
@@ -33,14 +33,14 @@
 - `$0A00`: ReadyOS suspend/resume zero-page snapshot.
 - `$0B00`: ReadyOS suspend/resume stack-page snapshot.
 - `$0C00-$0CFF`: 192-page heap bitmap plus reserved bytes.
-- `$1000-$1FFF`: 128 compact command descriptor slots, 32 bytes each. Slot 13 is `SCRCAP`, slot 128 is `SCRPUT`, and zero-filled filler slots are unused.
+- `$1000-$1FFF`: 128 compact command descriptor slots, 32 bytes each. Slot 14 is `SCRCAP`, slot 128 is `SCRPUT`, and zero-filled filler slots are unused.
 - `$2000-$3FFF`: reserved common/system expansion space.
 - `$4000-$FFFF`: typed 48KB heap for buffer and screen handles.
 
 ## Bank `$45` Regions
 
 - Offset `$0000`: low overlay pack copied from the linker `LOWPACK` segment.
-- Offset `$05DF`: hidden overlay pack copied from the linker `HIDDENPACK` segment.
+- Offset `$061A`: hidden overlay pack copied from the linker `HIDDENPACK` segment.
 - Descriptors store code offsets and run offsets; normal low commands copy only their slice. Buffer/heap/screen sample commands currently load the whole low pack because their REU descriptor, allocator, bitmap, and screen-copy helpers live in the overlay pack rather than resident core RAM.
 
 ## Descriptor ABI
@@ -73,17 +73,18 @@ Each descriptor is 32 bytes:
 
 ## Implemented Commands
 
-- `!PING OUT%`: low overlay, returns `1`.
-- `!ADD16 A,B,OUT%`: low overlay, returns 16-bit sum.
-- `!STRUP S$,OUT$`: low overlay, copies and uppercases a string variable or quoted literal.
-- `!HCRC S$,OUT%`: hidden `$A800` overlay, returns a simple checksum.
-- `!SUMAI A%(0),COUNT,OUT%`: low overlay, sums integer array elements.
-- `!RANGEAI START,COUNT,A%(0)`: low overlay, stages integer array output and resident commit writes it.
+- `!ZECHO1 OUT%`: low overlay, returns `1`.
+- `!ZADD16 A,B,OUT%`: low overlay, returns 16-bit sum.
+- `!UPPER S$,OUT$`: low overlay, copies and uppercases a string variable or quoted literal.
+- `!LOWER S$,OUT$`: low overlay, lowercases string byte values; tests verify bytes with `ASC()` because screen display case depends on the C64 charset mode.
+- `!ZHIDDENRAM S$,OUT%`: hidden `$A800` overlay, returns a simple checksum.
+- `!ZSUMNUMARRAY A%(0),COUNT,OUT%`: low overlay, sums integer array elements.
+- `!ZRANGENUMARRAY START,COUNT,A%(0)`: low overlay, stages integer array output and resident commit writes it.
 - `!BUFNEW LEN,H%`: low overlay, creates a persistent handle in bank `$44`.
 - `!BUFFILL H%,BYTE`: low overlay, fills buffer handle pages and rejects non-buffer handles.
 - `!BUFFREE H%`: low overlay, frees any valid handle type.
-- `!TEMPSCRATCH LEN,OUT%`: low overlay, allocates and frees temporary pages, returning page count.
-- `!FAIL CODE,OUT%`: low overlay, exercises the error path after output clearing.
+- `!ZTEMPSCRATCH LEN,OUT%`: low overlay, allocates and frees temporary pages, returning page count.
+- `!ZFAIL CODE,OUT%`: low overlay, exercises the error path after output clearing.
 - `!FREEMEM`: low overlay, prints the current live BASIC free-byte count and refreshes the header.
 - `!SCRCAP H%`: low overlay, captures screen text plus color RAM into a typed screen handle.
 - `!SCRPUT H%`: low overlay, validates a typed screen handle and restores screen text plus color RAM. This descriptor lives in slot 128 to prove full-table lookup.

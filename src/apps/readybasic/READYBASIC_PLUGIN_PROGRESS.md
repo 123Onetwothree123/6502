@@ -4,6 +4,49 @@ This is a chronological progress log. Older entries intentionally preserve the
 layout and addresses that were current when the tests were run. For the current
 memory map, use `READYBASIC_CURRENT_DESIGN.md`.
 
+Current runtime command names use `ZECHO1`, `ZADD16`, `UPPER`, `LOWER`,
+`ZHIDDENRAM`, `ZSUMNUMARRAY`, `ZRANGENUMARRAY`, `ZTEMPSCRATCH`, and `ZFAIL` for
+the demo/proof commands. Older entries below may mention historical names such
+as `PING`, `ADD16`, `STRUP`, `HCRC`, `SUMAI`, `RANGEAI`, `TEMPSCRATCH`, and
+`FAIL`; those are retained as dated notes, not current aliases.
+
+## 2026-05-22: Command Rename, LOWER, And Making-Command Guide
+
+- Commands:
+  - `make readybasic-plugin-static-check`
+  - `make bin/reuviewer.prg`
+  - `make verify`
+  - ReadyBASIC direct, program, lifecycle, state, large-vars, `rbtest1`, and
+    full visual VICE suites through normal ReadyOS boot paths.
+- Result: static/build verification passed. All VICE concrete steps completed
+  `ok`; the harness wrapper still reported process-level `partial` with
+  `FailedStep: null`, matching the known wrapper behavior.
+- Run dirs:
+  - Direct: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260522_164329`
+  - Program: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260522_165634`
+  - Lifecycle: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260522_165745`
+  - State: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260522_165814`
+  - Large vars: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260522_165907`
+  - `rbtest1`: `/Users/karlprosserpp/dev/c64projects/readyosprecog/logs/vice_auto_20260522_170005`
+  - Full visual: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260522_170022`
+- Current static layout:
+  - `ENTRY` `$1000-$1102`, size `$0103` (259B).
+  - `RESIDENT` `$1200-$1BB3`, size `$09B4` (2484B).
+  - `REGSEED` `$5000-$600F`, size `$1010` (4.0K, 4112 exact bytes).
+  - `HIDDEN` `$A000-$A376`, size `$0377` (887B).
+  - `HIDDENPACK` `$A800-$A84C`, size `$004D` (77B).
+  - `LOWPACK` `$A900-$AF19`, size `$061A` (1.5K, 1562 exact bytes).
+  - `BRIDGE` `$C000-$C19A`, size `$019B` (411B).
+  - Empty BASIC free bytes remain `33789`.
+- Behavior covered:
+  - Proof/demo names are now `ZECHO1`, `ZADD16`, `ZHIDDENRAM`,
+    `ZSUMNUMARRAY`, `ZRANGENUMARRAY`, `ZTEMPSCRATCH`, and `ZFAIL`.
+  - `STRUP` is replaced by `UPPER`; `LOWER` is added and verified by `ASC()`
+    byte values because C64 visual case is charset-dependent.
+  - Old names are rejected with the existing unknown-command error.
+  - `SCRCAP` remains near the front in slot 14 and `SCRPUT` remains in slot
+    128, with 113 filler descriptors between them.
+
 ## 2026-05-22: REU-Backed 128 Handles And 48KB Typed Heap
 
 - Commands:

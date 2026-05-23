@@ -65,7 +65,7 @@ ReadyBASIC now duplicates a small amount of ReadyOS REU and shim knowledge in as
 - `$0A00`: zero-page snapshot.
 - `$0B00`: stack-page snapshot.
 - `$0C00-$0CFF`: heap page bitmap, 192 pages tracked in REU.
-- `$1000-$1FFF`: 128 command descriptor slots, 32 bytes each.
+- `$1000-$1FFF`: 128 command descriptor slots, 32 bytes each. Slots 1-14 are current front commands, slots 15-127 are filler, and slot 128 is `SCRPUT`.
 - `$2000-$3FFF`: reserved common/system expansion space.
 - `$4000-$FFFF`: typed handle heap, 48KB.
 
@@ -75,8 +75,8 @@ scans eight descriptors locally, and copies the matched descriptor into
 
 ## Bank `$45` Command Code Layout
 
-- `$0000-$05DE`: packed low overlay code fetched to `$A900-$AEDE`.
-- `$05DF-$062B`: packed hidden worker code fetched to `$A800-$A84C`.
+- `$0000-$0619`: packed low overlay code fetched to `$A900-$AF19`.
+- `$061A-$0666`: packed hidden worker code fetched to `$A800-$A84C`.
 
 Cold entry prestashes these bytes once. Warm resume reuses the REU copies and
 must not reread `CMDPACK`, `HIDLOAD`, `BRLOAD`, or `REGSEED` from BASIC-owned
