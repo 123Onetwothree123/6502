@@ -520,6 +520,16 @@ CMD_LOW_ALL CMD_SCRPUT, SIG_SCRPUT, cmd_scrput_low, "SCRPUT"</code></pre>
       <code>A$=GREET("READY")</code> or <code>PRINT ADDI(6,7)</code> return the
       <code>RET</code> expression directly.
     </p>
+    <p>
+      Numeric command and <code>FUNC</code> actuals can be flat numeric expressions,
+      for example <code>ADDI(1,2+4)</code>. Nested parentheses inside the actual
+      list, such as <code>ADDI(1,(2+4))</code>, are not part of V1. String actuals
+      are string variables or quoted literals. Command and <code>FUNC</code>
+      returns are assignable; command numeric returns also work in the tested
+      top-level form <code>ABS(ZADD16(1,6)-10)</code>, but <code>FUNC</code>
+      returns are not currently general nested arguments to BASIC ROM functions
+      such as <code>ABS(ADDI(...))</code> or <code>LEFT$(GREET(...),2)</code>.
+    </p>
   </section>
 
   <script>

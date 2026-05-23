@@ -638,3 +638,11 @@ when the return type should be explicit:
 Expression `FUNC` calls scan the routine body, run simple scalar assignments
 before `RET`, and evaluate the return expression. They do not execute arbitrary
 earlier statements in the body.
+
+Numeric command and `FUNC` actuals can be flat numeric expressions, for example
+`ADDI(1,2+4)`. Nested parentheses inside the actual list, such as
+`ADDI(1,(2+4))`, are not part of V1. String actuals are string variables or
+quoted literals. Command and `FUNC` returns are assignable; command numeric
+returns also work in the tested top-level form `ABS(ZADD16(1,6)-10)`, but
+`FUNC` returns are not currently general nested arguments to BASIC ROM functions
+such as `ABS(ADDI(...))` or `LEFT$(GREET(...),2)`.

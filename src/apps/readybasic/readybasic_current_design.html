@@ -789,7 +789,7 @@
               <tr><td><code>Makefile</code></td><td>Assembles, links, and writes <code>bin/readybasic.prg</code> plus <code>obj/readybasic.map</code>.</td></tr>
               <tr><td><code>obj/readybasic.map</code></td><td>Current source of truth for segment ranges and sizes.</td></tr>
               <tr><td><code>rbtest1.bas</code></td><td>Legacy sample BASIC program only; not part of the command overlay mechanism.</td></tr>
-              <tr><td><code>rbproc1.bas</code></td><td>Positive native routine sample covering <code>PROC</code>, <code>FUNC</code>, <code>EXEC</code>, <code>ENDP</code>, colon chains, normalized IF, and nesting.</td></tr>
+              <tr><td><code>rbproc1.bas</code></td><td>Positive native routine sample covering <code>PROC</code>, <code>FUNC</code>, <code>EXEC</code>, <code>ENDP</code>, colon chains, normalized IF, nesting, return assignments, command return inside top-level <code>ABS(...)</code>, flat numeric expression actuals, and string command return inside a <code>FUNC</code> body.</td></tr>
               <tr><td><code>rbprocerr.bas</code></td><td>Negative native routine sample; run sections by line number to exercise expected errors.</td></tr>
               <tr><td><code>READYBASIC_MAKING_COMMAND_GUIDE.md</code> / <code>readybasic_making_command_guide.html</code></td><td>Annotated walkthrough for adding commands using current demo, string, array, hidden, and REU-handle examples.</td></tr>
             </tbody>
@@ -1129,7 +1129,7 @@
           <tr><td>Full expression probe</td><td>Direct bare command statements, command expressions, parenthesized <code>EXEC</code>, numeric <code>FUNC</code> expression return, numeric <code>FUNC</code> assignment, string <code>FUNC</code> expression return, and readable <code>LIST</code>.</td></tr>
           <tr><td>Plugin command probe</td><td>Direct command statements, direct <code>IF 1 THEN ZECHO1(P%)</code>, <code>UPPER</code>/<code>LOWER</code>, old-name rejection, string/REM safety, leading-comma rejection, <code>SCRCAP</code>/<code>SCRPUT</code>, slot-128 lookup, 128-handle edge, 48KB heap edge, screen heap exhaustion, wrong-handle-type rejection, screen-handle free, resume.</td></tr>
           <tr><td>Program probe</td><td>Stored line start, colon chains, true/false <code>IF ... THEN COMMAND(...)</code>, <code>FOR/NEXT</code>, strings, REM, DATA, arrays, hidden worker, handles, failure clearing.</td></tr>
-          <tr><td><code>rbproc1</code> probe</td><td>Positive stored <code>PROC</code>/<code>FUNC</code> coverage, including readable <code>LIST</code>, colon chain, normalized IF, and nested depth 2.</td></tr>
+          <tr><td><code>rbproc1</code> probe</td><td>Positive stored <code>PROC</code>/<code>FUNC</code> coverage, including readable <code>LIST</code>, colon chain, normalized IF, nested depth 2, return assignments, command return inside top-level <code>ABS(...)</code>, flat numeric expression actuals, and string command return inside a <code>FUNC</code> body.</td></tr>
           <tr><td><code>rbprocerr</code> probe</td><td>Negative routine coverage: unknown routine, wrong count/type, missing output, extra actual, bare <code>ENDP</code>, and stack overflow.</td></tr>
           <tr><td>Full visual verification</td><td>Human-watchable command, program, screen-handle, handle/heap edge, resume, and error coverage.</td></tr>
           <tr><td>Lifecycle probe</td><td>Cold entry, <code>EXIT</code>, launcher re-entry, READY-mode redraw.</td></tr>
@@ -1159,10 +1159,14 @@
         routines still use <code>EXEC NAME</code>.
       </p>
       <p>
-        String <code>FUNC</code> calls can be used as expressions when the first statement
-        after the <code>FUNC</code> line assigns the final formal. String and numeric
-        <code>FUNC</code> expression returns are supported; numeric returns use a small
-        integer RHS evaluator instead of re-entering the ROM numeric parser.
+        <code>FUNC</code> calls return through <code>RET</code> and can be assigned or
+        printed directly. Numeric actuals can be flat expressions such as
+        <code>ADDI(1,2+4)</code>; nested parentheses in the actual list, such as
+        <code>ADDI(1,(2+4))</code>, are not part of V1. Command numeric returns work
+        inside the tested top-level form <code>ABS(ZADD16(1,6)-10)</code>, but
+        <code>FUNC</code> returns are not currently general nested arguments to BASIC
+        ROM functions such as <code>ABS(ADDI(...))</code> or
+        <code>LEFT$(GREET(...),2)</code>.
       </p>
       <table>
         <thead><tr><th>Measure</th><th>PROC/FUNC baseline</th><th>Expression branch</th></tr></thead>

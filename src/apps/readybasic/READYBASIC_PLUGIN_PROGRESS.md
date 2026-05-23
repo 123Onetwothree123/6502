@@ -44,7 +44,14 @@ as `PING`, `ADD16`, `STRUP`, `HCRC`, `SUMAI`, `RANGEAI`, `TEMPSCRATCH`, and
     expression return.
   - `RBPROC1` stored-program probe: pass for no-param `PROC`, `%`/`$` inputs,
     `%`/`$` returns, explicit `RET%`/`RET$`, colon chain, normalized
-    `IF THEN :EXEC`, nested depth 2, expression `FUNC`, and readable `LIST`.
+    `IF THEN :EXEC`, nested depth 2, expression `FUNC`, command and `FUNC`
+    return assignments, command return inside top-level `ABS(...)`, flat
+    numeric expression actuals, string command return inside a `FUNC` body,
+    and readable `LIST`.
+  - Current expression limits verified during the expanded `RBPROC1` work:
+    `ADDI(1,2+4)` works, but `ADDI(1,(2+4))` does not; command/FUNC returns are
+    not yet general nested arguments to BASIC ROM functions such as
+    `ABS(ADDI(...))` or `LEFT$(GREET(...),2)`.
   - Parenthesized `RBPROCERR` negative VICE probe: pass for unknown routine,
     missing/wrong args, statement `EXEC` to `FUNC`, extra `PROC` actual, bare `ENDP`,
     and stack overflow.

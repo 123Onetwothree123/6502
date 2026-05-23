@@ -16,7 +16,12 @@
 160 t$=greet("expr"):print t$
 170 a%=idi(9):print "ret%";a%
 180 t$=ids("ok"):print "ret$ ";t$
-190 end
+190 print "cex";abs(zadd16(1,6)-10)
+200 t$=upper("mix"):print "cs$ ";t$
+210 print "fpex";addi(1,2+4)
+220 a%=zadd16(3,10):print "fcmd";a%
+230 t$=funcupper("yo"):print "fs$ ";t$
+250 end
 1000 proc show0()
 1010 print "proc0"
 1020 endp
@@ -51,3 +56,7 @@
 1900 func ids(s$)
 1910 ret$ s$
 1920 endp
+2100 func funcupper(n$)
+2110 r$=upper(n$)
+2120 ret r$
+2130 endp

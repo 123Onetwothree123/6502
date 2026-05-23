@@ -88,8 +88,10 @@ assignment statements before `RET`, so later assignment then return works:
 
 This is still intentionally smaller than a general BASIC subinterpreter: V1
 `FUNC` bodies support scalar `%`/`$` assignments before `RET`, including nested
-ReadyBASIC command/function expressions on the right-hand side. Other statements
-inside a `FUNC` body remain invalid.
+numeric `FUNC` calls and string command returns in the tested simple assignment
+forms. Other statements inside a `FUNC` body remain invalid, and command/FUNC
+returns are not currently general-purpose arguments to BASIC ROM functions such
+as `ABS(...)` or `LEFT$(...)`.
 
 Routine definitions are normal BASIC lines and are not command overlays,
 descriptors, or `LOWPACK` entries. Put definitions after `END` in V1. Reaching a
@@ -174,7 +176,7 @@ inside that one PRG load image:
 | `obj/readybasic.map` | Current source of truth for segment ranges and sizes. |
 | `bin/readybasic.prg` | The single ReadyOS app executable that contains resident code plus cold-load seed images. |
 | `src/apps/readybasic/rbtest1.bas` / `obj/rbtest1.prg` | Legacy sample BASIC program only; not part of the command overlay mechanism. |
-| `src/apps/readybasic/rbproc1.bas` / `obj/rbproc1.prg` | Positive `PROC`/`FUNC` sample: no-param PROC, `%`, `$`, `%` return, `$` return, explicit `RET%`/`RET$`, colon chain, normalized `IF THEN :EXEC`, and nested depth 2. |
+| `src/apps/readybasic/rbproc1.bas` / `obj/rbproc1.prg` | Positive `PROC`/`FUNC` sample: no-param PROC, `%`, `$`, `%` return, `$` return, explicit `RET%`/`RET$`, colon chain, normalized `IF THEN :EXEC`, nested depth 2, command and FUNC return assignments, command return inside top-level `ABS(...)`, flat numeric expression actuals, and string command return inside a `FUNC` body. |
 | `src/apps/readybasic/rbprocerr.bas` / `obj/rbprocerr.prg` | Negative `PROC`/`FUNC` sample; run sections by line number to exercise unknown routine, wrong count/type, statement `EXEC` to `FUNC`, PROC extra actual, bare `ENDP`, and return-stack overflow. |
 | `build_support/verify_readybasic_plugin.py` | Static guardrail checker for the ReadyBASIC layout and REU constants. |
 | `READYBASIC_MAKING_COMMAND_GUIDE.md` / `readybasic_making_command_guide.html` | Walkthrough for adding commands using the current demo, string, array, hidden, and REU-handle examples. |
@@ -610,7 +612,7 @@ Recent VICE coverage includes:
 | Full expression probe | Direct bare command statements, command expressions, parenthesized `EXEC PROC`, `FUNC` with later assignment plus `RET`, numeric `FUNC` expression return/assignment, string `FUNC` expression return, and readable `LIST`. |
 | Plugin command probe | Direct command statements, direct `IF 1 THEN ZECHO1(P%)`, `UPPER`/`LOWER`, old-name rejection, string/REM safety, leading-comma rejection, `SCRCAP`/`SCRPUT`, slot-128 lookup, 128-handle edge, 48KB heap edge, screen heap exhaustion, wrong-handle-type rejection, screen-handle free, resume. |
 | Program probe | Stored line start, colon chains, true/false `IF ... THEN COMMAND(...)`, `FOR/NEXT`, strings, REM, DATA, arrays, hidden worker, handles, failure clearing. |
-| `rbproc1` probe | Stored positive `PROC`/`FUNC`: no-param PROC, `%`, `$`, `%` return, `$` return, explicit `RET%`/`RET$`, colon chain, normalized `IF THEN :EXEC`, nested depth 2, and readable `LIST`. |
+| `rbproc1` probe | Stored positive `PROC`/`FUNC`: no-param PROC, `%`, `$`, `%` return, `$` return, explicit `RET%`/`RET$`, colon chain, normalized `IF THEN :EXEC`, nested depth 2, command and FUNC return assignment, command return inside top-level `ABS(...)`, flat numeric expression actuals, string command return inside a `FUNC` body, and readable `LIST`. |
 | `rbprocerr` probe | Stored negative `PROC`/`FUNC`: unknown routine, wrong count/type, statement `EXEC` to `FUNC`, PROC extra actual, `ENDP` without `EXEC`, and return-stack overflow. |
 | Full visual verification | Human-watchable command, program, screen-handle, handle/heap edge, resume, and error coverage. |
 | Lifecycle probe | Cold entry, `EXIT`, launcher re-entry, READY-mode redraw. |
@@ -662,6 +664,16 @@ or `RET$ expr` type markers. `EXEC` runs `PROC` bodies only; `FUNC` returns
 the value as the expression result. `FUNC` calls scan the body, execute
 simple scalar assignments, and evaluate the `RET` expression; arbitrary earlier
 BASIC statements remain outside V1.
+
+Numeric actuals for command and `FUNC` calls can be ordinary numeric
+expressions in the flat forms tested by `rbproc1`, such as `ADDI(1,2+4)`.
+Nested parentheses inside actual lists, such as `ADDI(1,(2+4))`, are not
+supported today. String actuals remain string variables or quoted literals.
+Command and `FUNC` returns can be assigned or printed directly; command numeric
+returns also work inside a top-level BASIC numeric function in the tested form
+`ABS(ZADD16(1,6)-10)`. `FUNC` returns are not currently accepted as nested
+arguments to BASIC ROM functions such as `ABS(ADDI(...))` or
+`LEFT$(GREET(...),2)`.
 
 Memory comparison against the native PROC/FUNC baseline:
 
