@@ -42,7 +42,7 @@ def main() -> None:
         fail("bin/readybasic.prg is missing; build it first")
     segments = parse_segments(MAP.read_text())
 
-    require(r"^BASIC_START\s*=\s*\$2501\b", asm, "BASIC_START must be $2501")
+    require(r"^BASIC_START\s*=\s*\$2901\b", asm, "BASIC_START must be $2901")
     require(r"^BASIC_LIMIT\s*=\s*\$A000\b", asm, "BASIC_LIMIT must be $A000")
     require(r"^RB_REU_CORE_BANK\s*=\s*\$44\b", asm, "ReadyBASIC core bank must be $44")
     require(r"^RB_REU_CODE_BANK\s*=\s*\$45\b", asm, "ReadyBASIC code bank must be $45")
@@ -60,6 +60,7 @@ def main() -> None:
     require(r"^SIG_LOWER\s*=\s*4\b", asm, "LOWER signature must be registered")
     require(r"^SIG_SCRCAP\s*=\s*14\b", asm, "SCRCAP signature must be registered")
     require(r"^SIG_SCRPUT\s*=\s*15\b", asm, "SCRPUT signature must be registered")
+    require(r"^SIG_FADD\s*=\s*16\b", asm, "FADD signature must be registered")
     require(r"#define\s+REU_RB_CORE\s+14\b", reu_hdr, "REU_RB_CORE type must stay in sync")
     require(r"#define\s+REU_RB_CODE\s+15\b", reu_hdr, "REU_RB_CODE type must stay in sync")
     require(r"#define\s+REU_BANK_RB_CORE\s+0x44\b", reu_hdr, "REU_BANK_RB_CORE must be 0x44")
@@ -76,14 +77,14 @@ def main() -> None:
     bridge = segments["BRIDGE"]
     regseed = segments["REGSEED"]
 
-    if resident[0] != 0x1200 or resident[1] >= 0x2500:
-        fail(f"RESIDENT must fit in $1200-$24FF, got ${resident[0]:04X}-${resident[1]:04X}")
-    if resident[2] > 0x1289:
-        fail(f"RESIDENT grew past measured lean nested-term budget $1289, got ${resident[2]:04X}")
+    if resident[0] != 0x1200 or resident[1] >= 0x2900:
+        fail(f"RESIDENT must fit in $1200-$28FF, got ${resident[0]:04X}-${resident[1]:04X}")
+    if resident[2] > 0x16FE:
+        fail(f"RESIDENT grew past measured proper float-term budget $16FE, got ${resident[2]:04X}")
     if lowpack[0] != 0xA900 or lowpack[1] > 0xBFFF:
         fail(f"LOWPACK must fit under BASIC ROM at $A900-$BFFF, got ${lowpack[0]:04X}-${lowpack[1]:04X}")
-    if lowpack[2] != 0x061A:
-        fail(f"LOWPACK size changed from measured $061A, got ${lowpack[2]:04X}")
+    if lowpack[2] != 0x061B:
+        fail(f"LOWPACK size changed from measured $061B, got ${lowpack[2]:04X}")
     if hidden[0] != 0xA000 or hidden[1] > 0xA5FF:
         fail(f"HIDDEN helper must fit in $A000-$A5FF, got ${hidden[0]:04X}-${hidden[1]:04X}")
     if hidden[2] != 0x0377:
@@ -94,8 +95,8 @@ def main() -> None:
         fail(f"HIDDENPACK size changed from measured $004D, got ${hiddenpack[2]:04X}")
     if bridge[0] != 0xC000 or bridge[1] >= 0xC200:
         fail(f"BRIDGE must stay below relocated shared frames at $C200, got ${bridge[0]:04X}-${bridge[1]:04X}")
-    if bridge[2] > 0x01EB:
-        fail(f"BRIDGE grew past measured lean nested-term budget $01EB, got ${bridge[2]:04X}")
+    if bridge[2] > 0x01EC:
+        fail(f"BRIDGE grew past measured proper float-term budget $01EC, got ${bridge[2]:04X}")
     require(r"^RB_CF\s*=\s*\$C200\b", asm, "RB_CF must be relocated to $C200")
     require(r"^RB_RF\s*=\s*\$C300\b", asm, "RB_RF must be relocated to $C300")
     require(r"^RB_DESC_BUF\s*=\s*\$C480\b", asm, "RB_DESC_BUF must be relocated to $C480")

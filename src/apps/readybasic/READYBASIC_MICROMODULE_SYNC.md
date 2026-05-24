@@ -37,7 +37,7 @@ ReadyBASIC now duplicates a small amount of ReadyOS REU and shim knowledge in as
 
 - ReadyBASIC still uses:
   - `SHIM_RETURN = $C80C`
-  - bridge state at `$C000-$C1F4`
+  - bridge state at `$C000-$C1EB`
   - shared frames and visible helper shadow at `$C200-$C5FF`
   - app runtime zero-page/stack save in REU bank `$44` offsets `$0A00/$0B00`
 - Do not place ReadyBasic state in `$C800-$C9FF`; that remains shim ABI territory.
@@ -45,16 +45,16 @@ ReadyBASIC now duplicates a small amount of ReadyOS REU and shim knowledge in as
 
 ## Current ReadyBASIC Memory Snapshot
 
-- `BASIC_START = $2501`; BASIC owns `$2501-$9FFF`, with `31485` formula empty free bytes.
+- `BASIC_START = $2901`; BASIC owns `$2901-$9FFF`, with `30461` formula empty free bytes.
 - `ENTRY` lives at `$1000-$1102`.
-- `RESIDENT` lives at `$1200-$2488` and must stay below `$2500`.
-- `CMDPACK` load-only seed space is `$2800-$3FFF`; it is copied to REU bank `$45` on cold entry.
+- `RESIDENT` lives at `$1200-$28FD` and must stay below `$2900`.
+- `CMDPACK` load-only seed space is `$2900-$3FFF`; it is copied to REU bank `$45` on cold entry.
 - `HIDLOAD` load-only helper seed starts at `$4000`.
 - `BRLOAD` load-only bridge seed starts at `$4800`.
 - `REGSEED` load-only registry seed is `$5000-$600F`, size `$1010`.
-- Runtime `LOWPACK` is `$A900-$AF19`, size `$061A`.
+- Runtime `LOWPACK` is `$A900-$AF1A`, size `$061B`.
 - Runtime `HIDDENPACK` is `$A800-$A84C`, size `$004D`.
-- Runtime `BRIDGE` is `$C000-$C1F4`, size `$01F5`; the native `PROC`/`FUNC`
+- Runtime `BRIDGE` is `$C000-$C1EB`, size `$01EC`; the native `PROC`/`FUNC`
   return stack lives here and must stay below shared frames at `$C200`.
 
 ## Bank `$44` ReadyBASIC Core Layout
@@ -67,7 +67,7 @@ ReadyBASIC now duplicates a small amount of ReadyOS REU and shim knowledge in as
 - `$0A00`: zero-page snapshot.
 - `$0B00`: stack-page snapshot.
 - `$0C00-$0CFF`: heap page bitmap, 192 pages tracked in REU.
-- `$1000-$1FFF`: 128 command descriptor slots, 32 bytes each. Slots 1-14 are current front commands, slots 15-127 are filler, and slot 128 is `SCRPUT`.
+- `$1000-$1FFF`: 128 command descriptor slots, 32 bytes each. Slots 1-16 are current front commands, slots 17-127 are filler, and slot 128 is `SCRPUT`.
 - `$2000-$3FFF`: reserved common/system expansion space.
 - `$4000-$FFFF`: typed handle heap, 48KB.
 
@@ -77,8 +77,8 @@ scans eight descriptors locally, and copies the matched descriptor into
 
 ## Bank `$45` Command Code Layout
 
-- `$0000-$0619`: packed low overlay code fetched to `$A900-$AF19`.
-- `$061A-$0666`: packed hidden worker code fetched to `$A800-$A84C`.
+- `$0000-$061A`: packed low overlay code fetched to `$A900-$AF1A`.
+- `$061B-$0667`: packed hidden worker code fetched to `$A800-$A84C`.
 
 Cold entry prestashes these bytes once. Warm resume reuses the REU copies and
 must not reread `CMDPACK`, `HIDLOAD`, `BRLOAD`, or `REGSEED` from BASIC-owned
@@ -106,6 +106,26 @@ Branch-specific sync points:
   `LEFT$(GREET("READY"),2)`.
 - Proven one-wrapper numeric actual forms: `ADDI(1,(2+4))`,
   `ZADD16(1,(2+4))`, and `ADDI((1+2),(3+4))`.
+
+## Proper Float-Term Branch Note
+
+The `exp/readybasic-proper-float-terms` branch is stacked on
+`exp/readybasic-lean-nested-terms`. It keeps the fixed frame addresses but adds
+float slots in the call/result frame and resident state preservation for nested
+ReadyBASIC expression terms.
+
+Branch-specific sync points:
+
+- `BASIC_START = $2901`; BASIC owns `$2901-$9FFF`, with `30461` formula empty
+  free bytes.
+- `RESIDENT = $1200-$28FD`, size `$16FE` / 5886B.
+- `BRIDGE = $C000-$C1EB`, size `$01EC` / 492B.
+- `LOWPACK = $061B`; command overlay grew by one byte for the resident-computed
+  `FADD` low stub.
+- `FADD(A,B)` and `FADD(A,B,Q)` use plain C64 BASIC float values.
+- Proven proper-term forms include `ADDI(1,ADDI(2,3))`,
+  `FADD(1.5,FADD(2.25,3.25))`, `ABS(FADD(1.2,2.3)-3)`, and
+  `LEFT$(GREET("READY")+"!",3)`.
 
 ## Expression-Style Branch Note
 

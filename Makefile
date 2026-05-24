@@ -632,18 +632,18 @@ $(READYBASIC): $(APPS_DIR)/readybasic/readybasic.s $(CFG_DIR)/ready_app_readybas
 readybasic-plugin-static-check: $(READYBASIC) $(BUILD_SUPPORT_DIR)/verify_readybasic_plugin.py
 	$(PYTHON) $(BUILD_SUPPORT_DIR)/verify_readybasic_plugin.py
 
-# ReadyBASIC sample program (relocated to ReadyBASIC's $2501 BASIC workspace).
+# ReadyBASIC sample program (relocated to ReadyBASIC's $2901 BASIC workspace).
 $(READYBASIC_RBTEST1): $(APPS_DIR)/readybasic/rbtest1.bas
 	@mkdir -p "$(OBJ_DIR)"
-	$(PETCAT) -w2 -l 2501 -o $@ -- $<
+	$(PETCAT) -w2 -l 2901 -o $@ -- $<
 
 $(READYBASIC_RBPROC1): $(APPS_DIR)/readybasic/rbproc1.bas
 	@mkdir -p "$(OBJ_DIR)"
-	$(PETCAT) -w2 -l 2501 -o $@ -- $<
+	$(PETCAT) -w2 -l 2901 -o $@ -- $<
 
 $(READYBASIC_RBPROCERR): $(APPS_DIR)/readybasic/rbprocerr.bas
 	@mkdir -p "$(OBJ_DIR)"
-	$(PETCAT) -w2 -l 2501 -o $@ -- $<
+	$(PETCAT) -w2 -l 2901 -o $@ -- $<
 
 # UCI tester app (loads at $1000)
 $(UCITEST): $(APPS_DIR)/ucitest/ucitest.c $(APPS_DIR)/ucitest/ucitest_catalog.c $(APPS_DIR)/ucitest/ucitest_format.c $(APPS_DIR)/ucitest/ucitest_uci.c $(APPS_DIR)/ucitest/ucitest_uci_asm.s $(LIB_UCITEST)

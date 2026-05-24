@@ -802,8 +802,8 @@
         <div class="region r-hidden"><span><b>HIDDEN HELPER</b><small>Runs with RAM mapped under BASIC ROM.</small></span><strong>$0377<br>0.9K</strong></div>
         <div class="addr">$A800-$A84C</div>
         <div class="region r-hidden"><span><b>HIDDEN OVERLAY</b><small>ZHIDDENRAM worker slot.</small></span><strong>$004D<br>77B</strong></div>
-        <div class="addr">$A900-$AF19</div>
-        <div class="region r-low"><span><b>LOW OVERLAY</b><small>Low command pack runs under BASIC ROM RAM.</small></span><strong>$061A<br>1.5K</strong></div>
+        <div class="addr">$A900-$AF1A</div>
+        <div class="region r-low"><span><b>LOW OVERLAY</b><small>Low command pack runs under BASIC ROM RAM.</small></span><strong>$061B<br>1.5K</strong></div>
         <div class="addr">$C000-$C1F4</div>
         <div class="region r-bridge"><span><b>BRIDGE STATE</b><small>Magic, saved vectors, overlay vars, handle scratch, PROC/FUNC stack.</small></span><strong>$01F5<br>501B</strong></div>
         <div class="addr">$C200-$C5FF</div>
@@ -861,7 +861,7 @@
               <div>
                 <h3>Inside `CMDPACK` During Load</h3>
                 <div class="stage-bar">
-                  <div class="stage-seg r-low" style="width: 25.42%" title="$2800-$2E19: $061A / 1.5K / 1562 exact bytes"><b>LOWPACK</b><small>$061A / 1.5K / 1562 exact bytes</small></div>
+                  <div class="stage-seg r-low" style="width: 25.42%" title="$2800-$2E19: $061B / 1.5K / 1563 exact bytes"><b>LOWPACK</b><small>$061B / 1.5K / 1563 exact bytes</small></div>
                   <div class="stage-seg r-hidden" style="width: 1.25%" title="$2E1A-$2E66: $004D / 77B"><b>H</b><small>77B</small></div>
                   <div class="stage-seg r-pack" style="width: 73.32%" title="$2E67-$3FFF: $1199 / 4.4K / 4505 exact bytes"><b>available reserved room</b><small>$1199 / 4.4K / 4505 exact bytes</small></div>
                 </div>
@@ -883,7 +883,7 @@
               <div class="prop-label">Runtime command copy<small>under BASIC ROM RAM</small></div>
               <div class="prop-track">
                 <div class="prop-seg r-hidden" style="width: 4.70%" title="$A800-$A84C: $004D / 77B"><b>$A800-$A84C</b><small>hidden 77B</small></div>
-                <div class="prop-seg r-low" style="width: 95.30%" title="$A900-$AF19: $061A / 1.5K / 1562 exact bytes"><b>$A900-$AF19</b><small>low overlay $061A / 1.5K</small></div>
+                <div class="prop-seg r-low" style="width: 95.30%" title="$A900-$AF1A: $061B / 1.5K / 1563 exact bytes"><b>$A900-$AF1A</b><small>low overlay $061B / 1.5K</small></div>
               </div>
             </div>
             <div class="cmdpack-meter" aria-label="CMDPACK reserved capacity">
@@ -903,7 +903,7 @@
               </div>
               <div class="capacity-card">
                 <b>64.0K current REU bank</b>
-                <p>Descriptors use 16-bit offsets/sizes into REU bank <code>$45</code>. Current packed code uses <code>$0667</code> / 1.6K, leaving <code>$F999</code> / 62.4K.</p>
+                <p>Descriptors use 16-bit offsets/sizes into REU bank <code>$45</code>. Current packed code uses <code>$0667</code> / 1.6K, leaving <code>$F998</code> / 62.4K.</p>
               </div>
               <div class="capacity-card">
                 <b>More than 64K later</b>
@@ -942,9 +942,9 @@
 
         <div class="bank code">
           <div class="bank-title">REU Bank $45: Packed Command Code</div>
-          <div class="slice"><span>$0000-$0619</span><span>Low overlay pack fetched into `$A900-$AF19`. <span class="size-pill">$061A / 1.5K / 1562 exact bytes</span></span></div>
-          <div class="slice"><span>$061A-$0666</span><span>Hidden overlay pack fetched into `$A800-$A84C`. <span class="size-pill">$004D / 77B</span></span></div>
-          <div class="slice"><span>$0667-$FFFF</span><span>Available packed-code bank space for future command bodies. <span class="size-pill">$F999 / 62.4K / 63897 exact bytes</span></span></div>
+          <div class="slice"><span>$0000-$061A</span><span>Low overlay pack fetched into `$A900-$AF1A`. <span class="size-pill">$061B / 1.5K / 1563 exact bytes</span></span></div>
+          <div class="slice"><span>$061B-$0666</span><span>Hidden overlay pack fetched into `$A800-$A84C`. <span class="size-pill">$004D / 77B</span></span></div>
+          <div class="slice"><span>$0668-$FFFF</span><span>Available packed-code bank space for future command bodies. <span class="size-pill">$F998 / 62.4K / 63896 exact bytes</span></span></div>
           <div class="slice"><span>descriptor</span><span>Each descriptor stores code offset, code length, run offset, flags, signature, and name. Descriptor table lives in bank `$44`, not here.</span></div>
           <div class="slice"><span>$C600</span><span>ReadyOS allocation table marks `$44` as type 14 and `$45` as type 15. This is C64 metadata, not REU bank `$45` content.</span></div>
         </div>
@@ -1085,7 +1085,7 @@
         </div>
         <div class="command">
           <h3>ZHIDDENRAM(S$,OUT%) / ZHIDDENRAM(S$)</h3>
-          <div class="command-meta"><span class="chip hidden">hidden</span><span class="chip">bank $45+$061A</span><span class="chip">copy $004D / 77B</span></div>
+          <div class="command-meta"><span class="chip hidden">hidden</span><span class="chip">bank $45+$061B</span><span class="chip">copy $004D / 77B</span></div>
           <p>Copies hidden code into `$A800`, maps RAM under BASIC ROM, and returns a checksum-like uppercase byte sum.</p>
         </div>
         <div class="command">
@@ -1100,22 +1100,22 @@
         </div>
         <div class="command">
           <h3>BUFNEW(LEN,H%) / BUFNEW(LEN)</h3>
-          <div class="command-meta"><span class="chip low">low $A900</span><span class="chip reu">REU handle</span><span class="chip">copy $061A / 1.5K</span></div>
+          <div class="command-meta"><span class="chip low">low $A900</span><span class="chip reu">REU handle</span><span class="chip">copy $061B / 1.5K</span></div>
           <p>Allocates contiguous 256-byte buffer pages inside bank `$44` and returns a one-based handle.</p>
         </div>
         <div class="command">
           <h3>BUFFILL(H%,BYTE)</h3>
-          <div class="command-meta"><span class="chip low">low $A900</span><span class="chip reu">REU data</span><span class="chip">copy $061A / 1.5K</span></div>
+          <div class="command-meta"><span class="chip low">low $A900</span><span class="chip reu">REU data</span><span class="chip">copy $061B / 1.5K</span></div>
           <p>Fills `$C500` with a byte and stashes it page by page into a type-1 buffer handle.</p>
         </div>
         <div class="command">
           <h3>BUFFREE(H%)</h3>
-          <div class="command-meta"><span class="chip low">low $A900</span><span class="chip reu">metadata</span><span class="chip">copy $061A / 1.5K</span></div>
+          <div class="command-meta"><span class="chip low">low $A900</span><span class="chip reu">metadata</span><span class="chip">copy $061B / 1.5K</span></div>
           <p>Clears the REU-backed page bitmap and handle descriptor for any valid handle type.</p>
         </div>
         <div class="command">
           <h3>ZTEMPSCRATCH(LEN,OUT%) / ZTEMPSCRATCH(LEN)</h3>
-          <div class="command-meta"><span class="chip low">low $A900</span><span class="chip reu">temp heap</span><span class="chip">copy $061A / 1.5K</span></div>
+          <div class="command-meta"><span class="chip low">low $A900</span><span class="chip reu">temp heap</span><span class="chip">copy $061B / 1.5K</span></div>
           <p>Allocates and immediately frees pages, returning the number of pages required.</p>
         </div>
         <div class="command">
@@ -1130,12 +1130,12 @@
         </div>
         <div class="command">
           <h3>SCRCAP(H%) / SCRCAP()</h3>
-          <div class="command-meta"><span class="chip low">slot 14</span><span class="chip reu">screen handle</span><span class="chip">copy $061A / 1.5K</span></div>
+          <div class="command-meta"><span class="chip low">slot 14</span><span class="chip reu">screen handle</span><span class="chip">copy $061B / 1.5K</span></div>
           <p>Captures `$0400-$07E7` screen text and `$D800-$DBE7` color RAM into a type-2 handle.</p>
         </div>
         <div class="command">
           <h3>SCRPUT(H%)</h3>
-          <div class="command-meta"><span class="chip low">slot 128</span><span class="chip reu">screen handle</span><span class="chip">copy $061A / 1.5K</span></div>
+          <div class="command-meta"><span class="chip low">slot 128</span><span class="chip reu">screen handle</span><span class="chip">copy $061B / 1.5K</span></div>
           <p>Validates a type-2 handle, then restores screen text and color RAM.</p>
         </div>
       </div>

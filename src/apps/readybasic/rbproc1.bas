@@ -27,7 +27,15 @@
 270 print "fparen";addi(1,(2+4))
 280 print "cparen";zadd16(1,(2+4))
 290 print "dparen";addi((1+2),(3+4))
-300 end
+300 print "fadd";fadd(1.2,2.3)
+310 f=fadd(1.5,fadd(2.25,3.25)):print "nfadd";f
+320 s=scale(2.25):print "scale";s
+330 print "naddi";addi(1,addi(2,3))
+340 print "fabs";abs(fadd(1.2,2.3)-3)
+350 fadd(1.2,2.3,q):print "sfadd";q
+360 t$=left$(greet("ready")+"!",3):print "cat ";t$
+370 t$=left$(upper(greet("ready")),2):print "ngs ";t$
+380 end
 1000 proc show0()
 1010 print "proc0"
 1020 endp
@@ -66,3 +74,6 @@
 2110 r$=upper(n$)
 2120 ret r$
 2130 endp
+2200 func scale(x)
+2210 ret x*1.5
+2220 endp

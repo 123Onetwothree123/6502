@@ -2,15 +2,15 @@
 
 ## Current V1 Layout
 
-- `BASIC_START = $2501`; BASIC owns `$2501-$9FFF`, with `31485` formula empty free bytes (30.7K).
+- `BASIC_START = $2901`; BASIC owns `$2901-$9FFF`, with `30461` formula empty free bytes (29.7K).
 - `$1000-$1102`: tiny app entry (`$0103`, 259B) that copies hidden helpers and bridge state before BASIC starts.
-- `$1200-$2488`: visible resident core (`$1289`, 4745B). This is the only code that calls BASIC ROM helpers.
-- `$2500`: BASIC sentinel byte; it must stay zero before stored-program `RUN`.
-- `$A900-$AF19`: low command overlay slot under BASIC ROM. Current packed low command image is `$061A` bytes (1.5K, 1562 exact bytes).
+- `$1200-$28FD`: visible resident core (`$16FE`, 5886B). This is the only code that calls BASIC ROM helpers.
+- `$2900`: BASIC sentinel byte; it must stay zero before stored-program `RUN`.
+- `$A900-$AF1A`: low command overlay slot under BASIC ROM. Current packed low command image is `$061B` bytes (1.5K, 1563 exact bytes).
 - `$C200-$C5FF`: fixed call frame, result frame, descriptor buffer, command-name buffer, page buffer, and warm-resume staging (`$0400`, 1.0K).
 - `$A000-$A376`: hidden helper code (`$0377`, 887B), restored from the visible `$C280` shadow.
 - `$A800-$A84C`: hidden worker overlay slot (`$004D`, 77B) used by `ZHIDDENRAM`.
-- `$C000-$C1EA`: bridge state plus native routine return stack (`$01EB`, 491B); the implementation stays below `$C200`.
+- `$C000-$C1EB`: bridge state plus native routine return stack (`$01EC`, 492B); the implementation stays below `$C200`.
 
 ## REU Banks
 
@@ -42,7 +42,7 @@
 ## Bank `$45` Regions
 
 - Offset `$0000`: low overlay pack copied from the linker `LOWPACK` segment.
-- Offset `$061A`: hidden overlay pack copied from the linker `HIDDENPACK` segment.
+- Offset `$061B`: hidden overlay pack copied from the linker `HIDDENPACK` segment.
 - Descriptors store code offsets and run offsets; normal low commands copy only their slice. Buffer/heap/screen sample commands currently load the whole low pack because their REU descriptor, allocator, bitmap, and screen-copy helpers live in the overlay pack rather than resident core RAM.
 
 ## Descriptor ABI
@@ -93,6 +93,7 @@ Each descriptor is 32 bytes:
 - `ZFAIL(CODE,OUT%)`: low overlay, exercises the error path after output clearing.
 - `FREEMEM()`: low overlay, prints the current live BASIC free-byte count and refreshes the header.
 - `SCRCAP(H%)` / `SCRCAP()`: low overlay, captures screen text plus color RAM into a typed screen handle.
+- `FADD(A,B,OUT)` / `FADD(A,B)`: resident-computed demo command, returns a plain C64 BASIC float.
 - `SCRPUT(H%)`: low overlay, validates a typed screen handle and restores screen text plus color RAM. This descriptor lives in slot 128 to prove full-table lookup.
 
 Native reusable BASIC routines:
@@ -113,11 +114,14 @@ Native reusable BASIC routines:
 - Raw stored-program `RUN` is supported through the `$0308` execute hook; the
   relocated BASIC sentinel byte at `BASIC_START-1` must stay zero.
 - Command lookup is linear over descriptor pages in bank `$44`: one 256-byte page is fetched into `$C500`, eight descriptors are scanned locally, and the matched descriptor is copied into `$C480`.
-- String input currently supports string variables and quoted literals; fully general BASIC string expressions remain a follow-up. Numeric inputs support flat numeric expressions and a single wrapper pair around numeric actuals such as `ZADD16(1,(2+4))`.
+- String input uses BASIC ROM string expression evaluation and then stages up to
+  64 bytes. Numeric inputs support nested ReadyBASIC expression terms in the
+  tested command and `FUNC` actual forms, including `ZADD16(1,ADDI(2,3))`-style
+  integer cases and `FADD(1.5,FADD(2.25,3.25))` float cases.
 - V1 integer arrays are explicit base element plus count, e.g. `A%(0),N`.
-- Native routine V1 formals support only `%` and `$`, no arrays, no locals, and
-  no plain floating variables. `FUNC` returns through `RET` and has one returned
-  value.
+- Native routine V1 formals support `%`, `$`, and plain C64 BASIC float
+  variables. There are no arrays, locals, or by-reference parameters. `FUNC`
+  returns through `RET`, `RET%`, or `RET$` and has one returned value.
 - Native routine definitions should be placed after `END`; fall-through into
   `PROC`/`FUNC` is invalid in V1.
 - The persistent typed heap currently suballocates 48KB inside bank `$44`; handle type `1` is a byte buffer and type `2` is a screen text+color buffer. Future large/long-lived data can allocate extra REU banks and record those banks in the same REU-backed handle directory.
@@ -138,6 +142,26 @@ layout and adds only resident parsing/return handling:
 Measured branch layout: `BASIC_START=$2501`; BASIC owns `$2501-$9FFF`, for
 `31485` formula empty free bytes. `RESIDENT` is `$1200-$2488` (`4745` bytes),
 `BRIDGE` is `$C000-$C1EA` (`491` bytes), and command overlays remain unchanged.
+
+## Proper Float-Term Experiment
+
+The `exp/readybasic-proper-float-terms` branch is stacked on
+`exp/readybasic-lean-nested-terms`. It adds plain numeric float parameters and
+returns for commands and native `FUNC`, and preserves ReadyBASIC parser state
+around nested command/`FUNC` calls so selected calls work as BASIC expression
+terms inside ROM functions, arithmetic, string concatenation, and other
+ReadyBASIC calls.
+
+Proven forms include `ABS(FADD(1.2,2.3)-3)`, `ADDI(1,ADDI(2,3))`,
+`FADD(1.5,FADD(2.25,3.25))`, `LEFT$(GREET("READY")+"!",3)`, and
+`LEFT$(UPPER(GREET("ready")),2)`. `FADD` is computed by resident code and keeps
+only a one-byte low-overlay stub because the actual calculation calls BASIC ROM
+float helpers.
+
+Measured branch layout: `BASIC_START=$2901`; BASIC owns `$2901-$9FFF`, for
+`30461` formula empty free bytes. `RESIDENT` is `$1200-$28FD` (`5886` bytes),
+`BRIDGE` is `$C000-$C1EB` (`492` bytes), `LOWPACK` is `$061B` (`1563` bytes),
+and `bin/readybasic.prg` remains `20994` bytes.
 
 ## Expression-Style Experiment
 

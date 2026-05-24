@@ -606,6 +606,8 @@ ZADD16(4,5,A%)
 PRINT ZADD16(5,10)
 A=ZADD16(8,9)
 T$=UPPER("ready")
+Q=FADD(1.2,2.3)
+FADD(1.2,2.3,Q)
 ```
 
 This is intentionally not automatic for every command descriptor. The resident
@@ -639,11 +641,19 @@ Expression `FUNC` calls scan the routine body, run simple scalar assignments
 before `RET`, and evaluate the return expression. They do not execute arbitrary
 earlier statements in the body.
 
-Numeric command and `FUNC` actuals can be flat numeric expressions, for example
-`ADDI(1,2+4)`, and the lean nested-term branch accepts a single wrapper pair
-around numeric actuals such as `ADDI(1,(2+4))`, `ZADD16(1,(2+4))`, and
-`ADDI((1+2),(3+4))`. String actuals are string variables or quoted literals.
+Numeric command and `FUNC` actuals can be BASIC numeric expressions, for example
+`ADDI(1,2+4)`, `ADDI(1,ADDI(2,3))`, and
+`FADD(1.5,FADD(2.25,3.25))`. String actuals are evaluated through BASIC ROM and
+then capped to ReadyBASIC's 64-byte staging buffer.
 Command and `FUNC` returns are assignable; numeric returns work in
-`ABS(ZADD16(1,6)-10)` and `ABS(ADDI(1,6)-10)`, and string `FUNC` returns work in
-the tested ROM consumer form `LEFT$(GREET("READY"),2)`. Fully recursive
-ReadyBASIC terms inside other ReadyBASIC actual lists remain future work.
+`ABS(ZADD16(1,6)-10)`, `ABS(ADDI(1,6)-10)`, and
+`ABS(FADD(1.2,2.3)-3)`. String `FUNC` and command returns work in tested ROM
+consumer forms such as `LEFT$(GREET("READY")+"!",3)` and
+`LEFT$(UPPER(GREET("ready")),2)`. Nested ReadyBASIC actuals are now supported
+for the tested integer and float paths, including `ADDI(1,ADDI(2,3))` and
+`FADD(1.5,FADD(2.25,3.25))`.
+
+Plain numeric command parameters and outputs are five-byte C64 BASIC floats.
+Use `%` for integer results, `$` for strings, and an untyped variable for float
+outputs. For example, `FADD(1.2,2.3,Q)` is valid, while `FADD(1.2,2.3,A%)` is
+rejected by the resident parser.

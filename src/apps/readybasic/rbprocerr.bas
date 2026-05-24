@@ -1,5 +1,5 @@
 10 rem readybasic proc/fun negative probes
-20 rem run 100,200,...,800 one case at a time
+20 rem run 100,200,...,1500 one case at a time
 100 exec missing(1)
 110 end
 200 exec needi()
@@ -22,6 +22,16 @@
 1010 end
 1100 exec needs(left$("bad",2))
 1110 end
+1200 fadd(1.2,2.3,a%)
+1210 end
+1300 a=ids("bad")
+1310 end
+1400 a$=addi(1,2)
+1410 end
+1500 print addi(1,(2+4)
+1510 end
+1600 print addi(1,(2+4)))
+1610 end
 2000 proc needi(p%)
 2010 endp
 2100 proc needs(s$)

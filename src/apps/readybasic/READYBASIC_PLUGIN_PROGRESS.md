@@ -10,6 +10,45 @@ the demo/proof commands. Older entries below may mention historical names such
 as `PING`, `ADD16`, `STRUP`, `HCRC`, `SUMAI`, `RANGEAI`, `TEMPSCRATCH`, and
 `FAIL`; those are retained as dated notes, not current aliases.
 
+## 2026-05-23: Proper Nested Terms Plus Float Experiment
+
+- Branch: `exp/readybasic-proper-float-terms`, stacked from
+  `exp/readybasic-lean-nested-terms` commit `6afae5f`.
+- Added proper nested ReadyBASIC expression-term support for the tested integer,
+  string, and float forms. Proven examples include `ADDI(1,ADDI(2,3))`,
+  `FADD(1.5,FADD(2.25,3.25))`, `ABS(FADD(1.2,2.3)-3)`,
+  `LEFT$(GREET("READY")+"!",3)`, and `LEFT$(UPPER(GREET("ready")),2)`.
+- Added plain C64 BASIC float support for command inputs/outputs and `FUNC`
+  formals/returns. `RET expr` now returns string for string expressions and
+  plain float for untyped numeric expressions; `RET%` and `RET$` force integer
+  or string. Statement `FADD(A,B,Q)` writes a plain numeric variable and rejects
+  `%` output variables.
+- Added resident-computed `FADD` as the first float demo command. It keeps a
+  descriptor and a one-byte low-overlay stub, but resident code does the actual
+  ROM float add because low overlays run with BASIC ROM hidden.
+- Fixed statement dispatch for commands beginning with `F`: a failed `FUNC`
+  keyword match now falls through to the bare-command dispatcher, allowing
+  `FADD(...)` as a statement without reviving the old `!` path.
+- Memory impact versus expression-style branch:
+  - `BASIC_START`: `$2401` -> `$2901`.
+  - Empty BASIC free bytes: `31741` -> `30461`, delta `-1280`.
+  - `RESIDENT`: `$11FE` / 4606B -> `$16FE` / 5886B, delta `+1280`.
+  - `BRIDGE`: `$01EA` / 490B -> `$01EC` / 492B, delta `+2`.
+  - `LOWPACK`: `$061A` / 1562B -> `$061B` / 1563B, command overlay delta `+1`.
+  - `HIDDEN`: unchanged at `$0377`; `HIDDENPACK`: unchanged at `$004D`.
+  - `REGSEED`: unchanged at `$1010`.
+  - `bin/readybasic.prg`: unchanged at `20994` bytes.
+- Verification so far:
+  - `make readybasic-plugin-static-check`: pass with `$2901`/`$16FE` guardrails.
+  - `make verify`: pass after rebuilding the current worktree.
+  - Focused `RBPROC1` VICE probe: pass; screen output includes `FADD 3.5`,
+    `NFADD 7`, `SCALE 3.375`, `NADDI 6`, `FABS .5`, `SFADD 3.5`, `CAT HI`,
+    and `NGS HI`.
+  - Correct-root rerun note: the older broad external command/program/lifecycle
+    wrappers still type removed `!` statement syntax, so they fail at their
+    first old command assertion on this branch and need a syntax refresh before
+    they are meaningful proper float-term regression tests.
+
 ## 2026-05-23: Lean Nested-Term Experiment
 
 - Branch: `exp/readybasic-lean-nested-terms`, stacked from

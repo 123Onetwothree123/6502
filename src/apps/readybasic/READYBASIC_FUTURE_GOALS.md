@@ -53,10 +53,12 @@ returns, string/numeric `FUNC` expression returns, and `FUNC` bodies with simple
 assignments before `RET` are viable. The lean nested-term follow-up proved the
 specific ROM-consumer forms `ABS(ADDI(1,6)-10)` and
 `LEFT$(GREET("READY"),2)` plus one-wrapper numeric actuals such as
-`ADDI(1,(2+4))`, but it is still not a full recursive BASIC expression-term
-engine. Future work can consider richer in-body statements, proper nested
-ReadyBASIC terms inside other ReadyBASIC actual lists, and plain floating
-numeric parameters/returns; V1 intentionally keeps that surface small.
+`ADDI(1,(2+4))`. The proper float-term branch then added plain C64 BASIC float
+formals/returns and tested nested ReadyBASIC terms inside ROM functions,
+arithmetic, string concatenation, and other ReadyBASIC actual lists. Future
+work can now focus on richer in-body statements, a data-driven signature parser,
+and broader command coverage rather than treating float/nested term support as
+unproven.
 
 ## Command Naming
 

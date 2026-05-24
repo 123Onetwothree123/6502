@@ -2,10 +2,10 @@
 ; readybasic.s - lean ReadyBASIC REU plugin command spine
 ;
 ; Load address: $1000
-; Visible resident core: $1200-$24FF
+; Visible resident core: $1200-$28FF
 ; Low command overlay: $A900-$BFFF, under BASIC ROM
 ; Shared call/result buffers: $C200-$C5FF
-; BASIC workspace: $2501-$9FFF
+; BASIC workspace: $2901-$9FFF
 ; Runtime zero page/stack snapshot: REU bank $44 offsets $0A00/$0B00
 ; Hidden helper shadow: $C280+, restored to $A000+ on warm entry
 ; Bridge state/trampolines: $C000-$C1FF
@@ -28,9 +28,12 @@ BASIC_FRMNUM    = $AD8A
 BASIC_CHKCOM    = $AEFD
 BASIC_SYNERR    = $AF08
 BASIC_PTRGET    = $B08B
+BASIC_FADD      = $B867
 BASIC_GIVAYF    = $B391
 BASIC_PUTNEW    = $B4CA
 BASIC_FRESTR    = $B6A3
+BASIC_MOVFM     = $BBA2
+BASIC_MOVMF     = $BBD4
 BASIC_GETADR    = $B7F7
 BASIC_LINPRT    = $BDCD
 BASIC_RESTORE_VECTORS = $E453
@@ -68,7 +71,7 @@ COLOR_CODE      = $0286
 KERNAL_MEMTOP   = $0281
 KERNAL_MEMBOT   = $0283
 
-BASIC_START     = $2501
+BASIC_START     = $2901
 BASIC_SENTINEL  = BASIC_START - 1
 BASIC_LIMIT     = $A000
 BASIC_BYTES_FREE = BASIC_LIMIT - (BASIC_START + 2)
@@ -132,6 +135,9 @@ CF_NUM1_LO      = RB_CF + $12
 CF_NUM1_HI      = RB_CF + $13
 CF_NUM2_LO      = RB_CF + $14
 CF_NUM2_HI      = RB_CF + $15
+CF_FLOAT0       = RB_CF + $20
+CF_FLOAT1       = RB_CF + $25
+CF_FLOAT2       = RB_CF + $2A
 CF_PTR0_LO      = RB_CF + $40
 CF_PTR0_HI      = RB_CF + $41
 CF_COUNT0_LO    = RB_CF + $42
@@ -146,6 +152,7 @@ RF_VAL_LO       = RB_RF + $03
 RF_VAL_HI       = RB_RF + $04
 RF_COUNT_LO     = RB_RF + $05
 RF_COUNT_HI     = RB_RF + $06
+RF_FLOAT        = RB_RF + $08
 RF_STR_LEN      = RB_RF + $10
 RF_STR_BUF      = RB_RF + $20
 RF_ARRAY_BUF    = RB_RF + $80
@@ -154,11 +161,13 @@ RB_VAL_NONE     = 0
 RB_VAL_INT      = 1
 RB_VAL_STRING   = 2
 RB_VAL_ARRAYI   = 3
+RB_VAL_FLOAT    = 4
 
 RB_OUT_NONE     = 0
 RB_OUT_INT      = 1
 RB_OUT_STRING   = 2
 RB_OUT_ARRAYI   = 3
+RB_OUT_FLOAT    = 4
 
 RB_CMD_F_LOW    = $01
 RB_CMD_F_HIDDEN = $02
@@ -210,6 +219,7 @@ SIG_ZFAIL       = 12
 SIG_FREEMEM     = 13
 SIG_SCRCAP      = 14
 SIG_SCRPUT      = 15
+SIG_FADD        = 16
 
 CMD_ZECHO1      = 1
 CMD_ZADD16      = 2
@@ -226,6 +236,7 @@ CMD_ZFAIL       = 12
 CMD_FREEMEM     = 13
 CMD_SCRCAP      = 14
 CMD_SCRPUT      = 15
+CMD_FADD        = 16
 
 ; REU registers.
 REU_CMD         = $DF01
@@ -379,7 +390,7 @@ rb_entry_magic2:.byte 0
 rb_entry_cpu:   .byte 0
 
         .segment "PADLOW"
-        .res $0300, 0
+        .res $0000, 0
 
 ; ---------------------------------------------------------------------------
 ; Visible resident core.
@@ -525,7 +536,7 @@ rb_execute:
         jmp rb_skip_routine_def
 @maybe_func:
         jsr rb_match_func
-        bcc rb_call_orig_execute
+        bcc rb_maybe_bare_command
         jmp rb_skip_routine_def
 @maybe_e:
         jsr rb_match_exec
@@ -1212,20 +1223,47 @@ rb_bind_exec_args:
         sta rb_form_next_hi
         lda VALTYP
         cmp #$FF
-        beq @string
+        bne :+
+        jmp @string
+:
         lda INTFLG
         cmp #$80
         beq @int
-        clc
-        rts
+        jmp @float
 @int:
 @int_input:
+        lda #RB_OUT_INT
+        jsr rb_save_formal_value
         jsr rb_exec_next_actual
         bcs :+
         rts
 :       jsr rb_start_numeric_actual
+        lda rb_bind_expr_mode
+        pha
+        lda rb_formal_lo
+        pha
+        lda rb_formal_hi
+        pha
+        lda rb_form_next_lo
+        pha
+        lda rb_form_next_hi
+        pha
+        lda CF_PARAM_COUNT
+        pha
         jsr BASIC_FRMNUM
         jsr BASIC_GETADR
+        pla
+        sta CF_PARAM_COUNT
+        pla
+        sta rb_form_next_hi
+        pla
+        sta rb_form_next_lo
+        pla
+        sta rb_formal_hi
+        pla
+        sta rb_formal_lo
+        pla
+        sta rb_bind_expr_mode
         jsr rb_finish_numeric_actual
 @got_int:
         lda TXTPTR
@@ -1244,12 +1282,80 @@ rb_bind_exec_args:
         sta (rb_ptr_lo),y
         inc CF_PARAM_COUNT
         jmp @advance_form
-@string:
-@string_input:
+@float:
+        lda #RB_OUT_FLOAT
+        jsr rb_save_formal_value
         jsr rb_exec_next_actual
         bcs :+
         rts
-:       jsr rb_parse_string_value_current
+:       jsr rb_start_numeric_actual
+        lda rb_bind_expr_mode
+        pha
+        lda rb_formal_lo
+        pha
+        lda rb_formal_hi
+        pha
+        lda rb_form_next_lo
+        pha
+        lda rb_form_next_hi
+        pha
+        lda CF_PARAM_COUNT
+        pha
+        jsr BASIC_FRMNUM
+        pla
+        sta CF_PARAM_COUNT
+        pla
+        sta rb_form_next_hi
+        pla
+        sta rb_form_next_lo
+        pla
+        sta rb_formal_hi
+        pla
+        sta rb_formal_lo
+        pla
+        sta rb_bind_expr_mode
+        jsr rb_finish_numeric_actual
+        ldx rb_formal_lo
+        ldy rb_formal_hi
+        jsr BASIC_MOVMF
+        lda TXTPTR
+        sta rb_actual_lo
+        lda TXTPTR+1
+        sta rb_actual_hi
+        inc CF_PARAM_COUNT
+        jmp @advance_form
+@string:
+@string_input:
+        lda #RB_OUT_STRING
+        jsr rb_save_formal_value
+        jsr rb_exec_next_actual
+        bcs :+
+        rts
+:       lda rb_bind_expr_mode
+        pha
+        lda rb_formal_lo
+        pha
+        lda rb_formal_hi
+        pha
+        lda rb_form_next_lo
+        pha
+        lda rb_form_next_hi
+        pha
+        lda CF_PARAM_COUNT
+        pha
+        jsr rb_parse_string_value_current
+        pla
+        sta CF_PARAM_COUNT
+        pla
+        sta rb_form_next_hi
+        pla
+        sta rb_form_next_lo
+        pla
+        sta rb_formal_hi
+        pla
+        sta rb_formal_lo
+        pla
+        sta rb_bind_expr_mode
         lda TXTPTR
         sta rb_actual_lo
         lda TXTPTR+1
@@ -1264,6 +1370,7 @@ rb_bind_exec_args:
         lda #1
         sta rb_out_count
         jsr rb_commit_result
+        inc CF_PARAM_COUNT
 @advance_form:
         lda rb_form_next_lo
         sta rb_form_lo
@@ -1383,11 +1490,15 @@ rb_plugin_statement_found:
         sta CF_CMD_ID
         lda #0
         sta CF_PARAM_COUNT
+        sta rb_command_precomputed
         jsr rb_clear_result_frame
         jsr rb_parse_by_signature
+        lda rb_command_precomputed
+        bne @commit
         jsr rb_stash_call_frame
         jsr rb_load_and_call_command
         jsr rb_stash_result_frame
+@commit:
         jsr rb_commit_result
         rts
 
@@ -1415,7 +1526,7 @@ rb_parse_command_name:
         cpx #RB_MAX_NAME - 2
         bcc :+
         jmp @too_long
-:       
+:
         lda #'F'
         sta RB_CMDBUF,x
         inx
@@ -1433,7 +1544,7 @@ rb_parse_command_name:
         cpx #RB_MAX_NAME - 1
         bcc :+
         jmp @too_long
-:       
+:
         lda #'P'
         sta RB_CMDBUF,x
         inx
@@ -1663,6 +1774,8 @@ rb_parse_by_signature:
         beq parse_sig_scrcap
         cmp #SIG_SCRPUT
         beq parse_sig_scrput
+        cmp #SIG_FADD
+        beq parse_sig_fadd
         jmp BASIC_SYNERR
 
 parse_sig_zecho1:
@@ -1737,6 +1850,12 @@ parse_sig_scrput:
         jsr rb_parse_num0
         rts
 
+parse_sig_fadd:
+        jsr rb_parse_float0
+        jsr rb_parse_float1
+        jsr rb_parse_out_float
+        jmp rb_compute_fadd_result
+
 rb_parse_no_args:
         jsr rb_skip_spaces
         cmp #0
@@ -1760,16 +1879,75 @@ rb_parse_num2:
 rb_parse_num_to_slot:
         sta rb_target_off
         jsr rb_parse_arg_sep
+        lda rb_target_off
+        cmp #CF_NUM0_LO-RB_CF
+        beq :+
+        jsr rb_save_num0
+:
         jsr rb_start_numeric_actual
+        lda rb_target_off
+        pha
+        lda CF_PARAM_COUNT
+        pha
         jsr BASIC_FRMNUM
         jsr BASIC_GETADR
+        pla
+        sta CF_PARAM_COUNT
+        pla
+        sta rb_target_off
         jsr rb_finish_numeric_actual
+        lda rb_target_off
+        cmp #CF_NUM0_LO-RB_CF
+        beq :+
+        jsr rb_restore_num0
+:
         ldy rb_target_off
         lda LINNUM
         sta RB_CF,y
         iny
         lda LINNUM+1
         sta RB_CF,y
+        inc CF_PARAM_COUNT
+        rts
+
+rb_parse_float0:
+        lda #CF_FLOAT0-RB_CF
+        bne rb_parse_float_to_slot
+rb_parse_float1:
+        lda #CF_FLOAT1-RB_CF
+        bne rb_parse_float_to_slot
+rb_parse_float2:
+        lda #CF_FLOAT2-RB_CF
+rb_parse_float_to_slot:
+        sta rb_target_off
+        jsr rb_parse_arg_sep
+        lda rb_target_off
+        cmp #CF_FLOAT0-RB_CF
+        beq :+
+        jsr rb_save_float0
+:       jsr rb_start_numeric_actual
+        lda rb_target_off
+        pha
+        lda CF_PARAM_COUNT
+        pha
+        jsr BASIC_FRMNUM
+        pla
+        sta CF_PARAM_COUNT
+        pla
+        sta rb_target_off
+        jsr rb_finish_numeric_actual
+        lda rb_target_off
+        cmp #CF_FLOAT0-RB_CF
+        beq :+
+        jsr rb_restore_float0
+:       clc
+        lda rb_target_off
+        adc #<RB_CF
+        tax
+        lda #>RB_CF
+        adc #0
+        tay
+        jsr BASIC_MOVMF
         inc CF_PARAM_COUNT
         rts
 
@@ -1828,6 +2006,37 @@ rb_parse_out_string_current:
         lda #1
         sta rb_out_count
         inc CF_PARAM_COUNT
+        rts
+
+rb_parse_out_float:
+        jsr rb_parse_arg_sep
+rb_parse_out_float_current:
+        lda #0
+        sta SUBFLG
+        jsr BASIC_PTRGET
+        lda VALTYP
+        beq :+
+        jmp rb_parse_type_error
+:       lda INTFLG
+        cmp #$80
+        bne :+
+        jmp rb_parse_type_error
+:       lda #RB_OUT_FLOAT
+        sta rb_out_type
+        lda VARPNT
+        sta rb_out_ptr_lo
+        lda VARPNT+1
+        sta rb_out_ptr_hi
+        lda #1
+        sta rb_out_count
+        inc CF_PARAM_COUNT
+        ldy #0
+        lda #0
+@clear:
+        sta (VARPNT),y
+        iny
+        cpy #5
+        bcc @clear
         rts
 
 rb_parse_out_int_array:
@@ -1894,40 +2103,13 @@ rb_parse_int_array_input:
 rb_parse_string_value:
         jsr rb_parse_arg_sep
 rb_parse_string_value_current:
-        jsr CHRGOT
-        cmp #$22
-        beq rb_parse_quoted_string
-        lda #0
-        sta SUBFLG
-        jsr BASIC_PTRGET
-        lda VALTYP
-        cmp #$FF
-        bne rb_parse_type_error
-        lda VARPNT
-        sta rb_ptr2_lo
-        lda VARPNT+1
-        sta rb_ptr2_hi
-        ldy #0
-        lda (rb_ptr2_lo),y
-        cmp #RB_MAX_STR + 1
-        bcc :+
-        lda #RB_MAX_STR
-:       sta CF_STR_LEN
-        iny
-        lda (rb_ptr2_lo),y
-        sta rb_ptr_lo
-        iny
-        lda (rb_ptr2_lo),y
-        sta rb_ptr_hi
-        ldy #0
-@copy:
-        cpy CF_STR_LEN
-        beq @done
-        lda (rb_ptr_lo),y
-        sta CF_STR_BUF,y
-        iny
-        jmp @copy
-@done:
+        lda CF_PARAM_COUNT
+        pha
+        jsr BASIC_FRMEVL
+        jsr rb_stage_fac_string_to_cf
+        jsr BASIC_FRESTR
+        pla
+        sta CF_PARAM_COUNT
         inc CF_PARAM_COUNT
         rts
 
@@ -1962,6 +2144,7 @@ rb_parse_type_error:
 
 RB_EXPR_INT     = 1
 RB_EXPR_STRING  = 2
+RB_EXPR_FLOAT   = 3
 
 rb_eval:
         lda rb_crunch_pos
@@ -1993,12 +2176,15 @@ rb_eval:
         lda #0
         sta CF_PARAM_COUNT
         sta rb_out_count
+        sta rb_command_precomputed
         sta INTFLG
         lda #RB_EXPR_INT
         sta rb_expr_type
         jsr rb_clear_result_frame
         jsr rb_parse_expr_signature
         jsr rb_expr_expect_close
+        lda rb_command_precomputed
+        bne rb_expr_return_result
         jsr rb_stash_call_frame
         jsr rb_load_and_call_command
         jsr rb_stash_result_frame
@@ -2017,10 +2203,24 @@ rb_expr_return_result:
         beq rb_expr_return_string
         lda RF_TAG
         cmp #RB_VAL_INT
+        beq @int
+        cmp #RB_VAL_FLOAT
+        beq rb_expr_return_float
         bne rb_expr_bad_type
+@int:
         lda RF_VAL_HI
         ldy RF_VAL_LO
         jsr BASIC_GIVAYF
+        clc
+        rts
+
+rb_expr_return_float:
+        lda #0
+        sta VALTYP
+        sta INTFLG
+        lda #<RF_FLOAT
+        ldy #>RF_FLOAT
+        jsr BASIC_MOVFM
         clc
         rts
 
@@ -2087,12 +2287,30 @@ rb_eval_func:
 :       lda #0
         sta CF_PARAM_COUNT
         sta rb_exec_out_type
+        lda rb_func_depth
+        cmp #RB_PROC_DEPTH
+        bcc :+
+        lda #33
+        jmp rb_runtime_error
+:       tax
+        lda #0
+        sta rb_form_save_count,x
+        inc rb_func_depth
         lda #1
         sta rb_bind_expr_mode
         lda #1
         sta rb_expr_type
+        lda rb_scan_line_lo
+        pha
+        lda rb_scan_line_hi
+        pha
         jsr rb_bind_exec_args
+        pla
+        sta rb_scan_line_hi
+        pla
+        sta rb_scan_line_lo
         bcs :+
+        jsr rb_restore_func_formals
         jmp BASIC_SYNERR
 :       lda TXTPTR
         sta rb_eval_after_lo
@@ -2100,10 +2318,34 @@ rb_eval_func:
         sta rb_eval_after_hi
         jsr rb_expr_run_to_return
         bcs :+
+        jsr rb_restore_func_formals
         jmp BASIC_SYNERR
 :       lda rb_exec_out_type
         cmp #RB_OUT_STRING
         beq @string
+        cmp #RB_OUT_INT
+        beq @int
+        lda rb_eval_after_lo
+        pha
+        lda rb_eval_after_hi
+        pha
+        jsr BASIC_FRMNUM
+        pla
+        sta rb_eval_after_hi
+        pla
+        sta rb_eval_after_lo
+        ldx #<RF_FLOAT
+        ldy #>RF_FLOAT
+        jsr BASIC_MOVMF
+        lda #0
+        sta RF_STATUS
+        lda #RB_VAL_FLOAT
+        sta RF_TAG
+        lda #RB_EXPR_FLOAT
+        sta rb_expr_type
+        jsr rb_restore_func_formals
+        jmp @restore
+@int:
         lda rb_eval_after_lo
         pha
         lda rb_eval_after_hi
@@ -2122,6 +2364,9 @@ rb_eval_func:
         sta RF_VAL_LO
         lda LINNUM+1
         sta RF_VAL_HI
+        lda #RB_EXPR_INT
+        sta rb_expr_type
+        jsr rb_restore_func_formals
         jsr @restore
         sec
         rts
@@ -2139,6 +2384,7 @@ rb_eval_func:
         sta rb_eval_after_lo
         lda #RB_EXPR_STRING
         sta rb_expr_type
+        jsr rb_restore_func_formals
 @restore:
         lda rb_eval_after_lo
         sta TXTPTR
@@ -2216,21 +2462,29 @@ rb_expr_exec_assignment:
         sta rb_exec_out_hi
         lda VALTYP
         pha
+        lda INTFLG
+        pha
         jsr rb_skip_spaces
         cmp #TOKEN_EQUAL
         beq :+
         cmp #'='
         beq :+
         pla
+        pla
         clc
         rts
 :       jsr CHRGET
+        pla
+        sta rb_tmp_lo
         pla
         cmp #$FF
         beq @string
         jsr rb_expr_push_state
         jsr BASIC_FRMNUM
         jsr rb_expr_pop_state
+        lda rb_tmp_lo
+        cmp #$80
+        bne @float
         jsr BASIC_GETADR
         lda rb_exec_out_lo
         sta rb_ptr_lo
@@ -2242,6 +2496,11 @@ rb_expr_exec_assignment:
         iny
         lda LINNUM
         sta (rb_ptr_lo),y
+        jmp @done
+@float:
+        ldx rb_exec_out_lo
+        ldy rb_exec_out_hi
+        jsr BASIC_MOVMF
         jmp @done
 @string:
         jsr rb_expr_push_state
@@ -2389,7 +2648,7 @@ rb_expr_detect_ret_type:
         beq @int
         jsr rb_fold_a
         jsr rb_is_name_char
-        bcc @int
+        bcc @float
         iny
         bne @scan
 @typed_string:
@@ -2404,6 +2663,10 @@ rb_expr_detect_ret_type:
         jsr rb_skip_spaces
 @int:
         lda #RB_OUT_INT
+        sta rb_exec_out_type
+        rts
+@float:
+        lda #RB_OUT_FLOAT
         sta rb_exec_out_type
         rts
 
@@ -2444,6 +2707,216 @@ rb_stage_fac_string_result:
         sta RF_TAG
         rts
 
+rb_stage_fac_string_to_cf:
+        lda VALTYP
+        cmp #$FF
+        beq :+
+        jmp rb_parse_type_error
+:       lda DSCPTR
+        sta rb_ptr2_lo
+        lda DSCPTR_HI
+        sta rb_ptr2_hi
+        ldy #0
+        lda (rb_ptr2_lo),y
+        cmp #RB_MAX_STR + 1
+        bcc :+
+        lda #RB_MAX_STR
+:       sta CF_STR_LEN
+        ldy #1
+        lda (rb_ptr2_lo),y
+        sta rb_ptr_lo
+        iny
+        lda (rb_ptr2_lo),y
+        sta rb_ptr_hi
+        ldy #0
+@copy:
+        cpy CF_STR_LEN
+        beq @done
+        lda (rb_ptr_lo),y
+        sta CF_STR_BUF,y
+        iny
+        jmp @copy
+@done:
+        rts
+
+rb_save_num0:
+        ldx rb_num_save_depth
+        cpx #4
+        bcc :+
+        rts
+:       lda CF_NUM0_LO
+        sta rb_save_num0_lo,x
+        lda CF_NUM0_HI
+        sta rb_save_num0_hi,x
+        inc rb_num_save_depth
+        rts
+
+rb_restore_num0:
+        ldx rb_num_save_depth
+        bne :+
+        rts
+:       dex
+        stx rb_num_save_depth
+        lda rb_save_num0_lo,x
+        sta CF_NUM0_LO
+        lda rb_save_num0_hi,x
+        sta CF_NUM0_HI
+        rts
+
+rb_save_float0:
+        lda rb_float_save_depth
+        cmp #4
+        bcc :+
+        rts
+:       asl
+        asl
+        clc
+        adc rb_float_save_depth
+        tay
+        ldx #0
+@loop:
+        lda CF_FLOAT0,x
+        sta rb_save_float0_buf,y
+        iny
+        inx
+        cpx #5
+        bcc @loop
+        inc rb_float_save_depth
+        rts
+
+rb_restore_float0:
+        lda rb_float_save_depth
+        bne :+
+        rts
+:       sec
+        sbc #1
+        sta rb_float_save_depth
+        asl
+        asl
+        clc
+        adc rb_float_save_depth
+        tay
+        ldx #0
+@loop:
+        lda rb_save_float0_buf,y
+        sta CF_FLOAT0,x
+        iny
+        inx
+        cpx #5
+        bcc @loop
+        rts
+
+rb_compute_fadd_result:
+        lda #<CF_FLOAT0
+        ldy #>CF_FLOAT0
+        jsr BASIC_MOVFM
+        lda #<CF_FLOAT1
+        ldy #>CF_FLOAT1
+        jsr BASIC_FADD
+        ldx #<RF_FLOAT
+        ldy #>RF_FLOAT
+        jsr BASIC_MOVMF
+        lda #0
+        sta RF_STATUS
+        lda #RB_VAL_FLOAT
+        sta RF_TAG
+        lda #1
+        sta rb_command_precomputed
+        rts
+
+rb_save_formal_value:
+        sta rb_save_type_tmp
+        lda rb_func_depth
+        bne :+
+        rts
+:       sec
+        sbc #1
+        sta rb_save_depth_tmp
+        asl
+        asl
+        clc
+        adc CF_PARAM_COUNT
+        tax
+        cpx #16
+        bcc :+
+        rts
+:       lda rb_save_type_tmp
+        sta rb_form_save_type,x
+        lda rb_formal_lo
+        sta rb_form_save_lo,x
+        sta rb_ptr_lo
+        lda rb_formal_hi
+        sta rb_form_save_hi,x
+        sta rb_ptr_hi
+        ldy #0
+        lda (rb_ptr_lo),y
+        sta rb_form_save_val0,x
+        iny
+        lda (rb_ptr_lo),y
+        sta rb_form_save_val1,x
+        iny
+        lda (rb_ptr_lo),y
+        sta rb_form_save_val2,x
+        iny
+        lda (rb_ptr_lo),y
+        sta rb_form_save_val3,x
+        iny
+        lda (rb_ptr_lo),y
+        sta rb_form_save_val4,x
+        ldy rb_save_depth_tmp
+        lda CF_PARAM_COUNT
+        clc
+        adc #1
+        sta rb_form_save_count,y
+        rts
+
+rb_restore_func_formals:
+        lda rb_func_depth
+        bne :+
+        rts
+:       dec rb_func_depth
+        ldy rb_func_depth
+        lda rb_form_save_count,y
+        beq @done
+        sta rb_save_count_tmp
+        tya
+        asl
+        asl
+        sta rb_save_idx
+@loop:
+        ldx rb_save_idx
+        lda rb_form_save_lo,x
+        sta rb_ptr_lo
+        lda rb_form_save_hi,x
+        sta rb_ptr_hi
+        ldy #0
+        lda rb_form_save_val0,x
+        sta (rb_ptr_lo),y
+        iny
+        lda rb_form_save_val1,x
+        sta (rb_ptr_lo),y
+        lda rb_form_save_type,x
+        cmp #RB_OUT_INT
+        beq @next
+        iny
+        lda rb_form_save_val2,x
+        sta (rb_ptr_lo),y
+        lda rb_form_save_type,x
+        cmp #RB_OUT_STRING
+        beq @next
+        iny
+        lda rb_form_save_val3,x
+        sta (rb_ptr_lo),y
+        iny
+        lda rb_form_save_val4,x
+        sta (rb_ptr_lo),y
+@next:
+        inc rb_save_idx
+        dec rb_save_count_tmp
+        bne @loop
+@done:
+        rts
+
 rb_parse_expr_signature:
         lda RB_DESC_BUF+14
         cmp #SIG_ZECHO1
@@ -2464,6 +2937,8 @@ rb_parse_expr_signature:
         beq parse_expr_no_args
         cmp #SIG_ZSUMNUMARRAY
         beq parse_expr_zsumnumarray
+        cmp #SIG_FADD
+        beq parse_expr_fadd
         jmp BASIC_SYNERR
 
 parse_expr_no_args:
@@ -2473,6 +2948,13 @@ parse_expr_zadd16:
         jsr rb_parse_num0
         jsr rb_parse_num1
         rts
+
+parse_expr_fadd:
+        jsr rb_parse_float0
+        jsr rb_parse_float1
+        lda #RB_EXPR_FLOAT
+        sta rb_expr_type
+        jmp rb_compute_fadd_result
 
 parse_expr_num0:
         jsr rb_parse_num0
@@ -2692,8 +3174,11 @@ rb_commit_result:
         bne :+
         jmp rb_commit_string
 :       cmp #RB_OUT_ARRAYI
-        bne @done
+        bne :+
         jmp rb_commit_arrayi
+:       cmp #RB_OUT_FLOAT
+        bne @done
+        jmp rb_commit_float
 @done:
         rts
 
@@ -2711,6 +3196,24 @@ rb_commit_int:
         iny
         lda RF_VAL_LO
         sta (rb_ptr_lo),y
+@done:
+        rts
+
+rb_commit_float:
+        lda RF_TAG
+        cmp #RB_VAL_FLOAT
+        bne @done
+        lda rb_out_ptr_lo
+        sta rb_ptr_lo
+        lda rb_out_ptr_hi
+        sta rb_ptr_hi
+        ldy #0
+@copy:
+        lda RF_FLOAT,y
+        sta (rb_ptr_lo),y
+        iny
+        cpy #5
+        bcc @copy
 @done:
         rts
 
@@ -2976,7 +3479,8 @@ rb_command_descriptors:
         CMD_LOW CMD_ZFAIL, SIG_ZFAIL, cmd_zfail_low, cmd_zfail_low_end, "ZFAIL"
         CMD_LOW CMD_FREEMEM, SIG_FREEMEM, cmd_freemem_low, cmd_freemem_low_end, "FREEMEM"
         CMD_LOW_ALL CMD_SCRCAP, SIG_SCRCAP, cmd_scrcap_low, "SCRCAP"
-        .res (RB_CMD_DESC_COUNT - 15) * RB_CMD_DESC_SIZE, 0
+        CMD_LOW CMD_FADD, SIG_FADD, cmd_fadd_low, cmd_fadd_low_end, "FADD"
+        .res (RB_CMD_DESC_COUNT - 16) * RB_CMD_DESC_SIZE, 0
         CMD_LOW_ALL CMD_SCRPUT, SIG_SCRPUT, cmd_scrput_low, "SCRPUT"
 
 ; ---------------------------------------------------------------------------
@@ -3631,6 +4135,15 @@ rb_lookup_char: .byte 0
 rb_target_off:  .byte 0
 rb_saved_count_lo:.byte 0
 rb_saved_count_hi:.byte 0
+
+        .segment "RESIDENT"
+rb_num_save_depth:.byte 0
+rb_save_num0_lo:.res 4
+rb_save_num0_hi:.res 4
+rb_float_save_depth:.byte 0
+rb_save_float0_buf:.res 20
+
+        .segment "BRIDGE"
 rb_free_lo:     .byte 0
 rb_free_hi:     .byte 0
 rb_tmp_lo:      .byte 0
@@ -3667,6 +4180,7 @@ rb_actual_lo:  .byte 0
 rb_actual_hi:  .byte 0
 rb_actual_wrapped:.byte 0
 rb_bind_expr_mode:.byte 0
+rb_command_precomputed:.byte 0
 rb_exec_out_type:.byte 0
 rb_exec_out_lo:.byte 0
 rb_exec_out_hi:.byte 0
@@ -3676,6 +4190,23 @@ rb_proc_ret_hi:.res RB_PROC_DEPTH
 rb_proc_cur_lo:.res RB_PROC_DEPTH
 rb_proc_cur_hi:.res RB_PROC_DEPTH
 
+        .segment "RESIDENT"
+rb_func_depth:.byte 0
+rb_form_save_count:.res RB_PROC_DEPTH
+rb_form_save_type:.res 16
+rb_form_save_lo:.res 16
+rb_form_save_hi:.res 16
+rb_form_save_val0:.res 16
+rb_form_save_val1:.res 16
+rb_form_save_val2:.res 16
+rb_form_save_val3:.res 16
+rb_form_save_val4:.res 16
+rb_save_type_tmp:.byte 0
+rb_save_depth_tmp:.byte 0
+rb_save_count_tmp:.byte 0
+rb_save_idx:.byte 0
+
+        .segment "BRIDGE"
 RUNTIME_MAGIC1:  .byte 0
 RUNTIME_MAGIC2:  .byte 0
 RUNTIME_SP:      .byte 0
@@ -3754,6 +4285,10 @@ cmd_zadd16_low:
         sta RF_TAG
         rts
 cmd_zadd16_low_end:
+
+cmd_fadd_low:
+        rts
+cmd_fadd_low_end:
 
 cmd_upper_low:
         lda #0

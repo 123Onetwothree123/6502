@@ -106,7 +106,7 @@
   <header>
     <h1>ReadyBASIC Making Command Guide</h1>
     <p class="muted">A teaching guide for how current bare <code>COMMAND(...)</code> examples are wired into descriptors, parser signatures, low overlays, hidden overlays, and REU handles.</p>
-    <p><span class="chip">128 descriptor slots</span><span class="chip">SCRCAP slot 14</span><span class="chip">SCRPUT slot 128</span><span class="chip">LOWPACK $061A</span></p>
+    <p><span class="chip">128 descriptor slots</span><span class="chip">SCRCAP slot 14</span><span class="chip">SCRPUT slot 128</span><span class="chip">LOWPACK $061B</span></p>
   </header>
 
 	  <section class="teaching">
@@ -460,7 +460,7 @@ CMD_LOW_ALL CMD_SCRPUT, SIG_SCRPUT, cmd_scrput_low, "SCRPUT"</code></pre>
         <tr><td><code>RB_PAGEBUF</code></td><td>RAM page buffer used to fetch one 256-byte descriptor page, eight descriptors at a time.</td></tr>
         <tr><td><code>RB_DESC_BUF</code></td><td>Resident copy of the single matched descriptor.</td></tr>
         <tr><td><code>__LOWPACK_RUN__</code></td><td>Linker symbol for the packed low-overlay image before prestash to REU bank <code>$45</code>.</td></tr>
-        <tr><td><code>__LOWPACK_SIZE__</code></td><td>Measured full low-pack size, currently <code>$061A</code>.</td></tr>
+        <tr><td><code>__LOWPACK_SIZE__</code></td><td>Measured full low-pack size, currently <code>$061B</code>.</td></tr>
         <tr><td><code>RB_LOW_BASE</code></td><td>Runtime low-overlay base address, currently <code>$A900</code>.</td></tr>
         <tr><td><code>RB_HIDDEN_BASE</code></td><td>Runtime hidden-overlay base address, currently <code>$A800</code>.</td></tr>
       </tbody>
@@ -522,7 +522,7 @@ CMD_LOW_ALL CMD_SCRPUT, SIG_SCRPUT, cmd_scrput_low, "SCRPUT"</code></pre>
     </p>
     <p>
       Numeric command and <code>FUNC</code> actuals can be flat numeric expressions,
-      for example <code>ADDI(1,2+4)</code>, and the lean nested-term branch accepts
+      for example <code>ADDI(1,2+4)</code>, and the proper float-term branch accepts
       a single wrapper pair around numeric actuals such as
       <code>ADDI(1,(2+4))</code>, <code>ZADD16(1,(2+4))</code>, and
       <code>ADDI((1+2),(3+4))</code>. String actuals are string variables or
