@@ -782,18 +782,18 @@
       <div class="memory-map" aria-label="ReadyBASIC memory map">
         <div class="addr">$1000-$1102</div>
         <div class="region r-entry"><span><b>ENTRY</b><small>Cold/warm cookie and early copy code.</small></span><strong>$0103</strong></div>
-        <div class="addr">$1200-$23FD</div>
-        <div class="region r-resident"><span><b>RESIDENT</b><small>Parser, crunch/execute/eval hooks, BASIC ROM calls, REU DMA, commit path, PROC/FUNC/RET.</small></span><strong>$11FE<br>4.5K</strong></div>
-        <div class="addr">$2400</div>
+        <div class="addr">$1200-$28FC</div>
+        <div class="region r-resident"><span><b>RESIDENT</b><small>Parser, crunch/execute/eval hooks, BASIC ROM calls, REU DMA, commit path, PROC/FUNC/RET, proper float terms.</small></span><strong>$16FD<br>5.7K</strong></div>
+        <div class="addr">$2900</div>
         <div class="region r-basic"><span><b>BASIC SENTINEL</b><small>Must be zero for stored BASIC RUN.</small></span><strong>1B</strong></div>
-        <div class="addr">$2401-$9FFF</div>
-        <div class="region r-basic"><span><b>BASIC WORKSPACE</b><small>Program text, variables, arrays, string heap.</small></span><strong>$7EFF<br>31741 free / 31.0K</strong></div>
-        <div class="addr">$2800-$3FFF</div>
-        <div class="region r-pack"><span><b>CMDPACK LOAD IMAGE</b><small>Low and hidden overlay seed bytes before cold prestash.</small></span><strong>$1800<br>6.0K</strong></div>
+        <div class="addr">$2901-$9FFF</div>
+        <div class="region r-basic"><span><b>BASIC WORKSPACE</b><small>Program text, variables, arrays, string heap.</small></span><strong>$76FF<br>30461 free / 29.7K</strong></div>
+        <div class="addr">$2900-$3FFF</div>
+        <div class="region r-pack"><span><b>CMDPACK LOAD IMAGE</b><small>Low and hidden overlay seed bytes before cold prestash.</small></span><strong>$1700<br>5.75K</strong></div>
         <div class="addr">$4000+</div>
         <div class="region r-hidden"><span><b>HIDLOAD IMAGE</b><small>Hidden helper seed copied to $A000 and $C280.</small></span><strong>$0377<br>0.9K</strong></div>
         <div class="addr">$4800+</div>
-        <div class="region r-bridge"><span><b>BRLOAD IMAGE</b><small>Bridge seed copied to $C000.</small></span><strong>$01F5<br>501B</strong></div>
+        <div class="region r-bridge"><span><b>BRLOAD IMAGE</b><small>Bridge seed copied to $C000.</small></span><strong>$01EC<br>492B</strong></div>
         <div class="addr">$5000-$600F</div>
         <div class="region r-pack"><span><b>REGSEED IMAGE</b><small>Header and 128 descriptors copied to REU $44:$1000.</small></span><strong>$1010<br>4.0K</strong></div>
         <div class="addr">REU $44:$0A00-$0BFF</div>
@@ -804,8 +804,8 @@
         <div class="region r-hidden"><span><b>HIDDEN OVERLAY</b><small>ZHIDDENRAM worker slot.</small></span><strong>$004D<br>77B</strong></div>
         <div class="addr">$A900-$AF1A</div>
         <div class="region r-low"><span><b>LOW OVERLAY</b><small>Low command pack runs under BASIC ROM RAM.</small></span><strong>$061B<br>1.5K</strong></div>
-        <div class="addr">$C000-$C1F4</div>
-        <div class="region r-bridge"><span><b>BRIDGE STATE</b><small>Magic, saved vectors, overlay vars, handle scratch, PROC/FUNC stack.</small></span><strong>$01F5<br>501B</strong></div>
+        <div class="addr">$C000-$C1EB</div>
+        <div class="region r-bridge"><span><b>BRIDGE STATE</b><small>Magic, saved vectors, overlay vars, handle scratch, PROC/FUNC stack.</small></span><strong>$01EC<br>492B</strong></div>
         <div class="addr">$C200-$C5FF</div>
         <div class="region r-shared"><span><b>SHARED FRAMES</b><small>Call/result frames, descriptor/name/page buffers; hidden shadow at $C280.</small></span><strong>$0400<br>1.0K</strong></div>
         <div class="addr">$C600-$C7FF</div>
@@ -818,7 +818,7 @@
         <strong>The subtle bit:</strong> the PRG load image temporarily occupies
         load-only seed ranges, but cold setup copies out the command pack,
         hidden helper, bridge, and registry seeds. Then BASIC owns
-        `$2401-$9FFF`. Warm resume must not trust those old load-only seed
+        `$2901-$9FFF`. Warm resume must not trust those old load-only seed
         addresses.
       </div>
 
@@ -827,32 +827,30 @@
           <h3>Cold Load: Proportional View Of The Future BASIC Span</h3>
           <div class="stage-body">
             <div class="prop-stage">
-              <div class="prop-label">PRG load / cold seed<small>$2401-$9FFF shown proportionally</small></div>
-              <div class="prop-track">
-                <div class="prop-seg r-basic" style="width: 3.22%" title="$2401-$27FF: $03FF / 1.0K / 1023 exact bytes"><b>$2401-$27FF</b><small>future BASIC</small></div>
-                <div class="prop-seg r-pack" style="width: 19.36%" title="$2800-$3FFF: $1800 / 6.0K / 6144 exact bytes"><b>$2800-$3FFF</b><small>CMDPACK $1800 / 6.0K</small></div>
+                <div class="prop-label">PRG load / cold seed<small>$2901-$9FFF shown proportionally</small></div>
+                <div class="prop-track">
+                <div class="prop-seg r-pack" style="width: 19.52%" title="$2900-$3FFF: $1700 / 5.75K / 5888 exact bytes"><b>$2900-$3FFF</b><small>CMDPACK $1700 / 5.75K</small></div>
                 <div class="prop-seg r-hidden" style="width: 2.79%" title="$4000-$4376: $0377 / 0.9K / 887 exact bytes"><b>$4000</b><small>HID</small></div>
                 <div class="prop-seg r-basic" style="width: 3.66%" title="$4377-$47FF: $0489 / 1.1K / 1161 exact bytes"><b>$4377</b><small>pad</small></div>
-                <div class="prop-seg r-bridge" style="width: 1.58%" title="$4800-$49F4: $01F5 / 501B"><b>$4800</b><small>BR</small></div>
-                <div class="prop-seg r-basic" style="width: 4.87%" title="$49F5-$4FFF: $060B / 1.5K / 1547 exact bytes"><b>$49F5</b><small>pad</small></div>
+                <div class="prop-seg r-bridge" style="width: 1.63%" title="$4800-$49EB: $01EC / 492B"><b>$4800</b><small>BR</small></div>
+                <div class="prop-seg r-basic" style="width: 4.97%" title="$49EC-$4FFF: $0614 / 1.5K / 1556 exact bytes"><b>$49EC</b><small>pad</small></div>
                 <div class="prop-seg r-pack" style="width: 12.95%" title="$5000-$600F: $1010 / 4.0K / 4112 exact bytes"><b>$5000-$600F</b><small>REGSEED $1010</small></div>
-                <div class="prop-seg r-basic" style="width: 51.56%" title="$6010-$9FFF: $3FF0 / 16.0K / 16368 exact bytes"><b>$6010-$9FFF</b><small>future BASIC</small></div>
+                <div class="prop-seg r-basic" style="width: 57.14%" title="$6010-$9FFF: $3FF0 / 16.0K / 16368 exact bytes"><b>$6010-$9FFF</b><small>future BASIC</small></div>
               </div>
             </div>
             <p class="stage-note">
-              The bar above is proportional across the raw `$2401-$9FFF` span:
-              `$7BFF` bytes, 31.0K, 31743 exact bytes. It intentionally shows temporary seed
+              The bar above is proportional across the raw `$2901-$9FFF` span:
+              `$76FF` bytes, 29.7K, 30463 exact bytes. It intentionally shows temporary seed
               ranges inside the future BASIC workspace before BASIC owns it.
             </p>
             <table class="stage-detail">
               <thead><tr><th>Subrange</th><th>Cold-load role</th><th>Hex size</th><th>Display size</th><th>Exact bytes</th><th>Share</th></tr></thead>
               <tbody>
-                <tr><td><span class="legend-swatch r-basic"></span><code>$2401-$27FF</code></td><td>Future BASIC bytes before `CMDPACK`.</td><td><code>$03FF</code></td><td>1.0K</td><td>1023</td><td>3.22%</td></tr>
-                <tr><td><span class="legend-swatch r-pack"></span><code>$2800-$3FFF</code></td><td>`CMDPACK` reserved cold-load image.</td><td><code>$1800</code></td><td>6.0K</td><td>6144</td><td>19.36%</td></tr>
+                <tr><td><span class="legend-swatch r-pack"></span><code>$2900-$3FFF</code></td><td>`CMDPACK` reserved cold-load image.</td><td><code>$1700</code></td><td>5.75K</td><td>5888</td><td>19.52%</td></tr>
                 <tr><td><span class="legend-swatch r-hidden"></span><code>$4000-$4376</code></td><td>`HIDLOAD` seed.</td><td><code>$0377</code></td><td>0.9K</td><td>887</td><td>2.79%</td></tr>
                 <tr><td><span class="legend-swatch r-basic"></span><code>$4377-$47FF</code></td><td>Padding / future BASIC after cold seed.</td><td><code>$0489</code></td><td>1.1K</td><td>1161</td><td>3.66%</td></tr>
-                <tr><td><span class="legend-swatch r-bridge"></span><code>$4800-$49F4</code></td><td>`BRLOAD` seed.</td><td><code>$01F5</code></td><td>501B</td><td>501</td><td>1.58%</td></tr>
-                <tr><td><span class="legend-swatch r-basic"></span><code>$49F5-$4FFF</code></td><td>Padding / future BASIC after cold seed.</td><td><code>$060B</code></td><td>1.5K</td><td>1547</td><td>4.87%</td></tr>
+                <tr><td><span class="legend-swatch r-bridge"></span><code>$4800-$49EB</code></td><td>`BRLOAD` seed.</td><td><code>$01EC</code></td><td>492B</td><td>492</td><td>1.63%</td></tr>
+                <tr><td><span class="legend-swatch r-basic"></span><code>$49EC-$4FFF</code></td><td>Padding / future BASIC after cold seed.</td><td><code>$0614</code></td><td>1.5K</td><td>1556</td><td>4.97%</td></tr>
                 <tr><td><span class="legend-swatch r-pack"></span><code>$5000-$600F</code></td><td>`REGSEED` header plus 128 descriptors.</td><td><code>$1010</code></td><td>4.0K</td><td>4112</td><td>12.95%</td></tr>
                 <tr><td><span class="legend-swatch r-basic"></span><code>$6010-$9FFF</code></td><td>Future BASIC bytes after `REGSEED`.</td><td><code>$3FF0</code></td><td>16.0K</td><td>16368</td><td>51.56%</td></tr>
               </tbody>
@@ -861,15 +859,15 @@
               <div>
                 <h3>Inside `CMDPACK` During Load</h3>
                 <div class="stage-bar">
-                  <div class="stage-seg r-low" style="width: 25.42%" title="$2800-$2E19: $061B / 1.5K / 1563 exact bytes"><b>LOWPACK</b><small>$061B / 1.5K / 1563 exact bytes</small></div>
-                  <div class="stage-seg r-hidden" style="width: 1.25%" title="$2E1A-$2E66: $004D / 77B"><b>H</b><small>77B</small></div>
-                  <div class="stage-seg r-pack" style="width: 73.32%" title="$2E67-$3FFF: $1199 / 4.4K / 4505 exact bytes"><b>available reserved room</b><small>$1199 / 4.4K / 4505 exact bytes</small></div>
+                  <div class="stage-seg r-low" style="width: 26.54%" title="$2900-$2F1A: $061B / 1.5K / 1563 exact bytes"><b>LOWPACK</b><small>$061B / 1.5K / 1563 exact bytes</small></div>
+                  <div class="stage-seg r-hidden" style="width: 1.31%" title="$2F1B-$2F67: $004D / 77B"><b>H</b><small>77B</small></div>
+                  <div class="stage-seg r-pack" style="width: 72.15%" title="$2F68-$3FFF: $1098 / 4.2K / 4248 exact bytes"><b>available reserved room</b><small>$1098 / 4.2K / 4248 exact bytes</small></div>
                 </div>
               </div>
               <div>
                 <h3>After Cold Seed</h3>
                 <div class="stage-bar">
-	                  <div class="stage-seg r-basic" style="width: 100%"><b>$2401-$9FFF</b><small>BASIC owns this whole span; empty free bytes are 31.0K because variables begin at $2403.</small></div>
+	                  <div class="stage-seg r-basic" style="width: 100%"><b>$2901-$9FFF</b><small>BASIC owns this whole span; empty free bytes are 29.7K because variables begin at $2903.</small></div>
                 </div>
               </div>
             </div>
@@ -888,7 +886,7 @@
             </div>
             <div class="cmdpack-meter" aria-label="CMDPACK reserved capacity">
               <span></span>
-              <strong>Current packed command content: $0667 / 1.6K / 1639 exact bytes. That is inside today's $1800 / 6.0K cold-load seed window, not the long-term command-code ceiling</strong>
+              <strong>Current packed command content: $0668 / 1.6K / 1640 exact bytes. That is inside today's $1700 / 5.75K cold-load seed window, not the long-term command-code ceiling</strong>
             </div>
             <p class="stage-note">
               `CMDPACK` growth up to the current reserved space changes the cold
@@ -898,8 +896,8 @@
             </p>
             <div class="capacity-grid" aria-label="Command code capacity tiers">
               <div class="capacity-card">
-                <b>6.0K today</b>
-                <p><code>CMDPACK</code> is the current C64 cold-load seed window at <code>$2800-$3FFF</code>. It is temporary load-image space.</p>
+                <b>5.75K today</b>
+                <p><code>CMDPACK</code> is the current C64 cold-load seed window at <code>$2900-$3FFF</code>. It is temporary load-image space.</p>
               </div>
               <div class="capacity-card">
                 <b>64.0K current REU bank</b>
@@ -943,7 +941,7 @@
         <div class="bank code">
           <div class="bank-title">REU Bank $45: Packed Command Code</div>
           <div class="slice"><span>$0000-$061A</span><span>Low overlay pack fetched into `$A900-$AF1A`. <span class="size-pill">$061B / 1.5K / 1563 exact bytes</span></span></div>
-          <div class="slice"><span>$061B-$0666</span><span>Hidden overlay pack fetched into `$A800-$A84C`. <span class="size-pill">$004D / 77B</span></span></div>
+          <div class="slice"><span>$061B-$0667</span><span>Hidden overlay pack fetched into `$A800-$A84C`. <span class="size-pill">$004D / 77B</span></span></div>
           <div class="slice"><span>$0668-$FFFF</span><span>Available packed-code bank space for future command bodies. <span class="size-pill">$F998 / 62.4K / 63896 exact bytes</span></span></div>
           <div class="slice"><span>descriptor</span><span>Each descriptor stores code offset, code length, run offset, flags, signature, and name. Descriptor table lives in bank `$44`, not here.</span></div>
           <div class="slice"><span>$C600</span><span>ReadyOS allocation table marks `$44` as type 14 and `$45` as type 15. This is C64 metadata, not REU bank `$45` content.</span></div>
@@ -1065,8 +1063,8 @@
       <div class="command-grid">
         <div class="command">
           <h3>ZECHO1(OUT%) / ZECHO1()</h3>
-          <div class="command-meta"><span class="chip low">low $A900</span><span class="chip">offset $0000</span><span class="chip">copy $0015 / 21B</span></div>
-          <p>Returns integer `1`. Proves output variable clearing and scalar result commit.</p>
+          <div class="command-meta"><span class="chip low">resident precompute</span><span class="chip">legacy low stub</span><span class="chip">0 copied on current path</span></div>
+          <p>Returns integer `1`. Proves output variable clearing, expression return, and scalar result commit.</p>
         </div>
         <div class="command">
           <h3>ZADD16(A,B,OUT%) / ZADD16(A,B)</h3>
@@ -1145,9 +1143,9 @@
       <h2>Hard Invariants</h2>
       <ul class="invariant-list">
         <li><strong>Boot through ReadyOS</strong>, not standalone app launch.</li>
-        <li><code>BASIC_START</code> remains <code>$2401</code>.</li>
-        <li><code>$2400</code> remains zero before stored-program <code>RUN</code>.</li>
-        <li><code>RESIDENT</code> stays below <code>$2400</code>.</li>
+        <li><code>BASIC_START</code> remains <code>$2901</code>.</li>
+        <li><code>$2900</code> remains zero before stored-program <code>RUN</code>.</li>
+        <li><code>RESIDENT</code> stays below <code>$2900</code>.</li>
         <li><code>BRIDGE</code> stays below <code>$C200</code>, leaving <code>$C200-$C5FF</code> for shared frames.</li>
         <li><code>$C600-$C7FF</code> is shared ReadyOS REU metadata.</li>
         <li><code>$C800-$C9FF</code> is shim ABI, not app scratch.</li>

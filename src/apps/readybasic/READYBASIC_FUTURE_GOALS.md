@@ -40,10 +40,10 @@ command. The goal is not a large dynamic parser, but a small data-driven layer
 for common forms such as numeric inputs, string inputs, array base/count pairs,
 typed handles, and optional output targets.
 
-Native `PROC`/`FUNC` now covers reusable BASIC-level routines with `%` and `$`
-formals, `EXEC`, `RET`, and `ENDP`. `FUNC` definitions have input formals only
-and return directly as BASIC expressions; `EXEC` is for `PROC`. Future routine
-work should build from that implemented base:
+Native `PROC`/`FUNC` now covers reusable BASIC-level routines with `%`, `$`, and
+plain C64 BASIC float formals, `EXEC`, `RET`, and `ENDP`. `FUNC` definitions
+have input formals only and return directly as BASIC expressions; `EXEC` is for
+`PROC`. Future routine work should build from that implemented base:
 possible follow-ups are `CALL` for non-returning named transfer, fall-through
 skipping of definitions, richer parameter types, and optionally a small formal
 metadata cache if repeated `EXEC` scans become too slow.

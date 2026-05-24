@@ -47,7 +47,7 @@ ReadyBASIC now duplicates a small amount of ReadyOS REU and shim knowledge in as
 
 - `BASIC_START = $2901`; BASIC owns `$2901-$9FFF`, with `30461` formula empty free bytes.
 - `ENTRY` lives at `$1000-$1102`.
-- `RESIDENT` lives at `$1200-$28FD` and must stay below `$2900`.
+- `RESIDENT` lives at `$1200-$28FC` and must stay below `$2900`.
 - `CMDPACK` load-only seed space is `$2900-$3FFF`; it is copied to REU bank `$45` on cold entry.
 - `HIDLOAD` load-only helper seed starts at `$4000`.
 - `BRLOAD` load-only bridge seed starts at `$4800`.
@@ -118,7 +118,7 @@ Branch-specific sync points:
 
 - `BASIC_START = $2901`; BASIC owns `$2901-$9FFF`, with `30461` formula empty
   free bytes.
-- `RESIDENT = $1200-$28FD`, size `$16FE` / 5886B.
+- `RESIDENT = $1200-$28FC`, size `$16FD` / 5885B.
 - `BRIDGE = $C000-$C1EB`, size `$01EC` / 492B.
 - `LOWPACK = $061B`; command overlay grew by one byte for the resident-computed
   `FADD` low stub.

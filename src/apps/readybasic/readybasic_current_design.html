@@ -635,9 +635,10 @@
           <span class="syntax-line">COMMAND(arg,arg,out%)</span>
           <span class="syntax-line">PRINT COMMAND(arg,arg)</span>
           <p>
-            Statement commands use output variables as final actuals. Expression-safe commands
-            return scalar or string values directly. The old <code>!COMMAND args</code> path remains
-            available for compatibility.
+            Statement commands use output variables as final actuals where the
+            command has a statement-output form. Expression-safe commands return
+            scalar, string, or float values directly. The old
+            <code>!COMMAND args</code> path is removed on this branch.
           </p>
           <div class="callout good">
             <strong>IF normalization:</strong> <code>IF 1 THEN ZECHO1(P%)</code> and
@@ -681,7 +682,7 @@
             <li><span class="pill">PROC</span><span>Input formals only; called through <code>EXEC</code>.</span></li>
             <li><span class="pill">FUNC</span><span>Input formals only; called as an expression and returns through <code>RET</code>.</span></li>
             <li><span class="pill">ENDP</span><span>Ends both <code>PROC</code> and <code>FUNC</code> definitions.</span></li>
-            <li><span class="pill">V1</span><span>Only <code>%</code> and <code>$</code> formals; no locals, arrays, floats, by-ref, or multiple outputs.</span></li>
+            <li><span class="pill">V1</span><span><code>%</code> integer, <code>$</code> string, and plain float formals; no locals, arrays, by-ref, or multiple outputs.</span></li>
             <li><span class="pill">Depth 4</span><span>A fifth active <code>EXEC</code> reports <code>?RB ERROR 33</code>.</span></li>
           </ul>
           <div class="callout warn">Place definitions after <code>END</code>. Fall-through into <code>PROC</code> or <code>FUNC</code> is invalid in V1. Formals are ordinary BASIC globals, so avoid unintended name collisions with caller variables.</div>
@@ -745,7 +746,7 @@
       <table>
         <thead><tr><th>Command</th><th>Placement</th><th>Parameters</th><th>Result</th></tr></thead>
         <tbody>
-          <tr><td><code>ZECHO1(OUT%) / ZECHO1()</code></td><td>Low <code>$A900+$0000</code>, copy <code>$0015</code></td><td>output integer</td><td>Returns <code>1</code>.</td></tr>
+          <tr><td><code>ZECHO1(OUT%) / ZECHO1()</code></td><td>Resident-precomputed result; legacy low stub remains in <code>LOWPACK</code></td><td>output integer or expression integer</td><td>Returns <code>1</code> without fetching an overlay in the current branch.</td></tr>
           <tr><td><code>ZADD16(A,B,OUT%) / ZADD16(A,B)</code></td><td>Low <code>$A900+$0015</code>, copy <code>$001E</code></td><td>two numeric expressions, output integer</td><td>Returns 16-bit sum.</td></tr>
           <tr><td><code>UPPER(S$,OUT$) / UPPER(S$)</code></td><td>Low <code>$A900+$0033</code>, copy <code>$003B</code></td><td>string variable or quoted literal, output string</td><td>Uppercases staged bytes.</td></tr>
           <tr><td><code>LOWER(S$,OUT$) / LOWER(S$)</code></td><td>Low <code>$A900+$006E</code>, copy <code>$003B</code></td><td>string variable or quoted literal, output string</td><td>Lowercases staged byte values; tests use <code>ASC()</code> because display case is charset-dependent.</td></tr>
@@ -812,7 +813,7 @@
           <tr><td><code>LOWPACK</code></td><td><code>$061B</code> (1.5K, 1563 exact bytes)</td><td>Packed low command bytes in <code>CMDPACK</code>, prestashed to bank <code>$45</code> offset <code>$0000</code>.</td><td>Fetched on demand into banked RAM under BASIC ROM at <code>$A900+</code>.</td></tr>
           <tr><td><code>HIDDENPACK</code></td><td><code>$004D</code> (77B)</td><td>Packed hidden worker bytes after <code>LOWPACK</code>, prestashed to bank <code>$45</code> offset <code>$061B</code>.</td><td>Fetched on demand into hidden RAM at <code>$A800-$A84C</code>.</td></tr>
           <tr><td><code>HIDLOAD</code></td><td><code>$0377</code> (0.9K, 887 exact bytes)</td><td>Load-only hidden helper seed starting at <code>$4000</code>.</td><td>Copied on cold boot into <code>$A000-$A376</code> and the visible <code>$C280-$C5F6</code> warm-resume shadow.</td></tr>
-	          <tr><td><code>BRLOAD</code></td><td><code>$01FB</code> (507B)</td><td>Load-only bridge seed starting at <code>$4800</code>.</td><td>Copied on cold boot into <code>$C000-$C1FF</code>.</td></tr>
+	          <tr><td><code>BRLOAD</code></td><td><code>$01EC</code> (492B)</td><td>Load-only bridge seed starting at <code>$4800</code>.</td><td>Copied on cold boot into <code>$C000-$C1EB</code>.</td></tr>
           <tr><td><code>REGSEED</code></td><td><code>$1010</code> (4.0K, 4112 exact bytes)</td><td>Load-only registry header and 128 command descriptors at <code>$5000-$600F</code>.</td><td>Copied on cold boot into bank <code>$44</code> offsets <code>$0000</code> and <code>$1000</code>.</td></tr>
         </tbody>
       </table>
@@ -832,10 +833,10 @@
       </p>
       <div class="memory-map" aria-label="C64 RAM map">
         <div class="addr">$1000-$1102</div><div class="region r-entry"><b>ENTRY</b><small>Cold/warm discriminator and early copy code.</small></div><div class="size">$0103<br><span>259B</span></div>
-        <div class="addr">$1200-$28FD</div><div class="region r-resident"><b>RESIDENT</b><small>Parser, hooks, BASIC ROM calls, REU DMA, result commit, PROC/FUNC, proper float terms.</small></div><div class="size">$16FE<br><span>5.7K</span></div>
+        <div class="addr">$1200-$28FC</div><div class="region r-resident"><b>RESIDENT</b><small>Parser, hooks, BASIC ROM calls, REU DMA, result commit, PROC/FUNC, proper float terms.</small></div><div class="size">$16FD<br><span>5.7K</span></div>
         <div class="addr">$2900</div><div class="region r-basic"><b>BASIC Sentinel</b><small>Must stay zero before stored-program RUN.</small></div><div class="size">1 byte</div>
         <div class="addr">$2901-$9FFF</div><div class="region r-basic"><b>BASIC Workspace</b><small>Program text, variables, arrays, string heap.</small></div><div class="size">$76FF<br><span>30461 formula free / 29.7K</span></div>
-        <div class="addr">$2800-$3FFF</div><div class="region r-overlay"><b>Command Pack Load Image</b><small>Low and hidden overlay seed bytes before cold prestash.</small></div><div class="size">$1800<br><span>6.0K</span></div>
+        <div class="addr">$2900-$3FFF</div><div class="region r-overlay"><b>Command Pack Load Image</b><small>Low and hidden overlay seed bytes before cold prestash.</small></div><div class="size">$1700<br><span>5.75K</span></div>
         <div class="addr">$4000+</div><div class="region r-hidden"><b>HIDLOAD Image</b><small>Hidden helper seed copied to $A000 and $C280.</small></div><div class="size">$0377<br><span>0.9K</span></div>
         <div class="addr">$4800+</div><div class="region r-bridge"><b>BRLOAD Image</b><small>Bridge seed copied to $C000.</small></div><div class="size">$01EC<br><span>492B</span></div>
         <div class="addr">$5000-$600F</div><div class="region r-shared"><b>REGSEED Load-Only Image</b><small>Cold 128-slot descriptor seed copied to REU, then this range may be BASIC-owned.</small></div><div class="size">$1010<br><span>4.0K</span></div>
@@ -861,7 +862,7 @@
           <div class="stage-body">
             <div class="stage-bar">
               <div class="stage-seg r-basic" style="width: 5.5%"><b>$2901-$27FF</b>future BASIC bytes</div>
-              <div class="stage-seg r-overlay" style="width: 18.2%"><b>$2800-$3FFF</b>CMDPACK reserved 6.0K</div>
+              <div class="stage-seg r-overlay" style="width: 18.2%"><b>$2900-$3FFF</b>CMDPACK reserved 5.75K</div>
               <div class="stage-seg r-hidden" style="width: 9.5%"><b>$4000+</b>HIDLOAD seed</div>
               <div class="stage-seg r-bridge" style="width: 6.0%"><b>$4800+</b>BRLOAD seed</div>
               <div class="stage-seg r-shared" style="width: 12.2%"><b>$5000-$600F</b>REGSEED 4.0K</div>
@@ -883,17 +884,17 @@
             </div>
             <div class="cmdpack-meter" aria-label="CMDPACK reserved capacity">
               <span></span>
-              <strong>CMDPACK capacity: 1.5K used now inside today's 6.0K cold-load seed window; this is not the long-term command-code ceiling</strong>
+              <strong>CMDPACK capacity: 1.6K used now inside today's 5.75K cold-load seed window; this is not the long-term command-code ceiling</strong>
             </div>
             <p class="stage-note">
-              Growing packed command code toward the current 6.0K CMDPACK
+              Growing packed command code toward the current 5.75K CMDPACK
               reservation increases cold-load content and PRG payload, not
               steady-state BASIC free bytes.
             </p>
             <div class="capacity-grid" aria-label="Command code capacity tiers">
               <div class="capacity-card">
-                <b>6.0K current seed</b>
-                <p><code>CMDPACK</code> is the current C64 cold-load window at <code>$2800-$3FFF</code>.</p>
+                <b>5.75K current seed</b>
+                <p><code>CMDPACK</code> is the current C64 cold-load window at <code>$2900-$3FFF</code>.</p>
               </div>
               <div class="capacity-card">
                 <b>64.0K current code bank</b>
@@ -916,20 +917,20 @@
         <code>$A000</code>, giving about <code>38911</code> bytes free.
         ReadyBASIC relocates BASIC to <code>$2901</code> with top at
         <code>$A000</code>. On an empty ReadyBASIC workspace, variables begin at
-        <code>$2503</code>, so the practical empty BASIC free space is
+        <code>$2903</code>, so the practical empty BASIC free space is
         <code>$A000 - $2903 = 30461</code> formula bytes.
       </p>
       <div class="grid-3">
         <div class="metric"><b>38911 bytes</b><span>38.0K stock empty C64 BASIC V2 free space.</span></div>
         <div class="metric"><b>30461 bytes</b><span>29.7K current formula empty ReadyBASIC free space.</span></div>
-        <div class="metric"><b>-7426 bytes</b><span>-7.3K current ReadyBASIC tradeoff for ReadyOS integration, native dispatch, expression syntax, and proper float terms.</span></div>
+        <div class="metric"><b>-8450 bytes</b><span>-8.3K current ReadyBASIC tradeoff for ReadyOS integration, native dispatch, expression syntax, and proper float terms.</span></div>
       </div>
       <table>
         <thead><tr><th>Environment</th><th>BASIC text start</th><th>BASIC top</th><th>Empty free bytes</th></tr></thead>
         <tbody>
           <tr><td>Stock C64 BASIC V2</td><td><code>$0801</code></td><td><code>$A000</code></td><td><code>38911</code> (38.0K)</td></tr>
           <tr><td>ReadyBASIC current layout</td><td><code>$2901</code></td><td><code>$A000</code></td><td><code>30461</code> (29.7K)</td></tr>
-          <tr><td>Difference</td><td>-</td><td>-</td><td><code>-7426</code> (-7.3K)</td></tr>
+          <tr><td>Difference</td><td>-</td><td>-</td><td><code>-8450</code> (-8.3K)</td></tr>
         </tbody>
       </table>
       <div class="grid-2">
@@ -1141,12 +1142,10 @@
         </tbody>
       </table>
       <p class="muted">
-        Note: the broad external command/program/lifecycle/state wrappers predate the
-        final no-<code>!</code> syntax and still contain old statement forms such as
-        <code>!ZECHO1 OUT P%</code>. They are no longer valid as-is on the proper
-        float-term branch; current branch verification uses the focused
-        <code>RBPROC1</code> probe plus build/static checks until those wrappers are
-        syntax-refreshed.
+        The broad external command/program/lifecycle/state wrappers have been
+        refreshed for bare parenthesized syntax on this branch. The demo suite is
+        intentionally viewer-paced; regression probes stay shorter and more
+        assertion-heavy.
       </p>
       <p class="muted">
         Some harness wrappers can report process-level <code>partial</code> even when every
@@ -1179,11 +1178,35 @@
       <table>
         <thead><tr><th>Measure</th><th>Expression branch</th><th>Lean nested branch</th></tr></thead>
         <tbody>
+          <tr><td><code>BASIC_START</code></td><td><code>$2401</code></td><td><code>$2501</code></td></tr>
+          <tr><td>Empty BASIC free bytes</td><td>31741</td><td>31485</td></tr>
+          <tr><td><code>RESIDENT</code></td><td><code>$11FE</code> / 4606B</td><td><code>$1289</code> / 4745B</td></tr>
+          <tr><td><code>BRIDGE</code></td><td><code>$01EA</code> / 490B</td><td><code>$01EB</code> / 491B</td></tr>
+          <tr><td><code>LOWPACK</code></td><td><code>$061A</code> / 1562B</td><td><code>$061A</code> / 1562B</td></tr>
+          <tr><td><code>bin/readybasic.prg</code></td><td>20994B</td><td>20994B</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Proper Float-Term Branch</h2>
+      <p>
+        The <code>exp/readybasic-proper-float-terms</code> branch adds plain
+        C64 BASIC float formals/returns and preserves parser state around nested
+        ReadyBASIC terms. Proven forms include
+        <code>ABS(FADD(1.2,2.3)-3)</code>,
+        <code>ADDI(1,ADDI(2,3))</code>,
+        <code>FADD(1.5,FADD(2.25,3.25))</code>, and
+        <code>LEFT$(GREET("READY")+"!",3)</code>.
+      </p>
+      <table>
+        <thead><tr><th>Measure</th><th>Expression branch</th><th>Proper float-term branch</th></tr></thead>
+        <tbody>
           <tr><td><code>BASIC_START</code></td><td><code>$2401</code></td><td><code>$2901</code></td></tr>
           <tr><td>Empty BASIC free bytes</td><td>31741</td><td>30461</td></tr>
-          <tr><td><code>RESIDENT</code></td><td><code>$11FE</code> / 4606B</td><td><code>$16FE</code> / 5886B</td></tr>
+          <tr><td><code>RESIDENT</code></td><td><code>$11FE</code> / 4606B</td><td><code>$16FD</code> / 5885B</td></tr>
           <tr><td><code>BRIDGE</code></td><td><code>$01EA</code> / 490B</td><td><code>$01EC</code> / 492B</td></tr>
-          <tr><td><code>LOWPACK</code></td><td><code>$061B</code> / 1563B</td><td><code>$061B</code> / 1563B</td></tr>
+          <tr><td><code>LOWPACK</code></td><td><code>$061A</code> / 1562B</td><td><code>$061B</code> / 1563B</td></tr>
           <tr><td><code>bin/readybasic.prg</code></td><td>20994B</td><td>20994B</td></tr>
         </tbody>
       </table>

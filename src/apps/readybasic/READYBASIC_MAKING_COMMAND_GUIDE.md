@@ -67,9 +67,9 @@ ship with, or be typed into, the user's BASIC program:
 `PROC` has input formals only. `FUNC` also declares input formals only and
 returns with `RET expr`; use `RET% expr` or `RET$ expr` when the return type
 should be explicit. `FUNC` is called as an expression and does not take a final
-output actual. Version 1 supports only `%` integer and `$` string formals, no
-arrays, locals, plain floating variables, or multiple outputs. Definitions
-should live after `END`; fall-through into a definition is invalid. Because formals are just
+output actual. Version 1 supports `%` integer, `$` string, and plain C64 BASIC
+float formals; arrays, locals, by-reference parameters, and multiple outputs
+remain out of scope. Definitions should live after `END`; fall-through into a definition is invalid. Because formals are just
 ordinary C64 BASIC globals, choose formal names that will not collide with caller
 variables you care about.
 
@@ -114,7 +114,7 @@ Descriptor commentary:
 
 `CMD_LOW_ALL` is used for commands whose tiny wrapper calls shared allocator or
 screen helpers elsewhere in `LOWPACK`. Those commands copy the full current
-`$061A` low pack to keep resident RAM small.
+`$061B` low pack to keep resident RAM small.
 
 ```asm
 .macro CMD_LOW_ALL id, sig, label, name
@@ -155,17 +155,19 @@ slice and a hidden runtime entry under BASIC ROM RAM:
 ReadyBASIC copies that slice to `$A800`, maps RAM under BASIC ROM, calls the
 entry, then restores normal banking.
 
-## ZECHO1: Smallest Output Command
+## ZECHO1: Smallest Scalar Command
 
-`ZECHO1` proves the simplest path: parse one output integer variable, run a tiny
-low overlay, and commit an integer result.
+`ZECHO1` proves the simplest scalar result path. On the current branch the
+resident parser precomputes the result so both `ZECHO1(P%)` and expression
+`ZECHO1()` return `1` without fetching an overlay. The old low-overlay worker is
+still present as a tiny descriptor target, but the normal path skips it.
 
 ```asm
 parse_sig_zecho1:
-        jsr rb_parse_out_int       ; capture OUT% pointer and clear it first
-        rts
+        jsr rb_parse_out_int_current ; capture OUT% if this is statement form
+        jmp rb_precompute_zecho1
 
-cmd_zecho1_low:
+rb_precompute_zecho1:
         lda #0
         sta RF_STATUS              ; status 0 means commit result
         lda #RB_VAL_INT
@@ -174,14 +176,15 @@ cmd_zecho1_low:
         sta RF_VAL_LO
         lda #0
         sta RF_VAL_HI              ; return 1 as little-endian value
+        lda #1
+        sta rb_command_precomputed ; dispatcher can skip overlay fetch/call
         rts
-cmd_zecho1_low_end:
 ```
 
 Descriptor:
 
 ```asm
-CMD_LOW CMD_ZECHO1, SIG_ZECHO1, cmd_zecho1_low, cmd_zecho1_low_end, "ZECHO1"
+CMD_LOW_ALL CMD_ZECHO1, SIG_ZECHO1, cmd_zecho1_low, "ZECHO1"
 ```
 
 Line-by-line commentary:
@@ -189,18 +192,17 @@ Line-by-line commentary:
 | Line or group | What it does |
 | --- | --- |
 | `parse_sig_zecho1:` | Resident parser entry selected by `SIG_ZECHO1`. |
-| `jsr rb_parse_out_int` | Reads the output integer variable, records its address, and clears it before command execution. |
-| `rts` after the parser | Returns to resident dispatch. If parsing failed, the helper has already set the error path. |
-| `cmd_zecho1_low:` | Low-overlay worker entry used by the descriptor's runtime offset. |
+| `jsr rb_parse_out_int_current` | In statement form, reads and clears the output integer variable; in expression form there is no output actual. |
+| `rb_precompute_zecho1` | Stages the integer result directly in the resident result frame. |
 | `lda #0` / `sta RF_STATUS` | Marks the command as successful. Nonzero status prevents result commit. |
 | `lda #RB_VAL_INT` / `sta RF_TAG` | Says the result frame contains a 16-bit BASIC integer. |
 | `lda #1` / `sta RF_VAL_LO` and `lda #0` / `sta RF_VAL_HI` | Stages integer value `1` in little-endian order. |
-| `cmd_zecho1_low_end:` | End marker used only by the assembler to compute copy length. It is not called. |
-| `CMD_LOW ... "ZECHO1"` | Publishes the public command name and connects `SIG_ZECHO1` to the worker slice. |
+| `rb_command_precomputed = 1` | Tells statement and expression dispatch to commit/return the result without overlay execution. |
+| `CMD_LOW_ALL ... "ZECHO1"` | Publishes the public command name. The descriptor remains command-like even though current dispatch precomputes the result. |
 
-Why it matters: this is the minimum useful skeleton for an output command.
-Everything else adds more parsing, different result tags, or REU/hidden-memory
-work.
+Why it matters: this is the minimum useful skeleton for a scalar command that
+can also be used as an expression. Everything else adds more parsing, different
+result tags, overlay work, or REU/hidden-memory behavior.
 
 ## ZADD16: Numeric Inputs Plus Output
 
@@ -550,7 +552,7 @@ accepts only type-2 screen text+color handles; `BUFFREE` frees any valid type.
 | `RB_CMD_F_LOW` | Descriptor flag for a command whose executable code runs from the low overlay window. |
 | `RB_CMD_F_HIDDEN` | Descriptor flag for a command whose executable code runs under BASIC ROM RAM. |
 | `__LOWPACK_RUN__` | Linker symbol for the packed low-overlay image before it is copied to REU bank `$45`. |
-| `__LOWPACK_SIZE__` | Measured size of the whole low pack, currently `$061A` bytes. |
+| `__LOWPACK_SIZE__` | Measured size of the whole low pack, currently `$061B` bytes. |
 | `RB_LOW_BASE` | Runtime low-overlay base, currently `$A900`. |
 | `__HIDDENPACK_RUN__` | Linker symbol for the packed hidden-overlay image. |
 | `RB_HIDDEN_BASE` | Runtime hidden-overlay base, currently `$A800`. |

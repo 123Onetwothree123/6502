@@ -79,8 +79,8 @@ def main() -> None:
 
     if resident[0] != 0x1200 or resident[1] >= 0x2900:
         fail(f"RESIDENT must fit in $1200-$28FF, got ${resident[0]:04X}-${resident[1]:04X}")
-    if resident[2] > 0x16FE:
-        fail(f"RESIDENT grew past measured proper float-term budget $16FE, got ${resident[2]:04X}")
+    if resident[2] > 0x16FD:
+        fail(f"RESIDENT grew past measured proper float-term budget $16FD, got ${resident[2]:04X}")
     if lowpack[0] != 0xA900 or lowpack[1] > 0xBFFF:
         fail(f"LOWPACK must fit under BASIC ROM at $A900-$BFFF, got ${lowpack[0]:04X}-${lowpack[1]:04X}")
     if lowpack[2] != 0x061B:

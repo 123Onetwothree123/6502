@@ -32,22 +32,23 @@ as `PING`, `ADD16`, `STRUP`, `HCRC`, `SUMAI`, `RANGEAI`, `TEMPSCRATCH`, and
 - Memory impact versus expression-style branch:
   - `BASIC_START`: `$2401` -> `$2901`.
   - Empty BASIC free bytes: `31741` -> `30461`, delta `-1280`.
-  - `RESIDENT`: `$11FE` / 4606B -> `$16FE` / 5886B, delta `+1280`.
+  - `RESIDENT`: `$11FE` / 4606B -> `$16FD` / 5885B, delta `+1279`.
   - `BRIDGE`: `$01EA` / 490B -> `$01EC` / 492B, delta `+2`.
   - `LOWPACK`: `$061A` / 1562B -> `$061B` / 1563B, command overlay delta `+1`.
   - `HIDDEN`: unchanged at `$0377`; `HIDDENPACK`: unchanged at `$004D`.
   - `REGSEED`: unchanged at `$1010`.
   - `bin/readybasic.prg`: unchanged at `20994` bytes.
 - Verification so far:
-  - `make readybasic-plugin-static-check`: pass with `$2901`/`$16FE` guardrails.
+  - `make readybasic-plugin-static-check`: pass with `$2901`/`$16FD` guardrails.
   - `make verify`: pass after rebuilding the current worktree.
   - Focused `RBPROC1` VICE probe: pass; screen output includes `FADD 3.5`,
     `NFADD 7`, `SCALE 3.375`, `NADDI 6`, `FABS .5`, `SFADD 3.5`, `CAT HI`,
     and `NGS HI`.
-  - Correct-root rerun note: the older broad external command/program/lifecycle
-    wrappers still type removed `!` statement syntax, so they fail at their
-    first old command assertion on this branch and need a syntax refresh before
-    they are meaningful proper float-term regression tests.
+  - Broad external command/program/lifecycle/state wrappers were later refreshed
+    to the bare parenthesized syntax on this branch.
+  - Added a viewer-paced ReadyBASIC demo automation suite covering `FREEMEM`,
+    editor round trips, command groups, `PROC`/`FUNC`, expected errors, REU
+    handles, and nested expression forms.
 
 ## 2026-05-23: Lean Nested-Term Experiment
 

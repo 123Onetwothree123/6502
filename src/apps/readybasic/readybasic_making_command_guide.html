@@ -140,7 +140,7 @@
 20 A%=ADDI(4,5)
 30 PRINT ADDI(6,7)</code></pre>
     <div class="card">
-      <p><code>PROC</code> has input formals only. <code>FUNC</code> also declares input formals only and returns with <code>RET expr</code>; use <code>RET% expr</code> or <code>RET$ expr</code> when the return type should be explicit. <code>FUNC</code> is called as an expression and does not take a final output actual. V1 supports only <code>%</code> integer and <code>$</code> string formals, no arrays, locals, plain floating variables, by-reference parameters, or multiple outputs. Definitions should live after <code>END</code>; fall-through into a definition is invalid.</p>
+      <p><code>PROC</code> has input formals only. <code>FUNC</code> also declares input formals only and returns with <code>RET expr</code>; use <code>RET% expr</code> or <code>RET$ expr</code> when the return type should be explicit. <code>FUNC</code> is called as an expression and does not take a final output actual. V1 supports <code>%</code> integer, <code>$</code> string, and plain C64 BASIC float formals; arrays, locals, by-reference parameters, and multiple outputs remain out of scope. Definitions should live after <code>END</code>; fall-through into a definition is invalid.</p>
       <p>Use a descriptor-backed command overlay when the routine needs hidden RAM, REU handles, fast machine-code loops, direct screen/color memory, or shared command behavior.</p>
     </div>
   </section>
@@ -209,13 +209,13 @@
     <div class="grid">
       <div class="card">
         <h3>ZECHO1</h3>
-        <p><span class="chip low">low overlay</span><span class="chip">output int</span></p>
-        <p>Minimum output-command skeleton: parse <code>OUT%</code>, stage integer <code>1</code>, commit.</p>
+        <p><span class="chip low">resident precompute</span><span class="chip">scalar int</span></p>
+        <p>Minimum scalar-command skeleton: statement form captures <code>OUT%</code>, expression form has no output actual, and resident code stages integer <code>1</code> without fetching an overlay.</p>
 <pre><code>parse_sig_zecho1:
-        jsr rb_parse_out_int
-        rts
+        jsr rb_parse_out_int_current
+        jmp rb_precompute_zecho1
 
-cmd_zecho1_low:
+rb_precompute_zecho1:
         lda #0
         sta RF_STATUS
         lda #RB_VAL_INT
@@ -224,21 +224,22 @@ cmd_zecho1_low:
         sta RF_VAL_LO
         lda #0
         sta RF_VAL_HI
-        rts
-cmd_zecho1_low_end:</code></pre>
-<pre><code>CMD_LOW CMD_ZECHO1, SIG_ZECHO1,
-        cmd_zecho1_low, cmd_zecho1_low_end, "ZECHO1"</code></pre>
+        lda #1
+        sta rb_command_precomputed
+        rts</code></pre>
+<pre><code>CMD_LOW_ALL CMD_ZECHO1, SIG_ZECHO1,
+        cmd_zecho1_low, "ZECHO1"</code></pre>
         <table class="annotate">
           <thead><tr><th>Line or group</th><th>Teaching note</th></tr></thead>
           <tbody>
             <tr><td><code>parse_sig_zecho1:</code></td><td>The resident parser entry selected by <code>SIG_ZECHO1</code>.</td></tr>
-            <tr><td><code>jsr rb_parse_out_int</code></td><td>Captures the output integer variable address and clears it before command execution.</td></tr>
-            <tr><td><code>cmd_zecho1_low:</code></td><td>The overlay worker entry. The descriptor stores this address as an offset from <code>RB_LOW_BASE</code>.</td></tr>
+            <tr><td><code>jsr rb_parse_out_int_current</code></td><td>Captures and clears the statement output variable when present; expression <code>ZECHO1()</code> has no output actual.</td></tr>
+            <tr><td><code>rb_precompute_zecho1</code></td><td>Stages the result directly in resident code.</td></tr>
             <tr><td><code>RF_STATUS = 0</code></td><td>Marks success. Resident code commits results only when this is zero.</td></tr>
             <tr><td><code>RF_TAG = RB_VAL_INT</code></td><td>Says the result frame contains a BASIC integer.</td></tr>
-            <tr><td><code>RF_VAL_LO/HI = 1</code></td><td>Stages the little-endian integer value that will be written to the captured output variable.</td></tr>
-            <tr><td><code>cmd_zecho1_low_end:</code></td><td>End marker for copy-size math. It is not an executable target.</td></tr>
-            <tr><td><code>CMD_LOW ... "ZECHO1"</code></td><td>Publishes the public command name and binds parser signature to worker slice.</td></tr>
+            <tr><td><code>RF_VAL_LO/HI = 1</code></td><td>Stages the little-endian integer value that will be committed or returned.</td></tr>
+            <tr><td><code>rb_command_precomputed = 1</code></td><td>Tells statement/eval dispatch to skip overlay fetch and use the staged result.</td></tr>
+            <tr><td><code>CMD_LOW_ALL ... "ZECHO1"</code></td><td>Publishes the public command name; a legacy low stub remains as the descriptor target.</td></tr>
           </tbody>
         </table>
       </div>

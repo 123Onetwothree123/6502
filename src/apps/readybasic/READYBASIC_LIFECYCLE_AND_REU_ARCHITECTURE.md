@@ -45,7 +45,7 @@ The current map confirms this layout:
 | Segment | Runtime range | Size | Role |
 |---|---:|---:|---|
 | `ENTRY` | `$1000-$1102` | `$0103` (259B) | App entry, cold/warm discriminator, early copies. |
-| `RESIDENT` | `$1200-$28FD` | `$16FE` (5.7K, 5886 exact bytes) | Visible parser, ROM calls, REU DMA wrappers, result commit, bare command dispatch, eval hook, native `PROC`/`FUNC`/`RET` dispatch, proper nested term state, and float helpers. |
+| `RESIDENT` | `$1200-$28FC` | `$16FD` (5.7K, 5885 exact bytes) | Visible parser, ROM calls, REU DMA wrappers, result commit, bare command dispatch, eval hook, native `PROC`/`FUNC`/`RET` dispatch, proper nested term state, and float helpers. |
 | `REGSEED` | `$5000-$600F` | `$1010` (4.0K, 4112 exact bytes) | Load-only registry header and 128 command descriptors used on cold seed. |
 | `HIDDEN` | `$A000-$A376` | `$0377` (0.9K, 887 exact bytes) | Hidden helper routines under BASIC ROM. |
 | `HIDDENPACK` | `$A800-$A84C` | `$004D` (77B) | Hidden worker overlay image, loaded to REU bank `$45`. |
@@ -95,7 +95,7 @@ live inside that contract while also hosting BASIC.
 ```mermaid
 flowchart TB
   A["$1000-$1102 ENTRY<br/>load entry and cold/warm cookie"]
-  B["$1200-$28FD RESIDENT<br/>visible parser, vector hooks, REU DMA, commit, PROC/FUNC/RET, float terms"]
+  B["$1200-$28FC RESIDENT<br/>visible parser, vector hooks, REU DMA, commit, PROC/FUNC/RET, float terms"]
   C["$2900 SENTINEL<br/>must be zero for BASIC RUN"]
   D["$2901-$9FFF BASIC WORKSPACE<br/>30461 formula free bytes / 29.7K"]
   E["$2900-$3FFF CMDPACK LOAD IMAGE<br/>low and hidden overlay seed bytes before cold prestash"]
@@ -145,7 +145,7 @@ ReadyBASIC has two different memory pictures that must not be merged:
 `CMDPACK` is therefore both visually inside the BASIC address span and
 steady-state free. The current reservation is `$1700` (5.75K); the implemented
 packed content is `LOWPACK` `$061B` plus `HIDDENPACK` `$004D`, about 1.6K. That
-reserved command-pack area can grow toward 6.0K during cold load without
+reserved command-pack area can grow toward 5.75K during cold load without
 changing `BASIC_START`, `BASIC_LIMIT`, or the `30461` empty BASIC free-byte
 measurement, because it is prestashed to REU before BASIC owns the range.
 
@@ -159,7 +159,7 @@ There are two separate limits:
 
 So, with the current descriptor and REU command-code architecture, packed command
 code can grow to one 64K REU code bank. The current PRG/load linker only seeds a
-6.0K `CMDPACK` window today; filling more of bank `$45` would require expanding
+5.75K `CMDPACK` window today; filling more of bank `$45` would require expanding
 or adding cold-load seed windows and copying them before BASIC owns the memory.
 That kind of seed expansion should still be reclaimed and should not reduce
 steady-state BASIC free bytes.
@@ -500,7 +500,8 @@ V1 supports the sample command signatures directly:
 
 | Input kind | Implementation rule |
 |---|---|
-| Numeric expression | `CHKCOM`, `FRMNUM`, `GETADR`; stores 16-bit value from `LINNUM`. |
+| Integer numeric expression | `CHKCOM`, `FRMNUM`, `GETADR`; stores 16-bit value from `LINNUM`. |
+| Plain numeric expression | `CHKCOM`, `FRMNUM`; preserves BASIC's five-byte float value for float signatures. |
 | Integer output variable | `PTRGET`, require numeric/integer, clear two bytes before execution. |
 | String input | String variable descriptor or quoted literal, max 64 bytes copied to call frame. |
 | String output variable | `PTRGET`, require string, clear descriptor before execution. |
@@ -516,6 +517,7 @@ Result tags are:
 | `1` | integer |
 | `2` | string |
 | `3` | integer array |
+| `4` | float |
 
 If `RF_STATUS` is nonzero, ReadyBASIC prints `?RB ERROR n` and returns to
 `BASIC_READY`. On a clean result, resident code commits to the captured output
@@ -530,23 +532,24 @@ BASIC's string heap.
 
 | Command | Code placement | REU code bytes copied | Parameters | Result behavior |
 |---|---|---:|---|---|
-| `ZECHO1(OUT%)` / `ZECHO1()` | Low overlay at `$A900+$0000` | `$0015` (21B) | output int or expression int | Returns `1`. |
+| `ZECHO1(OUT%)` / `ZECHO1()` | Resident-precomputed result; legacy low stub remains in `LOWPACK` | 0 copied on current path | output int or expression int | Returns `1`. |
 | `ZADD16(A,B,OUT%)` / `ZADD16(A,B)` | Low overlay at `$A900+$0015` | `$001E` (30B) | two numeric expressions, output or expression int | Returns 16-bit sum. |
 | `UPPER(S$,OUT$)` / `UPPER(S$)` | Low overlay at `$A900+$0033` | `$003B` (59B) | string variable or literal, output/expression string | Uppercases staged bytes. |
 | `LOWER(S$,OUT$)` / `LOWER(S$)` | Low overlay at `$A900+$006E` | `$003B` (59B) | string variable or literal, output/expression string | Lowercases staged byte values; tests assert `ASC()` bytes because C64 display case is charset-dependent. |
 | `ZHIDDENRAM(S$,OUT%)` / `ZHIDDENRAM(S$)` | Hidden overlay at `$A800` | `$004D` (77B) | string variable or literal, output/expression int | Sums uppercase bytes. |
 | `ZSUMNUMARRAY(A%(0),COUNT,OUT%)` / `ZSUMNUMARRAY(A%(0),COUNT)` | Low overlay at `$A900+$00A9` | `$0044` (68B) | integer array base/count, output/expression int | Sums integer array values. |
 | `ZRANGENUMARRAY(START,COUNT,A%(0))` | Low overlay at `$A900+$00ED` | `$003D` (61B) | start/count, output array | Stages consecutive integers. |
-| `BUFNEW(LEN,H%)` / `BUFNEW(LEN)` | Low overlay entry `$012A` | `$061A` (1.5K) | length, output/expression handle | Allocates persistent buffer pages in bank `$44`. |
-| `BUFFILL(H%,BYTE)` | Low overlay entry `$012E` | `$061A` (1.5K) | buffer handle, byte | Fills buffer handle pages using `$C500` page buffer. |
-| `BUFFREE(H%)` | Low overlay entry `$0132` | `$061A` (1.5K) | handle | Frees any valid handle type and clears metadata. |
-| `ZTEMPSCRATCH(LEN,OUT%)` / `ZTEMPSCRATCH(LEN)` | Low overlay entry `$0136` | `$061A` (1.5K) | length, output/expression int | Allocates then frees pages, returns page count. |
+| `BUFNEW(LEN,H%)` / `BUFNEW(LEN)` | Low overlay entry `$012A` | `$061B` (1.5K) | length, output/expression handle | Allocates persistent buffer pages in bank `$44`. |
+| `BUFFILL(H%,BYTE)` | Low overlay entry `$012E` | `$061B` (1.5K) | buffer handle, byte | Fills buffer handle pages using `$C500` page buffer. |
+| `BUFFREE(H%)` | Low overlay entry `$0132` | `$061B` (1.5K) | handle | Frees any valid handle type and clears metadata. |
+| `ZTEMPSCRATCH(LEN,OUT%)` / `ZTEMPSCRATCH(LEN)` | Low overlay entry `$0136` | `$061B` (1.5K) | length, output/expression int | Allocates then frees pages, returns page count. |
 | `ZFAIL(CODE,OUT%)` | Low overlay at `$A900+$013A` | `$001B` (27B) | code, output int | Clears output first, then returns `?RB ERROR code`. |
 | `FREEMEM()` | Low overlay at `$A900+$0155` | `$0016` (22B) | none | Prints live free BASIC bytes and refreshes the header. |
-| `SCRCAP(H%)` / `SCRCAP()` | Slot 14; low overlay entry `$016B` | `$061A` (1.5K) | output/expression screen handle | Captures screen text and color RAM into a type-2 handle. |
-| `SCRPUT(H%)` | Slot 128; low overlay entry `$0194` | `$061A` (1.5K) | screen handle | Restores screen text and color RAM after type validation. |
+| `SCRCAP(H%)` / `SCRCAP()` | Slot 14; low overlay entry `$016B` | `$061B` (1.5K) | output/expression screen handle | Captures screen text and color RAM into a type-2 handle. |
+| `FADD(A,B,OUT)` / `FADD(A,B)` | Resident-computed float demo; descriptor slot 16 has a one-byte low stub | `$0001` stub if fetched | two plain numeric expressions, output/expression float | Uses BASIC ROM floating addition. |
+| `SCRPUT(H%)` | Slot 128; low overlay entry `$0195` | `$061B` (1.5K) | screen handle | Restores screen text and color RAM after type validation. |
 
-The heap-oriented commands copy the full `$061A` low pack because allocator,
+The heap-oriented commands copy the full `$061B` low pack because allocator,
 REU descriptor, bitmap, and screen-copy helpers live in the same overlay pack.
 That is an implementation choice to keep resident RAM lean; a later pass could
 split a smaller allocator resident helper or use finer overlay slices.
@@ -620,7 +623,7 @@ older dated measurements remain in `READYBASIC_PLUGIN_PROGRESS.md`.
 
 | Segment | Range | Size |
 |---|---:|---:|
-| `RESIDENT` | `$1200-$28FD` | `$16FE` / 5886B |
+| `RESIDENT` | `$1200-$28FC` | `$16FD` / 5885B |
 | `PADLOW` | none | `$0000` / 0B |
 | `REGSEED` | `$5000-$600F` | `$1010` / 4112B |
 | `HIDDEN` | `$A000-$A376` | `$0377` / 887B |

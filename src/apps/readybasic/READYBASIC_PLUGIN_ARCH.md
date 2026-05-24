@@ -4,7 +4,7 @@
 
 - `BASIC_START = $2901`; BASIC owns `$2901-$9FFF`, with `30461` formula empty free bytes (29.7K).
 - `$1000-$1102`: tiny app entry (`$0103`, 259B) that copies hidden helpers and bridge state before BASIC starts.
-- `$1200-$28FD`: visible resident core (`$16FE`, 5886B). This is the only code that calls BASIC ROM helpers.
+- `$1200-$28FC`: visible resident core (`$16FD`, 5885B). This is the only code that calls BASIC ROM helpers.
 - `$2900`: BASIC sentinel byte; it must stay zero before stored-program `RUN`.
 - `$A900-$AF1A`: low command overlay slot under BASIC ROM. Current packed low command image is `$061B` bytes (1.5K, 1563 exact bytes).
 - `$C200-$C5FF`: fixed call frame, result frame, descriptor buffer, command-name buffer, page buffer, and warm-resume staging (`$0400`, 1.0K).
@@ -73,13 +73,14 @@ Each descriptor is 32 bytes:
 - Variable and array references use BASIC ROM `PTRGET`; output integers are cleared before command execution.
 - String output heap mutation happens in visible resident code only.
 - Native `EXEC` reuses the same BASIC ROM expression and variable helpers where
-  possible: numeric inputs use `FRMNUM`/`GETADR`, output actuals use the existing
+  possible: integer inputs use `FRMNUM`/`GETADR`, plain numeric inputs preserve
+  BASIC's five-byte float value, statement output actuals use the existing
   output-variable capture and result commit paths, and string values use the
   existing 64-byte staging cap.
 
 ## Implemented Commands
 
-- `ZECHO1(OUT%)` / `ZECHO1()`: low overlay, returns `1`.
+- `ZECHO1(OUT%)` / `ZECHO1()`: resident-precomputed scalar result, returns `1`.
 - `ZADD16(A,B,OUT%)` / `ZADD16(A,B)`: low overlay, returns 16-bit sum.
 - `UPPER(S$,OUT$)` / `UPPER(S$)`: low overlay, copies and uppercases a string variable or quoted literal.
 - `LOWER(S$,OUT$)` / `LOWER(S$)`: low overlay, lowercases string byte values; tests verify bytes with `ASC()` because screen display case depends on the C64 charset mode.
@@ -159,7 +160,7 @@ only a one-byte low-overlay stub because the actual calculation calls BASIC ROM
 float helpers.
 
 Measured branch layout: `BASIC_START=$2901`; BASIC owns `$2901-$9FFF`, for
-`30461` formula empty free bytes. `RESIDENT` is `$1200-$28FD` (`5886` bytes),
+`30461` formula empty free bytes. `RESIDENT` is `$1200-$28FC` (`5885` bytes),
 `BRIDGE` is `$C000-$C1EB` (`492` bytes), `LOWPACK` is `$061B` (`1563` bytes),
 and `bin/readybasic.prg` remains `20994` bytes.
 

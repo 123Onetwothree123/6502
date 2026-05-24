@@ -684,6 +684,17 @@ careful execute dispatch. `FADD(...)` first passes through the leading-`F`
 not directly back to BASIC. This keeps natural command names available without
 reintroducing the removed `!` statement form.
 
+### Demo Automation Should Explain Expected Failures In-Band
+
+Added on 2026-05-24 with `build_support/run_readybasic_demo_suite.sh`. A demo
+suite is different from a regression probe: it should pause long enough for a
+viewer to read the screen, describe each section with visible `REM` text before
+running it, and state expected outcomes before printing or intentionally causing
+errors. The ReadyBASIC demo covers `FREEMEM`, app suspend/restore through the
+Editor, assembler command groups, `PROC`/`FUNC`, array/float/string parameters,
+REU handles, expected syntax/runtime errors, and nested expression forms. The
+same script keeps `READYBASIC_DEMO_FAST=1` for tight development runs.
+
 ## Open Questions
 
 - Deferred hypothesis: ReadyBASIC may leave KERNAL `MSGFLG` (`$009D`) nonzero
