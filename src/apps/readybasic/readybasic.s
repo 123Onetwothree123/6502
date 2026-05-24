@@ -1779,8 +1779,8 @@ rb_parse_by_signature:
         jmp BASIC_SYNERR
 
 parse_sig_zecho1:
-        jsr rb_parse_out_int
-        rts
+        jsr rb_parse_out_int_current
+        jmp rb_precompute_zecho1
 
 parse_sig_zadd16:
         jsr rb_parse_num0
@@ -1843,7 +1843,7 @@ parse_sig_freemem:
         rts
 
 parse_sig_scrcap:
-        jsr rb_parse_out_int
+        jsr rb_parse_out_int_current
         rts
 
 parse_sig_scrput:
@@ -1866,6 +1866,19 @@ rb_parse_no_args:
         beq @ok
         jmp BASIC_SYNERR
 @ok:
+        rts
+
+rb_precompute_zecho1:
+        lda #0
+        sta RF_STATUS
+        lda #RB_VAL_INT
+        sta RF_TAG
+        lda #1
+        sta RF_VAL_LO
+        lda #0
+        sta RF_VAL_HI
+        lda #1
+        sta rb_command_precomputed
         rts
 
 rb_parse_num0:
@@ -2920,7 +2933,7 @@ rb_restore_func_formals:
 rb_parse_expr_signature:
         lda RB_DESC_BUF+14
         cmp #SIG_ZECHO1
-        beq parse_expr_no_args
+        beq parse_expr_zecho1
         cmp #SIG_ZADD16
         beq parse_expr_zadd16
         cmp #SIG_UPPER
@@ -2943,6 +2956,9 @@ rb_parse_expr_signature:
 
 parse_expr_no_args:
         rts
+
+parse_expr_zecho1:
+        jmp rb_precompute_zecho1
 
 parse_expr_zadd16:
         jsr rb_parse_num0
@@ -3465,7 +3481,7 @@ rb_reu_header_end:
 .endmacro
 
 rb_command_descriptors:
-        CMD_LOW CMD_ZECHO1, SIG_ZECHO1, cmd_zecho1_low, cmd_zecho1_low_end, "ZECHO1"
+        CMD_LOW_ALL CMD_ZECHO1, SIG_ZECHO1, cmd_zecho1_low, "ZECHO1"
         CMD_LOW CMD_ZADD16, SIG_ZADD16, cmd_zadd16_low, cmd_zadd16_low_end, "ZADD16"
         CMD_LOW CMD_UPPER, SIG_UPPER, cmd_upper_low, cmd_upper_low_end, "UPPER"
         CMD_LOW CMD_LOWER, SIG_LOWER, cmd_lower_low, cmd_lower_low_end, "LOWER"
@@ -4193,8 +4209,10 @@ rb_proc_cur_hi:.res RB_PROC_DEPTH
         .segment "RESIDENT"
 rb_func_depth:.byte 0
 rb_form_save_count:.res RB_PROC_DEPTH
+        .segment "BRIDGE"
 rb_form_save_type:.res 16
 rb_form_save_lo:.res 16
+        .segment "RESIDENT"
 rb_form_save_hi:.res 16
 rb_form_save_val0:.res 16
 rb_form_save_val1:.res 16
@@ -4250,7 +4268,6 @@ rb_copy_page:   .byte 0
 rb_copy_chunks: .byte 0
 rb_copy_len_lo: .byte 0
 rb_copy_len_hi: .byte 0
-rb_debug_ring:  .res 32, 0
 
 ; ---------------------------------------------------------------------------
 ; Packed low overlay command implementations.  These are copied from REU bank
