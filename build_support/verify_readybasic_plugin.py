@@ -61,6 +61,7 @@ def main() -> None:
     require(r"^SIG_SCRCAP\s*=\s*14\b", asm, "SCRCAP signature must be registered")
     require(r"^SIG_SCRPUT\s*=\s*15\b", asm, "SCRPUT signature must be registered")
     require(r"^SIG_FADD\s*=\s*16\b", asm, "FADD signature must be registered")
+    require(r"^SIG_ZPAUSE\s*=\s*SIG_BUFFREE\b", asm, "ZPAUSE must reuse the one-integer parser signature")
     require(r"#define\s+REU_RB_CORE\s+14\b", reu_hdr, "REU_RB_CORE type must stay in sync")
     require(r"#define\s+REU_RB_CODE\s+15\b", reu_hdr, "REU_RB_CODE type must stay in sync")
     require(r"#define\s+REU_BANK_RB_CORE\s+0x44\b", reu_hdr, "REU_BANK_RB_CORE must be 0x44")
@@ -83,8 +84,8 @@ def main() -> None:
         fail(f"RESIDENT grew past measured proper float-term budget $16FD, got ${resident[2]:04X}")
     if lowpack[0] != 0xA900 or lowpack[1] > 0xBFFF:
         fail(f"LOWPACK must fit under BASIC ROM at $A900-$BFFF, got ${lowpack[0]:04X}-${lowpack[1]:04X}")
-    if lowpack[2] != 0x061B:
-        fail(f"LOWPACK size changed from measured $061B, got ${lowpack[2]:04X}")
+    if lowpack[2] != 0x063D:
+        fail(f"LOWPACK size changed from measured $063D, got ${lowpack[2]:04X}")
     if hidden[0] != 0xA000 or hidden[1] > 0xA5FF:
         fail(f"HIDDEN helper must fit in $A000-$A5FF, got ${hidden[0]:04X}-${hidden[1]:04X}")
     if hidden[2] != 0x0377:

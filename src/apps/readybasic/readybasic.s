@@ -220,6 +220,7 @@ SIG_FREEMEM     = 13
 SIG_SCRCAP      = 14
 SIG_SCRPUT      = 15
 SIG_FADD        = 16
+SIG_ZPAUSE      = SIG_BUFFREE
 
 CMD_ZECHO1      = 1
 CMD_ZADD16      = 2
@@ -237,6 +238,7 @@ CMD_FREEMEM     = 13
 CMD_SCRCAP      = 14
 CMD_SCRPUT      = 15
 CMD_FADD        = 16
+CMD_ZPAUSE      = 17
 
 ; REU registers.
 REU_CMD         = $DF01
@@ -3496,7 +3498,8 @@ rb_command_descriptors:
         CMD_LOW CMD_FREEMEM, SIG_FREEMEM, cmd_freemem_low, cmd_freemem_low_end, "FREEMEM"
         CMD_LOW_ALL CMD_SCRCAP, SIG_SCRCAP, cmd_scrcap_low, "SCRCAP"
         CMD_LOW CMD_FADD, SIG_FADD, cmd_fadd_low, cmd_fadd_low_end, "FADD"
-        .res (RB_CMD_DESC_COUNT - 16) * RB_CMD_DESC_SIZE, 0
+        CMD_LOW CMD_ZPAUSE, SIG_ZPAUSE, cmd_zpause_low, cmd_zpause_low_end, "ZPAUSE"
+        .res (RB_CMD_DESC_COUNT - 17) * RB_CMD_DESC_SIZE, 0
         CMD_LOW_ALL CMD_SCRPUT, SIG_SCRPUT, cmd_scrput_low, "SCRPUT"
 
 ; ---------------------------------------------------------------------------
@@ -4306,6 +4309,29 @@ cmd_zadd16_low_end:
 cmd_fadd_low:
         rts
 cmd_fadd_low_end:
+
+cmd_zpause_low:
+        lda CF_NUM0_LO
+        beq @done
+        sta RF_COUNT_LO
+@outer:
+        ldx #$20
+@middle:
+        ldy #$ff
+@inner:
+        dey
+        bne @inner
+        dex
+        bne @middle
+        dec RF_COUNT_LO
+        bne @outer
+@done:
+        lda #0
+        sta RF_STATUS
+        lda #RB_VAL_NONE
+        sta RF_TAG
+        rts
+cmd_zpause_low_end:
 
 cmd_upper_low:
         lda #0
