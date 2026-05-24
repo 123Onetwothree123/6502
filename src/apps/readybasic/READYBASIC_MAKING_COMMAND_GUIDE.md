@@ -5,25 +5,40 @@ This guide explains how current ReadyBASIC commands are made in
 128 descriptor slots in REU bank `$44`, packed command code in bank `$45`,
 `SCRCAP` in slot 14, `SCRPUT` in slot 128, and zero-filled filler slots 15-127.
 
-Native `PROC`/`FUNC` routines are intentionally not plugin commands. They are
-ordinary BASIC program text called with bare `EXEC`, and they do not need
+Native `PROC`/`FUNC` routines are new ReadyBASIC language features, not BASIC V2
+functions and not plugin commands. Users can write them directly in their own
+ReadyBASIC programs and call `PROC` routines with bare `EXEC`; they do not need
 descriptors, command ids, signature ids, `LOWPACK`, `HIDDENPACK`, or bank `$45`
 code bytes. Use this command guide only when adding new descriptor-backed
 machine-code command overlays.
+
+ReadyBASIC's built-in command set is intended to include the core commands and
+the 100+ additional file, graphics, sound, REU, and utility commands that are
+similar in spirit to other BASIC extensions. The current layout still leaves
+roughly 40KB for more built-in assembler command code. Beyond that built-in set,
+ReadyBASIC will also support dynamically loaded command modules that can use
+additional REU banks, so other authors can add hundreds more commands without
+forcing everything into the core command bank.
 
 ## Naming Rules
 
 ReadyBASIC command names are visible BASIC text; they are not private tokens.
 Current code prefers bare `COMMAND(...)` statements and selected
-`COMMAND(...)` expressions. The older `!COMMAND args` statement form was removed
-on the expression-style branch. Avoid substrings that C64 BASIC can tokenize inside the command name.
-That is why the demo/proof commands use the `Z...` namespace and why the array
-examples use `NUM` instead of `INT`.
+`COMMAND(...)` expressions. The older `!COMMAND args` statement form was removed.
+Avoid substrings that C64 BASIC can tokenize inside the command name. That is
+why the array examples use `NUM` instead of `INT`.
 
-Historical names such as `PING`, `ADD16`, `STRUP`, `HCRC`, `SUMAI`,
-`RANGEAI`, `TEMPSCRATCH`, and `FAIL` are not aliases. The current public names
-are `ZECHO1`, `ZADD16`, `UPPER`, `LOWER`, `ZHIDDENRAM`, `ZSUMNUMARRAY`,
-`ZRANGENUMARRAY`, `ZTEMPSCRATCH`, and `ZFAIL`.
+Prefix conventions:
+
+| Prefix | Use |
+| --- | --- |
+| `Z*` | Example, demo, and proof commands. |
+| `X*` | Alpha/beta commands whose behavior or parameter shape is not settled yet. |
+| `U*` | Commodore 64 Ultimate / Ultimate Family specific commands. |
+| `XU*` | Alpha/beta Ultimate-specific commands whose behavior or parameter shape is not settled yet. |
+
+Current public names include `ZECHO1`, `ZADD16`, `UPPER`, `LOWER`,
+`ZHIDDENRAM`, `ZSUMNUMARRAY`, `ZRANGENUMARRAY`, `ZTEMPSCRATCH`, and `ZFAIL`.
 
 ## How To Read The Examples
 
@@ -46,8 +61,8 @@ resident lookup, REU-backed packed code, and command execution.
 
 ## When To Use PROC/FUNC Instead
 
-Use a native routine when the reusable logic is naturally BASIC code and should
-ship with, or be typed into, the user's BASIC program:
+Use a native ReadyBASIC routine when the reusable logic is naturally program
+code that a user should be able to create in their own program:
 
 ```basic
 1000 PROC DRAW(P%,N$)
@@ -157,10 +172,18 @@ entry, then restores normal banking.
 
 ## ZECHO1: Smallest Scalar Command
 
-`ZECHO1` proves the simplest scalar result path. On the current branch the
-resident parser precomputes the result so both `ZECHO1(P%)` and expression
-`ZECHO1()` return `1` without fetching an overlay. The old low-overlay worker is
-still present as a tiny descriptor target, but the normal path skips it.
+`ZECHO1` proves the simplest scalar result path. The resident parser precomputes
+the result so both `ZECHO1(P%)` and expression `ZECHO1()` return `1` without
+fetching an overlay. A tiny descriptor target remains present so the command
+keeps the same registry shape as the other descriptor-backed commands.
+
+Basic invocation examples:
+
+```basic
+10 ZECHO1(P%)
+20 PRINT "ZECHO";P%
+30 PRINT "EXPR";ZECHO1()
+```
 
 ```asm
 parse_sig_zecho1:
@@ -209,6 +232,16 @@ result tags, overlay work, or REU/hidden-memory behavior.
 `ZADD16` proves two numeric expressions followed by an integer output variable.
 Resident parser code evaluates the inputs through BASIC ROM and places them in
 the call frame.
+
+Basic invocation examples:
+
+```basic
+10 ZADD16(4,5,A%)
+20 PRINT "OUT";A%
+30 B%=ZADD16(7,8)
+40 PRINT "EXPR";B%
+50 PRINT "ABS";ABS(ZADD16(1,6)-10)
+```
 
 ```asm
 parse_sig_zadd16:
@@ -263,6 +296,16 @@ string variable. The overlay stages the transformed bytes into `RF_STR_BUF`.
 Resident visible code later allocates BASIC string heap space and writes the
 string descriptor, because string heap mutation belongs on the visible side of
 the contract.
+
+Basic invocation examples:
+
+```basic
+10 UPPER("ready",T$)
+20 PRINT T$
+30 L$=LOWER("LOUD")
+40 PRINT ASC(L$);ASC(MID$(L$,2,1));ASC(MID$(L$,3,1));ASC(MID$(L$,4,1))
+50 PRINT LEFT$(UPPER("ready"),2)
+```
 
 ```asm
 parse_sig_string_out:
@@ -343,6 +386,14 @@ overlay slot at `$A800`. Its descriptor uses `CMD_HIDDEN`, so ReadyBASIC fetches
 the hidden slice into `$A800`, maps RAM under BASIC ROM, calls it, and restores
 banking immediately afterward.
 
+Basic invocation examples:
+
+```basic
+10 ZHIDDENRAM("AB",H%)
+20 PRINT "HIDDEN";H%
+30 PRINT "EXPR";ZHIDDENRAM("A")
+```
+
 ```asm
 CMD_HIDDEN CMD_ZHIDDENRAM, SIG_ZHIDDENRAM,
            cmd_zhiddenram_hidden, cmd_zhiddenram_hidden_end, "ZHIDDENRAM"
@@ -364,12 +415,15 @@ result frame. This is intentionally a proof command, not a final checksum API.
 ## ZSUMNUMARRAY And ZRANGENUMARRAY: Array References
 
 ReadyBASIC array parameters are explicit: pass the base element and a count.
-For example:
+
+`ZSUMNUMARRAY` invocation examples:
 
 ```basic
-DIM A%(3)
-A%(0)=1:A%(1)=2:A%(2)=3
-ZSUMNUMARRAY(A%(0),3,S%)
+10 DIM A%(3)
+20 A%(0)=1:A%(1)=2:A%(2)=3
+30 ZSUMNUMARRAY(A%(0),3,S%)
+40 PRINT "SUM";S%
+50 PRINT "SUMEX";ZSUMNUMARRAY(A%(0),3)
 ```
 
 The resident parser resolves the array reference and stores a direct pointer in
@@ -427,6 +481,14 @@ cmd_zsumnumarray_low_end:
 result frame, then resident commit code writes those bytes into the BASIC array.
 That keeps overlays from mutating output arrays directly after a failed command.
 
+`ZRANGENUMARRAY` invocation example:
+
+```basic
+10 DIM R%(4)
+20 ZRANGENUMARRAY(7,4,R%(0))
+30 PRINT "RANGE";R%(0);R%(3)
+```
+
 Descriptors:
 
 ```asm
@@ -451,10 +513,146 @@ Line-by-line commentary:
 | `RF_STATUS = 0`, `RF_TAG = RB_VAL_INT` | Marks the sum as a successful integer output. |
 | `ZRANGENUMARRAY` descriptor | Publishes the sibling command that stages multiple integer outputs through the result frame. |
 
+## BASIC EXEC Examples
+
+`EXEC` runs a native `PROC` body from BASIC program text. It does not call
+descriptor-backed overlay commands and it does not call `FUNC` routines.
+
+Zero-argument `EXEC` uses the routine name without parentheses:
+
+```basic
+10 EXEC SHOW0
+20 END
+100 PROC SHOW0()
+110 PRINT "PROC0"
+120 ENDP
+```
+
+Arguments use parentheses, and `EXEC` can appear in colon chains:
+
+```basic
+10 EXEC SHOWI(7)
+20 PRINT "CHAIN":EXEC SHOWI(8):PRINT "AFTER"
+30 IF 1 THEN :EXEC SHOWI(9)
+40 END
+100 PROC SHOWI(P%)
+110 PRINT "PROCI";P%
+120 ENDP
+```
+
+## BASIC PROC Examples
+
+`PROC` definitions should live after `END`. V1 formals are ordinary BASIC
+globals, so choose names that will not overwrite caller variables you still need.
+
+Typed argument examples:
+
+```basic
+10 EXEC SHOWI(7)
+20 EXEC SHOWS("READY")
+30 END
+100 PROC SHOWI(P%)
+110 PRINT "PROCI";P%
+120 ENDP
+200 PROC SHOWS(S$)
+210 PRINT "PROCS ";S$
+220 ENDP
+```
+
+Nested `EXEC` calls are supported up to the current return-stack depth:
+
+```basic
+10 EXEC OUTER
+20 END
+100 PROC OUTER()
+110 PRINT "OUTER"
+120 EXEC INNER
+130 ENDP
+200 PROC INNER()
+210 PRINT "INNER"
+220 ENDP
+```
+
+## BASIC FUNC Examples
+
+`FUNC` is expression-only. Call it from `PRINT`, assignment, or another supported
+expression context, and return with `RET`, `RET%`, or `RET$`.
+
+Integer, string, and float returns:
+
+```basic
+10 A%=ADDI(4,5)
+20 PRINT "ADDI";A%
+30 PRINT "PRINT";ADDI(6,7)
+40 T$=GREET("READY")
+50 PRINT T$
+60 F=SCALE(2.5)
+70 PRINT "SCALE";F
+80 END
+100 FUNC ADDI(X%,Y%)
+110 RET X%+Y%
+120 ENDP
+200 FUNC GREET(N$)
+210 RET "HI "+N$
+220 ENDP
+300 FUNC SCALE(X)
+310 RET X*1.5
+320 ENDP
+```
+
+Explicit return-type markers:
+
+```basic
+10 A%=IDI(9)
+20 T$=IDS("OK")
+30 PRINT "RET%";A%
+40 PRINT "RET$ ";T$
+50 END
+100 FUNC IDI(X%)
+110 RET% X%
+120 ENDP
+200 FUNC IDS(S$)
+210 RET$ S$
+220 ENDP
+```
+
+Nested expression examples from the verified probe path:
+
+```basic
+10 PRINT "FNABS";ABS(ADDI(1,6)-10)
+20 T$=LEFT$(GREET("READY")+"!",3):PRINT "CAT ";T$
+30 PRINT "NADDI";ADDI(1,ADDI(2,3))
+40 PRINT "NFADD";FADD(1.5,FADD(2.25,3.25))
+50 END
+100 FUNC ADDI(X%,Y%)
+110 RET X%+Y%
+120 ENDP
+200 FUNC GREET(N$)
+210 RET "HI "+N$
+220 ENDP
+```
+
 ## BUFNEW, BUFFILL, BUFFREE, SCRCAP, SCRPUT: REU Handle Commands
 
 The handle commands are the main future-facing pattern. BASIC sees a small
 integer handle; canonical metadata lives in REU bank `$44`.
+
+Basic invocation examples:
+
+```basic
+10 BUFNEW(64,H%)
+20 BUFFILL(H%,170)
+30 BUFFREE(H%)
+40 H%=BUFNEW(64)
+50 BUFFREE(H%)
+```
+
+```basic
+10 H%=SCRCAP()
+20 PRINT CHR$(147);"CHANGED"
+30 SCRPUT(H%)
+40 BUFFREE(H%)
+```
 
 ```asm
 cmd_bufnew_low:
@@ -526,6 +724,41 @@ values small, keep canonical resource metadata in REU, and validate handle type
 at command boundaries. `BUFFILL` accepts only type-1 buffer handles; `SCRPUT`
 accepts only type-2 screen text+color handles; `BUFFREE` frees any valid type.
 
+## Other Current Command Invocations
+
+These current descriptor commands are smaller utility or probe commands. They
+use the same descriptor/parser/worker contract as the larger examples above.
+
+```basic
+10 FREEMEM()
+20 P%=ZTEMPSCRATCH(512)
+30 PRINT "PAGES";P%
+40 ZTEMPSCRATCH(512,Q%)
+50 PRINT "OUT";Q%
+```
+
+```basic
+10 FADD(1.2,2.3,Q)
+20 PRINT "FADD";Q
+30 PRINT "FEXPR";FADD(1.2,2.3)
+40 PRINT "FABS";ABS(FADD(1.2,2.3)-3)
+```
+
+```basic
+10 PRINT "PAUSE"
+20 ZPAUSE(45)
+30 PRINT "DONE"
+```
+
+`ZFAIL` intentionally demonstrates error cleanup. The output variable is cleared
+before the command reports `?RB ERROR code`:
+
+```basic
+10 X%=99
+20 ZFAIL(7,X%)
+30 PRINT "AFTER FAIL";X%
+```
+
 ## Checklist For Adding A Command
 
 1. Choose a tokenizer-safe name, preferably avoiding embedded BASIC keywords.
@@ -535,8 +768,7 @@ accepts only type-2 screen text+color handles; `BUFFREE` frees any valid type.
 5. Add a descriptor entry; use `CMD_LOW_ALL` only when shared helpers require the
    full low pack.
 6. Keep resident changes minimal. Prefer REU metadata and existing scratch pages.
-7. Add direct and stored-program VICE coverage, including error behavior and any
-   old-name rejection if this is a rename.
+7. Add direct and stored-program VICE coverage, including error behavior.
 8. Update Markdown and HTML docs after static and VICE verification, using
    measured map values rather than predicted sizes.
 
@@ -598,10 +830,10 @@ accepts only type-2 screen text+color handles; `BUFFREE` frees any valid type.
 | `rb_screen_save_text`, `rb_screen_save_color` | Save text RAM and color RAM into a screen handle. |
 | `rb_screen_load_text`, `rb_screen_load_color` | Restore text RAM and color RAM from a screen handle. |
 
-## Appendix E: Expression-Style Experiment
+## Appendix E: Current Expression-Style Behavior
 
-The 2026-05-23 expression branch adds bare statement calls and a small
-eval-vector hook for selected returning commands:
+Current ReadyBASIC supports bare statement calls and a small eval-vector hook for
+selected returning commands:
 
 ```basic
 ZADD16(4,5,A%)

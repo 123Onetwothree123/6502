@@ -31,21 +31,24 @@
       font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       color: var(--ink);
       background: var(--paper);
+      overflow-x: hidden;
     }
-    header, section { max-width: 1120px; margin: 0 auto; padding: 28px 22px; }
+    header, section { max-width: 1120px; min-width: 0; margin: 0 auto; padding: 28px 22px; }
     header { padding-top: 42px; }
     h1 { margin: 0 0 8px; font-size: 34px; letter-spacing: 0; }
     h2 { margin: 0 0 14px; font-size: 24px; letter-spacing: 0; }
     h3 { margin: 0 0 8px; font-size: 18px; letter-spacing: 0; }
-    p { margin: 0 0 14px; }
+    p { margin: 0 0 14px; overflow-wrap: break-word; }
     .muted { color: var(--muted); }
     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
     .flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin-top: 14px; }
+    .stack { display: grid; gap: 14px; }
     .card {
       background: var(--panel);
       border: 1px solid var(--line);
       border-radius: var(--radius);
       padding: 16px;
+      min-width: 0;
     }
     .chip {
       display: inline-block;
@@ -72,7 +75,8 @@
       tab-size: 8;
     }
     code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-    table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); }
+    p code, li code, td code { overflow-wrap: anywhere; }
+    table { width: 100%; table-layout: fixed; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); }
     th, td { border-bottom: 1px solid var(--line); padding: 10px; text-align: left; vertical-align: top; }
     th { background: #eef2f7; }
     .teaching {
@@ -100,6 +104,45 @@
     .tok-symbol { color: var(--symbol); }
     .tok-comment { color: var(--comment); font-style: italic; }
     .tok-string { color: var(--string); }
+    .contrast {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin: 12px 0 18px;
+    }
+    .contrast .card { border-width: 2px; }
+    .form-output { background: #ecfdf5; border-color: #86efac; }
+    .form-return { background: #eff6ff; border-color: #93c5fd; }
+    .form-param { background: #fff7ed; border-color: #fdba74; }
+    .form-compose { background: #f5f3ff; border-color: #c4b5fd; }
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      margin: 0 4px 8px 0;
+    }
+    .badge-output { color: #14532d; background: #bbf7d0; }
+    .badge-return { color: #1e3a8a; background: #bfdbfe; }
+    .badge-param { color: #7c2d12; background: #fed7aa; }
+    .badge-compose { color: #4c1d95; background: #ddd6fe; }
+    @media (max-width: 640px) {
+      header, section { padding-left: 16px; padding-right: 16px; }
+      .grid, .flow, .contrast { grid-template-columns: 1fr; }
+    }
+    @media print {
+      @page { size: landscape; margin: 0.45in; }
+      body { background: #fff; color: #111827; }
+      header, section { max-width: none; padding: 14px 0; }
+      h1 { font-size: 28px; }
+      h2 { font-size: 21px; }
+      h3 { font-size: 16px; }
+      .card, pre, table { break-inside: avoid; page-break-inside: avoid; }
+      .grid, .flow, .contrast { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      pre { white-space: pre-wrap; overflow: visible; font-size: 11px; }
+      .teaching { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    }
   </style>
 </head>
 <body>
@@ -112,10 +155,15 @@
 	  <section class="teaching">
 	    <h2>What You Are Building</h2>
 	    <p>A ReadyBASIC command is not just one assembler routine. It is a contract between BASIC text, resident parser code, a cold REU descriptor, and an overlay worker copied into C64 RAM only when needed.</p>
-	    <div class="card warn">
-	      <p>Native <code>PROC</code>/<code>FUNC</code> routines are not plugin commands. They are ordinary BASIC program text called by <code>EXEC</code>, so they do not need descriptors, command ids, signature ids, <code>LOWPACK</code>, <code>HIDDENPACK</code>, or REU bank <code>$45</code> code bytes. Use this guide when adding new descriptor-backed command overlays.</p>
-	    </div>
-	    <div class="flow">
+		    <div class="card warn">
+			      <p>Native <code>PROC</code>/<code>FUNC</code> routines are new ReadyBASIC language features, not BASIC V2 functions and not plugin commands. Users can write them directly in their own ReadyBASIC programs and call <code>PROC</code> routines with bare <code>EXEC</code>, so they do not need descriptors, command ids, signature ids, <code>LOWPACK</code>, <code>HIDDENPACK</code>, or REU bank <code>$45</code> code bytes. Use this guide when adding new descriptor-backed command overlays.</p>
+		    </div>
+		    <div class="card reu">
+		      <h3>Built-In And Module Command Growth</h3>
+		      <p>ReadyBASIC's built-in command set is intended to include the core commands and the 100+ additional file, graphics, sound, REU, and utility commands that are similar in spirit to other BASIC extensions. The current layout still leaves roughly 40KB for more built-in assembler command code.</p>
+		      <p>Beyond that built-in set, ReadyBASIC will also support dynamically loaded command modules that can use additional REU banks, so other authors can add hundreds more commands without forcing everything into the core command bank.</p>
+		    </div>
+		    <div class="flow">
       <div class="card lesson"><h3>1. User Types</h3><p><code>ZADD16(4,5,A%)</code> is visible BASIC text. The command name must survive C64 tokenization.</p></div>
       <div class="card lesson"><h3>2. Lookup</h3><p>ReadyBASIC pages descriptor records from REU bank <code>$44</code> and finds the matching command name.</p></div>
       <div class="card lesson"><h3>3. Parse</h3><p>The descriptor's signature id selects resident parser code, which fills <code>CF_*</code> call-frame fields.</p></div>
@@ -126,14 +174,14 @@
 
   <section>
     <h2>When To Use PROC/FUNC Instead</h2>
-    <p>Use a native routine when reusable logic is naturally BASIC code and should live in the user's program.</p>
+    <p>Use a native ReadyBASIC routine when reusable logic is naturally program code that a user should be able to create in their own program.</p>
 <pre><code>1000 PROC DRAW(P%,N$)
-1010 PRINT P%;N$
+1010    PRINT P%;N$
 1020 ENDP
 
 1100 FUNC ADDI(X%,Y%)
-1110 R%=X%+Y%
-1120 RET R%
+1110    R%=X%+Y%
+1120    RET R%
 1130 ENDP
 
 10 EXEC DRAW(3,"PLAYER")
@@ -148,9 +196,16 @@
 	  <section>
     <h2>Naming Rules</h2>
     <div class="card warn">
-      <p>ReadyBASIC names are visible BASIC text, not private tokens. Avoid substrings that C64 BASIC can tokenize inside the command name.</p>
-      <p>Proof/demo commands use <code>Z...</code>. Array demos use <code>NUM</code> instead of <code>INT</code>. Historical names like <code>PING</code>, <code>ADD16</code>, <code>STRUP</code>, <code>HCRC</code>, <code>SUMAI</code>, and <code>RANGEAI</code> are not aliases.</p>
-      <p>The current proof/demo names are <code>ZECHO1</code>, <code>ZADD16</code>, <code>ZHIDDENRAM</code>, <code>ZSUMNUMARRAY</code>, <code>ZRANGENUMARRAY</code>, <code>ZTEMPSCRATCH</code>, and <code>ZFAIL</code>. The useful string commands are <code>UPPER</code> and <code>LOWER</code>.</p>
+	      <p>ReadyBASIC names are visible BASIC text, not private tokens. Avoid substrings that C64 BASIC can tokenize inside the command name; array demos use <code>NUM</code> instead of <code>INT</code>.</p>
+	      <table class="term">
+	        <tbody>
+	          <tr><td><code>Z*</code></td><td>Example, demo, and proof commands.</td></tr>
+	          <tr><td><code>X*</code></td><td>Alpha/beta commands whose behavior or parameter shape is not settled yet.</td></tr>
+	          <tr><td><code>U*</code></td><td>Commodore 64 Ultimate / Ultimate Family specific commands.</td></tr>
+	          <tr><td><code>XU*</code></td><td>Alpha/beta Ultimate-specific commands whose behavior or parameter shape is not settled yet.</td></tr>
+	        </tbody>
+	      </table>
+		      <p>Current public names include <code>ZECHO1</code>, <code>ZADD16</code>, <code>UPPER</code>, <code>LOWER</code>, <code>ZHIDDENRAM</code>, <code>ZSUMNUMARRAY</code>, <code>ZRANGENUMARRAY</code>, <code>ZTEMPSCRATCH</code>, and <code>ZFAIL</code>.</p>
     </div>
   </section>
 
@@ -211,6 +266,11 @@
         <h3>ZECHO1</h3>
         <p><span class="chip low">resident precompute</span><span class="chip">scalar int</span></p>
         <p>Minimum scalar-command skeleton: statement form captures <code>OUT%</code>, expression form has no output actual, and resident code stages integer <code>1</code> without fetching an overlay.</p>
+<pre><code>10 ZECHO1(P%)
+
+20 PRINT "ZECHO";P%
+
+30 PRINT "EXPR";ZECHO1()</code></pre>
 <pre><code>parse_sig_zecho1:
         jsr rb_parse_out_int_current
         jmp rb_precompute_zecho1
@@ -239,7 +299,7 @@ rb_precompute_zecho1:
             <tr><td><code>RF_TAG = RB_VAL_INT</code></td><td>Says the result frame contains a BASIC integer.</td></tr>
             <tr><td><code>RF_VAL_LO/HI = 1</code></td><td>Stages the little-endian integer value that will be committed or returned.</td></tr>
             <tr><td><code>rb_command_precomputed = 1</code></td><td>Tells statement/eval dispatch to skip overlay fetch and use the staged result.</td></tr>
-            <tr><td><code>CMD_LOW_ALL ... "ZECHO1"</code></td><td>Publishes the public command name; a legacy low stub remains as the descriptor target.</td></tr>
+            <tr><td><code>CMD_LOW_ALL ... "ZECHO1"</code></td><td>Publishes the public command name; a tiny descriptor target remains so the command keeps the same registry shape as the other descriptor-backed commands.</td></tr>
           </tbody>
         </table>
       </div>
@@ -247,6 +307,14 @@ rb_precompute_zecho1:
         <h3>ZADD16</h3>
         <p><span class="chip low">low overlay</span><span class="chip">two numeric inputs</span></p>
         <p>Proves BASIC ROM expression parsing in resident code, then simple arithmetic in the overlay.</p>
+<pre><code>10 ZADD16(4,5,A%)
+
+20 PRINT "OUT";A%
+
+30 B%=ZADD16(7,8)
+
+40 PRINT "EXPR";B%
+50 PRINT "ABS";ABS(ZADD16(1,6)-10)</code></pre>
 <pre><code>parse_sig_zadd16:
         jsr rb_parse_num0
         jsr rb_parse_num1
@@ -287,6 +355,13 @@ cmd_zadd16_low:
   <section>
     <h2>String Commands</h2>
     <p><code>UPPER</code> and <code>LOWER</code> share <code>parse_sig_string_out</code>. The overlay transforms bytes into <code>RF_STR_BUF</code>; resident code owns BASIC string heap allocation.</p>
+<pre><code>10 UPPER("ready",T$)
+20 PRINT T$
+
+30 L$=LOWER("LOUD")
+40 PRINT ASC(L$);ASC(MID$(L$,2,1));ASC(MID$(L$,3,1));ASC(MID$(L$,4,1))
+
+50 PRINT LEFT$(UPPER("ready"),2)</code></pre>
 <pre><code>parse_sig_string_out:
         jsr rb_parse_string_value
         jsr rb_parse_out_string
@@ -337,26 +412,42 @@ CMD_LOW CMD_LOWER, SIG_LOWER,
 
   <section>
     <h2>Array And Hidden Examples</h2>
-    <div class="grid">
-      <div class="card hidden">
+    <div class="stack">
+      <article class="card hidden">
         <h3>ZHIDDENRAM</h3>
         <p>Uses <code>CMD_HIDDEN</code>, fetches code into <code>$A800</code>, maps RAM under BASIC ROM, runs a checksum-like worker, and restores banking.</p>
+<pre><code>10 ZHIDDENRAM("AB",H%)
+20 PRINT "HIDDEN";H%
+
+30 PRINT "EXPR";ZHIDDENRAM("A")</code></pre>
 <pre><code>CMD_HIDDEN CMD_ZHIDDENRAM, SIG_ZHIDDENRAM,
            cmd_zhiddenram_hidden, cmd_zhiddenram_hidden_end,
            "ZHIDDENRAM"</code></pre>
-      </div>
-      <div class="card">
+      </article>
+      <article class="card">
         <h3>ZSUMNUMARRAY</h3>
         <p>Uses an explicit base element plus count: <code>ZSUMNUMARRAY(A%(0),3,S%)</code>. Resident code resolves the array pointer before the overlay runs.</p>
+<pre><code>10 DIM A%(3)
+20 A%(0)=1:A%(1)=2:A%(2)=3
+
+30 ZSUMNUMARRAY(A%(0),3,S%)
+40 PRINT "SUM";S%
+
+50 PRINT "SUMEX";ZSUMNUMARRAY(A%(0),3)</code></pre>
 <pre><code>parse_sig_zsumnumarray:
         jsr rb_parse_int_array_input
         jsr rb_parse_out_int
         jsr rb_resolve_int_array_input_ptr
         rts</code></pre>
-      </div>
-      <div class="card">
+      </article>
+      <article class="card">
         <h3>ZRANGENUMARRAY</h3>
         <p>Output-array sibling for <code>ZSUMNUMARRAY</code>. It proves the result-frame path for writing several integer elements after the command has succeeded.</p>
+<pre><code>10 DIM R%(4)
+
+20 ZRANGENUMARRAY(7,4,R%(0))
+
+30 PRINT "RANGE";R%(0);R%(3)</code></pre>
 <pre><code>parse_sig_zrangenumarray:
         jsr rb_parse_num0
         jsr rb_parse_num1
@@ -372,7 +463,7 @@ cmd_zrangenumarray_low:
 CMD_LOW CMD_ZRANGENUMARRAY, SIG_ZRANGENUMARRAY,
         cmd_zrangenumarray_low, cmd_zrangenumarray_low_end,
         "ZRANGENUMARRAY"</code></pre>
-      </div>
+      </article>
     </div>
     <table class="annotate">
       <thead><tr><th>Line or group</th><th>Teaching note</th></tr></thead>
@@ -388,8 +479,150 @@ CMD_LOW CMD_ZRANGENUMARRAY, SIG_ZRANGENUMARRAY,
   </section>
 
   <section>
+    <h2>BASIC EXEC Examples</h2>
+    <p><code>EXEC</code> runs a native <code>PROC</code> body from BASIC program text. It does not call descriptor-backed overlay commands and it does not call <code>FUNC</code> routines.</p>
+    <div class="stack">
+      <article class="card">
+        <h3>Zero-Argument EXEC</h3>
+<pre><code>10 EXEC SHOW0
+20 END
+
+100 PROC SHOW0()
+110    PRINT "PROC0"
+120 ENDP</code></pre>
+      </article>
+      <article class="card">
+        <h3>Arguments And Control Flow</h3>
+<pre><code>10 EXEC SHOWI(7)
+
+20 PRINT "CHAIN":EXEC SHOWI(8):PRINT "AFTER"
+30 IF 1 THEN :EXEC SHOWI(9)
+40 END
+
+100 PROC SHOWI(P%)
+110    PRINT "PROCI";P%
+120 ENDP</code></pre>
+      </article>
+    </div>
+  </section>
+
+  <section>
+    <h2>BASIC PROC Examples</h2>
+    <p><code>PROC</code> definitions should live after <code>END</code>. V1 formals are ordinary BASIC globals, so choose names that will not overwrite caller variables you still need.</p>
+    <div class="stack">
+      <article class="card">
+        <h3>Typed Arguments</h3>
+<pre><code>10 EXEC SHOWI(7)
+20 EXEC SHOWS("READY")
+30 END
+
+100 PROC SHOWI(P%)
+110    PRINT "PROCI";P%
+120 ENDP
+
+200 PROC SHOWS(S$)
+210    PRINT "PROCS ";S$
+220 ENDP</code></pre>
+      </article>
+      <article class="card">
+        <h3>Nested PROC Calls</h3>
+<pre><code>10 EXEC OUTER
+20 END
+
+100 PROC OUTER()
+110    PRINT "OUTER"
+120    EXEC INNER
+130 ENDP
+
+200 PROC INNER()
+210    PRINT "INNER"
+220 ENDP</code></pre>
+      </article>
+    </div>
+  </section>
+
+  <section>
+    <h2>BASIC FUNC Examples</h2>
+    <p><code>FUNC</code> is expression-only. Call it from <code>PRINT</code>, assignment, or another supported expression context, and return with <code>RET</code>, <code>RET%</code>, or <code>RET$</code>.</p>
+    <div class="stack">
+      <article class="card">
+        <h3>Integer, String, And Float Returns</h3>
+<pre><code>10 A%=ADDI(4,5)
+20 PRINT "ADDI";A%
+
+30 PRINT "PRINT";ADDI(6,7)
+
+40 T$=GREET("READY")
+50 PRINT T$
+
+60 F=SCALE(2.5)
+70 PRINT "SCALE";F
+80 END
+
+100 FUNC ADDI(X%,Y%)
+110    RET X%+Y%
+120 ENDP
+
+200 FUNC GREET(N$)
+210    RET "HI "+N$
+220 ENDP
+
+300 FUNC SCALE(X)
+310    RET X*1.5
+320 ENDP</code></pre>
+      </article>
+      <article class="card">
+        <h3>Explicit RET Markers</h3>
+<pre><code>10 A%=IDI(9)
+20 T$=IDS("OK")
+
+30 PRINT "RET%";A%
+40 PRINT "RET$ ";T$
+50 END
+
+100 FUNC IDI(X%)
+110    RET% X%
+120 ENDP
+
+200 FUNC IDS(S$)
+210    RET$ S$
+220 ENDP</code></pre>
+      </article>
+      <article class="card">
+        <h3>Nested Expressions</h3>
+<pre><code>10 PRINT "FNABS";ABS(ADDI(1,6)-10)
+20 T$=LEFT$(GREET("READY")+"!",3):PRINT "CAT ";T$
+
+30 PRINT "NADDI";ADDI(1,ADDI(2,3))
+40 PRINT "NFADD";FADD(1.5,FADD(2.25,3.25))
+50 END
+
+100 FUNC ADDI(X%,Y%)
+110    RET X%+Y%
+120 ENDP
+
+200 FUNC GREET(N$)
+210    RET "HI "+N$
+220 ENDP</code></pre>
+      </article>
+    </div>
+  </section>
+
+  <section>
     <h2>REU Handle Commands</h2>
     <p>BASIC sees a small integer handle. Canonical descriptors live in REU bank <code>$44:$0800-$09FF</code>, the bitmap at <code>$44:$0C00</code>, and data in the 48KB typed heap at <code>$44:$4000-$FFFF</code>.</p>
+<pre><code>10 BUFNEW(64,H%)
+20 BUFFILL(H%,170)
+30 BUFFREE(H%)
+
+40 H%=BUFNEW(64)
+50 BUFFREE(H%)</code></pre>
+<pre><code>10 H%=SCRCAP()
+
+20 PRINT CHR$(147);"CHANGED"
+
+30 SCRPUT(H%)
+40 BUFFREE(H%)</code></pre>
     <table>
       <thead><tr><th>Command</th><th>Pattern</th></tr></thead>
       <tbody>
@@ -435,6 +668,48 @@ CMD_LOW_ALL CMD_SCRPUT, SIG_SCRPUT, cmd_scrput_low, "SCRPUT"</code></pre>
       </tbody>
     </table>
     <p class="muted">The handle lesson is to keep BASIC-visible values small, keep canonical resource metadata in REU, and validate handle type at command boundaries. <code>BUFFILL</code> accepts only type-1 buffer handles; <code>SCRPUT</code> accepts only type-2 screen text+color handles; <code>BUFFREE</code> frees any valid type.</p>
+  </section>
+
+  <section>
+    <h2>Other Current Command Invocations</h2>
+    <p>These current descriptor commands are smaller utility or probe commands. They use the same descriptor/parser/worker contract as the larger examples above.</p>
+    <div class="stack">
+      <article class="card">
+        <h3>Memory And Temporary Pages</h3>
+<pre><code>10 FREEMEM()
+
+20 P%=ZTEMPSCRATCH(512)
+30 PRINT "PAGES";P%
+
+40 ZTEMPSCRATCH(512,Q%)
+50 PRINT "OUT";Q%</code></pre>
+      </article>
+      <article class="card">
+        <h3>Float Addition</h3>
+<pre><code>10 FADD(1.2,2.3,Q)
+20 PRINT "FADD";Q
+
+30 PRINT "FEXPR";FADD(1.2,2.3)
+40 PRINT "FABS";ABS(FADD(1.2,2.3)-3)</code></pre>
+      </article>
+      <article class="card">
+        <h3>Pause</h3>
+<pre><code>10 PRINT "PAUSE"
+
+20 ZPAUSE(45)
+
+30 PRINT "DONE"</code></pre>
+      </article>
+      <article class="card">
+        <h3>Controlled Error</h3>
+        <p><code>ZFAIL</code> intentionally demonstrates error cleanup. The output variable is cleared before the command reports <code>?RB ERROR code</code>.</p>
+<pre><code>10 X%=99
+
+20 ZFAIL(7,X%)
+
+30 PRINT "AFTER FAIL";X%</code></pre>
+      </article>
+    </div>
   </section>
 
   <section>
@@ -503,35 +778,108 @@ CMD_LOW_ALL CMD_SCRPUT, SIG_SCRPUT, cmd_scrput_low, "SCRPUT"</code></pre>
   </section>
 
   <section>
-    <h2>Expression-Style Experiment</h2>
-    <p>
-      The 2026-05-23 expression branch adds bare statement calls and an eval-vector
-      hook for a small expression-safe subset. Commands can run as
-      <code>ZADD16(4,5,A%)</code> or return values as <code>ZADD16(5,10)</code> and
-      <code>UPPER("ready")</code>. Commands with array outputs or no scalar result
-      remain statement-only; scalar handle returns such as <code>BUFNEW(n)</code>
-      and <code>SCRCAP()</code> are expression-enabled.
-    </p>
-    <p>
-      Native routines accept parenthesized non-empty argument lists:
-      <code>PROC SHOWI(P%)</code> and <code>EXEC SHOWI(7)</code>. <code>FUNC</code>
-      routines return through <code>RET expr</code>, with optional
-      <code>RET% expr</code> and <code>RET$ expr</code> markers. Expression
-      calls run simple scalar assignments before <code>RET</code>; calls such as
-      <code>A$=GREET("READY")</code> or <code>PRINT ADDI(6,7)</code> return the
-      <code>RET</code> expression directly.
-    </p>
-    <p>
-      Numeric command and <code>FUNC</code> actuals can be flat numeric expressions,
-      for example <code>ADDI(1,2+4)</code>, and the proper float-term branch accepts
-      a single wrapper pair around numeric actuals such as
-      <code>ADDI(1,(2+4))</code>, <code>ZADD16(1,(2+4))</code>, and
-      <code>ADDI((1+2),(3+4))</code>. String actuals are string variables or
-      quoted literals. Command and <code>FUNC</code> returns are assignable;
-      numeric returns work in <code>ABS(ZADD16(1,6)-10)</code> and
-      <code>ABS(ADDI(1,6)-10)</code>, and string <code>FUNC</code> returns work in
-      the tested ROM consumer form <code>LEFT$(GREET("READY"),2)</code>.
-    </p>
+    <h2>Current Expression-Style Behavior</h2>
+    <p>Current ReadyBASIC supports two related styles: command statements that write to an output actual, and expression-safe calls that return a value directly into BASIC's expression evaluator.</p>
+
+    <div class="contrast">
+      <article class="card form-output">
+        <h3><span class="badge badge-output">Statement Output</span></h3>
+        <p>The final argument is the output target. Resident code clears it before the worker runs and commits only after success.</p>
+<pre><code>10 ZADD16(4,5,A%)
+20 PRINT "SUM";A%
+
+30 UPPER("ready",T$)
+40 PRINT T$
+
+50 BUFNEW(64,H%)
+60 PRINT "HANDLE";H%</code></pre>
+      </article>
+
+      <article class="card form-return">
+        <h3><span class="badge badge-return">Expression Return</span></h3>
+        <p>The call returns a scalar or string value directly. It can be assigned, printed, or passed into another expression consumer.</p>
+<pre><code>10 A%=ZADD16(4,5)
+20 PRINT "SUM";A%
+
+30 PRINT ZADD16(5,10)
+40 T$=UPPER("ready")
+
+50 H%=BUFNEW(64)
+60 PRINT "HANDLE";H%</code></pre>
+      </article>
+    </div>
+
+    <div class="contrast">
+      <article class="card form-param">
+        <h3><span class="badge badge-param">Formal Parameters</span></h3>
+        <p><code>PROC</code> and <code>FUNC</code> definitions name the values their body expects. These are ReadyBASIC routine formals, not plugin descriptor signatures.</p>
+<pre><code>100 PROC SHOWI(P%)
+110    PRINT "PROCI";P%
+120 ENDP
+
+200 FUNC ADDI(X%,Y%)
+210    RET X%+Y%
+220 ENDP</code></pre>
+      </article>
+
+      <article class="card form-param">
+        <h3><span class="badge badge-param">Actual Parameters</span></h3>
+        <p>Calls provide actual values. Non-empty argument lists use parentheses for both <code>EXEC</code> and <code>FUNC</code> calls.</p>
+<pre><code>10 EXEC SHOWI(7)
+
+20 PRINT ADDI(1,2+4)
+30 PRINT ADDI(1,(2+4))
+40 PRINT ADDI((1+2),(3+4))</code></pre>
+      </article>
+    </div>
+
+    <div class="card warn">
+      <p>Commands with array outputs or no scalar result remain statement-only. For example, <code>ZRANGENUMARRAY(7,4,R%(0))</code> writes several array elements after success, so it is not an expression return. Scalar handle commands such as <code>BUFNEW(n)</code> and <code>SCRCAP()</code> are expression-enabled because the returned handle is a simple integer.</p>
+    </div>
+
+    <h3>True Expression Examples</h3>
+    <p>Inputs and returned outputs can both participate in larger expressions, mixing ReadyBASIC commands, ReadyBASIC <code>FUNC</code> routines, and built-in BASIC functions.</p>
+
+    <div class="contrast">
+      <article class="card form-compose">
+        <h3><span class="badge badge-compose">Expression Inputs</span></h3>
+        <p>Actual parameters can come from built-in BASIC expressions, ReadyBASIC command returns, or other ReadyBASIC <code>FUNC</code> returns.</p>
+<pre><code>10 PRINT ADDI(ABS(-2),ZADD16(2,3))
+
+20 PRINT ZADD16(1,ADDI(2,3))
+
+30 PRINT FADD(1.5,FADD(2.25,3.25))</code></pre>
+      </article>
+
+      <article class="card form-compose">
+        <h3><span class="badge badge-compose">Expression Outputs</span></h3>
+        <p>Returned values can feed built-in BASIC functions or larger string/numeric expressions.</p>
+<pre><code>10 PRINT ABS(ZADD16(1,6)-10)
+
+20 PRINT ABS(ADDI(1,6)-10)
+
+30 T$=LEFT$(GREET("READY")+"!",3)
+40 PRINT T$
+
+50 PRINT LEFT$(UPPER(GREET("ready")),2)</code></pre>
+      </article>
+    </div>
+
+    <article class="card form-return">
+      <h3><span class="badge badge-return">FUNC Return Markers</span></h3>
+      <p><code>FUNC</code> routines return through <code>RET expr</code>. Use <code>RET% expr</code> or <code>RET$ expr</code> when the return type should be explicit.</p>
+<pre><code>100 FUNC GREET(N$)
+110    RET "HI "+N$
+120 ENDP
+
+200 FUNC IDI(X%)
+210    RET% X%
+220 ENDP
+
+300 FUNC IDS(S$)
+310    RET$ S$
+320 ENDP</code></pre>
+    </article>
   </section>
 
   <script>
