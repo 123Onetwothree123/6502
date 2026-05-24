@@ -50,8 +50,13 @@ metadata cache if repeated `EXEC` scans become too slow.
 
 The expression-style experiment proved a useful split: expression-safe command
 returns, string/numeric `FUNC` expression returns, and `FUNC` bodies with simple
-assignments before `RET` are viable. Future work can consider richer in-body
-statements, but V1 intentionally keeps that surface small.
+assignments before `RET` are viable. The lean nested-term follow-up proved the
+specific ROM-consumer forms `ABS(ADDI(1,6)-10)` and
+`LEFT$(GREET("READY"),2)` plus one-wrapper numeric actuals such as
+`ADDI(1,(2+4))`, but it is still not a full recursive BASIC expression-term
+engine. Future work can consider richer in-body statements, proper nested
+ReadyBASIC terms inside other ReadyBASIC actual lists, and plain floating
+numeric parameters/returns; V1 intentionally keeps that surface small.
 
 ## Command Naming
 

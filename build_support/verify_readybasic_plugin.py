@@ -42,7 +42,7 @@ def main() -> None:
         fail("bin/readybasic.prg is missing; build it first")
     segments = parse_segments(MAP.read_text())
 
-    require(r"^BASIC_START\s*=\s*\$2401\b", asm, "BASIC_START must be $2401")
+    require(r"^BASIC_START\s*=\s*\$2501\b", asm, "BASIC_START must be $2501")
     require(r"^BASIC_LIMIT\s*=\s*\$A000\b", asm, "BASIC_LIMIT must be $A000")
     require(r"^RB_REU_CORE_BANK\s*=\s*\$44\b", asm, "ReadyBASIC core bank must be $44")
     require(r"^RB_REU_CODE_BANK\s*=\s*\$45\b", asm, "ReadyBASIC code bank must be $45")
@@ -76,10 +76,10 @@ def main() -> None:
     bridge = segments["BRIDGE"]
     regseed = segments["REGSEED"]
 
-    if resident[0] != 0x1200 or resident[1] >= 0x2400:
-        fail(f"RESIDENT must fit in $1200-$23FF, got ${resident[0]:04X}-${resident[1]:04X}")
-    if resident[2] > 0x11FE:
-        fail(f"RESIDENT grew past measured RET expression budget $11FE, got ${resident[2]:04X}")
+    if resident[0] != 0x1200 or resident[1] >= 0x2500:
+        fail(f"RESIDENT must fit in $1200-$24FF, got ${resident[0]:04X}-${resident[1]:04X}")
+    if resident[2] > 0x1289:
+        fail(f"RESIDENT grew past measured lean nested-term budget $1289, got ${resident[2]:04X}")
     if lowpack[0] != 0xA900 or lowpack[1] > 0xBFFF:
         fail(f"LOWPACK must fit under BASIC ROM at $A900-$BFFF, got ${lowpack[0]:04X}-${lowpack[1]:04X}")
     if lowpack[2] != 0x061A:
@@ -94,8 +94,8 @@ def main() -> None:
         fail(f"HIDDENPACK size changed from measured $004D, got ${hiddenpack[2]:04X}")
     if bridge[0] != 0xC000 or bridge[1] >= 0xC200:
         fail(f"BRIDGE must stay below relocated shared frames at $C200, got ${bridge[0]:04X}-${bridge[1]:04X}")
-    if bridge[2] > 0x01F5:
-        fail(f"BRIDGE grew past measured expression-style budget $01F5, got ${bridge[2]:04X}")
+    if bridge[2] > 0x01EB:
+        fail(f"BRIDGE grew past measured lean nested-term budget $01EB, got ${bridge[2]:04X}")
     require(r"^RB_CF\s*=\s*\$C200\b", asm, "RB_CF must be relocated to $C200")
     require(r"^RB_RF\s*=\s*\$C300\b", asm, "RB_RF must be relocated to $C300")
     require(r"^RB_DESC_BUF\s*=\s*\$C480\b", asm, "RB_DESC_BUF must be relocated to $C480")

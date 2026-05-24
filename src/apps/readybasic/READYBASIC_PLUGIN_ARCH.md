@@ -2,15 +2,15 @@
 
 ## Current V1 Layout
 
-- `BASIC_START = $2401`; BASIC owns `$2401-$9FFF`, with `31741` formula empty free bytes (31.0K).
+- `BASIC_START = $2501`; BASIC owns `$2501-$9FFF`, with `31485` formula empty free bytes (30.7K).
 - `$1000-$1102`: tiny app entry (`$0103`, 259B) that copies hidden helpers and bridge state before BASIC starts.
-- `$1200-$23FD`: visible resident core (`$11FE`, 4606B). This is the only code that calls BASIC ROM helpers.
-- `$2400`: BASIC sentinel byte; it must stay zero before stored-program `RUN`.
+- `$1200-$2488`: visible resident core (`$1289`, 4745B). This is the only code that calls BASIC ROM helpers.
+- `$2500`: BASIC sentinel byte; it must stay zero before stored-program `RUN`.
 - `$A900-$AF19`: low command overlay slot under BASIC ROM. Current packed low command image is `$061A` bytes (1.5K, 1562 exact bytes).
 - `$C200-$C5FF`: fixed call frame, result frame, descriptor buffer, command-name buffer, page buffer, and warm-resume staging (`$0400`, 1.0K).
 - `$A000-$A376`: hidden helper code (`$0377`, 887B), restored from the visible `$C280` shadow.
 - `$A800-$A84C`: hidden worker overlay slot (`$004D`, 77B) used by `ZHIDDENRAM`.
-- `$C000-$C1F4`: bridge state plus native routine return stack (`$01F5`, 501B); the implementation stays below `$C200`.
+- `$C000-$C1EA`: bridge state plus native routine return stack (`$01EB`, 491B); the implementation stays below `$C200`.
 
 ## REU Banks
 
@@ -113,7 +113,7 @@ Native reusable BASIC routines:
 - Raw stored-program `RUN` is supported through the `$0308` execute hook; the
   relocated BASIC sentinel byte at `BASIC_START-1` must stay zero.
 - Command lookup is linear over descriptor pages in bank `$44`: one 256-byte page is fetched into `$C500`, eight descriptors are scanned locally, and the matched descriptor is copied into `$C480`.
-- String input currently supports string variables and quoted literals; fully general BASIC string expressions remain a follow-up.
+- String input currently supports string variables and quoted literals; fully general BASIC string expressions remain a follow-up. Numeric inputs support flat numeric expressions and a single wrapper pair around numeric actuals such as `ZADD16(1,(2+4))`.
 - V1 integer arrays are explicit base element plus count, e.g. `A%(0),N`.
 - Native routine V1 formals support only `%` and `$`, no arrays, no locals, and
   no plain floating variables. `FUNC` returns through `RET` and has one returned
@@ -121,6 +121,23 @@ Native reusable BASIC routines:
 - Native routine definitions should be placed after `END`; fall-through into
   `PROC`/`FUNC` is invalid in V1.
 - The persistent typed heap currently suballocates 48KB inside bank `$44`; handle type `1` is a byte buffer and type `2` is a screen text+color buffer. Future large/long-lived data can allocate extra REU banks and record those banks in the same REU-backed handle directory.
+
+## Lean Nested-Term Experiment
+
+The `exp/readybasic-lean-nested-terms` branch is stacked on the
+expression-style work. It keeps descriptor-backed commands in the same REU
+layout and adds only resident parsing/return handling:
+
+- Command and `FUNC` returns can be consumed by the tested BASIC ROM wrappers
+  `ABS(ADDI(1,6)-10)` and `LEFT$(GREET("READY"),2)`.
+- Numeric actuals for commands and `FUNC` calls accept one extra wrapper pair,
+  as in `ADDI(1,(2+4))`, `ZADD16(1,(2+4))`, and `ADDI((1+2),(3+4))`.
+- Plain float formals/returns and fully recursive ReadyBASIC terms remain
+  deferred to the proper-term/float branch.
+
+Measured branch layout: `BASIC_START=$2501`; BASIC owns `$2501-$9FFF`, for
+`31485` formula empty free bytes. `RESIDENT` is `$1200-$2488` (`4745` bytes),
+`BRIDGE` is `$C000-$C1EA` (`491` bytes), and command overlays remain unchanged.
 
 ## Expression-Style Experiment
 

@@ -16,26 +16,32 @@
 710 end
 800 exec d1
 810 end
-1000 proc needi(p%)
-1010 endp
-1100 proc needs(s$)
-1110 endp
-1200 func fni(p%)
-1210 ret p%+1
-1220 endp
-1300 proc nop(p%)
-1310 endp
-1400 proc d1()
-1410 exec d2
-1420 endp
-1500 proc d2()
-1510 exec d3
-1520 endp
-1600 proc d3()
-1610 exec d4
-1620 endp
-1700 proc d4()
-1710 exec d5
-1720 endp
-1800 proc d5()
-1810 endp
+900 exec needi((1+2)
+910 end
+1000 exec needi((1+2)))
+1010 end
+1100 exec needs(left$("bad",2))
+1110 end
+2000 proc needi(p%)
+2010 endp
+2100 proc needs(s$)
+2110 endp
+2200 func fni(p%)
+2210 ret p%+1
+2220 endp
+2300 proc nop(p%)
+2310 endp
+2400 proc d1()
+2410 exec d2
+2420 endp
+2500 proc d2()
+2510 exec d3
+2520 endp
+2600 proc d3()
+2610 exec d4
+2620 endp
+2700 proc d4()
+2710 exec d5
+2720 endp
+2800 proc d5()
+2810 endp

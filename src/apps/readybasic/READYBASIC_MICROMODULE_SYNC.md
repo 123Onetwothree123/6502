@@ -45,9 +45,9 @@ ReadyBASIC now duplicates a small amount of ReadyOS REU and shim knowledge in as
 
 ## Current ReadyBASIC Memory Snapshot
 
-- `BASIC_START = $2401`; BASIC owns `$2401-$9FFF`, with `31741` formula empty free bytes.
+- `BASIC_START = $2501`; BASIC owns `$2501-$9FFF`, with `31485` formula empty free bytes.
 - `ENTRY` lives at `$1000-$1102`.
-- `RESIDENT` lives at `$1200-$23FD` and must stay below `$2400`.
+- `RESIDENT` lives at `$1200-$2488` and must stay below `$2500`.
 - `CMDPACK` load-only seed space is `$2800-$3FFF`; it is copied to REU bank `$45` on cold entry.
 - `HIDLOAD` load-only helper seed starts at `$4000`.
 - `BRLOAD` load-only bridge seed starts at `$4800`.
@@ -87,6 +87,25 @@ load-image addresses.
 Native `PROC`/`FUNC` routines are deliberately absent from bank `$45`: their
 bodies are BASIC program text, found by scanning the stored program during
 `EXEC`. They add no descriptor slots and no command-code bank bytes.
+
+## Lean Nested-Term Branch Note
+
+The `exp/readybasic-lean-nested-terms` branch is stacked on
+`exp/readybasic-expression-style`. It keeps the command overlay layout stable
+while adding targeted ROM-consumable command/`FUNC` returns and one-wrapper
+numeric actual parsing.
+
+Branch-specific sync points:
+
+- `BASIC_START = $2501`; BASIC owns `$2501-$9FFF`, with `31485` formula empty
+  free bytes.
+- `RESIDENT = $1200-$2488`, size `$1289` / 4745B.
+- `BRIDGE = $C000-$C1EA`, size `$01EB` / 491B.
+- `LOWPACK` remains `$061A`; command overlay bytes did not grow.
+- Proven targeted nested return forms: `ABS(ADDI(1,6)-10)` and
+  `LEFT$(GREET("READY"),2)`.
+- Proven one-wrapper numeric actual forms: `ADDI(1,(2+4))`,
+  `ZADD16(1,(2+4))`, and `ADDI((1+2),(3+4))`.
 
 ## Expression-Style Branch Note
 

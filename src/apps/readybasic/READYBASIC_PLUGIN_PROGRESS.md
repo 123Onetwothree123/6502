@@ -10,6 +10,31 @@ the demo/proof commands. Older entries below may mention historical names such
 as `PING`, `ADD16`, `STRUP`, `HCRC`, `SUMAI`, `RANGEAI`, `TEMPSCRATCH`, and
 `FAIL`; those are retained as dated notes, not current aliases.
 
+## 2026-05-23: Lean Nested-Term Experiment
+
+- Branch: `exp/readybasic-lean-nested-terms`, stacked from
+  `exp/readybasic-expression-style` commit `1690035`.
+- Added targeted nested return support without making ReadyBASIC a full
+  recursive expression-term engine. The eval hook now stages command and `FUNC`
+  results through a common result-return path, clears carry on success, and uses
+  BASIC ROM string-descriptor helpers so ROM consumers can safely consume
+  returned strings.
+- Added shared one-wrapper numeric actual parsing for command expression
+  parsing and native `FUNC` argument binding. Proven forms include
+  `ADDI(1,(2+4))`, `ZADD16(1,(2+4))`, and `ADDI((1+2),(3+4))`.
+- Proven nested return forms now include `ABS(ADDI(1,6)-10)` and
+  `LEFT$(GREET("READY"),2)`. General ReadyBASIC terms nested inside other
+  ReadyBASIC actual lists and plain floating variables remain branch-2 scope.
+- Memory impact versus expression-style branch:
+  - `BASIC_START`: `$2401` -> `$2501`.
+  - Empty BASIC free bytes: `31741` -> `31485`, delta `-256`.
+  - `RESIDENT`: `$11FE` / 4606B -> `$1289` / 4745B, delta `+139`.
+  - `BRIDGE`: `$01EA` / 490B -> `$01EB` / 491B, delta `+1`.
+  - `LOWPACK`: unchanged at `$061A` / 1562B; command overlay delta `0`.
+  - `HIDDEN`: unchanged at `$0377`; `HIDDENPACK`: unchanged at `$004D`.
+  - `REGSEED`: unchanged at `$1010`.
+  - `bin/readybasic.prg`: unchanged at `20994` bytes.
+
 ## 2026-05-23: Bare Commands And Expression-Style Experiment
 
 - Branch: `exp/readybasic-expression-style`.
@@ -51,7 +76,8 @@ as `PING`, `ADD16`, `STRUP`, `HCRC`, `SUMAI`, `RANGEAI`, `TEMPSCRATCH`, and
   - Current expression limits verified during the expanded `RBPROC1` work:
     `ADDI(1,2+4)` works, but `ADDI(1,(2+4))` does not; command/FUNC returns are
     not yet general nested arguments to BASIC ROM functions such as
-    `ABS(ADDI(...))` or `LEFT$(GREET(...),2)`.
+    `ABS(ADDI(...))` or `LEFT$(GREET(...),2)`. The later
+    `exp/readybasic-lean-nested-terms` branch addresses those targeted forms.
   - Parenthesized `RBPROCERR` negative VICE probe: pass for unknown routine,
     missing/wrong args, statement `EXEC` to `FUNC`, extra `PROC` actual, bare `ENDP`,
     and stack overflow.

@@ -21,7 +21,13 @@
 210 print "fpex";addi(1,2+4)
 220 a%=zadd16(3,10):print "fcmd";a%
 230 t$=funcupper("yo"):print "fs$ ";t$
-250 end
+240 print "fminus";addi(1,6)-10
+250 print "fnabs";abs(addi(1,6)-10)
+260 t$=left$(greet("ready"),2):print "fnleft ";t$
+270 print "fparen";addi(1,(2+4))
+280 print "cparen";zadd16(1,(2+4))
+290 print "dparen";addi((1+2),(3+4))
+300 end
 1000 proc show0()
 1010 print "proc0"
 1020 endp

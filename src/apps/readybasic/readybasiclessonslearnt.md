@@ -10,7 +10,7 @@ actual C64/ReadyOS evidence trail rather than a pile of confident guesses.
 - The app PRG loads at `$1000` and must obey the ReadyOS app/shim window:
   `$1000-$C5FF` is app-owned, `$C600-$C9FF` is reserved metadata/shim space.
 - BASIC programs are data inside the host. The scoped BASIC workspace is now
-  `$2401-$9FFF`, with `31741` formula empty free bytes (31.0K); ReadyBASIC
+  `$2501-$9FFF`, with `31485` formula empty free bytes (30.7K); ReadyBASIC
   extension lines are left as readable text rather than crunched into private
   tokens.
 - ReadyBASIC suspend state keeps zero-page and stack snapshots in REU bank `$44`
@@ -20,7 +20,7 @@ actual C64/ReadyOS evidence trail rather than a pile of confident guesses.
 - A refreshed visible shadow copy of the hidden helper image lives at `$C280-$C5F6`,
   inside the ReadyOS app snapshot window. Warm
   entry restores `$A000` from that shadow before using hidden helpers.
-- The plugin spine keeps visible resident code at `$1200-$23FD`, command
+- The plugin spine keeps visible resident code at `$1200-$2488`, command
   overlays under BASIC ROM at `$A900-$AF19`, shared frames at `$C200-$C5FF`, and fixed
   ReadyBASIC REU banks `$44/$45`.
 - The current registry has 128 descriptor slots in REU bank `$44` at
@@ -660,8 +660,13 @@ expression evaluator from inside the eval hook without preserving ReadyBASIC's
 scan state produced incorrect values and left BASIC in a bad parse state. The
 current branch uses `RET` as the function return marker, preserves the caller
 expression state around nested function/command evaluation, and supports simple
-scalar assignments before `RET`. It remains deliberately narrower than a full
-BASIC interpreter for arbitrary statements inside a `FUNC` body.
+scalar assignments before `RET`. A later lean nested-term pass also proved that
+returned FAC/string descriptors must be normalized before BASIC ROM consumers
+see them: `ABS(ADDI(1,6)-10)` needs the numeric return to clear carry and look
+like a ROM numeric term, while `LEFT$(GREET("READY"),2)` needs the returned
+string descriptor registered through BASIC's temporary-string path. This remains
+deliberately narrower than a full BASIC interpreter for arbitrary statements
+inside a `FUNC` body.
 
 ## Open Questions
 
