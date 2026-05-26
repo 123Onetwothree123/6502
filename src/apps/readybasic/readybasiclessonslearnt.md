@@ -533,7 +533,7 @@ Disproven on 2026-05-09 by a visible binary-monitor run:
 
 ```sh
 READYBASIC_SKIP_BUILD=1 READYBASIC_VISIBLE=1 READYBASIC_KEEP_VICE=1 \
-  bash ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_lifecycle_probe.sh
+  bash build_support/run_readybasic_lifecycle_probe.sh
 ```
 
 Artifacts:
@@ -602,17 +602,17 @@ contract is fully proven.
   `bash ./run.sh --profile precog-d81 --vice-fast`
 - For headless probe runs, use the VICE binary monitor harness outside this
   repo:
-  `bash ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_lifecycle_probe.sh`
+  `bash build_support/run_readybasic_lifecycle_probe.sh`
   The script builds the D81 with `runappfirst=readybasic`, boots `PREBOOT`, and
   stores artifacts under `../agenticdevharness/logs/vice_auto_*`.
 - For the current REU plugin direct-mode and ReadyOS resume contract, use:
-  `READYBASIC_VISIBLE=1 bash ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_plugin_command_probe.sh`
+  `READYBASIC_VISIBLE=1 bash build_support/run_readybasic_plugin_command_probe.sh`
   This boots normal ReadyOS with `runappfirst=readybasic`, exercises direct
   `!COMMAND args` samples, returns through the launcher by `EXIT`, relaunches
   ReadyBasic by menu navigation, and verifies BASIC variable/string state plus
   registry function after resume.
 - For the stored-program command contract, use:
-  `READYBASIC_VISIBLE=1 bash ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_program_probe.sh`
+  `READYBASIC_VISIBLE=1 bash build_support/run_readybasic_program_probe.sh`
   This interviews each command style early: first `LIST`/`RUN` for `ZECHO1`,
   then same-line continuation, strings, hidden workers, arrays, handles, and
 	  failure clearing. It should fail fast at the first command family that
@@ -626,9 +626,9 @@ contract is fully proven.
   routine, wrong count/type, statement `EXEC` to `FUNC`, `PROC` extra actual, bare
   `ENDP`, and return-stack overflow.
 - For manual-`EXIT` BASIC-state probes, use:
-  `bash ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_state_probe.sh`
+  `bash build_support/run_readybasic_state_probe.sh`
 - For the larger direct-variable/string/array stress case, use:
-  `bash ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_large_vars_probe.sh`
+  `bash build_support/run_readybasic_large_vars_probe.sh`
   It enters a five-line program, creates `A$` through `D$`, `DIM E(200)`, sets
   `E(199)`, exits, resumes, and verifies strings, array data, and `LIST`.
   On 2026-05-11 this passed five consecutive runs. The first draft falsely
@@ -636,7 +636,7 @@ contract is fully proven.
   the earliest `A$` output off screen; screen assertions should check values
   while they are still visible or use memory-backed validation.
 - For cross-app churn after `EXIT`, use:
-  `bash ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_cross_app_resume_probe.sh`
+  `bash build_support/run_readybasic_cross_app_resume_probe.sh`
   It builds the same larger BASIC/string/array case, then repeats:
   `EXIT -> launcher -> ReadyShell -> CTRL+B -> launcher -> ReadyBASIC -> LIST
   and one-at-a-time PRINT checks`. On 2026-05-11, 10 full cycles passed: all 206

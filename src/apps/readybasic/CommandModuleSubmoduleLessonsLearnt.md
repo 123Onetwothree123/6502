@@ -250,3 +250,29 @@ proven, adjusted, or rejected during implementation.
   `../agenticdevharness/logs/vice_auto_20260526_143236`.
 - Latest repeat-label run dir:
   `../agenticdevharness/logs/vice_auto_20260526_144120`.
+
+## All ReadyBASIC VICE Definitions Are Repo Assets
+
+- Imported the remaining ReadyBASIC VICE probe definitions from the external
+  harness working area into `build_support/`.
+- The external `agenticdevharness` checkout is now only the execution engine;
+  ReadyBASIC owns the suite scripts and the generated YAML plan artifacts.
+- Tracked generated plans live beside the scripts as
+  `build_support/readybasic_*.generated.yaml`; they should be regenerated and
+  committed when suite definitions change.
+- Added `READYBASIC_GENERATE_PLAN_ONLY=1` support and the
+  `make readybasic-vice-plans` target so plan artifacts can be refreshed
+  without launching VICE.
+- Added Make targets for the imported probes plus `readybasic-vice-suites` for
+  the complete repo-owned suite family.
+- Verified:
+  `bash -n build_support/run_readybasic*.sh build_support/vice_readybasic_repeat_label_probe.sh`,
+  `make -n readybasic-vice-plans readybasic-lifecycle-vice readybasic-rbtest1-vice`,
+  and `make readybasic-vice-plans` all passed.
+- Runtime verification from the repo-owned definitions:
+  `READYBASIC_VISIBLE=0 READYBASIC_SKIP_BUILD=1 make readybasic-rbtest1-vice`
+  passed with `success`, 12/12 steps, failed step `null`, no degraded steps;
+  `READYBASIC_VISIBLE=0 READYBASIC_SKIP_BUILD=1 make readybasic-lifecycle-vice`
+  passed with `success`, 47/47 steps, failed step `null`, no degraded steps;
+  `READYBASIC_VISIBLE=0 READYBASIC_SKIP_BUILD=1 make readybasic-full-vice`
+  passed with `success`, 181/181 steps, failed step `null`, no degraded steps.

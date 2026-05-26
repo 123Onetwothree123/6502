@@ -80,6 +80,18 @@ READYBASIC_MODULE_DIR = $(OBJ_DIR)/readybasic_modules
 READYBASIC_RBM1 = $(READYBASIC_MODULE_DIR)/rbm1.prg
 READYBASIC_RBM2 = $(READYBASIC_MODULE_DIR)/rbm2.prg
 READYBASIC_MODULES = $(READYBASIC_RBM1) $(READYBASIC_RBM2)
+READYBASIC_VICE_SCRIPTS = \
+	$(BUILD_SUPPORT_DIR)/run_readybasic_demo_suite.sh \
+	$(BUILD_SUPPORT_DIR)/run_readybasic_full_suite_visual_verification.sh \
+	$(BUILD_SUPPORT_DIR)/run_readybasic_cross_app_resume_probe.sh \
+	$(BUILD_SUPPORT_DIR)/run_readybasic_large_vars_probe.sh \
+	$(BUILD_SUPPORT_DIR)/run_readybasic_lifecycle_probe.sh \
+	$(BUILD_SUPPORT_DIR)/run_readybasic_plugin_command_probe.sh \
+	$(BUILD_SUPPORT_DIR)/run_readybasic_program_probe.sh \
+	$(BUILD_SUPPORT_DIR)/run_readybasic_rbtest1_probe.sh \
+	$(BUILD_SUPPORT_DIR)/run_readybasic_second_entry_editor_probe.sh \
+	$(BUILD_SUPPORT_DIR)/run_readybasic_state_probe.sh \
+	$(BUILD_SUPPORT_DIR)/vice_readybasic_repeat_label_probe.sh
 UCITEST = $(BIN_DIR)/ucitest.prg
 VERSION_HEADER = $(GEN_DIR)/build_version.h
 VERSION_ASM_INC = $(GEN_DIR)/msg_version.inc
@@ -639,8 +651,42 @@ readybasic-plugin-static-check: $(READYBASIC) $(BUILD_SUPPORT_DIR)/verify_readyb
 readybasic-repeat-label-vice: $(BUILD_SUPPORT_DIR)/vice_readybasic_repeat_label_probe.sh
 	$(BUILD_SUPPORT_DIR)/vice_readybasic_repeat_label_probe.sh
 
+readybasic-demo-vice: $(BUILD_SUPPORT_DIR)/run_readybasic_demo_suite.sh
+	$(BUILD_SUPPORT_DIR)/run_readybasic_demo_suite.sh
+
 readybasic-full-vice: $(BUILD_SUPPORT_DIR)/run_readybasic_full_suite_visual_verification.sh
 	$(BUILD_SUPPORT_DIR)/run_readybasic_full_suite_visual_verification.sh
+
+readybasic-cross-app-resume-vice: $(BUILD_SUPPORT_DIR)/run_readybasic_cross_app_resume_probe.sh
+	$(BUILD_SUPPORT_DIR)/run_readybasic_cross_app_resume_probe.sh
+
+readybasic-large-vars-vice: $(BUILD_SUPPORT_DIR)/run_readybasic_large_vars_probe.sh
+	$(BUILD_SUPPORT_DIR)/run_readybasic_large_vars_probe.sh
+
+readybasic-lifecycle-vice: $(BUILD_SUPPORT_DIR)/run_readybasic_lifecycle_probe.sh
+	$(BUILD_SUPPORT_DIR)/run_readybasic_lifecycle_probe.sh
+
+readybasic-plugin-command-vice: $(BUILD_SUPPORT_DIR)/run_readybasic_plugin_command_probe.sh
+	$(BUILD_SUPPORT_DIR)/run_readybasic_plugin_command_probe.sh
+
+readybasic-program-vice: $(BUILD_SUPPORT_DIR)/run_readybasic_program_probe.sh
+	$(BUILD_SUPPORT_DIR)/run_readybasic_program_probe.sh
+
+readybasic-rbtest1-vice: $(BUILD_SUPPORT_DIR)/run_readybasic_rbtest1_probe.sh
+	$(BUILD_SUPPORT_DIR)/run_readybasic_rbtest1_probe.sh
+
+readybasic-second-entry-editor-vice: $(BUILD_SUPPORT_DIR)/run_readybasic_second_entry_editor_probe.sh
+	$(BUILD_SUPPORT_DIR)/run_readybasic_second_entry_editor_probe.sh
+
+readybasic-state-vice: $(BUILD_SUPPORT_DIR)/run_readybasic_state_probe.sh
+	$(BUILD_SUPPORT_DIR)/run_readybasic_state_probe.sh
+
+readybasic-vice-plans: $(READYBASIC_VICE_SCRIPTS)
+	@for script in $(READYBASIC_VICE_SCRIPTS); do \
+		READYBASIC_SKIP_BUILD=1 READYBASIC_GENERATE_PLAN_ONLY=1 "$$script"; \
+	done
+
+readybasic-vice-suites: readybasic-demo-vice readybasic-repeat-label-vice readybasic-lifecycle-vice readybasic-plugin-command-vice readybasic-program-vice readybasic-rbtest1-vice readybasic-state-vice readybasic-large-vars-vice readybasic-cross-app-resume-vice readybasic-second-entry-editor-vice readybasic-full-vice
 
 # ReadyBASIC sample program (relocated to ReadyBASIC's $2AC1 BASIC workspace).
 $(READYBASIC_RBTEST1): $(APPS_DIR)/readybasic/rbtest1.bas
@@ -1147,6 +1193,8 @@ help:
 	@echo "  readyshell-vm-smoke-host - Run ReadyShell VM/pipeline host smoke checks"
 	@echo "  readyshell-reu-tests-host - Run ReadyShell REU heap/value host tests"
 	@echo "  readyshell-overlay-report - Generate ReadyShell overlay Markdown + HTML docs"
+	@echo "  readybasic-vice-plans - Regenerate tracked ReadyBASIC VICE YAML plans"
+	@echo "  readybasic-vice-suites - Run all repo-owned ReadyBASIC VICE suites"
 	@echo "  readybasic-full-vice - Run the full ReadyBASIC VICE visual suite"
 	@echo "  seed-cal26  - Seed CAL26 REL files on the latest built precog-dual-d71 drive 8 image"
 	@echo "  launcher-verbose - Rebuild launcher with verbose config diagnostics"
@@ -1203,5 +1251,5 @@ probe-rel:
 launcher-verbose:
 	$(MAKE) LAUNCHER_CFG_VERBOSE=1 $(LAUNCHER)
 
-.PHONY: all clean verify verify-resume shim-verify fullcheck help run run-test seed-cal26 probe-rel launcher-verbose readybasic-plugin-static-check readybasic-repeat-label-vice readybasic-full-vice readyshell-host-tests readyshell-parse-smoke-host readyshell-vm-smoke-host readyshell-reu-tests-host editor-smoke-host tasklist-smoke-host programs prepare-version profile profiles release-all easyflash easyflash-verify easyflash-smoke easyflash-smoke-long easyflash-preload-verify easyflash-clean FORCE
+.PHONY: all clean verify verify-resume shim-verify fullcheck help run run-test seed-cal26 probe-rel launcher-verbose readybasic-plugin-static-check readybasic-demo-vice readybasic-repeat-label-vice readybasic-full-vice readybasic-cross-app-resume-vice readybasic-large-vars-vice readybasic-lifecycle-vice readybasic-plugin-command-vice readybasic-program-vice readybasic-rbtest1-vice readybasic-second-entry-editor-vice readybasic-state-vice readybasic-vice-plans readybasic-vice-suites readyshell-host-tests readyshell-parse-smoke-host readyshell-vm-smoke-host readyshell-reu-tests-host editor-smoke-host tasklist-smoke-host programs prepare-version profile profiles release-all easyflash easyflash-verify easyflash-smoke easyflash-smoke-long easyflash-preload-verify easyflash-clean FORCE
 EASYFLASH_LAUNCHER_CPPFLAGS ?=

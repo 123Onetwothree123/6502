@@ -6,7 +6,7 @@ READYOS_ROOT="${READYOS_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 HARNESS_REPO="${VICE_TASKS_REPO:-$(cd "$READYOS_ROOT/../agenticdevharness" && pwd)}"
 VICE_TOOL_ROOT="$HARNESS_REPO/tools/vice_tasks_dotnet"
 PROJECT="$VICE_TOOL_ROOT/src/ViceTasks.Binary/ViceTasks.Binary.csproj"
-PLAN="${READYBASIC_DEMO_PLAN:-$READYOS_ROOT/logs/readybasic_demo_suite.generated.yaml}"
+PLAN="${READYBASIC_DEMO_PLAN:-$SCRIPT_DIR/readybasic_demo_suite.generated.yaml}"
 
 READYBASIC_VISIBLE="${READYBASIC_VISIBLE:-1}"
 READYBASIC_KEEP_VICE="${READYBASIC_KEEP_VICE:-0}"
@@ -121,8 +121,8 @@ fi
 
 D81_REL="$(ls -t Releases/0.2.4/precog-d81/*.d81 | head -1)"
 PREBOOT_REL="$(ls -t Releases/0.2.4/precog-d81/*-preboot.prg | head -1)"
-D81="$(cd "$(dirname "$D81_REL")" && pwd)/$(basename "$D81_REL")"
-PREBOOT="$(cd "$(dirname "$PREBOOT_REL")" && pwd)/$(basename "$PREBOOT_REL")"
+D81="$D81_REL"
+PREBOOT="$PREBOOT_REL"
 
 cat >"$PLAN" <<YAML
 version: 1
@@ -260,6 +260,11 @@ cat >>"$PLAN" <<YAML
       command: "r"
 YAML
 
-cd "$HARNESS_REPO"
+if [ "${READYBASIC_GENERATE_PLAN_ONLY:-0}" = "1" ]; then
+  echo "wrote $PLAN"
+  exit 0
+fi
+
+cd "$READYOS_ROOT"
 dotnet build "$PROJECT"
 dotnet run --project "$PROJECT" -- run-plan --plan "$PLAN" $CLI_CLOSE_ARG

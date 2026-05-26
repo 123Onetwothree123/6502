@@ -1,62 +1,3 @@
-#!/usr/bin/env bash
-set -euo pipefail
-
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-if [ -n "${VICE_TASKS_ROOT:-}" ]; then
-  VICE_TOOL_ROOT="$(cd "$VICE_TASKS_ROOT" && pwd)"
-  HARNESS_REPO="$(cd "$VICE_TOOL_ROOT/../.." && pwd)"
-else
-  HARNESS_REPO="${VICE_TASKS_REPO:-$ROOT/../agenticdevharness}"
-  HARNESS_REPO="$(cd "$HARNESS_REPO" && pwd)"
-  VICE_TOOL_ROOT="$HARNESS_REPO/tools/vice_tasks_dotnet"
-fi
-PROJECT="$VICE_TOOL_ROOT/src/ViceTasks.Binary/ViceTasks.Binary.csproj"
-PLAN="${READYBASIC_REPEAT_PLAN:-$ROOT/build_support/readybasic_repeat_label_probe.generated.yaml}"
-READYBASIC_VISIBLE="${READYBASIC_VISIBLE:-0}"
-READYBASIC_KEEP_VICE="${READYBASIC_KEEP_VICE:-0}"
-VICE_HEADLESS="true"
-VICE_CLOSE="true"
-CLI_CLOSE_ARG="--close-vice"
-
-if [ ! -f "$PROJECT" ]; then
-  echo "ReadyBASIC repeat-label VICE probe could not find the VICE task runner at: $PROJECT" >&2
-  echo "Set VICE_TASKS_REPO or VICE_TASKS_ROOT to the external agenticdevharness checkout." >&2
-  exit 2
-fi
-mkdir -p "$(dirname "$PLAN")"
-
-if [ "$READYBASIC_VISIBLE" = "1" ]; then
-  VICE_HEADLESS="false"
-fi
-if [ "$READYBASIC_KEEP_VICE" = "1" ]; then
-  VICE_CLOSE="false"
-  CLI_CLOSE_ARG=""
-fi
-
-keys() {
-  python3 - "$1" <<'PY'
-import sys
-print(",".join(str(ord(ch)) for ch in sys.argv[1]))
-PY
-}
-
-cd "$ROOT"
-if [ "${READYBASIC_SKIP_BUILD:-0}" != "1" ]; then
-  RUN_VERSION_TEXT="$(python3 build_support/update_build_version.py --next)"
-  make -B \
-    BUILD_SUPPORT_DIR=build_support \
-    PROFILE=precog-d81 \
-    READYOS_VERSION_TEXT="$RUN_VERSION_TEXT" \
-    READYOS_CONFIG_RUN_FIRST=readybasic \
-    profile
-fi
-
-D81_REL="$(ls -t Releases/0.2.4/precog-d81/*.d81 | head -1)"
-PREBOOT_REL="$(ls -t Releases/0.2.4/precog-d81/*-preboot.prg | head -1)"
-D81="$D81_REL"
-PREBOOT="$PREBOOT_REL"
-
-cat >"$PLAN" <<YAML
 version: 1
 kind: vice_task_plan
 plan_id: readybasic_repeat_label_probe
@@ -78,14 +19,14 @@ global_defaults:
     capture_state: true
     capture_dump: false
   vice:
-    disk8: "$D81"
-    disk9: "$D81"
-    autostart_prg: "$PREBOOT"
+    disk8: "Releases/0.2.4/precog-d81/readyos-v0.2.4t-d81.d81"
+    disk9: "Releases/0.2.4/precog-d81/readyos-v0.2.4t-d81.d81"
+    autostart_prg: "Releases/0.2.4/precog-d81/readyos-v0.2.4t-d81-preboot.prg"
     drive8_type: 1581
     drive9_type: 1581
     true_drive: false
-    close_vice: $VICE_CLOSE
-    headless: $VICE_HEADLESS
+    close_vice: true
+    headless: true
     speed_percent: 100
 steps:
   - id: launch_preboot
@@ -102,7 +43,7 @@ steps:
   - id: repeat_multiline
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rNEW\r10 I%=0\r20 REPEAT\r30 I%=I%+1\r40 UNTIL I%=3\r50 PRINT "RPTA";I%\rRUN\r')]
+      keys: [80,82,73,78,84,32,67,72,82,36,40,49,52,55,41,13,78,69,87,13,49,48,32,73,37,61,48,13,50,48,32,82,69,80,69,65,84,13,51,48,32,73,37,61,73,37,43,49,13,52,48,32,85,78,84,73,76,32,73,37,61,51,13,53,48,32,80,82,73,78,84,32,34,82,80,84,65,34,59,73,37,13,82,85,78,13]
       inter_key_delay_s: 0.03
       post_delay_s: 1.2
   - id: assert_repeat_multiline
@@ -113,7 +54,7 @@ steps:
   - id: repeat_colon
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rNEW\r10 I%=3\r20 REPEAT:I%=I%-1:UNTIL I%=0\r30 PRINT "RPTB";I%\rRUN\r')]
+      keys: [80,82,73,78,84,32,67,72,82,36,40,49,52,55,41,13,78,69,87,13,49,48,32,73,37,61,51,13,50,48,32,82,69,80,69,65,84,58,73,37,61,73,37,45,49,58,85,78,84,73,76,32,73,37,61,48,13,51,48,32,80,82,73,78,84,32,34,82,80,84,66,34,59,73,37,13,82,85,78,13]
       inter_key_delay_s: 0.03
       post_delay_s: 1.2
   - id: assert_repeat_colon
@@ -124,7 +65,7 @@ steps:
   - id: repeat_nested
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rNEW\r10 A%=0:B%=0\r20 REPEAT\r30 A%=A%+1:B%=0\r40 REPEAT:B%=B%+1:UNTIL B%=2\r50 UNTIL A%=3\r60 PRINT "RPTN";A%;B%\rRUN\r')]
+      keys: [80,82,73,78,84,32,67,72,82,36,40,49,52,55,41,13,78,69,87,13,49,48,32,65,37,61,48,58,66,37,61,48,13,50,48,32,82,69,80,69,65,84,13,51,48,32,65,37,61,65,37,43,49,58,66,37,61,48,13,52,48,32,82,69,80,69,65,84,58,66,37,61,66,37,43,49,58,85,78,84,73,76,32,66,37,61,50,13,53,48,32,85,78,84,73,76,32,65,37,61,51,13,54,48,32,80,82,73,78,84,32,34,82,80,84,78,34,59,65,37,59,66,37,13,82,85,78,13]
       inter_key_delay_s: 0.03
       post_delay_s: 1.4
   - id: assert_repeat_nested
@@ -135,7 +76,7 @@ steps:
   - id: until_without_repeat
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rNEW\r10 UNTIL 1\rRUN\r')]
+      keys: [80,82,73,78,84,32,67,72,82,36,40,49,52,55,41,13,78,69,87,13,49,48,32,85,78,84,73,76,32,49,13,82,85,78,13]
       inter_key_delay_s: 0.03
       post_delay_s: 1.0
   - id: assert_until_without_repeat
@@ -146,7 +87,7 @@ steps:
   - id: repeat_overflow
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rNEW\r10 REPEAT:REPEAT:REPEAT:REPEAT:REPEAT\rRUN\r')]
+      keys: [80,82,73,78,84,32,67,72,82,36,40,49,52,55,41,13,78,69,87,13,49,48,32,82,69,80,69,65,84,58,82,69,80,69,65,84,58,82,69,80,69,65,84,58,82,69,80,69,65,84,58,82,69,80,69,65,84,13,82,85,78,13]
       inter_key_delay_s: 0.03
       post_delay_s: 1.0
   - id: assert_repeat_overflow
@@ -157,7 +98,7 @@ steps:
   - id: label_backward_if_then
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rNEW\r10 LABEL LP\r20 I%=I%+1\r30 IF I%<3 THEN JUMP LP\r40 PRINT "LBLB";I%\rRUN\r')]
+      keys: [80,82,73,78,84,32,67,72,82,36,40,49,52,55,41,13,78,69,87,13,49,48,32,76,65,66,69,76,32,76,80,13,50,48,32,73,37,61,73,37,43,49,13,51,48,32,73,70,32,73,37,60,51,32,84,72,69,78,32,74,85,77,80,32,76,80,13,52,48,32,80,82,73,78,84,32,34,76,66,76,66,34,59,73,37,13,82,85,78,13]
       inter_key_delay_s: 0.03
       post_delay_s: 1.4
   - id: assert_label_backward_if_then
@@ -168,7 +109,7 @@ steps:
   - id: label_forward
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rNEW\r10 PRINT "A"\r20 JUMP SKIP\r30 PRINT "BAD"\r40 LABEL SKIP:PRINT "LBLF"\rPRINT CHR$(147)\rRUN\r')]
+      keys: [80,82,73,78,84,32,67,72,82,36,40,49,52,55,41,13,78,69,87,13,49,48,32,80,82,73,78,84,32,34,65,34,13,50,48,32,74,85,77,80,32,83,75,73,80,13,51,48,32,80,82,73,78,84,32,34,66,65,68,34,13,52,48,32,76,65,66,69,76,32,83,75,73,80,58,80,82,73,78,84,32,34,76,66,76,70,34,13,80,82,73,78,84,32,67,72,82,36,40,49,52,55,41,13,82,85,78,13]
       inter_key_delay_s: 0.03
       post_delay_s: 1.2
   - id: assert_label_forward
@@ -183,7 +124,7 @@ steps:
   - id: label_noop
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rNEW\r10 LABEL HERE:PRINT "LBLN"\rRUN\r')]
+      keys: [80,82,73,78,84,32,67,72,82,36,40,49,52,55,41,13,78,69,87,13,49,48,32,76,65,66,69,76,32,72,69,82,69,58,80,82,73,78,84,32,34,76,66,76,78,34,13,82,85,78,13]
       inter_key_delay_s: 0.03
       post_delay_s: 1.0
   - id: assert_label_noop
@@ -194,7 +135,7 @@ steps:
   - id: missing_label
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rNEW\r10 JUMP MISSING\rRUN\r')]
+      keys: [80,82,73,78,84,32,67,72,82,36,40,49,52,55,41,13,78,69,87,13,49,48,32,74,85,77,80,32,77,73,83,83,73,78,71,13,82,85,78,13]
       inter_key_delay_s: 0.03
       post_delay_s: 1.0
   - id: assert_missing_label
@@ -205,7 +146,7 @@ steps:
   - id: numeric_goto_still_rom
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rNEW\r10 GOTO 30\r20 PRINT "BAD"\r30 PRINT "GTON"\rPRINT CHR$(147)\rRUN\r')]
+      keys: [80,82,73,78,84,32,67,72,82,36,40,49,52,55,41,13,78,69,87,13,49,48,32,71,79,84,79,32,51,48,13,50,48,32,80,82,73,78,84,32,34,66,65,68,34,13,51,48,32,80,82,73,78,84,32,34,71,84,79,78,34,13,80,82,73,78,84,32,67,72,82,36,40,49,52,55,41,13,82,85,78,13]
       inter_key_delay_s: 0.03
       post_delay_s: 1.0
   - id: assert_numeric_goto
@@ -220,7 +161,7 @@ steps:
   - id: err_status_after_error
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rNEW\r10 ZFAIL(6,X%)\rRUN\rPRINT "ERX";ERRCODE();ERRLINE()\rERRCODE(E%):ERRLINE(L%):PRINT "ERS";E%;L%\r')]
+      keys: [80,82,73,78,84,32,67,72,82,36,40,49,52,55,41,13,78,69,87,13,49,48,32,90,70,65,73,76,40,54,44,88,37,41,13,82,85,78,13,80,82,73,78,84,32,34,69,82,88,34,59,69,82,82,67,79,68,69,40,41,59,69,82,82,76,73,78,69,40,41,13,69,82,82,67,79,68,69,40,69,37,41,58,69,82,82,76,73,78,69,40,76,37,41,58,80,82,73,78,84,32,34,69,82,83,34,59,69,37,59,76,37,13]
       inter_key_delay_s: 0.03
       post_delay_s: 1.4
   - id: assert_err_error
@@ -240,13 +181,3 @@ steps:
     type: monitor.command
     params:
       command: "r"
-YAML
-
-if [ "${READYBASIC_GENERATE_PLAN_ONLY:-0}" = "1" ]; then
-  echo "wrote $PLAN"
-  exit 0
-fi
-
-cd "$ROOT"
-dotnet build "$PROJECT"
-dotnet run --project "$PROJECT" -- run-plan --plan "$PLAN" $CLI_CLOSE_ARG

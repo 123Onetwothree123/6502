@@ -421,7 +421,7 @@ as `PING`, `ADD16`, `STRUP`, `HCRC`, `SUMAI`, `RANGEAI`, `TEMPSCRATCH`, and
 
 ## 2026-05-11: Interrupted Visible Boot/Resume Run
 
-- Command: `make readybasic-plugin-static-check && READYBASIC_VISIBLE=1 ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_plugin_command_probe.sh`
+- Command: `make readybasic-plugin-static-check && READYBASIC_VISIBLE=1 build_support/run_readybasic_plugin_command_probe.sh`
 - Run dir: `../agenticdevharness/logs/vice_auto_20260511_201407`
 - Result: interrupted/terminated manually after VICE appeared locked before the ReadyBasic banner.
 - Key trace:
@@ -441,7 +441,7 @@ as `PING`, `ADD16`, `STRUP`, `HCRC`, `SUMAI`, `RANGEAI`, `TEMPSCRATCH`, and
 
 ## 2026-05-11: Visible Plugin Probe Passed
 
-- Command: `READYBASIC_VISIBLE=1 ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_plugin_command_probe.sh`
+- Command: `READYBASIC_VISIBLE=1 build_support/run_readybasic_plugin_command_probe.sh`
 - Run dir: `../agenticdevharness/logs/vice_auto_20260511_202147`
 - Result: pass, 44/44 steps.
 - Key trace:
@@ -456,7 +456,7 @@ as `PING`, `ADD16`, `STRUP`, `HCRC`, `SUMAI`, `RANGEAI`, `TEMPSCRATCH`, and
 
 ## 2026-05-11: Visible Resume-State Probe Passed
 
-- Command: `READYBASIC_SKIP_BUILD=1 READYBASIC_VISIBLE=1 ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_plugin_command_probe.sh`
+- Command: `READYBASIC_SKIP_BUILD=1 READYBASIC_VISIBLE=1 build_support/run_readybasic_plugin_command_probe.sh`
 - Run dir: `../agenticdevharness/logs/vice_auto_20260511_202329`
 - Result: pass, 47/47 steps.
 - Key trace:
@@ -475,7 +475,7 @@ as `PING`, `ADD16`, `STRUP`, `HCRC`, `SUMAI`, `RANGEAI`, `TEMPSCRATCH`, and
 - Branch: `codex/readybasic-reu-plugin-spine`
 - Static command: `make readybasic-plugin-static-check`
 - Static result: pass.
-- Automation command: `READYBASIC_VISIBLE=1 ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_plugin_command_probe.sh`
+- Automation command: `READYBASIC_VISIBLE=1 build_support/run_readybasic_plugin_command_probe.sh`
 - Run dir: `../agenticdevharness/logs/vice_auto_20260511_202716`
 - Result: pass, 47/47 steps after a fresh `precog-d81` profile build with `runappfirst=readybasic`.
 - Key trace:
@@ -492,7 +492,7 @@ as `PING`, `ADD16`, `STRUP`, `HCRC`, `SUMAI`, `RANGEAI`, `TEMPSCRATCH`, and
 
 ## 2026-05-11: Program-Mode Probe Passed
 
-- First failing command: `READYBASIC_SKIP_BUILD=1 READYBASIC_VISIBLE=1 bash ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_program_probe.sh`
+- First failing command: `READYBASIC_SKIP_BUILD=1 READYBASIC_VISIBLE=1 bash build_support/run_readybasic_program_probe.sh`
 - First failing run dir: `../agenticdevharness/logs/vice_auto_20260511_203414`
 - First failing step/code: `assert_program_ping_run`, screen contained `?SYNTAX ERROR` instead of `PRPING 1`.
 - Key diagnosis:
@@ -506,7 +506,7 @@ as `PING`, `ADD16`, `STRUP`, `HCRC`, `SUMAI`, `RANGEAI`, `TEMPSCRATCH`, and
   - Removed the now-unused saved-`TXTPTR` bridge bytes after switching back to non-mutating peek; final `BRIDGE` remains `$C000-$C075`.
 - Static command: `make readybasic-plugin-static-check`
 - Static result: pass.
-- Passing program command: `READYBASIC_VISIBLE=1 bash ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_program_probe.sh`
+- Passing program command: `READYBASIC_VISIBLE=1 bash build_support/run_readybasic_program_probe.sh`
 - Passing program run dir: `../agenticdevharness/logs/vice_auto_20260511_204630`
 - Program result: pass, 24/24 steps after a fresh `precog-d81` profile build with `runappfirst=readybasic`.
 - Program trace:
@@ -517,7 +517,7 @@ as `PING`, `ADD16`, `STRUP`, `HCRC`, `SUMAI`, `RANGEAI`, `TEMPSCRATCH`, and
   - Integer array input/output works: `SUMAI` and `RANGEAI`.
   - Persistent REU handle lifecycle works: `BUFNEW`, `BUFFILL`, `BUFFREE`.
   - Error path works: `!FAIL 7,X%` reports `?RB ERROR 7` and leaves the pre-cleared output variable at zero.
-- Regression command: `READYBASIC_SKIP_BUILD=1 READYBASIC_VISIBLE=1 bash ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_plugin_command_probe.sh`
+- Regression command: `READYBASIC_SKIP_BUILD=1 READYBASIC_VISIBLE=1 bash build_support/run_readybasic_plugin_command_probe.sh`
 - Regression run dir: `../agenticdevharness/logs/vice_auto_20260511_204727`
 - Regression result: pass, 47/47 steps.
 - Next hypothesis:
