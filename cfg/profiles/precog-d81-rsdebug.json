@@ -39,6 +39,8 @@
         { "artifact": "dizzy.prg", "name": "dizzy", "type": "prg" },
         { "artifact": "readyirc.prg", "name": "readyirc", "type": "prg" },
         { "artifact": "readybasic.prg", "name": "readybasic", "type": "prg" },
+        { "artifact": "obj/readybasic_modules/rbm1.prg", "name": "rbm1", "type": "prg" },
+        { "artifact": "obj/readybasic_modules/rbm2.prg", "name": "rbm2", "type": "prg" },
         { "artifact": "ucitest.prg", "name": "ucitest", "type": "prg" },
         { "artifact": "rirc-rrnet.prg", "name": "rirc-rrnet", "type": "prg" },
         { "artifact": "readme.prg", "name": "readme", "type": "prg" },

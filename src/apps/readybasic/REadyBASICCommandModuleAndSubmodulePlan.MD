@@ -3,12 +3,12 @@
 This document is the design note for replacing ReadyBASIC's current
 `LOWPACK` / `HIDDENPACK` command-code model with assembler-only command
 modules, fixed under-ROM submodule slots, REU-backed residency tracking, and a
-future disk-loadable module format.
+disk-loadable module format.
 
-This document is a plan, not an implementation slice. The first implementation
-work should refactor the current command model while preserving behavior. Disk
-module loading and graphics command work are future slices after the internal
-module model is proven.
+This document began as a plan, and now also records the first implemented proof
+shape. The early implementation refactored the current command model while
+preserving behavior, then added a deliberately small disk-module loader proof
+after the internal module model was stable.
 
 ## Goals
 
@@ -279,10 +279,71 @@ During warm resume:
 The first pass should continue to use the current fixed banks. Extra REU bank
 allocation is deferred to the future disk module loader command.
 
-## Future Disk Module Loader
+## Disk Module Loader
 
-The disk module loader is planned but not part of the initial internal-module
-work. Its command should eventually:
+The first disk module loader proof is implemented as a command in the second
+built-in module, not as resident startup code. The BASIC-visible command name is
+`ZMODLD(name$)`, intentionally avoiding the tokenized `LOAD` keyword inside the
+command text. The loader command lives in slot 1/module 2 and uses the resident
+REU stash ABI to register descriptors and payload chunks.
+
+`ZMODLD()` returns the number of command descriptors registered. Failure returns
+a nonzero diagnostic value in the `240` range for the current proof build.
+
+The implemented proof loader:
+
+1. Loads a small PRG-format module file into the existing `$C500` page buffer.
+2. Validates magic, format version, and small descriptor/payload counts.
+3. Copies ready-made command descriptors into REU bank `$44`.
+4. Copies payload chunks into REU bank `$45`.
+5. Invalidates the tiny current residency proof state.
+6. Leaves resident startup unchanged.
+
+The proof format is intentionally smaller than the long-term `RBMD` format
+above. It fits in one page and is built by
+`build_support/build_readybasic_disk_modules.py`.
+
+### Implemented Proof File Format
+
+The generated files are PRGs with a load address of `$C500`. The payload at
+`$C500` is:
+
+| Offset | Size | Meaning |
+| --- | ---: | --- |
+| `0` | 4 | Magic `RBM!`. |
+| `4` | 1 | Format version, currently `1`. |
+| `5` | 1 | Module id. |
+| `6` | 1 | Command descriptor count, maximum `4` in this proof. |
+| `7` | 1 | Payload chunk count, maximum `4` in this proof. |
+| `8` | 1 | File offset of descriptor blob. |
+| `9` | 1 | File offset of payload directory. |
+| `10` | 2 | Destination offset in REU bank `$44` for descriptors. |
+| `12` | 4 | Reserved, zero. |
+
+Each payload directory entry is six bytes:
+
+| Field | Size | Meaning |
+| --- | ---: | --- |
+| File offset | 1 | Offset inside the loaded `$C500` page. |
+| REU offset | 2 | Destination offset in REU bank `$45`. |
+| Size | 2 | Payload size in bytes. |
+| Flags | 1 | Reserved for future proof work. |
+
+Command descriptors use the normal 32-byte ReadyBASIC descriptor layout. Payload
+chunks are assembler-language command workers linked/generated for fixed slot
+addresses.
+
+### Sample Disk Modules
+
+The current build generates and places these files on ReadyBASIC-capable disk
+profiles:
+
+| Disk file | Module | Commands | Layout proved |
+| --- | --- | --- | --- |
+| `RBM1` | Module 3 | `ZDM1()` returns `61` | Single slot-1 submodule. |
+| `RBM2` | Module 4 | `ZDM2S()` returns `74`; `ZDOV1()`/`ZDOV2()` return `72`/`73` | Two-slot slot 1+2 span plus two slot-2 overlays. |
+
+The long-term loader should still:
 
 1. Open a module file from disk.
 2. Validate magic, format version, API version, sizes, and checksums.
@@ -332,11 +393,15 @@ command/module feature so the resident core stays lean.
     size is not yet available;
   - overlay rotation through one target slot.
 
-### Slice 5: Loader Design Stub
+### Slice 5: Disk Loader Proof
 
-- Add the loader command metadata and ABI notes.
-- Do not implement disk loading until internal module behavior is stable.
-- Keep all extra-bank allocation behavior behind the future loader command.
+- Add a small loader command in module 2/slot 1, not resident startup.
+- Generate two sample disk module PRGs and place them on ReadyBASIC-capable
+  disk profiles.
+- Register disk-loaded descriptors in REU bank `$44` and payloads in `$45`.
+- Prove a single-slot disk module, a two-slot disk module, and overlay-style
+  disk module commands.
+- Keep extra-bank allocation behind the future full loader boundary.
 
 ### Slice 6: Guardrails And Docs
 

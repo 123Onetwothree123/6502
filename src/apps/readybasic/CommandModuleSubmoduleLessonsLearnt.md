@@ -171,3 +171,46 @@ proven, adjusted, or rejected during implementation.
 - Scope stop: per user correction, implementation stops here at Slice 4. Slice
   5 loader stubs and Slice 6 documentation hardening are intentionally not
   implemented in this branch state yet.
+
+## Slice 5: Disk Module Loader Proof
+
+- Added `ZMODLD(name$)` as a module 2 / slot 1 command. The loader lives in
+  under-ROM module payload code and uses existing resident REU stash helpers;
+  resident size and BASIC free bytes did not move.
+- Added `build_support/build_readybasic_disk_modules.py` to generate two small
+  PRG-format ReadyBASIC module files:
+  - `RBM1` registers `ZDM1()` as a single slot-1 disk-loaded command returning
+    `61`.
+  - `RBM2` registers `ZDM2S()` as a slot 1+2 span returning `74`, plus
+    `ZDOV1()` / `ZDOV2()` as slot-2 overlays returning `72` / `73`.
+- Added the generated module artifacts to ReadyBASIC-capable D81 and dual-D71
+  profiles so the normal ReadyOS boot disk includes the sample modules.
+- Extended the local ReadyBASIC full visual suite runner to assert:
+  `ZMODLD("RBM1")`, `ZDM1()`, `ZMODLD("RBM2")`, `ZDM2S()`, and
+  `ZDOV1()/ZDOV2()`.
+- Static gate:
+  `make bin/readybasic.prg && make readybasic-plugin-static-check` passed.
+- VICE gate:
+  `READYBASIC_VISIBLE=1 /Users/karlprosserpp/dev/c64projects/agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_full_suite_visual_verification.sh`
+  passed with `success`, 181/181 steps, failed step `null`, no degraded steps.
+  Run dir:
+  `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260525_222934`.
+- Memory delta versus Slice 4:
+  - `BASIC_START` unchanged at `$2AC1`; formula BASIC free bytes unchanged at
+    `30013 ($753D)`.
+  - `RESIDENT` remains `$18BC` / 6332B.
+  - `HIDDEN` remains `$0365` / 869B.
+  - Slot 0 `LOWPACK` remains `$06C7` / 1735B.
+  - Slot 1 `SLOTPACK1` changed from `$0015` / 21B to `$0141` / 321B because
+    it now contains the loader command.
+  - Slot 2, span, and overlay proof payloads remain `$0015` / 21B each.
+  - `BRIDGE` remains `$01F7` / 503B; `REGSEED` and PRG payload size remain
+    unchanged.
+- Lesson: BASIC-visible command names must avoid embedded tokenizable keywords.
+  `ZMODLOAD` looked natural, but the `LOAD` suffix was tokenized before
+  ReadyBASIC command lookup. `ZMODLD` avoids that and should be the naming
+  pattern for future loader-style commands.
+- Lesson: KERNAL `LOAD` from a command works in this under-ROM shape, but its
+  normal `SEARCHING/LOADING` messages disturb expression output. The loader now
+  saves `MSGFLG`, silences those messages only around the load, and restores
+  the previous value.

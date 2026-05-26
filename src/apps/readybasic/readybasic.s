@@ -42,6 +42,9 @@ K_CHROUT        = $FFD2
 K_CLRCHN        = $FFCC
 K_PLOT          = $FFF0
 K_RESTOR        = $FF8A
+K_SETLFS        = $FFBA
+K_SETNAM        = $FFBD
+K_LOAD          = $FFD5
 
 ; ---------------------------------------------------------------------------
 ; BASIC/KERNAL workspace
@@ -59,6 +62,7 @@ MEMSIZ          = $37
 CURLIN          = $39
 TXTPTR          = $7A
 DFLTN           = $99
+MSGFLG          = $9D
 VARPNT          = $47
 SUBFLG          = $10
 DSCPTR          = $64
@@ -266,6 +270,11 @@ CMD_ZOVL1       = 24
 CMD_ZOVL2       = 25
 CMD_ZCPYRST     = 26
 CMD_ZCOPY       = 27
+CMD_ZMODLOAD    = 28
+CMD_ZDM1        = 29
+CMD_ZDM2S       = 30
+CMD_ZDOV1       = 31
+CMD_ZDOV2       = 32
 
 ; REU registers.
 REU_CMD         = $DF01
@@ -3837,7 +3846,8 @@ rb_command_descriptors:
         CMD_OVL2 CMD_ZOVL2, SIG_SCRCAP, cmd_zovl2, "ZOVL2"
         CMD_LOW CMD_ZCPYRST, SIG_SCRCAP, cmd_zcpyrst_low, cmd_zcpyrst_low_end, "ZCPYRST"
         CMD_LOW CMD_ZCOPY, SIG_SCRCAP, cmd_zcopy_low, cmd_zcopy_low_end, "ZCOPY"
-        .res (RB_CMD_DESC_COUNT - 27) * RB_CMD_DESC_SIZE, 0
+        CMD_SLOT1 CMD_ZMODLOAD, SIG_ZHIDDENRAM, cmd_zmodload, "ZMODLD"
+        .res (RB_CMD_DESC_COUNT - 28) * RB_CMD_DESC_SIZE, 0
         CMD_LOW_ALL CMD_SCRPUT, SIG_SCRPUT, cmd_scrput_low, "SCRPUT"
 
 ; ---------------------------------------------------------------------------
@@ -5571,6 +5581,144 @@ cmd_zslot1:
         sta RF_VAL_HI
         rts
 cmd_zslot1_end:
+
+cmd_zmodload:
+        lda CF_STR_LEN
+        beq @fail_empty
+        ldx #<CF_STR_BUF
+        ldy #>CF_STR_BUF
+        jsr K_SETNAM
+        lda #1
+        ldx #8
+        ldy #1
+        jsr K_SETLFS
+        lda MSGFLG
+        sta rb_lookup_char
+        lda #0
+        sta MSGFLG
+        lda #0
+        ldx #<RB_PAGEBUF
+        ldy #>RB_PAGEBUF
+        jsr K_LOAD
+        php
+        lda rb_lookup_char
+        sta MSGFLG
+        jsr K_CLRCHN
+        plp
+        bcc @loaded
+        lda #241
+        jmp @return_int
+@loaded:
+        lda RB_PAGEBUF
+        cmp #'R'
+        bne @fail_magic
+        lda RB_PAGEBUF+1
+        cmp #'B'
+        bne @fail_magic
+        lda RB_PAGEBUF+2
+        cmp #'M'
+        bne @fail_magic
+        lda RB_PAGEBUF+3
+        cmp #'!'
+        bne @fail_magic
+        lda RB_PAGEBUF+4
+        cmp #1
+        bne @fail_version
+        lda RB_PAGEBUF+6
+        beq @fail_count
+        cmp #5
+        bcs @fail_count
+        lda RB_PAGEBUF+7
+        cmp #5
+        bcs @fail_count
+        jsr rb_zmodload_stash_descriptors
+        jsr rb_zmodload_stash_payloads
+        jsr rb_clear_slot_residency
+        lda RB_PAGEBUF+6
+        jmp @return_int
+@fail_empty:
+        lda #240
+        jmp @return_int
+@fail_magic:
+        lda #242
+        jmp @return_int
+@fail_version:
+        lda #243
+        jmp @return_int
+@fail_count:
+        lda #244
+        jmp @return_int
+@return_int:
+        sta RF_VAL_LO
+        lda #0
+        sta RF_STATUS
+        sta RF_VAL_HI
+        lda #RB_VAL_INT
+        sta RF_TAG
+        rts
+
+rb_zmodload_stash_descriptors:
+        lda RB_PAGEBUF+8
+        sta rb_reu_c64_lo
+        lda #>RB_PAGEBUF
+        sta rb_reu_c64_hi
+        lda RB_PAGEBUF+10
+        sta rb_reu_off_lo
+        lda RB_PAGEBUF+11
+        sta rb_reu_off_hi
+        lda #RB_REU_CORE_BANK
+        sta rb_reu_bank
+        lda #0
+        sta rb_reu_len_hi
+        lda RB_PAGEBUF+6
+.repeat 5
+        asl
+        rol rb_reu_len_hi
+.endrepeat
+        sta rb_reu_len_lo
+        jsr rb_reu_stash
+        rts
+
+rb_zmodload_stash_payloads:
+        lda RB_PAGEBUF+7
+        sta rb_copy_chunks
+        beq @done
+        lda RB_PAGEBUF+9
+        sta rb_ptr_lo
+        lda #>RB_PAGEBUF
+        sta rb_ptr_hi
+@loop:
+        ldy #0
+        lda (rb_ptr_lo),y
+        sta rb_reu_c64_lo
+        lda #>RB_PAGEBUF
+        sta rb_reu_c64_hi
+        iny
+        lda (rb_ptr_lo),y
+        sta rb_reu_off_lo
+        iny
+        lda (rb_ptr_lo),y
+        sta rb_reu_off_hi
+        iny
+        lda (rb_ptr_lo),y
+        sta rb_reu_len_lo
+        iny
+        lda (rb_ptr_lo),y
+        sta rb_reu_len_hi
+        lda #RB_REU_CODE_BANK
+        sta rb_reu_bank
+        jsr rb_reu_stash
+        clc
+        lda rb_ptr_lo
+        adc #6
+        sta rb_ptr_lo
+        bcc :+
+        inc rb_ptr_hi
+:       dec rb_copy_chunks
+        bne @loop
+@done:
+        rts
+cmd_zmodload_end:
 
         .segment "SLOTPACK2"
 

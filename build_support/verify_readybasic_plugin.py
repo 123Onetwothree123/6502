@@ -62,6 +62,8 @@ def main() -> None:
     require(r"^SIG_SCRPUT\s*=\s*15\b", asm, "SCRPUT signature must be registered")
     require(r"^SIG_FADD\s*=\s*16\b", asm, "FADD signature must be registered")
     require(r"^SIG_ZPAUSE\s*=\s*SIG_BUFFREE\b", asm, "ZPAUSE must reuse the one-integer parser signature")
+    require(r"^CMD_ZMODLOAD\s*=\s*28\b", asm, "ZMODLOAD loader command id must stay stable")
+    require(r"CMD_SLOT1\s+CMD_ZMODLOAD,\s+SIG_ZHIDDENRAM,\s+cmd_zmodload,\s+\"ZMODLD\"", asm, "ZMODLD loader command must live in module 2 slot 1")
     require(r"#define\s+REU_RB_CORE\s+14\b", reu_hdr, "REU_RB_CORE type must stay in sync")
     require(r"#define\s+REU_RB_CODE\s+15\b", reu_hdr, "REU_RB_CODE type must stay in sync")
     require(r"#define\s+REU_BANK_RB_CORE\s+0x44\b", reu_hdr, "REU_BANK_RB_CORE must be 0x44")
@@ -92,8 +94,8 @@ def main() -> None:
         fail(f"command slot 0 size changed from measured $06C7, got ${lowpack[2]:04X}")
     if slotpack1[0] != 0xB000 or slotpack1[1] > 0xB7FF:
         fail(f"command slot 1 must fit under BASIC ROM at $B000-$B7FF, got ${slotpack1[0]:04X}-${slotpack1[1]:04X}")
-    if slotpack1[2] != 0x0015:
-        fail(f"command slot 1 size changed from measured $0015, got ${slotpack1[2]:04X}")
+    if slotpack1[2] != 0x0141:
+        fail(f"command slot 1 size changed from measured $0141, got ${slotpack1[2]:04X}")
     if slotpack2[0] != 0xB800 or slotpack2[1] > 0xBFFF:
         fail(f"command slot 2 must fit under BASIC ROM at $B800-$BFFF, got ${slotpack2[0]:04X}-${slotpack2[1]:04X}")
     if slotpack2[2] != 0x0015:
