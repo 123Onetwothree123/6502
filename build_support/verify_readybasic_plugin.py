@@ -67,43 +67,38 @@ def main() -> None:
     require(r"#define\s+REU_BANK_RB_CORE\s+0x44\b", reu_hdr, "REU_BANK_RB_CORE must be 0x44")
     require(r"#define\s+REU_BANK_RB_CODE\s+0x45\b", reu_hdr, "REU_BANK_RB_CODE must be 0x45")
 
-    for name in ("ENTRY", "RESIDENT", "LOWPACK", "HIDDEN", "HIDDENPACK", "BRIDGE", "REGSEED"):
+    for name in ("ENTRY", "RESIDENT", "LOWPACK", "HIDDEN", "BRIDGE", "REGSEED"):
         if name not in segments:
             fail(f"map is missing segment {name}")
 
     resident = segments["RESIDENT"]
     lowpack = segments["LOWPACK"]
     hidden = segments["HIDDEN"]
-    hiddenpack = segments["HIDDENPACK"]
     bridge = segments["BRIDGE"]
     regseed = segments["REGSEED"]
 
     if resident[0] != 0x1200 or resident[1] >= 0x2AC0:
         fail(f"RESIDENT must fit in $1200-$2ABF, got ${resident[0]:04X}-${resident[1]:04X}")
-    if resident[2] > 0x18BA:
-        fail(f"RESIDENT grew past measured repeat/label budget $18BA, got ${resident[2]:04X}")
-    if lowpack[0] != 0xA900 or lowpack[1] > 0xBFFF:
-        fail(f"LOWPACK must fit under BASIC ROM at $A900-$BFFF, got ${lowpack[0]:04X}-${lowpack[1]:04X}")
-    if lowpack[2] != 0x063D:
-        fail(f"LOWPACK size changed from measured $063D, got ${lowpack[2]:04X}")
-    if hidden[0] != 0xA000 or hidden[1] > 0xA5FF:
-        fail(f"HIDDEN helper must fit in $A000-$A5FF, got ${hidden[0]:04X}-${hidden[1]:04X}")
-    if hidden[2] != 0x0377:
-        fail(f"HIDDEN helper size changed from measured $0377, got ${hidden[2]:04X}")
-    if hiddenpack[0] < 0xA000 or hiddenpack[1] > 0xBFFF:
-        fail(f"HIDDENPACK must fit in $A000-$BFFF, got ${hiddenpack[0]:04X}-${hiddenpack[1]:04X}")
-    if hiddenpack[2] != 0x004D:
-        fail(f"HIDDENPACK size changed from measured $004D, got ${hiddenpack[2]:04X}")
+    if resident[2] > 0x18B8:
+        fail(f"RESIDENT grew past command-module slot budget $18B8, got ${resident[2]:04X}")
+    if lowpack[0] != 0xA800 or lowpack[1] > 0xAFFF:
+        fail(f"command slot 0 must fit under BASIC ROM at $A800-$AFFF, got ${lowpack[0]:04X}-${lowpack[1]:04X}")
+    if lowpack[2] != 0x068A:
+        fail(f"command slot 0 size changed from measured $068A, got ${lowpack[2]:04X}")
+    if hidden[0] != 0xA000 or hidden[1] > 0xA7FF:
+        fail(f"HIDDEN helper/common area must fit in $A000-$A7FF, got ${hidden[0]:04X}-${hidden[1]:04X}")
+    if hidden[2] > 0x0368:
+        fail(f"HIDDEN helper/common area grew past measured $0368, got ${hidden[2]:04X}")
     if bridge[0] != 0xC000 or bridge[1] >= 0xC200:
         fail(f"BRIDGE must stay below relocated shared frames at $C200, got ${bridge[0]:04X}-${bridge[1]:04X}")
     if bridge[2] > 0x01FF:
-        fail(f"BRIDGE grew past measured repeat/label budget $01FF, got ${bridge[2]:04X}")
+        fail(f"BRIDGE grew past command-module budget $01FF, got ${bridge[2]:04X}")
     require(r"^RB_CF\s*=\s*\$C200\b", asm, "RB_CF must be relocated to $C200")
     require(r"^RB_RF\s*=\s*\$C300\b", asm, "RB_RF must be relocated to $C300")
     require(r"^RB_DESC_BUF\s*=\s*\$C480\b", asm, "RB_DESC_BUF must be relocated to $C480")
     require(r"^RB_CMDBUF\s*=\s*\$C4A0\b", asm, "RB_CMDBUF must be relocated to $C4A0")
     require(r"^RB_PAGEBUF\s*=\s*\$C500\b", asm, "RB_PAGEBUF must be relocated to $C500")
-    require(r"^RB_LOW_BASE\s*=\s*\$A900\b", asm, "RB_LOW_BASE must be relocated to $A900")
+    require(r"^RB_LOW_BASE\s*=\s*\$A800\b", asm, "RB_LOW_BASE must be relocated to slot 0 at $A800")
     require(r"^RUNTIME_ZP_BUF\s*=\s*\$C400\b", asm, "RUNTIME_ZP_BUF must be $C400")
     require(r"^RUNTIME_STACK_BUF\s*=\s*\$C500\b", asm, "RUNTIME_STACK_BUF must be $C500")
     require(r"^HIDDEN_SHADOW\s*=\s*\$C280\b", asm, "HIDDEN_SHADOW must be visible RAM at $C280")

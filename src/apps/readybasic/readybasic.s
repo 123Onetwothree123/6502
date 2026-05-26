@@ -118,7 +118,7 @@ VIC_MEM_LOWERCASE = $16
 ; ReadyBASIC plugin ABI constants
 ; ---------------------------------------------------------------------------
 
-RB_LOW_BASE     = $A900
+RB_LOW_BASE     = $A800
 RB_HIDDEN_BASE  = $A000
 RB_SHARED       = $C200
 RB_CF           = $C200
@@ -174,6 +174,7 @@ RB_SUBMOD_COMMON = 0
 RB_SUBMOD_LEGACY_LOW = 1
 RB_SLOT_LEGACY_LOW = $01
 RB_SLOT_COMMON = $80
+RB_SLOT_INVALID = $FF
 
 RB_REU_CORE_BANK= $44
 RB_REU_CODE_BANK= $45
@@ -182,6 +183,7 @@ RB_REU_TYPE_CODE= 15
 RB_REU_ALLOC_TABLE = $C600
 RB_REU_HEADER_OFF  = $0000
 RB_REU_DESC_OFF    = $1000
+RB_REU_SLOT_STATE_OFF = $2000
 RB_REU_CALL_OFF    = $0400
 RB_REU_RESULT_OFF  = $0400
 RB_REU_DEBUG_OFF   = $0600
@@ -269,7 +271,6 @@ REU_LEN_HI      = $DF08
         .import __HIDDEN_LOAD__, __HIDDEN_RUN__, __HIDDEN_SIZE__
         .import __BRIDGE_LOAD__, __BRIDGE_RUN__, __BRIDGE_SIZE__
         .import __LOWPACK_LOAD__, __LOWPACK_RUN__, __LOWPACK_SIZE__
-        .import __HIDDENPACK_LOAD__, __HIDDENPACK_RUN__, __HIDDENPACK_SIZE__
 
 rb_entry_src    = $FB
 rb_entry_dst    = $FD
@@ -3287,42 +3288,57 @@ rb_load_and_call_command:
         sta rb_reu_len_lo
         lda RB_DESC_BUF+5
         sta rb_reu_len_hi
-        jsr rb_desc_runtime_base
         clc
-        lda rb_ptr_lo
+        lda #<RB_LOW_BASE
         adc RB_DESC_BUF+10
         sta rb_reu_c64_lo
-        lda rb_ptr_hi
+        lda #>RB_LOW_BASE
         adc RB_DESC_BUF+11
         sta rb_reu_c64_hi
         clc
-        lda rb_ptr_lo
+        lda #<RB_LOW_BASE
         adc RB_DESC_BUF+12
         sta rb_overlay_vec_lo
-        lda rb_ptr_hi
+        lda #>RB_LOW_BASE
         adc RB_DESC_BUF+13
         sta rb_overlay_vec_hi
         lda #RB_REU_CODE_BANK
         sta rb_reu_bank
         jsr rb_fetch_underrom_payload
+        jsr rb_mark_slot_resident
         jsr rb_call_underrom_payload
 @done:
         rts
 
-rb_desc_runtime_base:
+rb_slot_resident:
         lda RB_DESC_BUF+8
-        cmp #RB_SLOT_COMMON
-        beq @common
-        lda #<RB_LOW_BASE
-        sta rb_ptr_lo
-        lda #>RB_LOW_BASE
-        sta rb_ptr_hi
+        cmp #RB_SLOT_LEGACY_LOW
+        bne @miss
+        lda rb_slot0_module
+        cmp RB_DESC_BUF+1
+        bne @miss
+        lda rb_slot0_generation
+        cmp RB_DESC_BUF+9
+        bne @miss
+        sec
         rts
-@common:
-        lda #<RB_HIDDEN_BASE
-        sta rb_ptr_lo
-        lda #>RB_HIDDEN_BASE
-        sta rb_ptr_hi
+@miss:
+        clc
+        rts
+
+rb_mark_slot_resident:
+        lda RB_DESC_BUF+8
+        cmp #RB_SLOT_LEGACY_LOW
+        bne @done
+        lda RB_DESC_BUF+1
+        sta rb_slot0_module
+        lda RB_DESC_BUF+6
+        sta rb_slot0_submodule
+        lda RB_DESC_BUF+7
+        sta rb_slot0_overlay
+        lda RB_DESC_BUF+9
+        sta rb_slot0_generation
+@done:
         rts
 
 rb_fetch_underrom_payload:
@@ -3645,13 +3661,13 @@ rb_reu_header_end:
 
 .macro CMD_LOW id, sig, label, endlabel, name
         .byte id, RB_MODULE_SYSTEM
-        .word label - __LOWPACK_RUN__
-        .word endlabel - label
+        .word 0
+        .word __LOWPACK_SIZE__
         .byte RB_SUBMOD_LEGACY_LOW
         .byte 0
         .byte RB_SLOT_LEGACY_LOW
         .byte 1
-        .word label - __LOWPACK_RUN__
+        .word 0
         .word label - __LOWPACK_RUN__
         .byte sig, .strlen(name)
         .byte name
@@ -3675,14 +3691,14 @@ rb_reu_header_end:
 
 .macro CMD_HIDDEN id, sig, label, endlabel, name
         .byte id, RB_MODULE_SYSTEM
-        .word (__HIDDENPACK_LOAD__ - __LOWPACK_LOAD__) + (label - __HIDDENPACK_RUN__)
-        .word endlabel - label
-        .byte RB_SUBMOD_COMMON
+        .word 0
+        .word __LOWPACK_SIZE__
+        .byte RB_SUBMOD_LEGACY_LOW
         .byte 0
-        .byte RB_SLOT_COMMON
+        .byte RB_SLOT_LEGACY_LOW
         .byte 1
-        .word label - RB_HIDDEN_BASE
-        .word label - RB_HIDDEN_BASE
+        .word 0
+        .word label - __LOWPACK_RUN__
         .byte sig, .strlen(name)
         .byte name
         .res 16 - .strlen(name), 0
@@ -3982,21 +3998,16 @@ rb_seed_plugin_reu_hidden:
         sta rb_reu_len_hi
         jsr rb_reu_stash
 
-        lda #<__HIDDENPACK_LOAD__
-        sta rb_reu_c64_lo
-        lda #>__HIDDENPACK_LOAD__
-        sta rb_reu_c64_hi
-        lda #<(__HIDDENPACK_LOAD__ - __LOWPACK_LOAD__)
-        sta rb_reu_off_lo
-        lda #>(__HIDDENPACK_LOAD__ - __LOWPACK_LOAD__)
-        sta rb_reu_off_hi
-        lda #<__HIDDENPACK_SIZE__
-        sta rb_reu_len_lo
-        lda #>__HIDDENPACK_SIZE__
-        sta rb_reu_len_hi
-        jsr rb_reu_stash
-
+        jsr rb_clear_slot_residency
         jsr rb_clear_handle_heap
+        rts
+
+rb_clear_slot_residency:
+        lda #0
+        sta rb_slot0_module
+        sta rb_slot0_submodule
+        sta rb_slot0_overlay
+        sta rb_slot0_generation
         rts
 
 rb_mark_reu_banks_hidden:
@@ -4471,6 +4482,10 @@ rb_out_count_hi:.byte 0
 
 rb_overlay_vec_lo:.byte 0
 rb_overlay_vec_hi:.byte 0
+rb_slot0_module:.byte 0
+rb_slot0_submodule:.byte 0
+rb_slot0_overlay:.byte 0
+rb_slot0_generation:.byte 0
 
 rb_reu_c64_lo:  .byte 0
 rb_reu_c64_hi:  .byte 0
@@ -4497,8 +4512,8 @@ rb_copy_len_lo: .byte 0
 rb_copy_len_hi: .byte 0
 
 ; ---------------------------------------------------------------------------
-; Packed low overlay command implementations.  These are copied from REU bank
-; $45 into $A900-$BFFF before call.
+; Packed command submodule 0. This 2KB slot image is copied from REU bank $45
+; into $A800-$AFFF on demand, then reused while residency metadata matches.
 ; ---------------------------------------------------------------------------
 
         .segment "LOWPACK"
@@ -5351,11 +5366,9 @@ rb_fetch_pagebuf_from_copy_page:
         rts
 
 ; ---------------------------------------------------------------------------
-; Packed hidden overlay command implementations.  These are copied from REU
-; bank $45 into RAM under BASIC ROM before call.
+; Former hidden worker command implementation. It now lives in the same
+; default command submodule as the other command workers.
 ; ---------------------------------------------------------------------------
-
-        .segment "HIDDENPACK"
 
 cmd_zhiddenram_hidden:
         lda #0
