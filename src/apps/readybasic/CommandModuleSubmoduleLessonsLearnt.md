@@ -215,23 +215,15 @@ proven, adjusted, or rejected during implementation.
   saves `MSGFLG`, silences those messages only around the load, and restores
   the previous value.
 
-## Documentation Hardening: Current Memory And Module Docs
+## Documentation Hardening: Preserve Then Refresh
 
-- Rewrote the current ReadyBASIC markdown docs around the implemented
-  module/submodule architecture:
-  `READYBASIC_CURRENT_DESIGN.md`,
-  `READYBASIC_LIFECYCLE_AND_REU_ARCHITECTURE.md`,
-  `READYBASIC_MAKING_COMMAND_GUIDE.md`,
-  `READYBASIC_PLUGIN_ARCH.md`, and `READYBASIC_MICROMODULE_SYNC.md`.
-- Rebuilt the three visual HTML guides so they emphasize the post-BASIC memory
-  map first, then show under-ROM slots, REU bank `$44/$45`, disk module flow,
-  and command-authoring choices with proportional color-coded sections.
-- Updated the general ReadyBASIC lessons current-model bullets so the top of
-  the lab notebook no longer describes the pre-module `$A900` overlay model as
-  current.
-- Verification for this docs-only pass:
-  - HTML files parsed successfully with Python `html.parser`.
-  - `make readybasic-plugin-static-check` passed.
-- Lesson: history logs should keep dated old addresses, but their opening
-  "current model" sections must point at the latest memory contract or future
-  implementation work will silently inherit obsolete slot assumptions.
+- First documentation refresh over-compressed the large markdown and HTML guides
+  and removed useful command/lifecycle/detail material. That was not acceptable
+  for these docs.
+- Restored the prior long-form content and changed the update strategy to
+  additive current sections: current module/submodule memory facts appear near
+  the top of each guide, while older detailed examples and historical notes
+  remain in place.
+- Acceptance rule for this pass: do not delete content unless it is completely
+  irrelevant. If older content is historically useful but no longer current,
+  annotate it as historical/pre-module rather than removing it.

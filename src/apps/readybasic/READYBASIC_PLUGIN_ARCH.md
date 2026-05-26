@@ -1,137 +1,239 @@
-# ReadyBASIC REU Plugin Architecture
+# ReadyBASIC Lean REU Plugin Architecture
 
-This is the compact architecture note for the current ReadyBASIC command
-module branch. For the full memory/lifecycle walkthrough, see
-`READYBASIC_LIFECYCLE_AND_REU_ARCHITECTURE.md`. For adding commands, see
-`READYBASIC_MAKING_COMMAND_GUIDE.md`.
+## Current Module/Submodule Branch Update
 
-## Current Steady-State Layout
+This file keeps the lean-plugin history and earlier V1 notes below. The current
+command-module branch has updated the command placement model while preserving
+the same ReadyOS and REU discipline.
 
-After ReadyBASIC finishes cold initialization, BASIC owns the normal program
-workspace from `BASIC_START=$2AC1` through `$9FFF`. The empty BASIC formula
-reports `30013` free bytes. Cold seed bytes that were loaded above `$2AC1` are
-not persistent C64 RAM; they have already been copied into REU banks.
+- `BASIC_START = $2AC1`; BASIC owns `$2AC1-$9FFF`, with `30013` formula empty
+  free bytes.
+- `RESIDENT` is `$1200-$2ABB` (`$18BC`, 6332B).
+- `BRIDGE` is `$C000-$C1F6` (`$01F7`, 503B), still below `$C200`.
+- Under BASIC ROM, `$A000-$A7FF` is the common helper area; `$A800-$AFFF`,
+  `$B000-$B7FF`, and `$B800-$BFFF` are three 2KB submodule slots.
+- REU bank `$44` is the registry/runtime bank; REU bank `$45` is the built-in
+  and disk-loaded module payload bank.
+- Descriptors remain 32 bytes but now carry module id, submodule id, overlay
+  id, slot mask, payload REU offset/size, runtime destination, and entry offset.
+- The disk-loader proof command is `ZMODLD(name$)` in module 2/slot 1. Sample
+  disk modules add `ZDM1`, `ZDM2S`, `ZDOV1`, and `ZDOV2`.
 
-| Region | Address | Size | Role |
-| --- | ---: | ---: | --- |
-| Entry | `$1000-$1102` | `$0103` / 259B | Cold/warm discriminator and startup handoff. |
-| Resident | `$1200-$2ABB` | `$18BC` / 6332B | Parser hooks, BASIC ROM calls, REU DMA wrappers, dispatch, commit, native language features. |
-| BASIC sentinel | `$2AC0` | 1B | Must remain zero before stored-program `RUN`. |
-| BASIC workspace | `$2AC1-$9FFF` | 30013 formula bytes free | Program text, variables, arrays, strings, and reclaimed cold seed space. |
-| Common under-ROM | `$A000-$A7FF` | 2KB window, `$0365` used | Helper code under BASIC ROM. |
-| Submodule slot 0 | `$A800-$AFFF` | 2KB window, `$06C7` used | Default/system command module. |
-| Submodule slot 1 | `$B000-$B7FF` | 2KB window, `$0141` used | Built-in proof module and `ZMODLD` loader command. |
-| Submodule slot 2 | `$B800-$BFFF` | 2KB window, overlay proof bytes used | Proof commands and overlay targets. |
-| Bridge | `$C000-$C1F6` | `$01F7` / 503B | Small state, return stacks, dispatch scratch below `$C200`. |
-| Shared frames | `$C200-$C5FF` | 1KB | Call/result frames, descriptor buffer, command buffer, page buffer, disk-module load page. |
-| ReadyOS REU metadata | `$C600-$C7FF` | 512B | Shared ReadyOS allocation table. ReadyBASIC only marks ownership here. |
-| ReadyOS shim ABI | `$C800-$C9FF` | 512B | Shim jump table/data. Not ReadyBASIC scratch. |
+## Pre-Module V1 Layout Snapshot
 
-ReadyBASIC never treats `$C600-$C9FF` as private app RAM. Normal verification
-must boot ReadyOS through `run.sh` / `run.ps1`; direct single-app launch misses
-the launcher and shim contract.
-
-## Under-ROM Command Model
-
-All descriptor-backed commands are under-ROM commands now. The old special
-"hidden command" distinction is gone at dispatch time: a descriptor says which
-module/submodule/overlay payload is needed, where it lives in REU bank `$45`,
-and which under-BASIC-ROM runtime address receives it.
-
-The under-ROM layout is deliberately proportional:
-
-| Window | Address | Meaning |
-| --- | ---: | --- |
-| Common | `$A000-$A7FF` | Shared helpers, REU prestash/save/restore routines, and future resident-code relief. |
-| Slot 0 | `$A800-$AFFF` | Preferred always-useful system submodule. Current `LOWPACK` runs here. |
-| Slot 1 | `$B000-$B7FF` | Swappable submodule slot. Current built-in proof/loader submodule runs here. |
-| Slot 2 | `$B800-$BFFF` | Swappable submodule/overlay slot. Current slot-2 and overlay proofs run here. |
-
-A submodule may claim one slot, two adjacent slots, or all three slots. A
-six-kilobyte exclusive submodule cannot assume slot-0 helper code remains in
-place unless it calls only resident ABI services or brings its own helper code.
+- `BASIC_START = $2AC1`; BASIC owns `$2AC1-$9FFF`, with `30013` formula empty free bytes (29.3K).
+- `$1000-$1102`: tiny app entry (`$0103`, 259B) that copies hidden helpers and bridge state before BASIC starts.
+- `$1200-$2AB9`: visible resident core (`$18BA`, 6330B). This is the only code that calls BASIC ROM helpers.
+- `$2AC0`: BASIC sentinel byte; it must stay zero before stored-program `RUN`.
+- `$A900-$AF3C`: low command overlay slot under BASIC ROM. In this pre-module
+  snapshot, the packed low command image was `$063D` bytes (1.6K, 1597 exact bytes).
+- `$C200-$C5FF`: fixed call frame, result frame, descriptor buffer, command-name buffer, page buffer, and warm-resume staging (`$0400`, 1.0K).
+- `$A000-$A376`: hidden helper code (`$0377`, 887B), restored from the visible `$C280` shadow.
+- `$A800-$A84C`: hidden worker overlay slot (`$004D`, 77B) used by `ZHIDDENRAM`.
+- `$C000-$C1F3`: bridge state plus native routine return stack and flow-control scratch (`$01F4`, 500B); the implementation stays below `$C200`.
 
 ## REU Banks
 
-ReadyBASIC reserves two fixed REU banks and marks them in the ReadyOS allocation
-table at `$C600+$44` and `$C600+$45`:
+- Bank `$44` is ReadyBASIC common/system storage.
+- Bank `$45` is packed command code storage.
+- ReadyOS REU type constants are mirrored as `REU_RB_CORE = 14` and `REU_RB_CODE = 15`.
+- ReadyBASIC marks `$C600+$44` and `$C600+$45` during boot so REU viewer and allocator state know those banks are owned.
+- Full registry/code prestash runs only on cold ReadyBASIC entry. Warm resume
+  re-marks ownership but does not reread `CMDPACK`, hidden/bridge load images,
+  or `REGSEED`, because those load-image addresses become normal BASIC
+  workspace after launch.
+- Native `PROC`/`FUNC` definitions are ordinary BASIC program text. They do not
+  use descriptors, `LOWPACK`, `HIDDENPACK`, or bank `$45` command-code storage.
+- Native `REPEAT`/`UNTIL` and `LABEL`/`JUMP` markers are also visible BASIC text
+  handled by resident parser code; they do not allocate descriptor slots.
 
-| Bank | Type | Purpose |
-| ---: | ---: | --- |
-| `$44` | 14 | Runtime registry, command descriptors, handle directory, snapshots, typed heap, and reserved module metadata. |
-| `$45` | 15 | Built-in and disk-loaded command/module payload bytes. |
+## Bank `$44` Regions
 
-Cold entry copies the registry seed and built-in command payloads into those
-banks. Warm resume re-marks ownership and reuses REU state; it must not trust
-the old load-image bytes inside the BASIC workspace.
+- `$0000`: registry header (`RBPL`, version, descriptor count, descriptor size, frame offsets).
+- `$0400`: current call-frame snapshot.
+- `$0400`: current result-frame snapshot.
+- `$0600`: reserved REU debug ring region.
+- `$0800-$09FF`: REU-backed handle directory, 128 descriptors at 4 bytes each.
+- `$0A00`: ReadyOS suspend/resume zero-page snapshot.
+- `$0B00`: ReadyOS suspend/resume stack-page snapshot.
+- `$0C00-$0CFF`: 192-page heap bitmap plus reserved bytes.
+- `$1000-$1FFF`: 128 compact command descriptor slots, 32 bytes each. Slot 14 is `SCRCAP`, slot 128 is `SCRPUT`, and zero-filled filler slots are unused.
+- `$2000-$3FFF`: reserved common/system expansion space.
+- `$4000-$FFFF`: typed 48KB heap for buffer and screen handles.
 
-### Bank `$44`
+## Bank `$45` Regions
 
-| Offset | Role |
-| ---: | --- |
-| `$0000` | Registry header: magic/version, descriptor count/size, frame offsets. |
-| `$0400` | Call/result snapshot scratch. The call and result frame snapshots reuse this offset at different moments. |
-| `$0600` | Reserved debug ring area. |
-| `$0800-$09FF` | 128 handle descriptors, 4 bytes each. |
-| `$0A00` | Zero-page snapshot for ReadyOS suspend/resume. |
-| `$0B00` | Hardware stack-page snapshot for ReadyOS suspend/resume. |
-| `$0C00-$0CFF` | Heap page bitmap for the 48KB typed heap. |
-| `$1000-$1FFF` | 128 command descriptors, 32 bytes each. Disk module samples currently register at descriptor pages starting `$1500` and `$1600`. |
-| `$2000-$3FFF` | Reserved module/catalog/residency expansion space. The current proof keeps only a tiny last-command copy counter in bridge RAM. |
-| `$4000-$FFFF` | Typed heap for byte buffers and screen text/color handles. |
-
-### Bank `$45`
-
-| Offset | Payload | Runtime |
-| ---: | --- | --- |
-| `$0000-$06C6` | Built-in module 1, system/default slot 0 | `$A800-$AEC6` |
-| `$06C7-$0807` | Built-in module 2, slot 1 including `ZMODLD` | `$B000-$B140` |
-| `$0808-$081C` | Built-in module 2, slot 2 proof | `$B800-$B814` |
-| `$081D-$0831` | Built-in two-slot span proof payload | `$B000-$B014` |
-| `$0832-$0846` | Built-in overlay proof 1 | `$B815-$B829` |
-| `$0847-$085B` | Built-in overlay proof 2 | `$B82A-$B83E` |
-| `$3000` | Disk sample `RBM1` command `ZDM1` | slot 1 |
-| `$3200` | Disk sample `RBM2` command `ZDM2S` | slots 1+2 span |
-| `$3300` | Disk sample `RBM2` overlay command `ZDOV1` | slot 2 overlay |
-| `$3400` | Disk sample `RBM2` overlay command `ZDOV2` | slot 2 overlay |
+- Offset `$0000`: low overlay pack copied from the linker `LOWPACK` segment.
+- Offset `$063D`: hidden overlay pack copied from the linker `HIDDENPACK` segment.
+- Descriptors store code offsets and run offsets; normal low commands copy only their slice. Buffer/heap/screen sample commands currently load the whole low pack because their REU descriptor, allocator, bitmap, and screen-copy helpers live in the overlay pack rather than resident core RAM.
 
 ## Descriptor ABI
 
-Every command descriptor is 32 bytes:
+Each descriptor is 32 bytes:
 
-| Byte(s) | Meaning |
-| ---: | --- |
-| `0` | Stable command id. |
-| `1` | Module id. |
-| `2-3` | Payload offset in REU bank `$45`. |
-| `4-5` | Payload size to copy when the submodule/overlay is not resident. |
-| `6` | Submodule id. |
-| `7` | Overlay id (`0` for normal submodules). |
-| `8` | Slot mask: bit 0 = `$A800`, bit 1 = `$B000`, bit 2 = `$B800`. |
-| `9` | Generation/check byte used by residency logic. |
-| `10-11` | Runtime destination offset from `$A000`. |
-| `12-13` | Entry offset within the copied runtime payload. |
-| `14` | Parser signature id. |
-| `15` | Uppercase command-name length. |
-| `16-31` | Uppercase command-name bytes, zero padded. |
+- `0`: command id.
+- `1`: flags (`LOW`, `HIDDEN`).
+- `2-3`: low code offset in bank `$45`.
+- `4-5`: low code size.
+- `6-7`: hidden code offset in bank `$45`.
+- `8-9`: hidden code size.
+- `10-11`: low run offset from `$A900`.
+- `12-13`: hidden run offset from `$A000`.
+- `14`: signature id.
+- `15`: uppercase command-name length.
+- `16-31`: uppercase command-name bytes, padded with zeroes.
 
-Dispatch always parses in resident code first, mirrors the call frame to REU
-bank `$44`, fetches the descriptor-selected payload from `$45` only when needed,
-maps RAM under BASIC ROM, calls the entry, restores normal banking, then commits
-the result in resident code.
+## Frames
 
-## Implemented Command Families
+- Call frame starts at `$C200`.
+- Result frame starts at `$C300`.
+- Descriptor buffer starts at `$C480`.
+- Command buffer starts at `$C4A0`.
+- Page buffer starts at `$C500`.
+- V1 supports up to the requested frame size, but implemented sample signatures use direct fixed slots rather than a generalized signature VM.
+- Numeric expressions are evaluated through BASIC ROM `FRMNUM` and `GETADR`.
+- Variable and array references use BASIC ROM `PTRGET`; output integers are cleared before command execution.
+- String output heap mutation happens in visible resident code only.
+- Native `EXEC` reuses the same BASIC ROM expression and variable helpers where
+  possible: integer inputs use `FRMNUM`/`GETADR`, plain numeric inputs preserve
+  BASIC's five-byte float value, statement output actuals use the existing
+  output-variable capture and result commit paths, and string values use the
+  existing 64-byte staging cap.
 
-| Family | Commands |
-| --- | --- |
-| Scalar/string/array demos | `ZECHO1`, `ZADD16`, `UPPER`, `LOWER`, `ZHIDDENRAM`, `ZSUMNUMARRAY`, `ZRANGENUMARRAY`, `FADD`, `ZPAUSE`, `ZFAIL`, `FREEMEM`, `ERRCODE`, `ERRLINE` |
-| REU-backed handles | `BUFNEW`, `BUFFILL`, `BUFFREE`, `ZTEMPSCRATCH`, `SCRCAP`, `SCRPUT` |
-| Built-in module proofs | `ZSLOT0`, `ZSLOT1`, `ZSLOT2`, `ZSPAN`, `ZOVL1`, `ZOVL2`, `ZCPYRST`, `ZCOPY` |
-| Disk module proof | `ZMODLD`, then `ZDM1`, `ZDM2S`, `ZDOV1`, `ZDOV2` after loading `RBM1`/`RBM2` |
+## Implemented Commands
 
-`ZMODLD` intentionally avoids the suffix `LOAD`; C64 BASIC tokenizes keyword
-text inside command names, so names must be screened before becoming public.
+- `ZECHO1(OUT%)` / `ZECHO1()`: resident-precomputed scalar result, returns `1`.
+- `ZADD16(A,B,OUT%)` / `ZADD16(A,B)`: low overlay, returns 16-bit sum.
+- `UPPER(S$,OUT$)` / `UPPER(S$)`: low overlay, copies and uppercases a string variable or quoted literal.
+- `LOWER(S$,OUT$)` / `LOWER(S$)`: low overlay, lowercases string byte values; tests verify bytes with `ASC()` because screen display case depends on the C64 charset mode.
+- `ZHIDDENRAM(S$,OUT%)` / `ZHIDDENRAM(S$)`: hidden `$A800` overlay, returns a simple checksum.
+- `ZSUMNUMARRAY(A%(0),COUNT,OUT%)` / `ZSUMNUMARRAY(A%(0),COUNT)`: low overlay, sums integer array elements.
+- `ZRANGENUMARRAY(START,COUNT,A%(0))`: low overlay, stages integer array output and resident commit writes it.
+- `BUFNEW(LEN,H%)` / `BUFNEW(LEN)`: low overlay, creates a persistent handle in bank `$44`.
+- `BUFFILL(H%,BYTE)`: low overlay, fills buffer handle pages and rejects non-buffer handles.
+- `BUFFREE(H%)`: low overlay, frees any valid handle type.
+- `ZTEMPSCRATCH(LEN,OUT%)` / `ZTEMPSCRATCH(LEN)`: low overlay, allocates and frees temporary pages, returning page count.
+- `ZFAIL(CODE,OUT%)`: low overlay, exercises the error path after output clearing.
+- `FREEMEM()`: low overlay, prints the current live BASIC free-byte count and refreshes the header.
+- `SCRCAP(H%)` / `SCRCAP()`: low overlay, captures screen text plus color RAM into a typed screen handle.
+- `FADD(A,B,OUT)` / `FADD(A,B)`: resident-computed demo command, returns a plain C64 BASIC float.
+- `ZPAUSE(TICKS)`: low overlay, waits for a number of jiffies.
+- `ERRCODE(OUT%)` / `ERRCODE()`: resident-precomputed, returns the last ReadyBASIC runtime error code.
+- `ERRLINE(OUT%)` / `ERRLINE()`: resident-precomputed, returns the last ReadyBASIC runtime error line, or `0` in direct mode.
+- `SCRPUT(H%)`: low overlay, validates a typed screen handle and restores screen text plus color RAM. This descriptor lives in slot 128 to prove full-table lookup.
 
-Native `PROC`/`FUNC`, `EXEC`, `REPEAT`/`UNTIL`, `LABEL`/`JUMP`, and direct
-runtime error introspection are resident language features. They do not consume
-command descriptors or bank `$45` payload bytes unless they call a command.
+Native reusable BASIC routines:
+
+- `PROC NAME(P%,S$) ... ENDP`: input-only routine, called with `EXEC NAME(...)`.
+- `FUNC NAME(P%,S$) ... RET expr ... ENDP`: input formals only; `RET`, `RET%`, or `RET$` supplies the return value.
+- `EXEC NAME(...)`: scans stored BASIC text for the matching `PROC`, binds `%`/`$` actuals to formals, pushes a four-entry return stack in bridge state, and resumes at the routine body. `FUNC` is expression-only; `EXEC FUNC(...)` is rejected.
+- `CALL` remains reserved for a future non-returning named transfer and is not implemented.
+
+Native flow-control forms:
+
+- `REPEAT ... UNTIL expr`: post-test loop, nested four deep. Overflow reports
+  `?RB ERROR 35`; `UNTIL` without an active `REPEAT` reports `?RB ERROR 36`.
+- `LABEL NAME`: stored-program marker.
+- `JUMP NAME`: scans the stored program for `LABEL NAME`, then resumes there.
+  Missing labels report `?RB ERROR 39`. Numeric `GOTO` remains BASIC ROM.
+
+## Known V1 Boundaries
+
+- No private command token: stored lines remain visible `COMMAND(...)` text, so
+  regular BASIC `LIST` shows the command text.
+- A tiny crunch hook delegates to ROM first, then normalizes tokenized
+  `THEN COMMAND(...)` and `THEN EXEC ...` to colon-prefixed statements so
+  BASIC's existing statement dispatcher reaches the `$0308` execute hook. String,
+  `REM`, and `DATA` text are left alone.
+- Raw stored-program `RUN` is supported through the `$0308` execute hook; the
+  relocated BASIC sentinel byte at `BASIC_START-1` must stay zero.
+- Command lookup is linear over descriptor pages in bank `$44`: one 256-byte page is fetched into `$C500`, eight descriptors are scanned locally, and the matched descriptor is copied into `$C480`.
+- String input uses BASIC ROM string expression evaluation and then stages up to
+  64 bytes. Numeric inputs support nested ReadyBASIC expression terms in the
+  tested command and `FUNC` actual forms, including `ZADD16(1,ADDI(2,3))`-style
+  integer cases and `FADD(1.5,FADD(2.25,3.25))` float cases.
+- V1 integer arrays are explicit base element plus count, e.g. `A%(0),N`.
+- Native routine V1 formals support `%`, `$`, and plain C64 BASIC float
+  variables. There are no arrays, locals, or by-reference parameters. `FUNC`
+  returns through `RET`, `RET%`, or `RET$` and has one returned value.
+- Native routine definitions should be placed after `END`; fall-through into
+  `PROC`/`FUNC` is invalid in V1.
+- `REPEAT`/`UNTIL` and `LABEL`/`JUMP` are resident language features. They are
+  stored as readable BASIC text and handled through the execute hook.
+- The persistent typed heap currently suballocates 48KB inside bank `$44`; handle type `1` is a byte buffer and type `2` is a screen text+color buffer. Future large/long-lived data can allocate extra REU banks and record those banks in the same REU-backed handle directory.
+
+## Repeat/Label Current Branch
+
+The current branch is stacked on the proper float-term work. It adds resident
+flow control and error introspection:
+
+- `REPEAT` / `UNTIL expr`: post-test loops, nested four deep.
+- `LABEL name` / `JUMP name`: named stored-program transfer without changing
+  numeric `GOTO`.
+- `ERRCODE()` / `ERRLINE()` and statement output forms return the last
+  ReadyBASIC runtime error code and line.
+
+Measured branch layout: `BASIC_START=$2AC1`; BASIC owns `$2AC1-$9FFF`, for
+`30013` formula empty free bytes. `RESIDENT` is `$1200-$2AB9` (`6330` bytes),
+`BRIDGE` is `$C000-$C1F3` (`500` bytes), `LOWPACK` is `$063D` (`1597` bytes),
+and `bin/readybasic.prg` remains `20994` bytes.
+
+## Lean Nested-Term Experiment
+
+The `exp/readybasic-lean-nested-terms` branch is stacked on the
+expression-style work. It keeps descriptor-backed commands in the same REU
+layout and adds only resident parsing/return handling:
+
+- Command and `FUNC` returns can be consumed by the tested BASIC ROM wrappers
+  `ABS(ADDI(1,6)-10)` and `LEFT$(GREET("READY"),2)`.
+- Numeric actuals for commands and `FUNC` calls accept one extra wrapper pair,
+  as in `ADDI(1,(2+4))`, `ZADD16(1,(2+4))`, and `ADDI((1+2),(3+4))`.
+- Plain float formals/returns and fully recursive ReadyBASIC terms remain
+  deferred to the proper-term/float branch.
+
+Measured branch layout: `BASIC_START=$2501`; BASIC owns `$2501-$9FFF`, for
+`31485` formula empty free bytes. `RESIDENT` is `$1200-$2488` (`4745` bytes),
+`BRIDGE` is `$C000-$C1EA` (`491` bytes), and command overlays remain unchanged.
+
+## Proper Float-Term Experiment
+
+The `exp/readybasic-proper-float-terms` branch is stacked on
+`exp/readybasic-lean-nested-terms`. It adds plain numeric float parameters and
+returns for commands and native `FUNC`, and preserves ReadyBASIC parser state
+around nested command/`FUNC` calls so selected calls work as BASIC expression
+terms inside ROM functions, arithmetic, string concatenation, and other
+ReadyBASIC calls.
+
+Proven forms include `ABS(FADD(1.2,2.3)-3)`, `ADDI(1,ADDI(2,3))`,
+`FADD(1.5,FADD(2.25,3.25))`, `LEFT$(GREET("READY")+"!",3)`, and
+`LEFT$(UPPER(GREET("ready")),2)`. `FADD` is computed by resident code and keeps
+only a one-byte low-overlay stub because the actual calculation calls BASIC ROM
+float helpers.
+
+Measured branch layout: `BASIC_START=$2901`; BASIC owns `$2901-$9FFF`, for
+`30461` formula empty free bytes. `RESIDENT` is `$1200-$28FC` (`5885` bytes),
+`BRIDGE` is `$C000-$C1EB` (`492` bytes), `LOWPACK` is `$061B` (`1563` bytes),
+and `bin/readybasic.prg` remains `20994` bytes.
+
+## Expression-Style Experiment
+
+On the `exp/readybasic-expression-style` branch, ReadyBASIC installs an
+additional eval-vector hook at `$030A/$030B`. The hook recognizes a small
+allow-list of expression-safe command calls and selected numeric/string `FUNC`
+calls.
+
+- Command expressions: `ZECHO1()`, `ZADD16(a,b)`, `ZHIDDENRAM(s$)`,
+  `ZSUMNUMARRAY(a%(0),n)`, `BUFNEW(n)`, `ZTEMPSCRATCH(n)`, and `SCRCAP()`
+  return integers or handles; `UPPER(s$)` and `LOWER(s$)` return strings.
+- Parenthesized routine syntax: `PROC NAME(P%,S$)`, `FUNC NAME(S$)`, and
+  `EXEC NAME(actuals...)` for non-empty argument lists.
+- Zero-argument routines use `EXEC NAME`; empty parentheses were omitted to keep
+  resident code smaller.
+- `FUNC` returns use `RET expr`, with optional `RET% expr` and `RET$ expr`
+  markers to make the return type explicit. Expression `FUNC` calls scan the
+  routine body, execute simple scalar assignments before `RET`, and then
+  evaluate the return expression.
+
+Measured branch layout: `BASIC_START=$2401`; BASIC owns `$2401-$9FFF`, for
+`31741` formula empty free bytes. `RESIDENT` is `$1200-$23FD` (`4606` bytes),
+`BRIDGE` is `$C000-$C1F4` (`501` bytes), and command overlays remain unchanged.
