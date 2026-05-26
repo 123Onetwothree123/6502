@@ -6,934 +6,157 @@
   <title>ReadyBASIC Making Command Guide</title>
   <style>
     :root {
-      --ink: #172033;
-      --muted: #5c6678;
-      --line: #d8dee8;
-      --paper: #f6f8fb;
-      --panel: #ffffff;
-      --low: #dff3ec;
-      --hidden: #f4e4ef;
-      --reu: #e7ecff;
-      --warn: #fff4d8;
-      --code: #101828;
-      --code-line: #1d2939;
-      --label: #7dd3fc;
-      --op: #fcd34d;
-      --directive: #c4b5fd;
-      --symbol: #86efac;
-      --comment: #98a2b3;
-      --string: #fda4af;
-      --radius: 8px;
+      --ink: #18212f;
+      --muted: #667085;
+      --paper: #f4f7fb;
+      --line: #d7deea;
+      --parse: #2563eb;
+      --desc: #0f766e;
+      --reu: #0891b2;
+      --slot: #9333ea;
+      --commit: #ca8a04;
+      --warn: #dc2626;
     }
     * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      color: var(--ink);
-      background: var(--paper);
-      overflow-x: hidden;
-    }
-    header, section { max-width: 1120px; min-width: 0; margin: 0 auto; padding: 28px 22px; }
-    header { padding-top: 42px; }
-    h1 { margin: 0 0 8px; font-size: 34px; letter-spacing: 0; }
-    h2 { margin: 0 0 14px; font-size: 24px; letter-spacing: 0; }
-    h3 { margin: 0 0 8px; font-size: 18px; letter-spacing: 0; }
-    p { margin: 0 0 14px; overflow-wrap: break-word; }
-    .muted { color: var(--muted); }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
-    .flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin-top: 14px; }
-    .stack { display: grid; gap: 14px; }
-    .card {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      padding: 16px;
-      min-width: 0;
-    }
-    .chip {
-      display: inline-block;
-      padding: 2px 8px;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      background: #fff;
-      font-size: 13px;
-      margin: 0 4px 6px 0;
-    }
-    .low { background: var(--low); }
-    .hidden { background: var(--hidden); }
-    .reu { background: var(--reu); }
-    .warn { background: var(--warn); }
-    pre {
-      margin: 12px 0 0;
-      padding: 14px;
-      overflow: auto;
-      color: #f2f5ff;
-      background: var(--code);
-      border-radius: var(--radius);
-      font-size: 13px;
-      line-height: 1.45;
-      tab-size: 8;
-    }
-    code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-    p code, li code, td code { overflow-wrap: anywhere; }
-    table { width: 100%; table-layout: fixed; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); }
-    th, td { border-bottom: 1px solid var(--line); padding: 10px; text-align: left; vertical-align: top; }
-    th { background: #eef2f7; }
-    .teaching {
-      background: #fff;
-      border-top: 1px solid var(--line);
-      border-bottom: 1px solid var(--line);
-    }
-    .lesson {
-      border-left: 4px solid #4f46e5;
-    }
-    .annotate th:first-child, .annotate td:first-child {
-      width: 34%;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      font-size: 13px;
-    }
-    .term td:first-child {
-      width: 28%;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      font-size: 13px;
-      color: #344054;
-    }
-    .tok-label { color: var(--label); font-weight: 700; }
-    .tok-op { color: var(--op); font-weight: 650; }
-    .tok-dir { color: var(--directive); font-weight: 650; }
-    .tok-symbol { color: var(--symbol); }
-    .tok-comment { color: var(--comment); font-style: italic; }
-    .tok-string { color: var(--string); }
-    .contrast {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 14px;
-      margin: 12px 0 18px;
-    }
-    .contrast .card { border-width: 2px; }
-    .form-output { background: #ecfdf5; border-color: #86efac; }
-    .form-return { background: #eff6ff; border-color: #93c5fd; }
-    .form-param { background: #fff7ed; border-color: #fdba74; }
-    .form-compose { background: #f5f3ff; border-color: #c4b5fd; }
-    .badge {
-      display: inline-block;
-      padding: 2px 7px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 700;
-      margin: 0 4px 8px 0;
-    }
-    .badge-output { color: #14532d; background: #bbf7d0; }
-    .badge-return { color: #1e3a8a; background: #bfdbfe; }
-    .badge-param { color: #7c2d12; background: #fed7aa; }
-    .badge-compose { color: #4c1d95; background: #ddd6fe; }
-    @media (max-width: 640px) {
-      header, section { padding-left: 16px; padding-right: 16px; }
-      .grid, .flow, .contrast { grid-template-columns: 1fr; }
-    }
-    @media print {
-      @page { size: landscape; margin: 0.45in; }
-      body { background: #fff; color: #111827; }
-      header, section { max-width: none; padding: 14px 0; }
-      h1 { font-size: 28px; }
-      h2 { font-size: 21px; }
-      h3 { font-size: 16px; }
-      .card, pre, table { break-inside: avoid; page-break-inside: avoid; }
-      .grid, .flow, .contrast { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      pre { white-space: pre-wrap; overflow: visible; font-size: 11px; }
-      .teaching { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-    }
+    body { margin: 0; font: 15px/1.55 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--paper); color: var(--ink); }
+    header { padding: 44px clamp(20px, 5vw, 72px); background: linear-gradient(120deg, #0f172a, #1d4ed8 55%, #0f766e); color: white; }
+    h1 { margin: 0 0 12px; font-size: clamp(36px, 6vw, 74px); line-height: .95; letter-spacing: 0; }
+    h2 { margin: 0 0 14px; font-size: clamp(24px, 3vw, 38px); }
+    h3 { margin: 0 0 8px; }
+    p { margin: 0 0 14px; }
+    code { background: #eef2f7; border-radius: 5px; padding: 1px 5px; }
+    header code { background: rgba(255,255,255,.16); color: white; }
+    main { padding: 30px clamp(20px, 5vw, 72px) 64px; }
+    .lede { max-width: 980px; color: #e7f5ff; font-size: 19px; }
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; margin-bottom: 32px; }
+    .card { grid-column: span 4; background: white; border: 1px solid var(--line); border-radius: 8px; padding: 18px; box-shadow: 0 12px 30px rgba(15,23,42,.08); }
+    .wide { grid-column: span 8; }
+    .full { grid-column: 1 / -1; }
+    .flow { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+    .step { background: white; border: 1px solid var(--line); border-radius: 8px; padding: 14px; min-height: 118px; border-top: 6px solid var(--parse); }
+    .step:nth-child(2) { border-top-color: var(--desc); }
+    .step:nth-child(3) { border-top-color: var(--reu); }
+    .step:nth-child(4) { border-top-color: var(--slot); }
+    .step:nth-child(5) { border-top-color: var(--commit); }
+    .step b { display: block; margin-bottom: 6px; }
+    table { width: 100%; border-collapse: collapse; background: white; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+    th, td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { background: #eef4fb; color: #334155; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
+    tr:last-child td { border-bottom: 0; }
+    pre { margin: 0; overflow: auto; background: #101827; color: #e5edf7; border-radius: 8px; padding: 16px; }
+    pre code { background: transparent; color: inherit; padding: 0; }
+    .warn { border-left: 6px solid var(--warn); }
+    @media (max-width: 900px) { .card, .wide { grid-column: 1 / -1; } .flow { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
   <header>
-    <h1>ReadyBASIC Making Command Guide</h1>
-    <p class="muted">A teaching guide for how current bare <code>COMMAND(...)</code> examples are wired into descriptors, parser signatures, low overlays, hidden overlays, and REU handles.</p>
-    <p><span class="chip">128 descriptor slots</span><span class="chip">SCRCAP slot 14</span><span class="chip">SCRPUT slot 128</span><span class="chip">LOWPACK $063D</span></p>
+    <h1>Making Commands</h1>
+    <p class="lede">A ReadyBASIC command is a resident parser signature plus a 32-byte REU descriptor plus assembler payload bytes copied into one or more under-ROM slots. Keep resident growth low; put command policy and worker code in modules.</p>
   </header>
 
-	  <section class="teaching">
-	    <h2>What You Are Building</h2>
-	    <p>A ReadyBASIC command is not just one assembler routine. It is a contract between BASIC text, resident parser code, a cold REU descriptor, and an overlay worker copied into C64 RAM only when needed.</p>
-		    <div class="card warn">
-			      <p>Native <code>PROC</code>/<code>FUNC</code> routines, <code>REPEAT</code>/<code>UNTIL</code>, <code>LABEL</code>/<code>JUMP</code>, and <code>ERRCODE</code>/<code>ERRLINE</code> are ReadyBASIC language/runtime features, not plugin commands. Use this guide when adding new descriptor-backed command overlays.</p>
-		    </div>
-		    <div class="card reu">
-		      <h3>Built-In And Module Command Growth</h3>
-		      <p>ReadyBASIC's built-in command set is intended to include the core commands and the 100+ additional file, graphics, sound, REU, and utility commands that are similar in spirit to other BASIC extensions. The current REU code bank still leaves about 62.4K of addressable command-code space; today's C64 <code>CMDPACK</code> seed window has about 3.6K unused before it needs a larger or additional cold-load seed range.</p>
-		      <p>Beyond that built-in set, ReadyBASIC will also support dynamically loaded command modules that can use additional REU banks, so other authors can add hundreds more commands without forcing everything into the core command bank.</p>
-		    </div>
-		    <div class="flow">
-      <div class="card lesson"><h3>1. User Types</h3><p><code>ZADD16(4,5,A%)</code> is visible BASIC text. The command name must survive C64 tokenization.</p></div>
-      <div class="card lesson"><h3>2. Lookup</h3><p>ReadyBASIC pages descriptor records from REU bank <code>$44</code> and finds the matching command name.</p></div>
-      <div class="card lesson"><h3>3. Parse</h3><p>The descriptor's signature id selects resident parser code, which fills <code>CF_*</code> call-frame fields.</p></div>
-      <div class="card lesson"><h3>4. Execute</h3><p>The descriptor tells ReadyBASIC which packed code bytes to copy from REU bank <code>$45</code> and where to call them.</p></div>
-      <div class="card lesson"><h3>5. Commit</h3><p>The worker writes <code>RF_*</code> result-frame fields. Resident code commits the result to BASIC only on success.</p></div>
-    </div>
-	  </section>
+  <main>
+    <section class="grid">
+      <div class="card full">
+        <h2>Command Anatomy</h2>
+        <div class="flow">
+          <div class="step"><b>Parser</b>Resident signature validates syntax and fills <code>$C200</code>.</div>
+          <div class="step"><b>Descriptor</b>32 bytes in REU <code>$44:$1000</code> name the module, payload, slot mask, and signature.</div>
+          <div class="step"><b>Payload</b>Assembler bytes live in REU <code>$45</code>, built in or disk-loaded.</div>
+          <div class="step"><b>Slot</b>Payload runs under BASIC ROM at <code>$A800</code>, <code>$B000</code>, <code>$B800</code>, or a span.</div>
+          <div class="step"><b>Commit</b>Worker writes <code>$C300</code>; resident code restores banking and commits results.</div>
+        </div>
+      </div>
+    </section>
 
-  <section>
-    <h2>When To Use PROC/FUNC Instead</h2>
-    <p>Use a native ReadyBASIC routine when reusable logic is naturally program code that a user should be able to create in their own program.</p>
-<pre><code>1000 PROC DRAW(P%,N$)
-1010    PRINT P%;N$
-1020 ENDP
-
-1100 FUNC ADDI(X%,Y%)
-1110    R%=X%+Y%
-1120    RET R%
-1130 ENDP
-
-10 EXEC DRAW(3,"PLAYER")
-20 A%=ADDI(4,5)
-30 PRINT ADDI(6,7)</code></pre>
-    <div class="card">
-      <p><code>PROC</code> has input formals only. <code>FUNC</code> also declares input formals only and returns with <code>RET expr</code>; use <code>RET% expr</code> or <code>RET$ expr</code> when the return type should be explicit. <code>FUNC</code> is called as an expression and does not take a final output actual. V1 supports <code>%</code> integer, <code>$</code> string, and plain C64 BASIC float formals; arrays, locals, by-reference parameters, and multiple outputs remain out of scope. Definitions should live after <code>END</code>; fall-through into a definition is invalid.</p>
-      <p>Use a descriptor-backed command overlay when the routine needs hidden RAM, REU handles, fast machine-code loops, direct screen/color memory, or shared command behavior.</p>
-      <p>Use resident language work when the feature changes BASIC control flow or interpreter state. <code>REPEAT</code>/<code>UNTIL</code> stores and restores <code>TXTPTR</code>/<code>CURLIN</code>; <code>LABEL</code>/<code>JUMP</code> scans stored BASIC lines; <code>ERRCODE</code>/<code>ERRLINE</code> returns resident runtime state.</p>
-    </div>
-  </section>
-
-	  <section>
-    <h2>Naming Rules</h2>
-    <div class="card warn">
-	      <p>ReadyBASIC names are visible BASIC text, not private tokens. Avoid substrings that C64 BASIC can tokenize inside the command name; array demos use <code>NUM</code> instead of <code>INT</code>.</p>
-	      <table class="term">
-	        <tbody>
-	          <tr><td><code>Z*</code></td><td>Example, demo, and proof commands.</td></tr>
-	          <tr><td><code>X*</code></td><td>Alpha/beta commands whose behavior or parameter shape is not settled yet.</td></tr>
-	          <tr><td><code>U*</code></td><td>Commodore 64 Ultimate / Ultimate Family specific commands.</td></tr>
-	          <tr><td><code>XU*</code></td><td>Alpha/beta Ultimate-specific commands whose behavior or parameter shape is not settled yet.</td></tr>
-	        </tbody>
-	      </table>
-		      <p>Current public names include <code>ZECHO1</code>, <code>ZADD16</code>, <code>UPPER</code>, <code>LOWER</code>, <code>ZHIDDENRAM</code>, <code>ZSUMNUMARRAY</code>, <code>ZRANGENUMARRAY</code>, <code>ZTEMPSCRATCH</code>, and <code>ZFAIL</code>.</p>
-    </div>
-  </section>
-
-  <section>
-    <h2>Descriptor Shape</h2>
-    <p>Descriptors are cold-seeded into REU bank <code>$44:$1000-$1FFF</code>. Runtime lookup fetches one 256-byte page, scans eight descriptors, then copies the match to <code>RB_DESC_BUF</code>.</p>
-<pre><code>.macro CMD_LOW id, sig, label, endlabel, name
-        .byte id, RB_CMD_F_LOW
-        .word label - __LOWPACK_RUN__ ; offset in REU bank $45
-        .word endlabel - label        ; copy length
-        .word 0, 0
-        .word label - RB_LOW_BASE     ; run offset from $A900
-        .word 0
-        .byte sig, .strlen(name)
-        .byte name
-        .res 16 - .strlen(name), 0
-.endmacro</code></pre>
-<pre><code>.macro CMD_LOW_ALL id, sig, label, name
-        .byte id, RB_CMD_F_LOW
-        .word 0                    ; whole LOWPACK
-        .word __LOWPACK_SIZE__
-        .word 0, 0
-        .word label - RB_LOW_BASE
-        .word 0
-        .byte sig, .strlen(name)
-        .byte name
-        .res 16 - .strlen(name), 0
-.endmacro
-
-.macro CMD_HIDDEN id, sig, label, endlabel, name
-        .byte id, RB_CMD_F_HIDDEN
-        .word 0, 0
-        .word label - __HIDDENPACK_RUN__
-        .word endlabel - label
-        .word 0
-        .word label - RB_HIDDEN_BASE
-        .byte sig, .strlen(name)
-        .byte name
-        .res 16 - .strlen(name), 0
-.endmacro</code></pre>
-    <table class="annotate">
-      <thead><tr><th>Descriptor field</th><th>What it teaches</th></tr></thead>
-      <tbody>
-        <tr><td><code>id</code></td><td>Internal command id. It is stable command identity, separate from the command's slot number.</td></tr>
-        <tr><td><code>sig</code></td><td>Parser signature id. This is how lookup chooses which resident parser routine fills the call frame.</td></tr>
-        <tr><td><code>label</code> / <code>endlabel</code></td><td>Assembler labels that define both the packed-code offset and the exact number of bytes to copy.</td></tr>
-        <tr><td><code>RB_CMD_F_LOW</code></td><td>Flag saying the worker runs from the low overlay window at <code>$A900</code>.</td></tr>
-        <tr><td><code>RB_CMD_F_HIDDEN</code></td><td>Flag saying the worker runs under BASIC ROM RAM at <code>$A800</code>.</td></tr>
-        <tr><td><code>CMD_LOW_ALL</code></td><td>Used when a tiny command wrapper calls shared helpers elsewhere in the low pack, so the whole low pack must be available.</td></tr>
-      </tbody>
-    </table>
-  </section>
-
-  <section>
-    <h2>Small Commands</h2>
-    <div class="grid">
-      <div class="card">
-        <h3>ZECHO1</h3>
-        <p><span class="chip low">resident precompute</span><span class="chip">scalar int</span></p>
-        <p>Minimum scalar-command skeleton: statement form captures <code>OUT%</code>, expression form has no output actual, and resident code stages integer <code>1</code> without fetching an overlay.</p>
-<pre><code>10 ZECHO1(P%)
-
-20 PRINT "ZECHO";P%
-
-30 PRINT "EXPR";ZECHO1()</code></pre>
-<pre><code>parse_sig_zecho1:
-        jsr rb_parse_out_int_current
-        jmp rb_precompute_zecho1
-
-rb_precompute_zecho1:
-        lda #0
-        sta RF_STATUS
-        lda #RB_VAL_INT
-        sta RF_TAG
-        lda #1
-        sta RF_VAL_LO
-        lda #0
-        sta RF_VAL_HI
-        lda #1
-        sta rb_command_precomputed
-        rts</code></pre>
-<pre><code>CMD_LOW_ALL CMD_ZECHO1, SIG_ZECHO1,
-        cmd_zecho1_low, "ZECHO1"</code></pre>
-        <table class="annotate">
-          <thead><tr><th>Line or group</th><th>Teaching note</th></tr></thead>
+    <section class="grid">
+      <div class="card wide">
+        <h2>Descriptor Bytes</h2>
+        <table>
+          <thead><tr><th>Bytes</th><th>Meaning</th><th>Authoring rule</th></tr></thead>
           <tbody>
-            <tr><td><code>parse_sig_zecho1:</code></td><td>The resident parser entry selected by <code>SIG_ZECHO1</code>.</td></tr>
-            <tr><td><code>jsr rb_parse_out_int_current</code></td><td>Captures and clears the statement output variable when present; expression <code>ZECHO1()</code> has no output actual.</td></tr>
-            <tr><td><code>rb_precompute_zecho1</code></td><td>Stages the result directly in resident code.</td></tr>
-            <tr><td><code>RF_STATUS = 0</code></td><td>Marks success. Resident code commits results only when this is zero.</td></tr>
-            <tr><td><code>RF_TAG = RB_VAL_INT</code></td><td>Says the result frame contains a BASIC integer.</td></tr>
-            <tr><td><code>RF_VAL_LO/HI = 1</code></td><td>Stages the little-endian integer value that will be committed or returned.</td></tr>
-            <tr><td><code>rb_command_precomputed = 1</code></td><td>Tells statement/eval dispatch to skip overlay fetch and use the staged result.</td></tr>
-            <tr><td><code>CMD_LOW_ALL ... "ZECHO1"</code></td><td>Publishes the public command name; a tiny descriptor target remains so the command keeps the same registry shape as the other descriptor-backed commands.</td></tr>
+            <tr><td>0</td><td>Command id</td><td>Stable internal id.</td></tr>
+            <tr><td>1</td><td>Module id</td><td>Module 1 is system/default; module 2 is proof/loader.</td></tr>
+            <tr><td>2-5</td><td>REU payload offset and size</td><td>Always bank $45 in the current implementation.</td></tr>
+            <tr><td>6-9</td><td>Submodule, overlay, slot mask, generation</td><td>Use overlay id 0 for normal submodules.</td></tr>
+            <tr><td>10-13</td><td>Runtime destination and entry offset</td><td>Offsets are from $A000 and from payload entry.</td></tr>
+            <tr><td>14-31</td><td>Signature id and uppercase name</td><td>Name field is 16 bytes max.</td></tr>
           </tbody>
         </table>
       </div>
+      <div class="card warn">
+        <h2>Name Safety</h2>
+        <p>Command names are readable BASIC text. Avoid keyword substrings that tokenize inside names. Use <code>ZMODLD</code>, not <code>ZMODLOAD</code>.</p>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card full">
+        <h2>Choose A Layout</h2>
+        <table>
+          <thead><tr><th>Need</th><th>Layout</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><td>Common system command</td><td>Module 1, slot 0 at <code>$A800</code></td><td><code>ZADD16</code>, <code>BUFNEW</code></td></tr>
+            <tr><td>Independent proof or utility family</td><td>Module submodule in slot 1 or slot 2</td><td><code>ZSLOT1</code>, <code>ZSLOT2</code></td></tr>
+            <tr><td>4KB worker</td><td>One payload spanning slots 1+2</td><td><code>ZSPAN</code>, <code>ZDM2S</code></td></tr>
+            <tr><td>Stable manager plus variants</td><td>Manager in slot 1, overlays through slot 2</td><td><code>ZOVL1</code>, <code>ZOVL2</code>, <code>ZDOV1</code>, <code>ZDOV2</code></td></tr>
+            <tr><td>Large exclusive worker</td><td>Full slots 0+1+2 span</td><td>Allowed, but it cannot assume slot-0 helpers remain resident.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card wide">
+        <h2>Built-In Command Steps</h2>
+        <ol>
+          <li>Add a <code>CMD_*</code> id and reuse a <code>SIG_*</code> where possible.</li>
+          <li>Write a small resident <code>parse_sig_*</code> only for syntax, ROM expression evaluation, and frame setup.</li>
+          <li>Place worker code in the correct under-ROM segment.</li>
+          <li>Emit a module-aware descriptor with the right slot mask and REU payload offset.</li>
+          <li>Add VICE coverage for success, errors, expression form if supported, and residency if relevant.</li>
+        </ol>
+      </div>
       <div class="card">
-        <h3>ZADD16</h3>
-        <p><span class="chip low">low overlay</span><span class="chip">two numeric inputs</span></p>
-        <p>Proves BASIC ROM expression parsing in resident code, then simple arithmetic in the overlay.</p>
-<pre><code>10 ZADD16(4,5,A%)
+        <h2>Macros</h2>
+        <p><code>CMD_LOW</code>, <code>CMD_LOW_ALL</code>, <code>CMD_SLOT1</code>, <code>CMD_SLOT2</code>, <code>CMD_SPAN</code>, <code>CMD_OVL1</code>, and <code>CMD_OVL2</code> are source conveniences. They all produce the same descriptor ABI.</p>
+      </div>
+    </section>
 
-20 PRINT "OUT";A%
-
-30 B%=ZADD16(7,8)
-
-40 PRINT "EXPR";B%
-50 PRINT "ABS";ABS(ZADD16(1,6)-10)</code></pre>
-<pre><code>parse_sig_zadd16:
-        jsr rb_parse_num0
-        jsr rb_parse_num1
-        jsr rb_parse_out_int
-        rts
+    <section class="grid">
+      <div class="card full">
+        <h2>Minimal Source Pattern</h2>
+        <pre><code>CMD_LOW CMD_ZADD16, SIG_ZADD16, cmd_zadd16_low, cmd_zadd16_low_end, "ZADD16"
 
 cmd_zadd16_low:
-        clc
-        lda CF_NUM0_LO
-        adc CF_NUM1_LO
-        sta RF_VAL_LO
-        lda CF_NUM0_HI
-        adc CF_NUM1_HI
-        sta RF_VAL_HI
-        lda #0
-        sta RF_STATUS
-        lda #RB_VAL_INT
-        sta RF_TAG
-        rts</code></pre>
-<pre><code>CMD_LOW CMD_ZADD16, SIG_ZADD16,
-        cmd_zadd16_low, cmd_zadd16_low_end, "ZADD16"</code></pre>
-        <table class="annotate">
-          <thead><tr><th>Line or group</th><th>Teaching note</th></tr></thead>
+        ; read CF_* fields from $C200
+        ; write RF_* fields to $C300
+        rts
+cmd_zadd16_low_end:</code></pre>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card full">
+        <h2>Disk Module Pattern</h2>
+        <table>
+          <thead><tr><th>Step</th><th>Rule</th></tr></thead>
           <tbody>
-            <tr><td><code>rb_parse_num0</code>, <code>rb_parse_num1</code></td><td>Resident parser helpers evaluate BASIC numeric expressions into <code>CF_NUM0_*</code> and <code>CF_NUM1_*</code>.</td></tr>
-            <tr><td><code>rb_parse_out_int</code></td><td>Captures the integer output target and clears it before execution.</td></tr>
-            <tr><td><code>clc</code></td><td>Clears carry before two-byte addition. Without this, stale CPU carry would corrupt the result.</td></tr>
-            <tr><td><code>adc CF_NUM1_LO</code></td><td>Adds low bytes and leaves carry ready for the high-byte addition.</td></tr>
-            <tr><td><code>adc CF_NUM1_HI</code></td><td>Adds high bytes plus carry, producing a 16-bit result.</td></tr>
-            <tr><td><code>RF_VAL_LO/HI</code></td><td>Holds the staged result. The overlay does not write BASIC variables directly.</td></tr>
-            <tr><td><code>CMD_LOW ... "ZADD16"</code></td><td>The descriptor connects the visible command to this parser and this exact low-overlay copy range.</td></tr>
+            <tr><td>Generate</td><td>Use <code>build_support/build_readybasic_disk_modules.py</code> to produce PRG files with load address <code>$C500</code> and magic <code>RBM!</code>.</td></tr>
+            <tr><td>Register</td><td><code>ZMODLD(name$)</code> copies descriptors to REU <code>$44</code> and payloads to <code>$45</code>.</td></tr>
+            <tr><td>Execute</td><td>Commands run from REU-backed payloads, not from the temporary <code>$C500</code> load buffer.</td></tr>
+            <tr><td>Test</td><td>The suite should load <code>RBM1</code>/<code>RBM2</code> and assert single-slot, span, and overlay commands.</td></tr>
           </tbody>
         </table>
       </div>
-    </div>
-  </section>
-
-  <section>
-    <h2>String Commands</h2>
-    <p><code>UPPER</code> and <code>LOWER</code> share <code>parse_sig_string_out</code>. The overlay transforms bytes into <code>RF_STR_BUF</code>; resident code owns BASIC string heap allocation.</p>
-<pre><code>10 UPPER("ready",T$)
-20 PRINT T$
-
-30 L$=LOWER("LOUD")
-40 PRINT ASC(L$);ASC(MID$(L$,2,1));ASC(MID$(L$,3,1));ASC(MID$(L$,4,1))
-
-50 PRINT LEFT$(UPPER("ready"),2)</code></pre>
-<pre><code>parse_sig_string_out:
-        jsr rb_parse_string_value
-        jsr rb_parse_out_string
-        rts
-
-cmd_lower_low:
-        lda #0
-        sta RF_STATUS
-        lda #RB_VAL_STRING
-        sta RF_TAG
-        lda CF_STR_LEN
-        sta RF_STR_LEN
-        ldy #0
-@loop:
-        cpy CF_STR_LEN
-        beq @done
-        lda CF_STR_BUF,y
-        cmp #'A'
-        bcc :+
-        cmp #'Z' + 1
-        bcs :+
-        clc
-        adc #$20
-:       sta RF_STR_BUF,y
-        iny
-        jmp @loop
-@done:
-        rts</code></pre>
-<pre><code>CMD_LOW CMD_UPPER, SIG_UPPER,
-        cmd_upper_low, cmd_upper_low_end, "UPPER"
-CMD_LOW CMD_LOWER, SIG_LOWER,
-        cmd_lower_low, cmd_lower_low_end, "LOWER"</code></pre>
-    <table class="annotate">
-      <thead><tr><th>Line or group</th><th>Teaching note</th></tr></thead>
-      <tbody>
-        <tr><td><code>parse_sig_string_out:</code></td><td>Shared parser shape for commands that take one string value and one output string variable.</td></tr>
-        <tr><td><code>rb_parse_string_value</code></td><td>Accepts a string expression or literal and stages the bytes in <code>CF_STR_BUF</code>.</td></tr>
-        <tr><td><code>rb_parse_out_string</code></td><td>Captures the destination string variable. BASIC string heap mutation is still resident-code work.</td></tr>
-        <tr><td><code>RF_STR_LEN = CF_STR_LEN</code></td><td>Copies the input length because case conversion preserves length.</td></tr>
-        <tr><td><code>@loop</code> / <code>cpy CF_STR_LEN</code></td><td>Walks the staged string one byte at a time using Y as the index.</td></tr>
-        <tr><td><code>cmp #'A'</code> ... <code>adc #$20</code></td><td>Converts ordinary ASCII uppercase bytes to lowercase bytes.</td></tr>
-        <tr><td><code>sta RF_STR_BUF,y</code></td><td>Writes transformed bytes to the result frame, not directly to BASIC string memory.</td></tr>
-        <tr><td><code>CMD_LOW ... "UPPER"/"LOWER"</code></td><td>Two public commands share the same parser shape but point at different byte-transform workers.</td></tr>
-      </tbody>
-    </table>
-    <p class="muted">The source also handles shifted C64 letter bytes. Tests assert <code>ASC()</code> values because visual case depends on the active C64 charset.</p>
-  </section>
-
-  <section>
-    <h2>Array And Hidden Examples</h2>
-    <div class="stack">
-      <article class="card hidden">
-        <h3>ZHIDDENRAM</h3>
-        <p>Uses <code>CMD_HIDDEN</code>, fetches code into <code>$A800</code>, maps RAM under BASIC ROM, runs a checksum-like worker, and restores banking.</p>
-<pre><code>10 ZHIDDENRAM("AB",H%)
-20 PRINT "HIDDEN";H%
-
-30 PRINT "EXPR";ZHIDDENRAM("A")</code></pre>
-<pre><code>CMD_HIDDEN CMD_ZHIDDENRAM, SIG_ZHIDDENRAM,
-           cmd_zhiddenram_hidden, cmd_zhiddenram_hidden_end,
-           "ZHIDDENRAM"</code></pre>
-      </article>
-      <article class="card">
-        <h3>ZSUMNUMARRAY</h3>
-        <p>Uses an explicit base element plus count: <code>ZSUMNUMARRAY(A%(0),3,S%)</code>. Resident code resolves the array pointer before the overlay runs.</p>
-<pre><code>10 DIM A%(3)
-20 A%(0)=1:A%(1)=2:A%(2)=3
-
-30 ZSUMNUMARRAY(A%(0),3,S%)
-40 PRINT "SUM";S%
-
-50 PRINT "SUMEX";ZSUMNUMARRAY(A%(0),3)</code></pre>
-<pre><code>parse_sig_zsumnumarray:
-        jsr rb_parse_int_array_input
-        jsr rb_parse_out_int
-        jsr rb_resolve_int_array_input_ptr
-        rts</code></pre>
-      </article>
-      <article class="card">
-        <h3>ZRANGENUMARRAY</h3>
-        <p>Output-array sibling for <code>ZSUMNUMARRAY</code>. It proves the result-frame path for writing several integer elements after the command has succeeded.</p>
-<pre><code>10 DIM R%(4)
-
-20 ZRANGENUMARRAY(7,4,R%(0))
-
-30 PRINT "RANGE";R%(0);R%(3)</code></pre>
-<pre><code>parse_sig_zrangenumarray:
-        jsr rb_parse_num0
-        jsr rb_parse_num1
-        jsr rb_parse_int_array_output
-        rts
-
-cmd_zrangenumarray_low:
-        ; stage output bytes in RF_ARR_BUF
-        ; resident commit copies them into A%()</code></pre>
-<pre><code>CMD_LOW CMD_ZSUMNUMARRAY, SIG_ZSUMNUMARRAY,
-        cmd_zsumnumarray_low, cmd_zsumnumarray_low_end,
-        "ZSUMNUMARRAY"
-CMD_LOW CMD_ZRANGENUMARRAY, SIG_ZRANGENUMARRAY,
-        cmd_zrangenumarray_low, cmd_zrangenumarray_low_end,
-        "ZRANGENUMARRAY"</code></pre>
-      </article>
-    </div>
-    <table class="annotate">
-      <thead><tr><th>Line or group</th><th>Teaching note</th></tr></thead>
-      <tbody>
-        <tr><td><code>rb_parse_int_array_input</code></td><td>Parses a base element such as <code>A%(0)</code> plus a count. The base element matters because BASIC arrays are not passed as whole objects.</td></tr>
-        <tr><td><code>rb_resolve_int_array_input_ptr</code></td><td>Converts the parsed array reference into a direct pointer in <code>CF_PTR0_LO/HI</code>.</td></tr>
-        <tr><td><code>ldy #1</code> then <code>dey</code></td><td>Reads the low byte and high byte of each C64 integer array element.</td></tr>
-        <tr><td><code>adc #2</code></td><td>Advances the indirect pointer to the next two-byte integer element.</td></tr>
-        <tr><td><code>ZRANGENUMARRAY</code></td><td>Demonstrates the sibling pattern: stage multiple output values first, then let resident commit write the BASIC array after success.</td></tr>
-        <tr><td><code>CMD_LOW ... "ZSUMNUMARRAY"</code></td><td>Publishes a read-array proof command. The name uses <code>NUM</code>, not <code>INT</code>, to avoid the BASIC tokenizer trap.</td></tr>
-      </tbody>
-    </table>
-  </section>
-
-  <section>
-    <h2>BASIC EXEC Examples</h2>
-    <p><code>EXEC</code> runs a native <code>PROC</code> body from BASIC program text. It does not call descriptor-backed overlay commands and it does not call <code>FUNC</code> routines.</p>
-    <div class="stack">
-      <article class="card">
-        <h3>Zero-Argument EXEC</h3>
-<pre><code>10 EXEC SHOW0
-20 END
-
-100 PROC SHOW0()
-110    PRINT "PROC0"
-120 ENDP</code></pre>
-      </article>
-      <article class="card">
-        <h3>Arguments And Control Flow</h3>
-<pre><code>10 EXEC SHOWI(7)
-
-20 PRINT "CHAIN":EXEC SHOWI(8):PRINT "AFTER"
-30 IF 1 THEN :EXEC SHOWI(9)
-40 END
-
-100 PROC SHOWI(P%)
-110    PRINT "PROCI";P%
-120 ENDP</code></pre>
-      </article>
-    </div>
-  </section>
-
-  <section>
-    <h2>BASIC PROC Examples</h2>
-    <p><code>PROC</code> definitions should live after <code>END</code>. V1 formals are ordinary BASIC globals, so choose names that will not overwrite caller variables you still need.</p>
-    <div class="stack">
-      <article class="card">
-        <h3>Typed Arguments</h3>
-<pre><code>10 EXEC SHOWI(7)
-20 EXEC SHOWS("READY")
-30 END
-
-100 PROC SHOWI(P%)
-110    PRINT "PROCI";P%
-120 ENDP
-
-200 PROC SHOWS(S$)
-210    PRINT "PROCS ";S$
-220 ENDP</code></pre>
-      </article>
-      <article class="card">
-        <h3>Nested PROC Calls</h3>
-<pre><code>10 EXEC OUTER
-20 END
-
-100 PROC OUTER()
-110    PRINT "OUTER"
-120    EXEC INNER
-130 ENDP
-
-200 PROC INNER()
-210    PRINT "INNER"
-220 ENDP</code></pre>
-      </article>
-    </div>
-  </section>
-
-  <section>
-    <h2>BASIC FUNC Examples</h2>
-    <p><code>FUNC</code> is expression-only. Call it from <code>PRINT</code>, assignment, or another supported expression context, and return with <code>RET</code>, <code>RET%</code>, or <code>RET$</code>.</p>
-    <div class="stack">
-      <article class="card">
-        <h3>Integer, String, And Float Returns</h3>
-<pre><code>10 A%=ADDI(4,5)
-20 PRINT "ADDI";A%
-
-30 PRINT "PRINT";ADDI(6,7)
-
-40 T$=GREET("READY")
-50 PRINT T$
-
-60 F=SCALE(2.5)
-70 PRINT "SCALE";F
-80 END
-
-100 FUNC ADDI(X%,Y%)
-110    RET X%+Y%
-120 ENDP
-
-200 FUNC GREET(N$)
-210    RET "HI "+N$
-220 ENDP
-
-300 FUNC SCALE(X)
-310    RET X*1.5
-320 ENDP</code></pre>
-      </article>
-      <article class="card">
-        <h3>Explicit RET Markers</h3>
-<pre><code>10 A%=IDI(9)
-20 T$=IDS("OK")
-
-30 PRINT "RET%";A%
-40 PRINT "RET$ ";T$
-50 END
-
-100 FUNC IDI(X%)
-110    RET% X%
-120 ENDP
-
-200 FUNC IDS(S$)
-210    RET$ S$
-220 ENDP</code></pre>
-      </article>
-      <article class="card">
-        <h3>Nested Expressions</h3>
-<pre><code>10 PRINT "FNABS";ABS(ADDI(1,6)-10)
-20 T$=LEFT$(GREET("READY")+"!",3):PRINT "CAT ";T$
-
-30 PRINT "NADDI";ADDI(1,ADDI(2,3))
-40 PRINT "NFADD";FADD(1.5,FADD(2.25,3.25))
-50 END
-
-100 FUNC ADDI(X%,Y%)
-110    RET X%+Y%
-120 ENDP
-
-200 FUNC GREET(N$)
-210    RET "HI "+N$
-220 ENDP</code></pre>
-      </article>
-    </div>
-  </section>
-
-  <section>
-    <h2>REU Handle Commands</h2>
-    <p>BASIC sees a small integer handle. Canonical descriptors live in REU bank <code>$44:$0800-$09FF</code>, the bitmap at <code>$44:$0C00</code>, and data in the 48KB typed heap at <code>$44:$4000-$FFFF</code>.</p>
-<pre><code>10 BUFNEW(64,H%)
-20 BUFFILL(H%,170)
-30 BUFFREE(H%)
-
-40 H%=BUFNEW(64)
-50 BUFFREE(H%)</code></pre>
-<pre><code>10 H%=SCRCAP()
-
-20 PRINT CHR$(147);"CHANGED"
-
-30 SCRPUT(H%)
-40 BUFFREE(H%)</code></pre>
-    <table>
-      <thead><tr><th>Command</th><th>Pattern</th></tr></thead>
-      <tbody>
-        <tr><td><code>BUFNEW</code></td><td>Allocate pages, store type-1 descriptor, return one-based handle.</td></tr>
-        <tr><td><code>BUFFILL</code></td><td>Validate type-1 buffer handle, fill pages through <code>$C500</code>.</td></tr>
-        <tr><td><code>BUFFREE</code></td><td>Free any valid handle type and clear metadata.</td></tr>
-        <tr><td><code>SCRCAP</code></td><td>Allocate type-2 screen text+color handle and stash text/color RAM.</td></tr>
-        <tr><td><code>SCRPUT</code></td><td>Validate type-2 handle and restore text/color RAM from slot-128 lookup.</td></tr>
-      </tbody>
-    </table>
-<pre><code>cmd_bufnew_low:
-        jsr rb_handle_alloc
-        rts
-
-cmd_scrput_low:
-        jsr rb_screen_handle_validate
-        lda RF_STATUS
-        beq :+
-        rts
-:       jsr rb_screen_load_text
-        jsr rb_screen_load_color
-        lda #0
-        sta RF_STATUS
-        lda #RB_VAL_NONE
-        sta RF_TAG
-        rts</code></pre>
-<pre><code>CMD_LOW_ALL CMD_BUFNEW, SIG_BUFNEW, cmd_bufnew_low, "BUFNEW"
-CMD_LOW_ALL CMD_BUFFILL, SIG_BUFFILL, cmd_buffill_low, "BUFFILL"
-CMD_LOW_ALL CMD_BUFFREE, SIG_BUFFREE, cmd_buffree_low, "BUFFREE"
-CMD_LOW_ALL CMD_SCRCAP, SIG_SCRCAP, cmd_scrcap_low, "SCRCAP"
-CMD_LOW_ALL CMD_SCRPUT, SIG_SCRPUT, cmd_scrput_low, "SCRPUT"</code></pre>
-    <table class="annotate">
-      <thead><tr><th>Line or group</th><th>Teaching note</th></tr></thead>
-      <tbody>
-        <tr><td><code>rb_handle_alloc</code></td><td>Finds a free handle id, reserves heap pages in REU, writes canonical metadata, and stages the handle number as an integer result.</td></tr>
-        <tr><td><code>rb_handle_fill</code></td><td>Validates that the handle is a generic buffer before writing data. This is where type safety lives.</td></tr>
-        <tr><td><code>rb_handle_free</code></td><td>Accepts any valid typed handle and releases both descriptor metadata and heap pages.</td></tr>
-        <tr><td><code>rb_screen_handle_alloc</code></td><td>Allocates a type-2 screen text+color handle, sized for the screen snapshot resource.</td></tr>
-        <tr><td><code>lda RF_STATUS</code> / <code>beq :+</code></td><td>Stops immediately if allocation or validation failed, preserving the error status for resident code.</td></tr>
-        <tr><td><code>rb_screen_save_text/color</code></td><td>Copies text RAM and color RAM into the typed REU handle.</td></tr>
-        <tr><td><code>rb_screen_load_text/color</code></td><td>Restores text RAM and color RAM only after the handle type has been validated.</td></tr>
-        <tr><td><code>CMD_LOW_ALL ...</code></td><td>These commands call shared helpers, so the descriptor copies the whole low pack instead of just the wrapper bytes.</td></tr>
-      </tbody>
-    </table>
-    <p class="muted">The handle lesson is to keep BASIC-visible values small, keep canonical resource metadata in REU, and validate handle type at command boundaries. <code>BUFFILL</code> accepts only type-1 buffer handles; <code>SCRPUT</code> accepts only type-2 screen text+color handles; <code>BUFFREE</code> frees any valid type.</p>
-  </section>
-
-  <section>
-    <h2>Other Current Command Invocations</h2>
-    <p>These current descriptor commands are smaller utility or probe commands. They use the same descriptor/parser/worker contract as the larger examples above.</p>
-    <div class="stack">
-      <article class="card">
-        <h3>Memory And Temporary Pages</h3>
-<pre><code>10 FREEMEM()
-
-20 P%=ZTEMPSCRATCH(512)
-30 PRINT "PAGES";P%
-
-40 ZTEMPSCRATCH(512,Q%)
-50 PRINT "OUT";Q%</code></pre>
-      </article>
-      <article class="card">
-        <h3>Float Addition</h3>
-<pre><code>10 FADD(1.2,2.3,Q)
-20 PRINT "FADD";Q
-
-30 PRINT "FEXPR";FADD(1.2,2.3)
-40 PRINT "FABS";ABS(FADD(1.2,2.3)-3)</code></pre>
-      </article>
-      <article class="card">
-        <h3>Pause</h3>
-<pre><code>10 PRINT "PAUSE"
-
-20 ZPAUSE(45)
-
-30 PRINT "DONE"</code></pre>
-      </article>
-      <article class="card">
-        <h3>Controlled Error</h3>
-        <p><code>ZFAIL</code> intentionally demonstrates error cleanup. The output variable is cleared before the command reports <code>?RB ERROR code</code>.</p>
-<pre><code>10 X%=99
-
-20 ZFAIL(7,X%)
-
-30 PRINT "AFTER FAIL";X%</code></pre>
-      </article>
-    </div>
-  </section>
-
-  <section>
-    <h2>Naming Lessons And Add-Command Checklist</h2>
-    <ol>
-      <li>Choose a tokenizer-safe name.</li>
-      <li>Add command id and signature id.</li>
-      <li>Add or reuse a parser signature that fills the call frame and clears outputs.</li>
-      <li>Add a low or hidden worker that writes the result frame only on success.</li>
-      <li>Add a descriptor entry; use <code>CMD_LOW_ALL</code> only when shared helpers require the full low pack.</li>
-      <li>Keep resident growth minimal; prefer REU metadata and existing scratch pages.</li>
-      <li>Add direct, stored-program, error-path, and resume/slot coverage.</li>
-      <li>Update Markdown and HTML docs with measured map values after tests pass.</li>
-    </ol>
-  </section>
-
-  <section>
-    <h2>Appendix: Descriptor And Registry Labels</h2>
-    <table class="term">
-      <tbody>
-        <tr><td><code>REGSEED</code></td><td>Cold-load descriptor image. It is copied to REU and then reclaimed so BASIC free bytes do not shrink.</td></tr>
-        <tr><td><code>RB_CMD_DESC_COUNT</code></td><td>Registry capacity, currently 128 command descriptors.</td></tr>
-        <tr><td><code>$44:$1000-$1FFF</code></td><td>REU location of the descriptor table. Lookup pages through this range.</td></tr>
-        <tr><td><code>RB_PAGEBUF</code></td><td>RAM page buffer used to fetch one 256-byte descriptor page, eight descriptors at a time.</td></tr>
-        <tr><td><code>RB_DESC_BUF</code></td><td>Resident copy of the single matched descriptor.</td></tr>
-        <tr><td><code>__LOWPACK_RUN__</code></td><td>Linker symbol for the packed low-overlay image before prestash to REU bank <code>$45</code>.</td></tr>
-        <tr><td><code>__LOWPACK_SIZE__</code></td><td>Measured full low-pack size, currently <code>$063D</code>.</td></tr>
-        <tr><td><code>RB_LOW_BASE</code></td><td>Runtime low-overlay base address, currently <code>$A900</code>.</td></tr>
-        <tr><td><code>RB_HIDDEN_BASE</code></td><td>Runtime hidden-overlay base address, currently <code>$A800</code>.</td></tr>
-      </tbody>
-    </table>
-  </section>
-
-  <section>
-    <h2>Appendix: Call And Result Frames</h2>
-    <table class="term">
-      <tbody>
-        <tr><td><code>CF_NUM0_LO/HI</code>, <code>CF_NUM1_LO/HI</code></td><td>Numeric inputs evaluated by resident parser helpers.</td></tr>
-        <tr><td><code>CF_STR_BUF</code>, <code>CF_STR_LEN</code></td><td>Staged string input bytes and length.</td></tr>
-        <tr><td><code>CF_PTR0_LO/HI</code></td><td>Resolved pointer to a BASIC array or structured input.</td></tr>
-        <tr><td><code>CF_COUNT0_LO</code></td><td>Count associated with an array-style input.</td></tr>
-        <tr><td><code>RF_STATUS</code></td><td>Command status. Zero means resident code may commit the staged result.</td></tr>
-        <tr><td><code>RF_TAG</code></td><td>Result type marker such as <code>RB_VAL_INT</code>, <code>RB_VAL_STRING</code>, or <code>RB_VAL_NONE</code>.</td></tr>
-        <tr><td><code>RF_VAL_LO/HI</code></td><td>Staged 16-bit integer result or handle number.</td></tr>
-        <tr><td><code>RF_STR_BUF</code>, <code>RF_STR_LEN</code></td><td>Staged string result. Resident code allocates BASIC heap storage afterward.</td></tr>
-        <tr><td><code>RF_ARR_BUF</code></td><td>Staging area for array output before resident commit writes BASIC variables.</td></tr>
-      </tbody>
-    </table>
-  </section>
-
-  <section>
-    <h2>Appendix: Helper Routines</h2>
-    <table class="term">
-      <tbody>
-        <tr><td><code>rb_parse_num0</code>, <code>rb_parse_num1</code></td><td>Evaluate BASIC numeric expressions into call-frame numeric slots.</td></tr>
-        <tr><td><code>rb_parse_string_value</code></td><td>Reads a string value into <code>CF_STR_BUF</code>.</td></tr>
-        <tr><td><code>rb_parse_out_int</code>, <code>rb_parse_out_string</code></td><td>Capture output variables and clear them before execution.</td></tr>
-        <tr><td><code>rb_parse_int_array_input</code></td><td>Parse a BASIC integer-array base element and count.</td></tr>
-        <tr><td><code>rb_parse_int_array_output</code></td><td>Parse a BASIC integer-array output target for staged commit.</td></tr>
-        <tr><td><code>rb_handle_alloc</code>, <code>rb_handle_free</code></td><td>Allocate and free REU-backed typed handles.</td></tr>
-        <tr><td><code>rb_screen_handle_validate</code></td><td>Checks that a handle exists and is the screen text+color type.</td></tr>
-        <tr><td><code>rb_screen_save_text/color</code></td><td>Save text RAM and color RAM into a screen handle.</td></tr>
-        <tr><td><code>rb_screen_load_text/color</code></td><td>Restore text RAM and color RAM from a screen handle.</td></tr>
-      </tbody>
-    </table>
-  </section>
-
-  <section>
-    <h2>Current Expression-Style Behavior</h2>
-    <p>Current ReadyBASIC supports two related styles: command statements that write to an output actual, and expression-safe calls that return a value directly into BASIC's expression evaluator.</p>
-
-    <div class="contrast">
-      <article class="card form-output">
-        <h3><span class="badge badge-output">Statement Output</span></h3>
-        <p>The final argument is the output target. Resident code clears it before the worker runs and commits only after success.</p>
-<pre><code>10 ZADD16(4,5,A%)
-20 PRINT "SUM";A%
-
-30 UPPER("ready",T$)
-40 PRINT T$
-
-50 BUFNEW(64,H%)
-60 PRINT "HANDLE";H%</code></pre>
-      </article>
-
-      <article class="card form-return">
-        <h3><span class="badge badge-return">Expression Return</span></h3>
-        <p>The call returns a scalar or string value directly. It can be assigned, printed, or passed into another expression consumer.</p>
-<pre><code>10 A%=ZADD16(4,5)
-20 PRINT "SUM";A%
-
-30 PRINT ZADD16(5,10)
-40 T$=UPPER("ready")
-
-50 H%=BUFNEW(64)
-60 PRINT "HANDLE";H%</code></pre>
-      </article>
-    </div>
-
-    <div class="contrast">
-      <article class="card form-param">
-        <h3><span class="badge badge-param">Formal Parameters</span></h3>
-        <p><code>PROC</code> and <code>FUNC</code> definitions name the values their body expects. These are ReadyBASIC routine formals, not plugin descriptor signatures.</p>
-<pre><code>100 PROC SHOWI(P%)
-110    PRINT "PROCI";P%
-120 ENDP
-
-200 FUNC ADDI(X%,Y%)
-210    RET X%+Y%
-220 ENDP</code></pre>
-      </article>
-
-      <article class="card form-param">
-        <h3><span class="badge badge-param">Actual Parameters</span></h3>
-        <p>Calls provide actual values. Non-empty argument lists use parentheses for both <code>EXEC</code> and <code>FUNC</code> calls.</p>
-<pre><code>10 EXEC SHOWI(7)
-
-20 PRINT ADDI(1,2+4)
-30 PRINT ADDI(1,(2+4))
-40 PRINT ADDI((1+2),(3+4))</code></pre>
-      </article>
-    </div>
-
-    <div class="card warn">
-      <p>Commands with array outputs or no scalar result remain statement-only. For example, <code>ZRANGENUMARRAY(7,4,R%(0))</code> writes several array elements after success, so it is not an expression return. Scalar handle commands such as <code>BUFNEW(n)</code> and <code>SCRCAP()</code> are expression-enabled because the returned handle is a simple integer.</p>
-    </div>
-
-    <h3>True Expression Examples</h3>
-    <p>Inputs and returned outputs can both participate in larger expressions, mixing ReadyBASIC commands, ReadyBASIC <code>FUNC</code> routines, and built-in BASIC functions.</p>
-
-    <div class="contrast">
-      <article class="card form-compose">
-        <h3><span class="badge badge-compose">Expression Inputs</span></h3>
-        <p>Actual parameters can come from built-in BASIC expressions, ReadyBASIC command returns, or other ReadyBASIC <code>FUNC</code> returns.</p>
-<pre><code>10 PRINT ADDI(ABS(-2),ZADD16(2,3))
-
-20 PRINT ZADD16(1,ADDI(2,3))
-
-30 PRINT FADD(1.5,FADD(2.25,3.25))</code></pre>
-      </article>
-
-      <article class="card form-compose">
-        <h3><span class="badge badge-compose">Expression Outputs</span></h3>
-        <p>Returned values can feed built-in BASIC functions or larger string/numeric expressions.</p>
-<pre><code>10 PRINT ABS(ZADD16(1,6)-10)
-
-20 PRINT ABS(ADDI(1,6)-10)
-
-30 T$=LEFT$(GREET("READY")+"!",3)
-40 PRINT T$
-
-50 PRINT LEFT$(UPPER(GREET("ready")),2)</code></pre>
-      </article>
-    </div>
-
-    <article class="card form-return">
-      <h3><span class="badge badge-return">FUNC Return Markers</span></h3>
-      <p><code>FUNC</code> routines return through <code>RET expr</code>. Use <code>RET% expr</code> or <code>RET$ expr</code> when the return type should be explicit.</p>
-<pre><code>100 FUNC GREET(N$)
-110    RET "HI "+N$
-120 ENDP
-
-200 FUNC IDI(X%)
-210    RET% X%
-220 ENDP
-
-300 FUNC IDS(S$)
-310    RET$ S$
-320 ENDP</code></pre>
-    </article>
-  </section>
-
-  <script>
-    (function () {
-      const opcodes = new Set(["adc", "bcc", "bcs", "beq", "bne", "clc", "cmp", "cpy", "dey", "dex", "inc", "iny", "jmp", "jsr", "lda", "ldx", "ldy", "rts", "sbc", "sec", "sta"]);
-      const esc = (text) => text.replace(/[&<>]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[ch]));
-      const tokenRe = /"[^"]*"|\.[A-Za-z_][A-Za-z0-9_]*|[A-Z][A-Z0-9_]+|[a-z]{3}\b/g;
-      const colorCodePart = (text) => {
-        let out = "";
-        let pos = 0;
-        for (const match of text.matchAll(tokenRe)) {
-          out += esc(text.slice(pos, match.index));
-          const tok = match[0];
-          if (tok.startsWith('"')) {
-            out += '<span class="tok-string">' + esc(tok) + '</span>';
-          } else if (tok.startsWith(".")) {
-            out += '<span class="tok-dir">' + esc(tok) + '</span>';
-          } else if (opcodes.has(tok)) {
-            out += '<span class="tok-op">' + esc(tok) + '</span>';
-          } else if (/^[A-Z]/.test(tok)) {
-            out += '<span class="tok-symbol">' + esc(tok) + '</span>';
-          } else {
-            out += esc(tok);
-          }
-          pos = match.index + tok.length;
-        }
-        out += esc(text.slice(pos));
-        return out;
-      };
-      const colorLine = (line) => {
-        let code = line;
-        let comment = "";
-        const commentAt = line.indexOf(";");
-        if (commentAt >= 0) {
-          code = line.slice(0, commentAt);
-          comment = line.slice(commentAt);
-        }
-        const labelMatch = code.match(/^(\s*)([A-Za-z_@][A-Za-z0-9_@]*:)(.*)$/);
-        let html = "";
-        if (labelMatch) {
-          html = esc(labelMatch[1]) + '<span class="tok-label">' + esc(labelMatch[2]) + '</span>' + colorCodePart(labelMatch[3]);
-        } else {
-          html = colorCodePart(code);
-        }
-        if (comment) {
-          html += '<span class="tok-comment">' + esc(comment) + '</span>';
-        }
-        return html;
-      };
-      document.querySelectorAll("pre code").forEach((node) => {
-        node.innerHTML = node.textContent.split("\n").map(colorLine).join("\n");
-      });
-    }());
-  </script>
+    </section>
+
+    <section class="grid">
+      <div class="card full warn">
+        <h2>Commit Checklist</h2>
+        <p>Resident remains below <code>BASIC_START</code>; bridge remains below <code>$C200</code>; frame use stays in <code>$C200-$C5FF</code>; <code>$C600-$C9FF</code> is untouched except bank ownership marks; slot payloads fit; descriptor offsets match REU payloads; names avoid tokenizer collisions; verification boots normal ReadyOS.</p>
+      </div>
+    </section>
+  </main>
 </body>
 </html>

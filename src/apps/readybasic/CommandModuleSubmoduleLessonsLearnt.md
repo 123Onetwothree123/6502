@@ -214,3 +214,24 @@ proven, adjusted, or rejected during implementation.
   normal `SEARCHING/LOADING` messages disturb expression output. The loader now
   saves `MSGFLG`, silences those messages only around the load, and restores
   the previous value.
+
+## Documentation Hardening: Current Memory And Module Docs
+
+- Rewrote the current ReadyBASIC markdown docs around the implemented
+  module/submodule architecture:
+  `READYBASIC_CURRENT_DESIGN.md`,
+  `READYBASIC_LIFECYCLE_AND_REU_ARCHITECTURE.md`,
+  `READYBASIC_MAKING_COMMAND_GUIDE.md`,
+  `READYBASIC_PLUGIN_ARCH.md`, and `READYBASIC_MICROMODULE_SYNC.md`.
+- Rebuilt the three visual HTML guides so they emphasize the post-BASIC memory
+  map first, then show under-ROM slots, REU bank `$44/$45`, disk module flow,
+  and command-authoring choices with proportional color-coded sections.
+- Updated the general ReadyBASIC lessons current-model bullets so the top of
+  the lab notebook no longer describes the pre-module `$A900` overlay model as
+  current.
+- Verification for this docs-only pass:
+  - HTML files parsed successfully with Python `html.parser`.
+  - `make readybasic-plugin-static-check` passed.
+- Lesson: history logs should keep dated old addresses, but their opening
+  "current model" sections must point at the latest memory contract or future
+  implementation work will silently inherit obsolete slot assumptions.

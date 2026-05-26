@@ -81,3 +81,36 @@ instead of copying large values through BASIC variables. BASIC should keep small
 integers and short strings visible to the user, while REU stores larger command
 state and resource data. This keeps the BASIC workspace readable and compact
 while allowing richer graphics, text, storage, and tool workflows.
+
+## Module Catalog And Residency
+
+The current module/submodule branch proves fixed-address assembler payloads,
+three 2KB under-ROM submodule slots, two built-in modules, overlay rotation, and
+a disk-module loader command that lives in module 2 rather than resident code.
+Future work should fill in the richer REU bank `$44:$2000-$3FFF` catalog that
+the current implementation reserves:
+
+- per-slot live records with module id, submodule id, overlay id, generation or
+  checksum, slot mask, payload bank, and payload offset;
+- command-name collision policy for disk-loaded modules;
+- optional unload/replace policy for disk modules;
+- additional payload banks when REU bank `$45` does not have enough free space;
+- a compact way to enumerate loaded modules from BASIC for diagnostics.
+
+The design should keep the resident rule intact: resident code dispatches and
+performs ROM-facing parse/commit work, while module policy such as disk loading,
+overlay choice, and command-family helpers lives in under-ROM module code.
+
+## Graphics Memory Goals
+
+Graphics commands are intentionally deferred until the command-module model is
+stable. When they arrive, they should use the same proportional memory thinking:
+
+- keep BASIC workspace pressure low by storing large buffers, sprite sheets,
+  character sets, and bitmap resources in REU-backed handles;
+- use VIC bank D and memory behind ROM only in ways compatible with the ReadyOS
+  shim and the app contract;
+- never use `$C800-$C9FF` unless deliberately calling the ReadyOS shim ABI;
+- avoid `$C600-$C7FF` except for ReadyOS REU allocation metadata;
+- make graphics modes explicit about which C64 RAM ranges they claim while
+  active, especially screen RAM, color RAM, character sets, and bitmap pages.

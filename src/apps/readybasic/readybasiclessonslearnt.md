@@ -15,24 +15,29 @@ actual C64/ReadyOS evidence trail rather than a pile of confident guesses.
   tokens.
 - ReadyBASIC suspend state keeps zero-page and stack snapshots in REU bank `$44`
   at offsets `$0A00/$0B00`; saved SP, mode, and line-chain guards live in bridge metadata.
-- Hidden services live under BASIC ROM RAM at `$A000-$BFFF` and visible
-  trampolines/state/mailbox live at `$C000-$C5FF`.
-- A refreshed visible shadow copy of the hidden helper image lives at `$C280-$C5F6`,
-  inside the ReadyOS app snapshot window. Warm
-  entry restores `$A000` from that shadow before using hidden helpers.
-- The plugin spine keeps visible resident code at `$1200-$2AB9`, command
-  overlays under BASIC ROM at `$A900-$AF3C`, shared frames at `$C200-$C5FF`, and fixed
+- Under-ROM services live behind BASIC ROM at `$A000-$BFFF`: common helper
+  code at `$A000-$A7FF`, slot 0 at `$A800-$AFFF`, slot 1 at `$B000-$B7FF`,
+  and slot 2 at `$B800-$BFFF`.
+- The plugin spine keeps visible resident code at `$1200-$2ABB`, bridge
+  code/state at `$C000-$C1F6`, shared frames at `$C200-$C5FF`, and fixed
   ReadyBASIC REU banks `$44/$45`.
 - The current registry has 128 descriptor slots in REU bank `$44` at
   `$1000-$1FFF`. Lookup fetches one 256-byte page at a time into `$C500`, scans
   eight descriptors locally, and copies a match into `$C480`.
+- Command descriptors are now module-aware 32-byte records: command id, module
+  id, payload offset/size in REU bank `$45`, submodule id, overlay id, slot
+  mask, generation, runtime destination, entry offset, signature id, and name.
+- Built-in payload bytes are prestashed into REU bank `$45`: module 1 slot 0 at
+  `$0000-$06C6`, module 2 slot 1 at `$06C7-$0807`, slot 2 and overlay proofs
+  through `$085B`, with disk sample payloads currently starting at `$3000`.
 - The current typed handle system supports 128 live handles. Handle descriptors
   live at REU `$44:$0800-$09FF`, the 192-page bitmap at `$44:$0C00`, and the
   48KB typed heap at `$44:$4000-$FFFF`; bridge RAM keeps only current-handle
   scratch.
-- Cold entry prestashes `CMDPACK`, hidden helper/bridge seeds, and `REGSEED`
-  into their runtime locations or REU. Warm resume must reuse those runtime/REU
-  copies rather than rereading load-only addresses that BASIC may now own.
+- Cold entry prestashes built-in module payloads, hidden helper/bridge seeds,
+  and `REGSEED` into their runtime locations or REU. Warm resume must reuse
+  those runtime/REU copies rather than rereading load-only addresses that BASIC
+  may now own.
 
 ## Live Discipline Notes
 

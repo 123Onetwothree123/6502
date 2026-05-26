@@ -6,8 +6,10 @@ memory map, use `READYBASIC_CURRENT_DESIGN.md`.
 
 Current runtime command names use `ZECHO1`, `ZADD16`, `UPPER`, `LOWER`,
 `ZHIDDENRAM`, `ZSUMNUMARRAY`, `ZRANGENUMARRAY`, `ZTEMPSCRATCH`, `ZPAUSE`,
-`ZFAIL`, `FREEMEM`, `ERRCODE`, and `ERRLINE` for
-the demo/proof commands. Native language features also include `PROC`/`FUNC`,
+`ZFAIL`, `FREEMEM`, `ERRCODE`, and `ERRLINE` for the core demo/proof commands.
+The module/submodule branch also includes `ZSLOT0`, `ZSLOT1`, `ZSLOT2`,
+`ZSPAN`, `ZOVL1`, `ZOVL2`, `ZCPYRST`, `ZCOPY`, `ZMODLD`, and disk-loaded sample
+commands `ZDM1`, `ZDM2S`, `ZDOV1`, and `ZDOV2`. Native language features also include `PROC`/`FUNC`,
 `REPEAT`/`UNTIL`, and `LABEL`/`JUMP`. Older entries below may mention historical names such
 as `PING`, `ADD16`, `STRUP`, `HCRC`, `SUMAI`, `RANGEAI`, `TEMPSCRATCH`, and
 `FAIL`; those are retained as dated notes, not current aliases.
