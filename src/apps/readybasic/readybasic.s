@@ -177,9 +177,12 @@ RB_SUBMOD_COMMON = 0
 RB_SUBMOD_LEGACY_LOW = 1
 RB_SUBMOD_PROOF_SLOT1 = 2
 RB_SUBMOD_PROOF_SLOT2 = 3
+RB_SUBMOD_PROOF_SPAN = 4
+RB_SUBMOD_PROOF_OVERLAY = 5
 RB_SLOT_LEGACY_LOW = $01
 RB_SLOT_PROOF_1 = $02
 RB_SLOT_PROOF_2 = $04
+RB_SLOT_PROOF_12 = RB_SLOT_PROOF_1 | RB_SLOT_PROOF_2
 RB_SLOT_COMMON = $80
 RB_SLOT_INVALID = $FF
 
@@ -258,6 +261,11 @@ CMD_ERRLINE     = 19
 CMD_ZSLOT0      = 20
 CMD_ZSLOT1      = 21
 CMD_ZSLOT2      = 22
+CMD_ZSPAN       = 23
+CMD_ZOVL1       = 24
+CMD_ZOVL2       = 25
+CMD_ZCPYRST     = 26
+CMD_ZCOPY       = 27
 
 ; REU registers.
 REU_CMD         = $DF01
@@ -283,6 +291,9 @@ REU_LEN_HI      = $DF08
         .import __LOWPACK_LOAD__, __LOWPACK_RUN__, __LOWPACK_SIZE__
         .import __SLOTPACK1_LOAD__, __SLOTPACK1_RUN__, __SLOTPACK1_SIZE__
         .import __SLOTPACK2_LOAD__, __SLOTPACK2_RUN__, __SLOTPACK2_SIZE__
+        .import __SPANPACK_LOAD__, __SPANPACK_RUN__, __SPANPACK_SIZE__
+        .import __OVL1PACK_LOAD__, __OVL1PACK_RUN__, __OVL1PACK_SIZE__
+        .import __OVL2PACK_LOAD__, __OVL2PACK_RUN__, __OVL2PACK_SIZE__
 
 rb_entry_src    = $FB
 rb_entry_dst    = $FD
@@ -3292,6 +3303,8 @@ rb_load_and_call_command:
         lda RB_DESC_BUF+4
         ora RB_DESC_BUF+5
         beq @done
+        jsr rb_slot_resident
+        bcs @resident
         lda RB_DESC_BUF+2
         sta rb_reu_off_lo
         lda RB_DESC_BUF+3
@@ -3317,39 +3330,46 @@ rb_load_and_call_command:
         sta rb_overlay_vec_hi
         lda #RB_REU_CODE_BANK
         sta rb_reu_bank
+        inc rb_copy_count
         jsr rb_fetch_underrom_payload
         jsr rb_mark_slot_resident
+@resident:
         jsr rb_call_underrom_payload
 @done:
         rts
 
 rb_desc_runtime_base:
-        lda #>RB_SLOT0_BASE
         ldx RB_DESC_BUF+8
-        cpx #RB_SLOT_PROOF_1
-        bne :+
-        lda #>RB_SLOT1_BASE
-:       cpx #RB_SLOT_PROOF_2
-        bne :+
+        lda #>RB_SLOT0_BASE
+        cpx #RB_SLOT_LEGACY_LOW
+        beq @store
         lda #>RB_SLOT2_BASE
-:       ldx #0
+        cpx #RB_SLOT_PROOF_2
+        beq @store
+        lda #>RB_SLOT1_BASE
+@store: ldx #0
         stx rb_ptr_lo
         sta rb_ptr_hi
         rts
 
+rb_slot_resident:
+        lda rb_slot0_cmd
+        cmp RB_DESC_BUF
+        bne @miss
+        lda rb_slot0_overlay
+        cmp RB_DESC_BUF+7
+        bne @miss
+        sec
+        rts
+@miss:
+        clc
+        rts
+
 rb_mark_slot_resident:
-        lda RB_DESC_BUF+8
-        cmp #RB_SLOT_LEGACY_LOW
-        bne @done
-        lda RB_DESC_BUF+1
-        sta rb_slot0_module
-        lda RB_DESC_BUF+6
-        sta rb_slot0_submodule
+        lda RB_DESC_BUF
+        sta rb_slot0_cmd
         lda RB_DESC_BUF+7
         sta rb_slot0_overlay
-        lda RB_DESC_BUF+9
-        sta rb_slot0_generation
-@done:
         rts
 
 rb_fetch_underrom_payload:
@@ -3745,6 +3765,51 @@ rb_reu_header_end:
         .res 16 - .strlen(name), 0
 .endmacro
 
+.macro CMD_SPAN id, sig, label, name
+        .byte id, 2
+        .word __SPANPACK_LOAD__ - __LOWPACK_LOAD__
+        .word __SPANPACK_SIZE__
+        .byte RB_SUBMOD_PROOF_SPAN
+        .byte 0
+        .byte RB_SLOT_PROOF_12
+        .byte 1
+        .word 0
+        .word label - __SPANPACK_RUN__
+        .byte sig, .strlen(name)
+        .byte name
+        .res 16 - .strlen(name), 0
+.endmacro
+
+.macro CMD_OVL1 id, sig, label, name
+        .byte id, 2
+        .word __OVL1PACK_LOAD__ - __LOWPACK_LOAD__
+        .word __OVL1PACK_SIZE__
+        .byte RB_SUBMOD_PROOF_OVERLAY
+        .byte 1
+        .byte RB_SLOT_PROOF_2
+        .byte 1
+        .word 0
+        .word label - __OVL1PACK_RUN__
+        .byte sig, .strlen(name)
+        .byte name
+        .res 16 - .strlen(name), 0
+.endmacro
+
+.macro CMD_OVL2 id, sig, label, name
+        .byte id, 2
+        .word __OVL2PACK_LOAD__ - __LOWPACK_LOAD__
+        .word __OVL2PACK_SIZE__
+        .byte RB_SUBMOD_PROOF_OVERLAY
+        .byte 2
+        .byte RB_SLOT_PROOF_2
+        .byte 1
+        .word 0
+        .word label - __OVL2PACK_RUN__
+        .byte sig, .strlen(name)
+        .byte name
+        .res 16 - .strlen(name), 0
+.endmacro
+
 rb_command_descriptors:
         CMD_LOW_ALL CMD_ZECHO1, SIG_ZECHO1, cmd_zecho1_low, "ZECHO1"
         CMD_LOW CMD_ZADD16, SIG_ZADD16, cmd_zadd16_low, cmd_zadd16_low_end, "ZADD16"
@@ -3767,7 +3832,12 @@ rb_command_descriptors:
         CMD_LOW CMD_ZSLOT0, SIG_SCRCAP, cmd_zslot0_low, cmd_zslot0_low_end, "ZSLOT0"
         CMD_SLOT1 CMD_ZSLOT1, SIG_SCRCAP, cmd_zslot1, "ZSLOT1"
         CMD_SLOT2 CMD_ZSLOT2, SIG_SCRCAP, cmd_zslot2, "ZSLOT2"
-        .res (RB_CMD_DESC_COUNT - 22) * RB_CMD_DESC_SIZE, 0
+        CMD_SPAN CMD_ZSPAN, SIG_SCRCAP, cmd_zspan, "ZSPAN"
+        CMD_OVL1 CMD_ZOVL1, SIG_SCRCAP, cmd_zovl1, "ZOVL1"
+        CMD_OVL2 CMD_ZOVL2, SIG_SCRCAP, cmd_zovl2, "ZOVL2"
+        CMD_LOW CMD_ZCPYRST, SIG_SCRCAP, cmd_zcpyrst_low, cmd_zcpyrst_low_end, "ZCPYRST"
+        CMD_LOW CMD_ZCOPY, SIG_SCRCAP, cmd_zcopy_low, cmd_zcopy_low_end, "ZCOPY"
+        .res (RB_CMD_DESC_COUNT - 27) * RB_CMD_DESC_SIZE, 0
         CMD_LOW_ALL CMD_SCRPUT, SIG_SCRPUT, cmd_scrput_low, "SCRPUT"
 
 ; ---------------------------------------------------------------------------
@@ -4036,9 +4106,9 @@ rb_seed_plugin_reu_hidden:
         sta rb_reu_off_hi
         lda #RB_REU_CODE_BANK
         sta rb_reu_bank
-        lda #<((__SLOTPACK2_LOAD__ - __LOWPACK_LOAD__) + __SLOTPACK2_SIZE__)
+        lda #<((__OVL2PACK_LOAD__ - __LOWPACK_LOAD__) + __OVL2PACK_SIZE__)
         sta rb_reu_len_lo
-        lda #>((__SLOTPACK2_LOAD__ - __LOWPACK_LOAD__) + __SLOTPACK2_SIZE__)
+        lda #>((__OVL2PACK_LOAD__ - __LOWPACK_LOAD__) + __OVL2PACK_SIZE__)
         sta rb_reu_len_hi
         jsr rb_reu_stash
 
@@ -4048,10 +4118,9 @@ rb_seed_plugin_reu_hidden:
 
 rb_clear_slot_residency:
         lda #0
-        sta rb_slot0_module
-        sta rb_slot0_submodule
+        sta rb_slot0_cmd
         sta rb_slot0_overlay
-        sta rb_slot0_generation
+        sta rb_copy_count
         rts
 
 rb_mark_reu_banks_hidden:
@@ -4526,10 +4595,9 @@ rb_out_count_hi:.byte 0
 
 rb_overlay_vec_lo:.byte 0
 rb_overlay_vec_hi:.byte 0
-rb_slot0_module:.byte 0
-rb_slot0_submodule:.byte 0
+rb_slot0_cmd:   .byte 0
 rb_slot0_overlay:.byte 0
-rb_slot0_generation:.byte 0
+rb_copy_count:  .byte 0
 
 rb_reu_c64_lo:  .byte 0
 rb_reu_c64_hi:  .byte 0
@@ -4600,6 +4668,28 @@ cmd_zslot0_low:
         sta RF_VAL_HI
         rts
 cmd_zslot0_low_end:
+
+cmd_zcpyrst_low:
+        lda #0
+        sta rb_copy_count
+        sta RF_STATUS
+        sta RF_VAL_LO
+        sta RF_VAL_HI
+        lda #RB_VAL_INT
+        sta RF_TAG
+        rts
+cmd_zcpyrst_low_end:
+
+cmd_zcopy_low:
+        lda #0
+        sta RF_STATUS
+        sta RF_VAL_HI
+        lda rb_copy_count
+        sta RF_VAL_LO
+        lda #RB_VAL_INT
+        sta RF_TAG
+        rts
+cmd_zcopy_low_end:
 
 cmd_fadd_low:
         rts
@@ -5495,3 +5585,45 @@ cmd_zslot2:
         sta RF_VAL_HI
         rts
 cmd_zslot2_end:
+
+        .segment "SPANPACK"
+
+cmd_zspan:
+        lda #0
+        sta RF_STATUS
+        lda #RB_VAL_INT
+        sta RF_TAG
+        lda #40
+        sta RF_VAL_LO
+        lda #0
+        sta RF_VAL_HI
+        rts
+cmd_zspan_end:
+
+        .segment "OVL1PACK"
+
+cmd_zovl1:
+        lda #0
+        sta RF_STATUS
+        lda #RB_VAL_INT
+        sta RF_TAG
+        lda #51
+        sta RF_VAL_LO
+        lda #0
+        sta RF_VAL_HI
+        rts
+cmd_zovl1_end:
+
+        .segment "OVL2PACK"
+
+cmd_zovl2:
+        lda #0
+        sta RF_STATUS
+        lda #RB_VAL_INT
+        sta RF_TAG
+        lda #52
+        sta RF_VAL_LO
+        lda #0
+        sta RF_VAL_HI
+        rts
+cmd_zovl2_end:

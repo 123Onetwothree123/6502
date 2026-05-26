@@ -129,3 +129,45 @@ proven, adjusted, or rejected during implementation.
 - Next hypothesis: Slice 4 can add multi-slot, overlay-like proof payloads and
   a measured copy counter by extending descriptor metadata and tests, not by
   adding a broad new resident framework.
+
+## Slice 4: Span, Overlay, And Copy-Count Proofs
+
+- Added `ZSPAN()` as a two-slot proof payload with slot mask 1+2, linked for
+  `$B000-$BFFF` and returning `40`.
+- Added `ZOVL1()` and `ZOVL2()` as overlay proof payloads that both target slot
+  2 and return distinct values, `51` and `52`.
+- Added `ZCPYRST()` and `ZCOPY()` so the visual suite can reset and inspect a
+  tiny copy counter.
+- Added a compact residency skip path that records the last command/overlay
+  identity and increments the copy counter only when a REU fetch actually
+  happens. This is intentionally smaller than the final per-slot REU metadata
+  design, but it proves the dispatch/fetch/call behavior without moving
+  resident code above the ReadyBASIC boundary.
+- Extended the local ReadyBASIC full visual suite runner to assert:
+  `ZSLOT0()`, `ZSLOT1()`, `ZSLOT2()`, `ZSPAN()`, `ZOVL1()/ZOVL2()`, and the
+  no-recopy proof `ZCPYRST(); ZSLOT1(); ZSLOT1(); ZCOPY()`.
+- Static gate:
+  `make bin/readybasic.prg && make readybasic-plugin-static-check` passed.
+- VICE gate:
+  `READYBASIC_VISIBLE=1 /Users/karlprosserpp/dev/c64projects/agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_full_suite_visual_verification.sh`
+  passed with `success`, 175/175 steps, failed step `null`, no degraded steps.
+  Run dir:
+  `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260525_215209`.
+- Memory delta versus baseline:
+  - `BASIC_START` unchanged at `$2AC1`; formula BASIC free bytes unchanged at
+    `30013 ($753D)`.
+  - `RESIDENT` changed from `$18BA` / 6330B to `$18BC` / 6332B, delta `+2B`.
+  - `HIDDEN` changed from `$0377` / 887B to `$0365` / 869B, delta `-18B`.
+  - Slot 0 `LOWPACK` is `$06C7` / 1735B; slot 1 and slot 2 single-slot proof
+    payloads are `$0015` / 21B each.
+  - Two-slot `SPANPACK` is `$0015` / 21B, and both overlay proof payloads are
+    `$0015` / 21B.
+  - `BRIDGE` changed from `$01F4` / 500B to `$01F7` / 503B, delta `+3B`.
+  - `REGSEED` and PRG payload size remain unchanged.
+- Lesson: the final per-slot/per-submodule metadata design still needs a richer
+  representation, ideally backed by REU bank `$44`; the tiny last-command proof
+  was the right compromise for this slice because it proved no-recopy behavior
+  while keeping resident growth to two bytes over the original baseline.
+- Scope stop: per user correction, implementation stops here at Slice 4. Slice
+  5 loader stubs and Slice 6 documentation hardening are intentionally not
+  implemented in this branch state yet.

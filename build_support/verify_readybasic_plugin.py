@@ -67,7 +67,7 @@ def main() -> None:
     require(r"#define\s+REU_BANK_RB_CORE\s+0x44\b", reu_hdr, "REU_BANK_RB_CORE must be 0x44")
     require(r"#define\s+REU_BANK_RB_CODE\s+0x45\b", reu_hdr, "REU_BANK_RB_CODE must be 0x45")
 
-    for name in ("ENTRY", "RESIDENT", "LOWPACK", "SLOTPACK1", "SLOTPACK2", "HIDDEN", "BRIDGE", "REGSEED"):
+    for name in ("ENTRY", "RESIDENT", "LOWPACK", "SLOTPACK1", "SLOTPACK2", "SPANPACK", "OVL1PACK", "OVL2PACK", "HIDDEN", "BRIDGE", "REGSEED"):
         if name not in segments:
             fail(f"map is missing segment {name}")
 
@@ -75,18 +75,21 @@ def main() -> None:
     lowpack = segments["LOWPACK"]
     slotpack1 = segments["SLOTPACK1"]
     slotpack2 = segments["SLOTPACK2"]
+    spanpack = segments["SPANPACK"]
+    ovl1pack = segments["OVL1PACK"]
+    ovl2pack = segments["OVL2PACK"]
     hidden = segments["HIDDEN"]
     bridge = segments["BRIDGE"]
     regseed = segments["REGSEED"]
 
     if resident[0] != 0x1200 or resident[1] >= 0x2AC0:
         fail(f"RESIDENT must fit in $1200-$2ABF, got ${resident[0]:04X}-${resident[1]:04X}")
-    if resident[2] > 0x18B8:
-        fail(f"RESIDENT grew past command-module slot budget $18B8, got ${resident[2]:04X}")
+    if resident[2] > 0x18C0:
+        fail(f"RESIDENT grew past command-module slot budget $18C0, got ${resident[2]:04X}")
     if lowpack[0] != 0xA800 or lowpack[1] > 0xAFFF:
         fail(f"command slot 0 must fit under BASIC ROM at $A800-$AFFF, got ${lowpack[0]:04X}-${lowpack[1]:04X}")
-    if lowpack[2] != 0x069F:
-        fail(f"command slot 0 size changed from measured $069F, got ${lowpack[2]:04X}")
+    if lowpack[2] != 0x06C7:
+        fail(f"command slot 0 size changed from measured $06C7, got ${lowpack[2]:04X}")
     if slotpack1[0] != 0xB000 or slotpack1[1] > 0xB7FF:
         fail(f"command slot 1 must fit under BASIC ROM at $B000-$B7FF, got ${slotpack1[0]:04X}-${slotpack1[1]:04X}")
     if slotpack1[2] != 0x0015:
@@ -95,6 +98,12 @@ def main() -> None:
         fail(f"command slot 2 must fit under BASIC ROM at $B800-$BFFF, got ${slotpack2[0]:04X}-${slotpack2[1]:04X}")
     if slotpack2[2] != 0x0015:
         fail(f"command slot 2 size changed from measured $0015, got ${slotpack2[2]:04X}")
+    if spanpack[0] != 0xB000 or spanpack[1] > 0xBFFF or spanpack[2] != 0x0015:
+        fail(f"two-slot proof payload must fit at $B000-$BFFF with measured size $0015, got ${spanpack[0]:04X}-${spanpack[1]:04X} size ${spanpack[2]:04X}")
+    if ovl1pack[0] < 0xB800 or ovl1pack[1] > 0xBFFF or ovl1pack[2] != 0x0015:
+        fail(f"overlay 1 proof payload must fit in slot 2 with measured size $0015, got ${ovl1pack[0]:04X}-${ovl1pack[1]:04X} size ${ovl1pack[2]:04X}")
+    if ovl2pack[0] < 0xB800 or ovl2pack[1] > 0xBFFF or ovl2pack[2] != 0x0015:
+        fail(f"overlay 2 proof payload must fit in slot 2 with measured size $0015, got ${ovl2pack[0]:04X}-${ovl2pack[1]:04X} size ${ovl2pack[2]:04X}")
     if hidden[0] != 0xA000 or hidden[1] > 0xA7FF:
         fail(f"HIDDEN helper/common area must fit in $A000-$A7FF, got ${hidden[0]:04X}-${hidden[1]:04X}")
     if hidden[2] > 0x0368:
