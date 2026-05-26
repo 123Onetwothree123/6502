@@ -169,8 +169,11 @@ RB_OUT_STRING   = 2
 RB_OUT_ARRAYI   = 3
 RB_OUT_FLOAT    = 4
 
-RB_CMD_F_LOW    = $01
-RB_CMD_F_HIDDEN = $02
+RB_MODULE_SYSTEM = 1
+RB_SUBMOD_COMMON = 0
+RB_SUBMOD_LEGACY_LOW = 1
+RB_SLOT_LEGACY_LOW = $01
+RB_SLOT_COMMON = $80
 
 RB_REU_CORE_BANK= $44
 RB_REU_CODE_BANK= $45
@@ -3275,7 +3278,7 @@ rb_clear_result_frame:
 rb_load_and_call_command:
         lda RB_DESC_BUF+4
         ora RB_DESC_BUF+5
-        beq @hidden
+        beq @done
         lda RB_DESC_BUF+2
         sta rb_reu_off_lo
         lda RB_DESC_BUF+3
@@ -3284,56 +3287,45 @@ rb_load_and_call_command:
         sta rb_reu_len_lo
         lda RB_DESC_BUF+5
         sta rb_reu_len_hi
+        jsr rb_desc_runtime_base
         clc
-        lda #<RB_LOW_BASE
-        adc RB_DESC_BUF+2
-        sta rb_reu_c64_lo
-        lda #>RB_LOW_BASE
-        adc RB_DESC_BUF+3
-        sta rb_reu_c64_hi
-        clc
-        lda #<RB_LOW_BASE
+        lda rb_ptr_lo
         adc RB_DESC_BUF+10
-        sta rb_overlay_vec_lo
-        lda #>RB_LOW_BASE
-        adc RB_DESC_BUF+11
-        sta rb_overlay_vec_hi
-        lda #RB_REU_CODE_BANK
-        sta rb_reu_bank
-        jsr rb_fetch_hidden_overlay
-        jsr rb_call_hidden_overlay
-@hidden:
-        lda RB_DESC_BUF+8
-        ora RB_DESC_BUF+9
-        beq @done
-        lda RB_DESC_BUF+6
-        sta rb_reu_off_lo
-        lda RB_DESC_BUF+7
-        sta rb_reu_off_hi
-        lda RB_DESC_BUF+8
-        sta rb_reu_len_lo
-        lda RB_DESC_BUF+9
-        sta rb_reu_len_hi
-        clc
-        lda #<RB_HIDDEN_BASE
-        adc RB_DESC_BUF+12
         sta rb_reu_c64_lo
-        sta rb_overlay_vec_lo
-        lda #>RB_HIDDEN_BASE
-        adc RB_DESC_BUF+13
+        lda rb_ptr_hi
+        adc RB_DESC_BUF+11
         sta rb_reu_c64_hi
+        clc
+        lda rb_ptr_lo
+        adc RB_DESC_BUF+12
+        sta rb_overlay_vec_lo
+        lda rb_ptr_hi
+        adc RB_DESC_BUF+13
         sta rb_overlay_vec_hi
         lda #RB_REU_CODE_BANK
         sta rb_reu_bank
-        jsr rb_fetch_hidden_overlay
-        jsr rb_call_hidden_overlay
+        jsr rb_fetch_underrom_payload
+        jsr rb_call_underrom_payload
 @done:
         rts
 
-rb_call_low_overlay:
-        jmp (rb_overlay_vec_lo)
+rb_desc_runtime_base:
+        lda RB_DESC_BUF+8
+        cmp #RB_SLOT_COMMON
+        beq @common
+        lda #<RB_LOW_BASE
+        sta rb_ptr_lo
+        lda #>RB_LOW_BASE
+        sta rb_ptr_hi
+        rts
+@common:
+        lda #<RB_HIDDEN_BASE
+        sta rb_ptr_lo
+        lda #>RB_HIDDEN_BASE
+        sta rb_ptr_hi
+        rts
 
-rb_fetch_hidden_overlay:
+rb_fetch_underrom_payload:
         php
         sei
         lda CPU_DDR
@@ -3349,7 +3341,7 @@ rb_fetch_hidden_overlay:
         plp
         rts
 
-rb_call_hidden_overlay:
+rb_call_underrom_payload:
         php
         sei
         lda CPU_DDR
@@ -3652,38 +3644,44 @@ rb_reu_header:
 rb_reu_header_end:
 
 .macro CMD_LOW id, sig, label, endlabel, name
-        .byte id, RB_CMD_F_LOW
+        .byte id, RB_MODULE_SYSTEM
         .word label - __LOWPACK_RUN__
         .word endlabel - label
-        .word 0
-        .word 0
+        .byte RB_SUBMOD_LEGACY_LOW
+        .byte 0
+        .byte RB_SLOT_LEGACY_LOW
+        .byte 1
         .word label - __LOWPACK_RUN__
-        .word 0
+        .word label - __LOWPACK_RUN__
         .byte sig, .strlen(name)
         .byte name
         .res 16 - .strlen(name), 0
 .endmacro
 
 .macro CMD_LOW_ALL id, sig, label, name
-        .byte id, RB_CMD_F_LOW
+        .byte id, RB_MODULE_SYSTEM
         .word 0
         .word __LOWPACK_SIZE__
-        .word 0
+        .byte RB_SUBMOD_LEGACY_LOW
+        .byte 0
+        .byte RB_SLOT_LEGACY_LOW
+        .byte 1
         .word 0
         .word label - __LOWPACK_RUN__
-        .word 0
         .byte sig, .strlen(name)
         .byte name
         .res 16 - .strlen(name), 0
 .endmacro
 
 .macro CMD_HIDDEN id, sig, label, endlabel, name
-        .byte id, RB_CMD_F_HIDDEN
-        .word 0
-        .word 0
+        .byte id, RB_MODULE_SYSTEM
         .word (__HIDDENPACK_LOAD__ - __LOWPACK_LOAD__) + (label - __HIDDENPACK_RUN__)
         .word endlabel - label
-        .word 0
+        .byte RB_SUBMOD_COMMON
+        .byte 0
+        .byte RB_SLOT_COMMON
+        .byte 1
+        .word label - RB_HIDDEN_BASE
         .word label - RB_HIDDEN_BASE
         .byte sig, .strlen(name)
         .byte name
