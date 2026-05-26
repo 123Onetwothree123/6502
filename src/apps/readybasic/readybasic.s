@@ -118,7 +118,10 @@ VIC_MEM_LOWERCASE = $16
 ; ReadyBASIC plugin ABI constants
 ; ---------------------------------------------------------------------------
 
-RB_LOW_BASE     = $A800
+RB_SLOT0_BASE   = $A800
+RB_SLOT1_BASE   = $B000
+RB_SLOT2_BASE   = $B800
+RB_LOW_BASE     = RB_SLOT0_BASE
 RB_HIDDEN_BASE  = $A000
 RB_SHARED       = $C200
 RB_CF           = $C200
@@ -172,7 +175,11 @@ RB_OUT_FLOAT    = 4
 RB_MODULE_SYSTEM = 1
 RB_SUBMOD_COMMON = 0
 RB_SUBMOD_LEGACY_LOW = 1
+RB_SUBMOD_PROOF_SLOT1 = 2
+RB_SUBMOD_PROOF_SLOT2 = 3
 RB_SLOT_LEGACY_LOW = $01
+RB_SLOT_PROOF_1 = $02
+RB_SLOT_PROOF_2 = $04
 RB_SLOT_COMMON = $80
 RB_SLOT_INVALID = $FF
 
@@ -248,6 +255,9 @@ CMD_FADD        = 16
 CMD_ZPAUSE      = 17
 CMD_ERRCODE     = 18
 CMD_ERRLINE     = 19
+CMD_ZSLOT0      = 20
+CMD_ZSLOT1      = 21
+CMD_ZSLOT2      = 22
 
 ; REU registers.
 REU_CMD         = $DF01
@@ -271,6 +281,8 @@ REU_LEN_HI      = $DF08
         .import __HIDDEN_LOAD__, __HIDDEN_RUN__, __HIDDEN_SIZE__
         .import __BRIDGE_LOAD__, __BRIDGE_RUN__, __BRIDGE_SIZE__
         .import __LOWPACK_LOAD__, __LOWPACK_RUN__, __LOWPACK_SIZE__
+        .import __SLOTPACK1_LOAD__, __SLOTPACK1_RUN__, __SLOTPACK1_SIZE__
+        .import __SLOTPACK2_LOAD__, __SLOTPACK2_RUN__, __SLOTPACK2_SIZE__
 
 rb_entry_src    = $FB
 rb_entry_dst    = $FD
@@ -3288,18 +3300,19 @@ rb_load_and_call_command:
         sta rb_reu_len_lo
         lda RB_DESC_BUF+5
         sta rb_reu_len_hi
+        jsr rb_desc_runtime_base
         clc
-        lda #<RB_LOW_BASE
+        lda rb_ptr_lo
         adc RB_DESC_BUF+10
         sta rb_reu_c64_lo
-        lda #>RB_LOW_BASE
+        lda rb_ptr_hi
         adc RB_DESC_BUF+11
         sta rb_reu_c64_hi
         clc
-        lda #<RB_LOW_BASE
+        lda rb_ptr_lo
         adc RB_DESC_BUF+12
         sta rb_overlay_vec_lo
-        lda #>RB_LOW_BASE
+        lda rb_ptr_hi
         adc RB_DESC_BUF+13
         sta rb_overlay_vec_hi
         lda #RB_REU_CODE_BANK
@@ -3310,20 +3323,18 @@ rb_load_and_call_command:
 @done:
         rts
 
-rb_slot_resident:
-        lda RB_DESC_BUF+8
-        cmp #RB_SLOT_LEGACY_LOW
-        bne @miss
-        lda rb_slot0_module
-        cmp RB_DESC_BUF+1
-        bne @miss
-        lda rb_slot0_generation
-        cmp RB_DESC_BUF+9
-        bne @miss
-        sec
-        rts
-@miss:
-        clc
+rb_desc_runtime_base:
+        lda #>RB_SLOT0_BASE
+        ldx RB_DESC_BUF+8
+        cpx #RB_SLOT_PROOF_1
+        bne :+
+        lda #>RB_SLOT1_BASE
+:       cpx #RB_SLOT_PROOF_2
+        bne :+
+        lda #>RB_SLOT2_BASE
+:       ldx #0
+        stx rb_ptr_lo
+        sta rb_ptr_hi
         rts
 
 rb_mark_slot_resident:
@@ -3704,6 +3715,36 @@ rb_reu_header_end:
         .res 16 - .strlen(name), 0
 .endmacro
 
+.macro CMD_SLOT1 id, sig, label, name
+        .byte id, 2
+        .word __SLOTPACK1_LOAD__ - __LOWPACK_LOAD__
+        .word __SLOTPACK1_SIZE__
+        .byte RB_SUBMOD_PROOF_SLOT1
+        .byte 0
+        .byte RB_SLOT_PROOF_1
+        .byte 1
+        .word 0
+        .word label - __SLOTPACK1_RUN__
+        .byte sig, .strlen(name)
+        .byte name
+        .res 16 - .strlen(name), 0
+.endmacro
+
+.macro CMD_SLOT2 id, sig, label, name
+        .byte id, 2
+        .word __SLOTPACK2_LOAD__ - __LOWPACK_LOAD__
+        .word __SLOTPACK2_SIZE__
+        .byte RB_SUBMOD_PROOF_SLOT2
+        .byte 0
+        .byte RB_SLOT_PROOF_2
+        .byte 1
+        .word 0
+        .word label - __SLOTPACK2_RUN__
+        .byte sig, .strlen(name)
+        .byte name
+        .res 16 - .strlen(name), 0
+.endmacro
+
 rb_command_descriptors:
         CMD_LOW_ALL CMD_ZECHO1, SIG_ZECHO1, cmd_zecho1_low, "ZECHO1"
         CMD_LOW CMD_ZADD16, SIG_ZADD16, cmd_zadd16_low, cmd_zadd16_low_end, "ZADD16"
@@ -3723,7 +3764,10 @@ rb_command_descriptors:
         CMD_LOW CMD_ZPAUSE, SIG_ZPAUSE, cmd_zpause_low, cmd_zpause_low_end, "ZPAUSE"
         CMD_LOW CMD_ERRCODE, SIG_ERRCODE, cmd_zecho1_low, cmd_zecho1_low_end, "ERRCODE"
         CMD_LOW CMD_ERRLINE, SIG_ERRLINE, cmd_zecho1_low, cmd_zecho1_low_end, "ERRLINE"
-        .res (RB_CMD_DESC_COUNT - 19) * RB_CMD_DESC_SIZE, 0
+        CMD_LOW CMD_ZSLOT0, SIG_SCRCAP, cmd_zslot0_low, cmd_zslot0_low_end, "ZSLOT0"
+        CMD_SLOT1 CMD_ZSLOT1, SIG_SCRCAP, cmd_zslot1, "ZSLOT1"
+        CMD_SLOT2 CMD_ZSLOT2, SIG_SCRCAP, cmd_zslot2, "ZSLOT2"
+        .res (RB_CMD_DESC_COUNT - 22) * RB_CMD_DESC_SIZE, 0
         CMD_LOW_ALL CMD_SCRPUT, SIG_SCRPUT, cmd_scrput_low, "SCRPUT"
 
 ; ---------------------------------------------------------------------------
@@ -3992,9 +4036,9 @@ rb_seed_plugin_reu_hidden:
         sta rb_reu_off_hi
         lda #RB_REU_CODE_BANK
         sta rb_reu_bank
-        lda #<__LOWPACK_SIZE__
+        lda #<((__SLOTPACK2_LOAD__ - __LOWPACK_LOAD__) + __SLOTPACK2_SIZE__)
         sta rb_reu_len_lo
-        lda #>__LOWPACK_SIZE__
+        lda #>((__SLOTPACK2_LOAD__ - __LOWPACK_LOAD__) + __SLOTPACK2_SIZE__)
         sta rb_reu_len_hi
         jsr rb_reu_stash
 
@@ -4544,6 +4588,18 @@ cmd_zadd16_low:
         sta RF_TAG
         rts
 cmd_zadd16_low_end:
+
+cmd_zslot0_low:
+        lda #0
+        sta RF_STATUS
+        lda #RB_VAL_INT
+        sta RF_TAG
+        lda #30
+        sta RF_VAL_LO
+        lda #0
+        sta RF_VAL_HI
+        rts
+cmd_zslot0_low_end:
 
 cmd_fadd_low:
         rts
@@ -5411,3 +5467,31 @@ cmd_zhiddenram_hidden:
         sta RF_TAG
         rts
 cmd_zhiddenram_hidden_end:
+
+        .segment "SLOTPACK1"
+
+cmd_zslot1:
+        lda #0
+        sta RF_STATUS
+        lda #RB_VAL_INT
+        sta RF_TAG
+        lda #31
+        sta RF_VAL_LO
+        lda #0
+        sta RF_VAL_HI
+        rts
+cmd_zslot1_end:
+
+        .segment "SLOTPACK2"
+
+cmd_zslot2:
+        lda #0
+        sta RF_STATUS
+        lda #RB_VAL_INT
+        sta RF_TAG
+        lda #32
+        sta RF_VAL_LO
+        lda #0
+        sta RF_VAL_HI
+        rts
+cmd_zslot2_end:

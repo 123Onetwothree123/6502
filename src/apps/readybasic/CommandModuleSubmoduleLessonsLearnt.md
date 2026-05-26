@@ -94,3 +94,38 @@ proven, adjusted, or rejected during implementation.
 - Next hypothesis: the built-in demo module can be modeled in the descriptor
   table first, with compact proof commands using existing integer-return
   plumbing before richer copy-count and overlay behavior are added.
+
+## Slice 3: Built-In Module Proofs
+
+- Added slot 1 and slot 2 linker/run segments at `$B000-$B7FF` and
+  `$B800-$BFFF`, backed by the same built-in command seed payload in REU bank
+  `$45`.
+- Added module 2 proof descriptors and tiny assembler proof commands:
+  `ZSLOT0()`, `ZSLOT1()`, and `ZSLOT2()`.
+- Kept resident growth flat by reusing the existing `SIG_SCRCAP` no-argument
+  integer parser instead of adding a new parser signature.
+- Reintroduced descriptor-driven runtime base selection for slot 0, slot 1,
+  and slot 2 while keeping the implementation compact enough to stay under the
+  resident budget.
+- Static gate:
+  `make bin/readybasic.prg && make readybasic-plugin-static-check` passed.
+- VICE gate:
+  `READYBASIC_VISIBLE=1 /Users/karlprosserpp/dev/c64projects/agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_full_suite_visual_verification.sh`
+  passed with `success`, 167/167 steps, failed step `null`, no degraded steps.
+  Run dir:
+  `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260525_213645`.
+- Memory delta versus baseline:
+  - `BASIC_START` unchanged at `$2AC1`; formula BASIC free bytes unchanged at
+    `30013 ($753D)`.
+  - `RESIDENT` changed from `$18BA` / 6330B to `$18B3` / 6323B, delta `-7B`.
+  - `HIDDEN` changed from `$0377` / 887B to `$0368` / 872B, delta `-15B`.
+  - Slot 0 `LOWPACK` is `$069F` / 1695B; slot 1 `SLOTPACK1` is `$0015` / 21B;
+    slot 2 `SLOTPACK2` is `$0015` / 21B.
+  - `BRIDGE` remains `$01F8` / 504B; `REGSEED` and PRG payload size remain
+    unchanged.
+- Lesson: the existing no-arg integer command shape is a useful ABI proof tool.
+  It lets new module/submodule payloads be exercised without spending resident
+  bytes on new parser dispatch.
+- Next hypothesis: Slice 4 can add multi-slot, overlay-like proof payloads and
+  a measured copy counter by extending descriptor metadata and tests, not by
+  adding a broad new resident framework.

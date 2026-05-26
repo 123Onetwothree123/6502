@@ -67,12 +67,14 @@ def main() -> None:
     require(r"#define\s+REU_BANK_RB_CORE\s+0x44\b", reu_hdr, "REU_BANK_RB_CORE must be 0x44")
     require(r"#define\s+REU_BANK_RB_CODE\s+0x45\b", reu_hdr, "REU_BANK_RB_CODE must be 0x45")
 
-    for name in ("ENTRY", "RESIDENT", "LOWPACK", "HIDDEN", "BRIDGE", "REGSEED"):
+    for name in ("ENTRY", "RESIDENT", "LOWPACK", "SLOTPACK1", "SLOTPACK2", "HIDDEN", "BRIDGE", "REGSEED"):
         if name not in segments:
             fail(f"map is missing segment {name}")
 
     resident = segments["RESIDENT"]
     lowpack = segments["LOWPACK"]
+    slotpack1 = segments["SLOTPACK1"]
+    slotpack2 = segments["SLOTPACK2"]
     hidden = segments["HIDDEN"]
     bridge = segments["BRIDGE"]
     regseed = segments["REGSEED"]
@@ -83,8 +85,16 @@ def main() -> None:
         fail(f"RESIDENT grew past command-module slot budget $18B8, got ${resident[2]:04X}")
     if lowpack[0] != 0xA800 or lowpack[1] > 0xAFFF:
         fail(f"command slot 0 must fit under BASIC ROM at $A800-$AFFF, got ${lowpack[0]:04X}-${lowpack[1]:04X}")
-    if lowpack[2] != 0x068A:
-        fail(f"command slot 0 size changed from measured $068A, got ${lowpack[2]:04X}")
+    if lowpack[2] != 0x069F:
+        fail(f"command slot 0 size changed from measured $069F, got ${lowpack[2]:04X}")
+    if slotpack1[0] != 0xB000 or slotpack1[1] > 0xB7FF:
+        fail(f"command slot 1 must fit under BASIC ROM at $B000-$B7FF, got ${slotpack1[0]:04X}-${slotpack1[1]:04X}")
+    if slotpack1[2] != 0x0015:
+        fail(f"command slot 1 size changed from measured $0015, got ${slotpack1[2]:04X}")
+    if slotpack2[0] != 0xB800 or slotpack2[1] > 0xBFFF:
+        fail(f"command slot 2 must fit under BASIC ROM at $B800-$BFFF, got ${slotpack2[0]:04X}-${slotpack2[1]:04X}")
+    if slotpack2[2] != 0x0015:
+        fail(f"command slot 2 size changed from measured $0015, got ${slotpack2[2]:04X}")
     if hidden[0] != 0xA000 or hidden[1] > 0xA7FF:
         fail(f"HIDDEN helper/common area must fit in $A000-$A7FF, got ${hidden[0]:04X}-${hidden[1]:04X}")
     if hidden[2] > 0x0368:
@@ -98,7 +108,10 @@ def main() -> None:
     require(r"^RB_DESC_BUF\s*=\s*\$C480\b", asm, "RB_DESC_BUF must be relocated to $C480")
     require(r"^RB_CMDBUF\s*=\s*\$C4A0\b", asm, "RB_CMDBUF must be relocated to $C4A0")
     require(r"^RB_PAGEBUF\s*=\s*\$C500\b", asm, "RB_PAGEBUF must be relocated to $C500")
-    require(r"^RB_LOW_BASE\s*=\s*\$A800\b", asm, "RB_LOW_BASE must be relocated to slot 0 at $A800")
+    require(r"^RB_SLOT0_BASE\s*=\s*\$A800\b", asm, "slot 0 base must be $A800")
+    require(r"^RB_SLOT1_BASE\s*=\s*\$B000\b", asm, "slot 1 base must be $B000")
+    require(r"^RB_SLOT2_BASE\s*=\s*\$B800\b", asm, "slot 2 base must be $B800")
+    require(r"^RB_LOW_BASE\s*=\s*RB_SLOT0_BASE\b", asm, "legacy low base alias must point at slot 0")
     require(r"^RUNTIME_ZP_BUF\s*=\s*\$C400\b", asm, "RUNTIME_ZP_BUF must be $C400")
     require(r"^RUNTIME_STACK_BUF\s*=\s*\$C500\b", asm, "RUNTIME_STACK_BUF must be $C500")
     require(r"^HIDDEN_SHADOW\s*=\s*\$C280\b", asm, "HIDDEN_SHADOW must be visible RAM at $C280")
