@@ -82,7 +82,7 @@ steps:
   - id: wait_readybasic_prompt
     type: screen.wait_contains
     params:
-      text: "readybasic"
+      text: "FREE:"
       wait_timeout_s: 180
       capture_label: readybasic_repeat_label_prompt
 
