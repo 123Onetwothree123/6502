@@ -2,10 +2,10 @@
 ; readybasic.s - lean ReadyBASIC REU plugin command spine
 ;
 ; Load address: $1000
-; Visible resident core: $1200-$28FF
+; Visible resident core: $1200-$2ABF
 ; Low command overlay: $A900-$BFFF, under BASIC ROM
 ; Shared call/result buffers: $C200-$C5FF
-; BASIC workspace: $2901-$9FFF
+; BASIC workspace: $2AC1-$9FFF
 ; Runtime zero page/stack snapshot: REU bank $44 offsets $0A00/$0B00
 ; Hidden helper shadow: $C280+, restored to $A000+ on warm entry
 ; Bridge state/trampolines: $C000-$C1FF
@@ -71,7 +71,7 @@ COLOR_CODE      = $0286
 KERNAL_MEMTOP   = $0281
 KERNAL_MEMBOT   = $0283
 
-BASIC_START     = $2901
+BASIC_START     = $2AC1
 BASIC_SENTINEL  = BASIC_START - 1
 BASIC_LIMIT     = $A000
 BASIC_BYTES_FREE = BASIC_LIMIT - (BASIC_START + 2)
@@ -221,6 +221,8 @@ SIG_SCRCAP      = 14
 SIG_SCRPUT      = 15
 SIG_FADD        = 16
 SIG_ZPAUSE      = SIG_BUFFREE
+SIG_ERRCODE     = 17
+SIG_ERRLINE     = 18
 
 CMD_ZECHO1      = 1
 CMD_ZADD16      = 2
@@ -239,6 +241,8 @@ CMD_SCRCAP      = 14
 CMD_SCRPUT      = 15
 CMD_FADD        = 16
 CMD_ZPAUSE      = 17
+CMD_ERRCODE     = 18
+CMD_ERRLINE     = 19
 
 ; REU registers.
 REU_CMD         = $DF01
@@ -517,29 +521,40 @@ restore_vectors:
 
 rb_execute:
         jsr rb_peek_next_nonspace
+        jsr rb_fold_a
+        cmp #'J'
+        beq @maybe_jump
+        cmp #'L'
+        beq @maybe_label
         cmp #'P'
-        beq @maybe_proc
-        cmp #'p'
         beq @maybe_proc
         cmp #'F'
         beq @maybe_func
-        cmp #'f'
-        beq @maybe_func
         cmp #'E'
         beq @maybe_e
-        cmp #'e'
-        beq @maybe_e
+        cmp #'R'
+        beq @maybe_repeat
+        cmp #'U'
+        beq @maybe_until
         cmp #TOKEN_END
         beq @maybe_endp
         jmp rb_maybe_bare_command
+@maybe_jump:
+        jsr rb_match_jump
+        bcc rb_maybe_bare_command
+        jmp rb_go_statement
+@maybe_label:
+        jsr rb_match_label
+        bcc rb_maybe_bare_command
+        jmp rb_label_statement
 @maybe_proc:
         jsr rb_match_proc
         bcc rb_call_orig_execute
-        jmp rb_skip_routine_def
+        jmp BASIC_SYNERR
 @maybe_func:
         jsr rb_match_func
         bcc rb_maybe_bare_command
-        jmp rb_skip_routine_def
+        jmp BASIC_SYNERR
 @maybe_e:
         jsr rb_match_exec
         bcc :+
@@ -549,8 +564,16 @@ rb_execute:
         jmp rb_endp_statement
 :
         jsr rb_match_exit
-        bcc rb_call_orig_execute
+        bcc rb_maybe_bare_command
         jmp cmd_exit
+@maybe_repeat:
+        jsr rb_match_repeat
+        bcc rb_maybe_bare_command
+        jmp rb_repeat_statement
+@maybe_until:
+        jsr rb_match_until
+        bcc rb_maybe_bare_command
+        jmp rb_until_statement
 @maybe_endp:
         jsr rb_match_endp
         bcc rb_call_orig_execute
@@ -643,32 +666,44 @@ rb_match_exit:
         rts
 
 rb_match_proc:
-        lda #<rb_kw_proc
-        sta rb_ptr2_lo
-        lda #>rb_kw_proc
-        sta rb_ptr2_hi
-        jmp rb_match_keyword
+        ldx #<rb_kw_proc
+        ldy #>rb_kw_proc
+        jmp rb_match_keyword_xy
 
 rb_match_func:
-        lda #<rb_kw_func
-        sta rb_ptr2_lo
-        lda #>rb_kw_func
-        sta rb_ptr2_hi
-        jmp rb_match_keyword
+        ldx #<rb_kw_func
+        ldy #>rb_kw_func
+        jmp rb_match_keyword_xy
 
 rb_match_exec:
-        lda #<rb_kw_exec
-        sta rb_ptr2_lo
-        lda #>rb_kw_exec
-        sta rb_ptr2_hi
-        jmp rb_match_keyword
+        ldx #<rb_kw_exec
+        ldy #>rb_kw_exec
+        jmp rb_match_keyword_xy
 
 rb_match_ret:
-        lda #<rb_kw_ret
-        sta rb_ptr2_lo
-        lda #>rb_kw_ret
-        sta rb_ptr2_hi
-        jmp rb_match_keyword
+        ldx #<rb_kw_ret
+        ldy #>rb_kw_ret
+        jmp rb_match_keyword_xy
+
+rb_match_repeat:
+        ldx #<rb_kw_repeat
+        ldy #>rb_kw_repeat
+        jmp rb_match_keyword_xy
+
+rb_match_until:
+        ldx #<rb_kw_until
+        ldy #>rb_kw_until
+        jmp rb_match_keyword_xy
+
+rb_match_label:
+        ldx #<rb_kw_label
+        ldy #>rb_kw_label
+        jmp rb_match_keyword_xy
+
+rb_match_jump:
+        ldx #<rb_kw_jump
+        ldy #>rb_kw_jump
+        jmp rb_match_keyword_xy
 
 rb_match_endp:
         lda rb_peek_lo
@@ -698,15 +733,16 @@ rb_match_endp:
         sec
         rts
 @ascii:
-        lda #<rb_kw_endp
-        sta rb_ptr2_lo
-        lda #>rb_kw_endp
-        sta rb_ptr2_hi
-        jmp rb_match_keyword
+        ldx #<rb_kw_endp
+        ldy #>rb_kw_endp
+        jmp rb_match_keyword_xy
 @no:
         clc
         rts
 
+rb_match_keyword_xy:
+        stx rb_ptr2_lo
+        sty rb_ptr2_hi
 rb_match_keyword:
         lda rb_peek_lo
         sta rb_ptr_lo
@@ -946,6 +982,69 @@ rb_print_z:
 RB_ROUT_PROC    = 1
 RB_ROUT_FUNC    = 2
 RB_PROC_DEPTH   = 4
+RB_LOOP_DEPTH   = 4
+
+rb_repeat_statement:
+        jsr CHRGET
+        lda rb_loop_depth
+        cmp #RB_LOOP_DEPTH
+        bcc :+
+        lda #$23
+        jmp rb_runtime_error
+:       tax
+        lda TXTPTR
+        sta rb_loop_txt_lo,x
+        lda TXTPTR+1
+        sta rb_loop_txt_hi,x
+        lda CURLIN
+        sta rb_loop_cur_lo,x
+        lda CURLIN+1
+        sta rb_loop_cur_hi,x
+        inc rb_loop_depth
+        jmp BASIC_NEXT_STMT
+
+rb_until_statement:
+        jsr CHRGET
+        lda rb_loop_depth
+        bne :+
+        lda #$24
+        jmp rb_runtime_error
+:       jsr rb_skip_spaces
+        jsr BASIC_FRMNUM
+        lda FAC_EXP
+        beq @again
+        dec rb_loop_depth
+        jmp BASIC_NEXT_STMT
+@again:
+        ldx rb_loop_depth
+        dex
+        lda rb_loop_txt_lo,x
+        sta TXTPTR
+        lda rb_loop_txt_hi,x
+        sta TXTPTR+1
+        lda rb_loop_cur_lo,x
+        sta CURLIN
+        lda rb_loop_cur_hi,x
+        sta CURLIN+1
+        jmp BASIC_NEXT_STMT
+
+rb_label_statement:
+        jsr CHRGET
+        jsr rb_parse_command_name
+        bcs :+
+        jmp BASIC_SYNERR
+:       jmp BASIC_NEXT_STMT
+
+rb_go_statement:
+        jsr CHRGET
+        jsr rb_parse_command_name
+        bcs :+
+        jmp BASIC_SYNERR
+:       jsr rb_find_label
+        bcs :+
+        lda #$27
+        jmp rb_runtime_error
+:       jmp BASIC_NEXT_STMT
 
 rb_exec_statement:
         jsr CHRGET
@@ -1015,9 +1114,6 @@ rb_proc_restore:
         lda rb_proc_cur_hi,x
         sta CURLIN+1
         jmp BASIC_NEXT_STMT
-
-rb_skip_routine_def:
-        jmp BASIC_SYNERR
 
 rb_inc_stmt:
         inc rb_stmt_lo
@@ -1136,6 +1232,61 @@ rb_find_routine:
         sta rb_def_lo
         lda TXTPTR+1
         sta rb_def_hi
+        sec
+        rts
+@miss:
+        clc
+        rts
+
+rb_find_label:
+        lda #<BASIC_START
+        sta rb_scan_line_lo
+        lda #>BASIC_START
+        sta rb_scan_line_hi
+@line:
+        lda rb_scan_line_lo
+        sta rb_ptr_lo
+        lda rb_scan_line_hi
+        sta rb_ptr_hi
+        ldy #0
+        lda (rb_ptr_lo),y
+        sta rb_next_line_lo
+        iny
+        lda (rb_ptr_lo),y
+        sta rb_next_line_hi
+        ora rb_next_line_lo
+        beq @miss
+        clc
+        lda rb_scan_line_lo
+        adc #4
+        sta rb_stmt_lo
+        lda rb_scan_line_hi
+        adc #0
+        sta rb_stmt_hi
+        jsr rb_skip_stmt_spaces
+        lda rb_stmt_lo
+        sta rb_peek_lo
+        lda rb_stmt_hi
+        sta rb_peek_hi
+        jsr rb_match_label
+        bcc @next
+        jsr CHRGET
+        jsr rb_skip_spaces
+        jsr rb_compare_found_name
+        bcs @found
+@next:
+        lda rb_next_line_lo
+        sta rb_scan_line_lo
+        lda rb_next_line_hi
+        sta rb_scan_line_hi
+        jmp @line
+@found:
+        ldy #2
+        lda (rb_ptr_lo),y
+        sta CURLIN
+        iny
+        lda (rb_ptr_lo),y
+        sta CURLIN+1
         sec
         rts
 @miss:
@@ -1778,6 +1929,10 @@ rb_parse_by_signature:
         beq parse_sig_scrput
         cmp #SIG_FADD
         beq parse_sig_fadd
+        cmp #SIG_ERRCODE
+        beq parse_sig_errcode
+        cmp #SIG_ERRLINE
+        beq parse_sig_errline
         jmp BASIC_SYNERR
 
 parse_sig_zecho1:
@@ -1858,6 +2013,14 @@ parse_sig_fadd:
         jsr rb_parse_out_float
         jmp rb_compute_fadd_result
 
+parse_sig_errcode:
+        jsr rb_parse_out_int_current
+        jmp rb_precompute_errcode
+
+parse_sig_errline:
+        jsr rb_parse_out_int_current
+        jmp rb_precompute_errline
+
 rb_parse_no_args:
         jsr rb_skip_spaces
         cmp #0
@@ -1878,6 +2041,31 @@ rb_precompute_zecho1:
         lda #1
         sta RF_VAL_LO
         lda #0
+        sta RF_VAL_HI
+        lda #1
+        sta rb_command_precomputed
+        rts
+
+rb_precompute_errcode:
+        lda #0
+        sta RF_STATUS
+        sta RF_VAL_HI
+        lda #RB_VAL_INT
+        sta RF_TAG
+        lda rb_last_error
+        sta RF_VAL_LO
+        lda #1
+        sta rb_command_precomputed
+        rts
+
+rb_precompute_errline:
+        lda #0
+        sta RF_STATUS
+        lda #RB_VAL_INT
+        sta RF_TAG
+        lda rb_last_line_lo
+        sta RF_VAL_LO
+        lda rb_last_line_hi
         sta RF_VAL_HI
         lda #1
         sta rb_command_precomputed
@@ -2162,10 +2350,6 @@ RB_EXPR_STRING  = 2
 RB_EXPR_FLOAT   = 3
 
 rb_eval:
-        lda rb_crunch_pos
-        beq :+
-        jmp BASIC_EVAL
-:
         lda TXTPTR
         sta rb_eval_save_lo
         lda TXTPTR+1
@@ -2954,6 +3138,10 @@ rb_parse_expr_signature:
         beq parse_expr_zsumnumarray
         cmp #SIG_FADD
         beq parse_expr_fadd
+        cmp #SIG_ERRCODE
+        beq parse_expr_errcode
+        cmp #SIG_ERRLINE
+        beq parse_expr_errline
         jmp BASIC_SYNERR
 
 parse_expr_no_args:
@@ -2973,6 +3161,12 @@ parse_expr_fadd:
         lda #RB_EXPR_FLOAT
         sta rb_expr_type
         jmp rb_compute_fadd_result
+
+parse_expr_errcode:
+        jmp rb_precompute_errcode
+
+parse_expr_errline:
+        jmp rb_precompute_errline
 
 parse_expr_num0:
         jsr rb_parse_num0
@@ -3336,6 +3530,20 @@ rb_commit_arrayi:
 
 rb_runtime_error:
         sta rb_error
+        sta rb_last_error
+        lda CURLIN+1
+        cmp #$FF
+        bne @store_line
+        lda #0
+        sta rb_last_line_lo
+        sta rb_last_line_hi
+        beq @print
+@store_line:
+        lda CURLIN
+        sta rb_last_line_lo
+        lda CURLIN+1
+        sta rb_last_line_hi
+@print:
         lda #<rb_error_text
         sta rb_ptr_lo
         lda #>rb_error_text
@@ -3499,7 +3707,9 @@ rb_command_descriptors:
         CMD_LOW_ALL CMD_SCRCAP, SIG_SCRCAP, cmd_scrcap_low, "SCRCAP"
         CMD_LOW CMD_FADD, SIG_FADD, cmd_fadd_low, cmd_fadd_low_end, "FADD"
         CMD_LOW CMD_ZPAUSE, SIG_ZPAUSE, cmd_zpause_low, cmd_zpause_low_end, "ZPAUSE"
-        .res (RB_CMD_DESC_COUNT - 17) * RB_CMD_DESC_SIZE, 0
+        CMD_LOW CMD_ERRCODE, SIG_ERRCODE, cmd_zecho1_low, cmd_zecho1_low_end, "ERRCODE"
+        CMD_LOW CMD_ERRLINE, SIG_ERRLINE, cmd_zecho1_low, cmd_zecho1_low_end, "ERRLINE"
+        .res (RB_CMD_DESC_COUNT - 19) * RB_CMD_DESC_SIZE, 0
         CMD_LOW_ALL CMD_SCRPUT, SIG_SCRPUT, cmd_scrput_low, "SCRPUT"
 
 ; ---------------------------------------------------------------------------
@@ -4093,8 +4303,10 @@ rb_crunch:
         lda #>BASIC_INPUT_BUF
         sta rb_peek_hi
         jsr rb_match_exec
+        bcs @matched
+        jsr rb_match_jump
         bcc @advance
-        stx rb_crunch_pos
+@matched:
         lda rb_crunch_len
         cmp #BASIC_INPUT_MAX
         bcs @done
@@ -4102,12 +4314,12 @@ rb_crunch:
 @shift:
         lda BASIC_INPUT_BUF,x
         sta BASIC_INPUT_BUF+1,x
-        cpx rb_crunch_pos
+        cpx rb_peek_lo
         beq @insert
         dex
         jmp @shift
 @insert:
-        ldx rb_crunch_pos
+        ldx rb_peek_lo
         lda #':'
         sta BASIC_INPUT_BUF,x
         inc rb_crunch_len
@@ -4140,7 +4352,6 @@ rb_orig_execute_hi:.byte 0
 rb_peek_lo:     .byte 0
 rb_peek_hi:     .byte 0
 rb_crunch_len:  .byte 0
-rb_crunch_pos:  .byte 0
 rb_eval_save_lo:.byte 0
 rb_eval_save_hi:.byte 0
 rb_eval_after_lo:.byte 0
@@ -4175,6 +4386,12 @@ rb_kw_proc:     .byte "PROC",0
 rb_kw_func:     .byte "FUNC",0
 rb_kw_exec:     .byte "EXEC",0
 rb_kw_ret:      .byte "RET",0
+rb_kw_repeat:   .byte "REPEAT",0
+        .segment "RESIDENT"
+rb_kw_until:    .byte "UNTIL",0
+rb_kw_label:    .byte "LABEL",0
+rb_kw_jump:     .byte "JUMP",0
+        .segment "BRIDGE"
 rb_kw_endp:     .byte "ENDP",0
 rb_kw_char:     .byte 0
 
@@ -4210,6 +4427,15 @@ rb_proc_cur_lo:.res RB_PROC_DEPTH
 rb_proc_cur_hi:.res RB_PROC_DEPTH
 
         .segment "RESIDENT"
+rb_loop_depth: .byte 0
+rb_loop_txt_lo:.res RB_LOOP_DEPTH
+rb_loop_txt_hi:.res RB_LOOP_DEPTH
+rb_loop_cur_lo:.res RB_LOOP_DEPTH
+rb_loop_cur_hi:.res RB_LOOP_DEPTH
+rb_last_error: .byte 0
+rb_last_line_lo:.byte 0
+rb_last_line_hi:.byte 0
+
 rb_func_depth:.byte 0
 rb_form_save_count:.res RB_PROC_DEPTH
         .segment "BRIDGE"

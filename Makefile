@@ -632,18 +632,21 @@ $(READYBASIC): $(APPS_DIR)/readybasic/readybasic.s $(CFG_DIR)/ready_app_readybas
 readybasic-plugin-static-check: $(READYBASIC) $(BUILD_SUPPORT_DIR)/verify_readybasic_plugin.py
 	$(PYTHON) $(BUILD_SUPPORT_DIR)/verify_readybasic_plugin.py
 
-# ReadyBASIC sample program (relocated to ReadyBASIC's $2901 BASIC workspace).
+readybasic-repeat-label-vice: $(BUILD_SUPPORT_DIR)/vice_readybasic_repeat_label_probe.sh
+	$(BUILD_SUPPORT_DIR)/vice_readybasic_repeat_label_probe.sh
+
+# ReadyBASIC sample program (relocated to ReadyBASIC's $2AC1 BASIC workspace).
 $(READYBASIC_RBTEST1): $(APPS_DIR)/readybasic/rbtest1.bas
 	@mkdir -p "$(OBJ_DIR)"
-	$(PETCAT) -w2 -l 2901 -o $@ -- $<
+	$(PETCAT) -w2 -l 2ac1 -o $@ -- $<
 
 $(READYBASIC_RBPROC1): $(APPS_DIR)/readybasic/rbproc1.bas
 	@mkdir -p "$(OBJ_DIR)"
-	$(PETCAT) -w2 -l 2901 -o $@ -- $<
+	$(PETCAT) -w2 -l 2ac1 -o $@ -- $<
 
 $(READYBASIC_RBPROCERR): $(APPS_DIR)/readybasic/rbprocerr.bas
 	@mkdir -p "$(OBJ_DIR)"
-	$(PETCAT) -w2 -l 2901 -o $@ -- $<
+	$(PETCAT) -w2 -l 2ac1 -o $@ -- $<
 
 # UCI tester app (loads at $1000)
 $(UCITEST): $(APPS_DIR)/ucitest/ucitest.c $(APPS_DIR)/ucitest/ucitest_catalog.c $(APPS_DIR)/ucitest/ucitest_format.c $(APPS_DIR)/ucitest/ucitest_uci.c $(APPS_DIR)/ucitest/ucitest_uci_asm.s $(LIB_UCITEST)
@@ -1187,5 +1190,5 @@ probe-rel:
 launcher-verbose:
 	$(MAKE) LAUNCHER_CFG_VERBOSE=1 $(LAUNCHER)
 
-.PHONY: all clean verify verify-resume shim-verify fullcheck help run run-test seed-cal26 probe-rel launcher-verbose readybasic-plugin-static-check readyshell-host-tests readyshell-parse-smoke-host readyshell-vm-smoke-host readyshell-reu-tests-host editor-smoke-host tasklist-smoke-host programs prepare-version profile profiles release-all easyflash easyflash-verify easyflash-smoke easyflash-smoke-long easyflash-preload-verify easyflash-clean FORCE
+.PHONY: all clean verify verify-resume shim-verify fullcheck help run run-test seed-cal26 probe-rel launcher-verbose readybasic-plugin-static-check readybasic-repeat-label-vice readyshell-host-tests readyshell-parse-smoke-host readyshell-vm-smoke-host readyshell-reu-tests-host editor-smoke-host tasklist-smoke-host programs prepare-version profile profiles release-all easyflash easyflash-verify easyflash-smoke easyflash-smoke-long easyflash-preload-verify easyflash-clean FORCE
 EASYFLASH_LAUNCHER_CPPFLAGS ?=
