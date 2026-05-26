@@ -690,6 +690,36 @@
       </div>
     </section>
 
+    <section id="flow" class="band">
+      <h2>Native Flow Control And Error Introspection</h2>
+      <div class="grid-2">
+        <div>
+          <pre><code>10 I%=0
+20 REPEAT
+30 I%=I%+1
+40 UNTIL I%=3
+50 PRINT "DONE";I%
+
+100 LABEL LOOP
+110 PRINT I%
+120 I%=I%-1
+130 IF I%&gt;0 THEN JUMP LOOP</code></pre>
+        </div>
+        <div>
+          <ul class="status-list">
+            <li><span class="pill">REPEAT</span><span>Stores the current text pointer and line; loops can nest four deep.</span></li>
+            <li><span class="pill">UNTIL</span><span>Evaluates a BASIC numeric expression; false loops, true continues.</span></li>
+            <li><span class="pill">LABEL</span><span>Marks a stored BASIC line without changing execution by itself.</span></li>
+            <li><span class="pill">JUMP</span><span>Scans for the named label; missing labels report <code>?RB ERROR 39</code>.</span></li>
+            <li><span class="pill">ERR</span><span><code>ERRCODE()</code> and <code>ERRLINE()</code> return the last ReadyBASIC runtime error.</span></li>
+          </ul>
+          <pre><code>10 ZFAIL(6,X%)
+20 PRINT ERRCODE();ERRLINE()
+30 ERRCODE(E%):ERRLINE(L%):PRINT E%;L%</code></pre>
+        </div>
+      </div>
+    </section>
+
     <section id="commands" class="band">
       <h2>Command Families</h2>
       <p>
@@ -734,8 +764,13 @@
         </div>
         <div class="category">
           <h3>Runtime Introspection <span class="chip">header</span></h3>
-          <div class="cmd-row"><span class="chip">FREEMEM</span></div>
-          <p>Prints live BASIC free bytes and refreshes the header value without returning an output variable.</p>
+          <div class="cmd-row"><span class="chip">FREEMEM</span><span class="chip">ERRCODE</span><span class="chip">ERRLINE</span></div>
+          <p>Prints live BASIC free bytes, refreshes the header, and exposes the last ReadyBASIC runtime error.</p>
+        </div>
+        <div class="category">
+          <h3>Native Flow <span class="chip">resident</span></h3>
+          <div class="cmd-row"><span class="chip">REPEAT</span><span class="chip">UNTIL</span><span class="chip">LABEL</span><span class="chip">JUMP</span></div>
+          <p>Readable BASIC text for post-test loops and named stored-program transfer; numeric <code>GOTO</code> remains BASIC ROM.</p>
         </div>
         <div class="category">
           <h3>ReadyOS Yield <span class="chip">system</span></h3>
@@ -748,19 +783,23 @@
         <tbody>
           <tr><td><code>ZECHO1(OUT%) / ZECHO1()</code></td><td>Resident-precomputed result; legacy low stub remains in <code>LOWPACK</code></td><td>output integer or expression integer</td><td>Returns <code>1</code> without fetching an overlay in the current branch.</td></tr>
           <tr><td><code>ZADD16(A,B,OUT%) / ZADD16(A,B)</code></td><td>Low <code>$A900+$0015</code>, copy <code>$001E</code></td><td>two numeric expressions, output integer</td><td>Returns 16-bit sum.</td></tr>
-          <tr><td><code>UPPER(S$,OUT$) / UPPER(S$)</code></td><td>Low <code>$A900+$0033</code>, copy <code>$003B</code></td><td>string variable or quoted literal, output string</td><td>Uppercases staged bytes.</td></tr>
-          <tr><td><code>LOWER(S$,OUT$) / LOWER(S$)</code></td><td>Low <code>$A900+$006E</code>, copy <code>$003B</code></td><td>string variable or quoted literal, output string</td><td>Lowercases staged byte values; tests use <code>ASC()</code> because display case is charset-dependent.</td></tr>
+          <tr><td><code>FADD(A,B,OUT) / FADD(A,B)</code></td><td>Resident-computed float demo; one-byte low stub</td><td>two plain numeric expressions, output float</td><td>Uses BASIC ROM floating addition.</td></tr>
+          <tr><td><code>ZPAUSE(TICKS)</code></td><td>Low <code>$A900+$0034</code>, copy <code>$0022</code></td><td>tick count</td><td>Waits for the requested jiffy count.</td></tr>
+          <tr><td><code>UPPER(S$,OUT$) / UPPER(S$)</code></td><td>Low <code>$A900+$0056</code>, copy <code>$003B</code></td><td>string variable or quoted literal, output string</td><td>Uppercases staged bytes.</td></tr>
+          <tr><td><code>LOWER(S$,OUT$) / LOWER(S$)</code></td><td>Low <code>$A900+$0091</code>, copy <code>$003B</code></td><td>string variable or quoted literal, output string</td><td>Lowercases staged byte values; tests use <code>ASC()</code> because display case is charset-dependent.</td></tr>
           <tr><td><code>ZHIDDENRAM(S$,OUT%) / ZHIDDENRAM(S$)</code></td><td>Hidden <code>$A800</code>, copy <code>$004D</code></td><td>string variable or quoted literal, output integer</td><td>Returns uppercase-byte checksum.</td></tr>
-          <tr><td><code>ZSUMNUMARRAY(A%(0),COUNT,OUT%) / ZSUMNUMARRAY(A%(0),COUNT)</code></td><td>Low <code>$A900+$00A9</code>, copy <code>$0044</code></td><td>array base, count, output integer</td><td>Sums integer array elements.</td></tr>
-          <tr><td><code>ZRANGENUMARRAY(START,COUNT,A%(0))</code></td><td>Low <code>$A900+$00ED</code>, copy <code>$003D</code></td><td>start, count, output array base</td><td>Stages consecutive integers for resident commit.</td></tr>
-          <tr><td><code>BUFNEW(LEN,H%) / BUFNEW(LEN)</code></td><td>Low entry <code>$012A</code>, copy <code>$061B</code></td><td>byte length, output handle</td><td>Allocates buffer pages and returns one-based handle.</td></tr>
-          <tr><td><code>BUFFILL(H%,BYTE)</code></td><td>Low entry <code>$012E</code>, copy <code>$061B</code></td><td>buffer handle, fill byte</td><td>Fills buffer handles and rejects non-buffer handles.</td></tr>
-          <tr><td><code>BUFFREE(H%)</code></td><td>Low entry <code>$0132</code>, copy <code>$061B</code></td><td>handle</td><td>Frees any valid handle type.</td></tr>
-          <tr><td><code>ZTEMPSCRATCH(LEN,OUT%) / ZTEMPSCRATCH(LEN)</code></td><td>Low entry <code>$0136</code>, copy <code>$061B</code></td><td>byte length, output integer</td><td>Returns pages required after temporary allocation/free.</td></tr>
-          <tr><td><code>ZFAIL(CODE,OUT%)</code></td><td>Low <code>$A900+$013A</code>, copy <code>$001B</code></td><td>error code, output integer</td><td>Clears output, then reports <code>?RB ERROR code</code>.</td></tr>
-          <tr><td><code>FREEMEM()</code></td><td>Low <code>$A900+$0155</code>, copy <code>$0016</code></td><td>none</td><td>Prints live BASIC free bytes and refreshes the header.</td></tr>
-          <tr><td><code>SCRCAP(H%) / SCRCAP()</code></td><td>Slot 14; low entry <code>$016B</code>, copy <code>$061B</code></td><td>output screen handle</td><td>Captures screen text and color RAM into a type-2 handle.</td></tr>
-          <tr><td><code>SCRPUT(H%)</code></td><td>Slot 128; low entry <code>$0194</code>, copy <code>$061B</code></td><td>screen handle</td><td>Restores screen text and color RAM after type validation.</td></tr>
+          <tr><td><code>ZSUMNUMARRAY(A%(0),COUNT,OUT%) / ZSUMNUMARRAY(A%(0),COUNT)</code></td><td>Low <code>$A900+$00CC</code>, copy <code>$0044</code></td><td>array base, count, output integer</td><td>Sums integer array elements.</td></tr>
+          <tr><td><code>ZRANGENUMARRAY(START,COUNT,A%(0))</code></td><td>Low <code>$A900+$0110</code>, copy <code>$003D</code></td><td>start, count, output array base</td><td>Stages consecutive integers for resident commit.</td></tr>
+          <tr><td><code>BUFNEW(LEN,H%) / BUFNEW(LEN)</code></td><td>Low entry <code>$014D</code>, copy <code>$063D</code></td><td>byte length, output handle</td><td>Allocates buffer pages and returns one-based handle.</td></tr>
+          <tr><td><code>BUFFILL(H%,BYTE)</code></td><td>Low entry <code>$0151</code>, copy <code>$063D</code></td><td>buffer handle, fill byte</td><td>Fills buffer handles and rejects non-buffer handles.</td></tr>
+          <tr><td><code>BUFFREE(H%)</code></td><td>Low entry <code>$0155</code>, copy <code>$063D</code></td><td>handle</td><td>Frees any valid handle type.</td></tr>
+          <tr><td><code>ZTEMPSCRATCH(LEN,OUT%) / ZTEMPSCRATCH(LEN)</code></td><td>Low entry <code>$0159</code>, copy <code>$063D</code></td><td>byte length, output integer</td><td>Returns pages required after temporary allocation/free.</td></tr>
+          <tr><td><code>ZFAIL(CODE,OUT%)</code></td><td>Low <code>$A900+$015D</code>, copy <code>$001B</code></td><td>error code, output integer</td><td>Clears output, then reports <code>?RB ERROR code</code>.</td></tr>
+          <tr><td><code>FREEMEM()</code></td><td>Low <code>$A900+$0178</code>, copy <code>$0016</code></td><td>none</td><td>Prints live BASIC free bytes and refreshes the header.</td></tr>
+          <tr><td><code>SCRCAP(H%) / SCRCAP()</code></td><td>Slot 14; low entry <code>$018E</code>, copy <code>$063D</code></td><td>output screen handle</td><td>Captures screen text and color RAM into a type-2 handle.</td></tr>
+          <tr><td><code>ERRCODE(OUT%) / ERRCODE()</code></td><td>Resident-precomputed result; legacy low stub remains in <code>LOWPACK</code></td><td>output integer or expression integer</td><td>Returns the last ReadyBASIC runtime error code.</td></tr>
+          <tr><td><code>ERRLINE(OUT%) / ERRLINE()</code></td><td>Resident-precomputed result; legacy low stub remains in <code>LOWPACK</code></td><td>output integer or expression integer</td><td>Returns the last ReadyBASIC runtime error line, or 0 in direct mode.</td></tr>
+          <tr><td><code>SCRPUT(H%)</code></td><td>Slot 128; low entry <code>$01B7</code>, copy <code>$063D</code></td><td>screen handle</td><td>Restores screen text and color RAM after type validation.</td></tr>
         </tbody>
       </table>
       <p>
@@ -810,17 +849,17 @@
       <table>
         <thead><tr><th>Segment</th><th>Size</th><th>Load/source role</th><th>Runtime role</th></tr></thead>
         <tbody>
-          <tr><td><code>LOWPACK</code></td><td><code>$061B</code> (1.5K, 1563 exact bytes)</td><td>Packed low command bytes in <code>CMDPACK</code>, prestashed to bank <code>$45</code> offset <code>$0000</code>.</td><td>Fetched on demand into banked RAM under BASIC ROM at <code>$A900+</code>.</td></tr>
-          <tr><td><code>HIDDENPACK</code></td><td><code>$004D</code> (77B)</td><td>Packed hidden worker bytes after <code>LOWPACK</code>, prestashed to bank <code>$45</code> offset <code>$061B</code>.</td><td>Fetched on demand into hidden RAM at <code>$A800-$A84C</code>.</td></tr>
+          <tr><td><code>LOWPACK</code></td><td><code>$063D</code> (1.6K, 1597 exact bytes)</td><td>Packed low command bytes in <code>CMDPACK</code>, prestashed to bank <code>$45</code> offset <code>$0000</code>.</td><td>Fetched on demand into banked RAM under BASIC ROM at <code>$A900+</code>.</td></tr>
+          <tr><td><code>HIDDENPACK</code></td><td><code>$004D</code> (77B)</td><td>Packed hidden worker bytes after <code>LOWPACK</code>, prestashed to bank <code>$45</code> offset <code>$063D</code>.</td><td>Fetched on demand into hidden RAM at <code>$A800-$A84C</code>.</td></tr>
           <tr><td><code>HIDLOAD</code></td><td><code>$0377</code> (0.9K, 887 exact bytes)</td><td>Load-only hidden helper seed starting at <code>$4000</code>.</td><td>Copied on cold boot into <code>$A000-$A376</code> and the visible <code>$C280-$C5F6</code> warm-resume shadow.</td></tr>
-	          <tr><td><code>BRLOAD</code></td><td><code>$01EC</code> (492B)</td><td>Load-only bridge seed starting at <code>$4800</code>.</td><td>Copied on cold boot into <code>$C000-$C1EB</code>.</td></tr>
+	          <tr><td><code>BRLOAD</code></td><td><code>$01F4</code> (500B)</td><td>Load-only bridge seed starting at <code>$4800</code>.</td><td>Copied on cold boot into <code>$C000-$C1F3</code>.</td></tr>
           <tr><td><code>REGSEED</code></td><td><code>$1010</code> (4.0K, 4112 exact bytes)</td><td>Load-only registry header and 128 command descriptors at <code>$5000-$600F</code>.</td><td>Copied on cold boot into bank <code>$44</code> offsets <code>$0000</code> and <code>$1000</code>.</td></tr>
         </tbody>
       </table>
       <div class="callout warn">
         Cold boot is the only time the load-image command pack and
         <code>REGSEED</code> are trusted. Warm resume reuses the REU copies and
-        does not reseed from <code>$2800+</code>, <code>$4000+</code>,
+        does not reseed from <code>$2B00+</code>, <code>$4000+</code>,
         <code>$4800+</code>, or <code>$5000+</code>.
       </div>
     </section>
@@ -833,18 +872,18 @@
       </p>
       <div class="memory-map" aria-label="C64 RAM map">
         <div class="addr">$1000-$1102</div><div class="region r-entry"><b>ENTRY</b><small>Cold/warm discriminator and early copy code.</small></div><div class="size">$0103<br><span>259B</span></div>
-        <div class="addr">$1200-$28FC</div><div class="region r-resident"><b>RESIDENT</b><small>Parser, hooks, BASIC ROM calls, REU DMA, result commit, PROC/FUNC, proper float terms.</small></div><div class="size">$16FD<br><span>5.7K</span></div>
-        <div class="addr">$2900</div><div class="region r-basic"><b>BASIC Sentinel</b><small>Must stay zero before stored-program RUN.</small></div><div class="size">1 byte</div>
-        <div class="addr">$2901-$9FFF</div><div class="region r-basic"><b>BASIC Workspace</b><small>Program text, variables, arrays, string heap.</small></div><div class="size">$76FF<br><span>30461 formula free / 29.7K</span></div>
-        <div class="addr">$2900-$3FFF</div><div class="region r-overlay"><b>Command Pack Load Image</b><small>Low and hidden overlay seed bytes before cold prestash.</small></div><div class="size">$1700<br><span>5.75K</span></div>
+        <div class="addr">$1200-$2AB9</div><div class="region r-resident"><b>RESIDENT</b><small>Parser, hooks, BASIC ROM calls, REU DMA, result commit, PROC/FUNC, flow control, proper float terms.</small></div><div class="size">$18BA<br><span>6.2K</span></div>
+        <div class="addr">$2AC0</div><div class="region r-basic"><b>BASIC Sentinel</b><small>Must stay zero before stored-program RUN.</small></div><div class="size">1 byte</div>
+        <div class="addr">$2AC1-$9FFF</div><div class="region r-basic"><b>BASIC Workspace</b><small>Program text, variables, arrays, string heap.</small></div><div class="size">$753F<br><span>30013 formula free / 29.3K</span></div>
+        <div class="addr">$2B00-$3FFF</div><div class="region r-overlay"><b>Command Pack Load Image</b><small>Low and hidden overlay seed bytes before cold prestash.</small></div><div class="size">$1500<br><span>5.25K</span></div>
         <div class="addr">$4000+</div><div class="region r-hidden"><b>HIDLOAD Image</b><small>Hidden helper seed copied to $A000 and $C280.</small></div><div class="size">$0377<br><span>0.9K</span></div>
-        <div class="addr">$4800+</div><div class="region r-bridge"><b>BRLOAD Image</b><small>Bridge seed copied to $C000.</small></div><div class="size">$01EC<br><span>492B</span></div>
+        <div class="addr">$4800+</div><div class="region r-bridge"><b>BRLOAD Image</b><small>Bridge seed copied to $C000.</small></div><div class="size">$01F4<br><span>500B</span></div>
         <div class="addr">$5000-$600F</div><div class="region r-shared"><b>REGSEED Load-Only Image</b><small>Cold 128-slot descriptor seed copied to REU, then this range may be BASIC-owned.</small></div><div class="size">$1010<br><span>4.0K</span></div>
         <div class="addr">REU $44:$0A00-$0BFF</div><div class="region r-readyos"><b>Runtime Snapshot</b><small>Zero page, stack, SP, mode, line-chain guards.</small></div><div class="size">$0200<br><span>0.5K</span></div>
         <div class="addr">$A000-$A376</div><div class="region r-hidden"><b>HIDDEN</b><small>Helper code under BASIC ROM RAM.</small></div><div class="size">$0377<br><span>0.9K</span></div>
         <div class="addr">$A800-$A84C</div><div class="region r-hidden"><b>HIDDENPACK</b><small>Hidden worker overlay image.</small></div><div class="size">$004D<br><span>77B</span></div>
-        <div class="addr">$A900-$AF1A</div><div class="region r-overlay"><b>LOWPACK Runtime</b><small>Banked low command pack fetched from REU.</small></div><div class="size">$061B<br><span>1.5K</span></div>
-        <div class="addr">$C000-$C1EB</div><div class="region r-bridge"><b>BRIDGE</b><small>Magic, saved vectors, overlay vars, current handle scratch, PROC/FUNC stack.</small></div><div class="size">$01EC<br><span>492B</span></div>
+        <div class="addr">$A900-$AF3C</div><div class="region r-overlay"><b>LOWPACK Runtime</b><small>Banked low command pack fetched from REU.</small></div><div class="size">$063D<br><span>1.6K</span></div>
+        <div class="addr">$C000-$C1F3</div><div class="region r-bridge"><b>BRIDGE</b><small>Magic, saved vectors, overlay vars, current handle scratch, PROC/FUNC stack.</small></div><div class="size">$01F4<br><span>500B</span></div>
         <div class="addr">$C200-$C5FF</div><div class="region r-shared"><b>Shared Frames</b><small>Call/result frames, descriptor/name/page buffers; hidden shadow is refreshed at <code>$C280</code> on <code>EXIT</code>.</small></div><div class="size">$0400<br><span>1.0K</span></div>
         <div class="addr">$C600-$C7FF</div><div class="region r-readyos"><b>ReadyOS REU Metadata</b><small>ReadyBASIC only marks REU bank ownership here.</small></div><div class="size">$0200<br><span>0.5K</span></div>
         <div class="addr">$C800-$C9FF</div><div class="region r-readyos"><b>ReadyOS Shim ABI</b><small>Jump table/data, not ReadyBASIC RAM.</small></div><div class="size">$0200<br><span>0.5K</span></div>
@@ -852,7 +891,7 @@
       <div class="callout warn">
         <strong>Load image versus runtime:</strong> cold entry copies hidden, bridge,
         registry, and command seeds out of the PRG load image. After that,
-        BASIC owns <code>$2901-$9FFF</code>, so warm resume must not reread cold-only seed
+        BASIC owns <code>$2AC1-$9FFF</code>, so warm resume must not reread cold-only seed
         tables at <code>$5000+</code>.
       </div>
 
@@ -861,8 +900,8 @@
           <h3>Cold Load View: Temporary Seed Bytes Inside The Future BASIC Span</h3>
           <div class="stage-body">
             <div class="stage-bar">
-              <div class="stage-seg r-basic" style="width: 5.5%"><b>$2901-$27FF</b>future BASIC bytes</div>
-              <div class="stage-seg r-overlay" style="width: 18.2%"><b>$2900-$3FFF</b>CMDPACK reserved 5.75K</div>
+              <div class="stage-seg r-basic" style="width: 0.3%"><b>$2AC1-$2AFF</b>gap</div>
+              <div class="stage-seg r-overlay" style="width: 17.9%"><b>$2B00-$3FFF</b>CMDPACK reserved 5.25K</div>
               <div class="stage-seg r-hidden" style="width: 9.5%"><b>$4000+</b>HIDLOAD seed</div>
               <div class="stage-seg r-bridge" style="width: 6.0%"><b>$4800+</b>BRLOAD seed</div>
               <div class="stage-seg r-shared" style="width: 12.2%"><b>$5000-$600F</b>REGSEED 4.0K</div>
@@ -880,21 +919,21 @@
           <h3>Ready Prompt View: BASIC Owns The Whole Workspace</h3>
           <div class="stage-body">
             <div class="stage-bar">
-              <div class="stage-seg r-basic" style="width: 100%"><b>$2901-$9FFF</b>BASIC program, variables, arrays, and strings; 30461 formula empty free bytes</div>
+              <div class="stage-seg r-basic" style="width: 100%"><b>$2AC1-$9FFF</b>BASIC program, variables, arrays, and strings; 30013 formula empty free bytes</div>
             </div>
             <div class="cmdpack-meter" aria-label="CMDPACK reserved capacity">
               <span></span>
-              <strong>CMDPACK capacity: 1.6K used now inside today's 5.75K cold-load seed window; this is not the long-term command-code ceiling</strong>
+              <strong>CMDPACK capacity: 1.6K used now inside today's 5.25K cold-load seed window; this is not the long-term command-code ceiling</strong>
             </div>
             <p class="stage-note">
-              Growing packed command code toward the current 5.75K CMDPACK
+              Growing packed command code toward the current 5.25K CMDPACK
               reservation increases cold-load content and PRG payload, not
               steady-state BASIC free bytes.
             </p>
             <div class="capacity-grid" aria-label="Command code capacity tiers">
               <div class="capacity-card">
-                <b>5.75K current seed</b>
-                <p><code>CMDPACK</code> is the current C64 cold-load window at <code>$2900-$3FFF</code>.</p>
+                <b>5.25K current seed</b>
+                <p><code>CMDPACK</code> is the current C64 cold-load window at <code>$2B00-$3FFF</code>.</p>
               </div>
               <div class="capacity-card">
                 <b>64.0K current code bank</b>
@@ -915,22 +954,22 @@
       <p>
         Stock C64 BASIC V2 starts at <code>$0801</code> with top at
         <code>$A000</code>, giving about <code>38911</code> bytes free.
-        ReadyBASIC relocates BASIC to <code>$2901</code> with top at
+        ReadyBASIC relocates BASIC to <code>$2AC1</code> with top at
         <code>$A000</code>. On an empty ReadyBASIC workspace, variables begin at
-        <code>$2903</code>, so the practical empty BASIC free space is
-        <code>$A000 - $2903 = 30461</code> formula bytes.
+        <code>$2AC3</code>, so the practical empty BASIC free space is
+        <code>$A000 - $2AC3 = 30013</code> formula bytes.
       </p>
       <div class="grid-3">
         <div class="metric"><b>38911 bytes</b><span>38.0K stock empty C64 BASIC V2 free space.</span></div>
-        <div class="metric"><b>30461 bytes</b><span>29.7K current formula empty ReadyBASIC free space.</span></div>
-        <div class="metric"><b>-8450 bytes</b><span>-8.3K current ReadyBASIC tradeoff for ReadyOS integration, native dispatch, expression syntax, and proper float terms.</span></div>
+        <div class="metric"><b>30013 bytes</b><span>29.3K current formula empty ReadyBASIC free space.</span></div>
+        <div class="metric"><b>-8898 bytes</b><span>-8.7K current ReadyBASIC tradeoff for ReadyOS integration, native dispatch, expression syntax, flow control, and proper float terms.</span></div>
       </div>
       <table>
         <thead><tr><th>Environment</th><th>BASIC text start</th><th>BASIC top</th><th>Empty free bytes</th></tr></thead>
         <tbody>
           <tr><td>Stock C64 BASIC V2</td><td><code>$0801</code></td><td><code>$A000</code></td><td><code>38911</code> (38.0K)</td></tr>
-          <tr><td>ReadyBASIC current layout</td><td><code>$2901</code></td><td><code>$A000</code></td><td><code>30461</code> (29.7K)</td></tr>
-          <tr><td>Difference</td><td>-</td><td>-</td><td><code>-8450</code> (-8.3K)</td></tr>
+          <tr><td>ReadyBASIC current layout</td><td><code>$2AC1</code></td><td><code>$A000</code></td><td><code>30013</code> (29.3K)</td></tr>
+          <tr><td>Difference</td><td>-</td><td>-</td><td><code>-8898</code> (-8.7K)</td></tr>
         </tbody>
       </table>
       <div class="grid-2">
@@ -1051,10 +1090,10 @@
         </div>
         <div class="bank code">
           <div class="bank-title">Bank $45: Packed Command Code, type 15</div>
-	          <div class="slice"><span>$0000</span><span>Low overlay pack <code>$0000-$061A</code>, copied into <code>$A900-$AF1A</code>.</span></div>
-	          <div class="slice"><span>$061B</span><span>Hidden overlay pack <code>$061B-$0666</code>, copied into <code>$A800-$A84C</code>.</span></div>
+	          <div class="slice"><span>$0000</span><span>Low overlay pack <code>$0000-$063C</code>, copied into <code>$A900-$AF3C</code>.</span></div>
+	          <div class="slice"><span>$063D</span><span>Hidden overlay pack <code>$063D-$0689</code>, copied into <code>$A800-$A84C</code>.</span></div>
           <div class="slice"><span>desc</span><span>Descriptors point to code offsets, code sizes, and run offsets.</span></div>
-	          <div class="slice"><span>handles</span><span>Handle and screen commands fetch the full <code>$061B</code> low pack because shared helpers live there.</span></div>
+	          <div class="slice"><span>handles</span><span>Handle and screen commands fetch the full <code>$063D</code> low pack because shared helpers live there.</span></div>
         </div>
       </div>
       <div class="callout good">
@@ -1070,7 +1109,7 @@
       <div class="flow">
         <div class="step"><span class="num">1</span><h3>Load</h3><p>ReadyOS loads <code>readybasic.prg</code> at <code>$1000</code>.</p></div>
         <div class="step"><span class="num">2</span><h3>Copy</h3><p>Entry copies hidden helper seed to <code>$A000</code> and a visible shadow to <code>$C280</code>, then bridge seed to <code>$C000</code>.</p></div>
-        <div class="step"><span class="num">3</span><h3>Relocate</h3><p>Resident installs hooks and relocates BASIC to <code>$2101</code> with top at <code>$A000</code>.</p></div>
+        <div class="step"><span class="num">3</span><h3>Relocate</h3><p>Resident installs hooks and relocates BASIC to <code>$2AC1</code> with top at <code>$A000</code>.</p></div>
         <div class="step"><span class="num">4</span><h3>Seed REU</h3><p>Bank <code>$44</code> gets header/descriptors; bank <code>$45</code> gets packed command code.</p></div>
         <div class="step"><span class="num">5</span><h3>READY</h3><p>ReadyBASIC clears/redraws the screen, prints its banner, and enters <code>BASIC_READY</code>.</p></div>
       </div>
@@ -1093,9 +1132,9 @@
       <h2>Hard Invariants</h2>
       <ul class="invariants">
         <li>Boot ReadyBASIC through normal ReadyOS run/profile flows.</li>
-        <li><code>BASIC_START</code> remains <code>$2901</code>.</li>
-        <li><code>$2900</code> remains zero before stored-program <code>RUN</code>.</li>
-        <li><code>RESIDENT</code> stays below <code>$2900</code>.</li>
+        <li><code>BASIC_START</code> remains <code>$2AC1</code>.</li>
+        <li><code>$2AC0</code> remains zero before stored-program <code>RUN</code>.</li>
+        <li><code>RESIDENT</code> stays below <code>$2AC0</code>.</li>
         <li><code>BRIDGE</code> stays below <code>$C200</code>.</li>
         <li><code>$C600-$C7FF</code> is shared ReadyOS REU metadata.</li>
         <li><code>$C800-$C9FF</code> is ReadyOS shim ABI.</li>

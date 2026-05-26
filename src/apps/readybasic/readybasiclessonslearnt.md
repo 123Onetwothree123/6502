@@ -10,7 +10,7 @@ actual C64/ReadyOS evidence trail rather than a pile of confident guesses.
 - The app PRG loads at `$1000` and must obey the ReadyOS app/shim window:
   `$1000-$C5FF` is app-owned, `$C600-$C9FF` is reserved metadata/shim space.
 - BASIC programs are data inside the host. The scoped BASIC workspace is now
-  `$2901-$9FFF`, with `30461` formula empty free bytes (29.7K); ReadyBASIC
+  `$2AC1-$9FFF`, with `30013` formula empty free bytes (29.3K); ReadyBASIC
   extension lines are left as readable text rather than crunched into private
   tokens.
 - ReadyBASIC suspend state keeps zero-page and stack snapshots in REU bank `$44`
@@ -20,8 +20,8 @@ actual C64/ReadyOS evidence trail rather than a pile of confident guesses.
 - A refreshed visible shadow copy of the hidden helper image lives at `$C280-$C5F6`,
   inside the ReadyOS app snapshot window. Warm
   entry restores `$A000` from that shadow before using hidden helpers.
-- The plugin spine keeps visible resident code at `$1200-$28FD`, command
-  overlays under BASIC ROM at `$A900-$AF1A`, shared frames at `$C200-$C5FF`, and fixed
+- The plugin spine keeps visible resident code at `$1200-$2AB9`, command
+  overlays under BASIC ROM at `$A900-$AF3C`, shared frames at `$C200-$C5FF`, and fixed
   ReadyBASIC REU banks `$44/$45`.
 - The current registry has 128 descriptor slots in REU bank `$44` at
   `$1000-$1FFF`. Lookup fetches one 256-byte page at a time into `$C500`, scans

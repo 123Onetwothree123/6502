@@ -12,13 +12,20 @@ descriptors, command ids, signature ids, `LOWPACK`, `HIDDENPACK`, or bank `$45`
 code bytes. Use this command guide only when adding new descriptor-backed
 machine-code command overlays.
 
+Likewise, `REPEAT`/`UNTIL`, `LABEL`/`JUMP`, and `ERRCODE`/`ERRLINE` are resident
+language/runtime features. They are documented here only to make the boundary
+clear: adding another command overlay is a descriptor task, while adding another
+language statement is a resident parser and lifecycle task.
+
 ReadyBASIC's built-in command set is intended to include the core commands and
 the 100+ additional file, graphics, sound, REU, and utility commands that are
-similar in spirit to other BASIC extensions. The current layout still leaves
-roughly 40KB for more built-in assembler command code. Beyond that built-in set,
-ReadyBASIC will also support dynamically loaded command modules that can use
-additional REU banks, so other authors can add hundreds more commands without
-forcing everything into the core command bank.
+similar in spirit to other BASIC extensions. The current single code bank still
+leaves about 62.4K of addressable REU command-code space; today's C64 `CMDPACK`
+cold-load window has about 3.6K of unused seed room before it would need a
+larger or additional cold-load seed range. Beyond that built-in set, ReadyBASIC
+will also support dynamically loaded command modules that can use additional REU
+banks, so other authors can add hundreds more commands without forcing
+everything into the core command bank.
 
 ## Naming Rules
 
@@ -38,7 +45,8 @@ Prefix conventions:
 | `XU*` | Alpha/beta Ultimate-specific commands whose behavior or parameter shape is not settled yet. |
 
 Current public names include `ZECHO1`, `ZADD16`, `UPPER`, `LOWER`,
-`ZHIDDENRAM`, `ZSUMNUMARRAY`, `ZRANGENUMARRAY`, `ZTEMPSCRATCH`, and `ZFAIL`.
+`ZHIDDENRAM`, `ZSUMNUMARRAY`, `ZRANGENUMARRAY`, `ZTEMPSCRATCH`, `ZPAUSE`,
+`ZFAIL`, `FREEMEM`, `ERRCODE`, and `ERRLINE`.
 
 ## How To Read The Examples
 
@@ -92,6 +100,12 @@ Use a descriptor-backed command overlay instead when the routine needs hidden
 RAM, REU handles, fast machine-code loops, direct screen/color memory, or shared
 command behavior.
 
+Use resident language work instead when the feature changes BASIC control flow
+or interpreter state. `REPEAT`/`UNTIL` stores and restores `TXTPTR`/`CURLIN`;
+`LABEL`/`JUMP` scans stored BASIC lines; `ERRCODE`/`ERRLINE` returns resident
+runtime state. Those shapes are intentionally outside the command descriptor
+ABI.
+
 ## Descriptor Shape
 
 Each command has a 32-byte descriptor in the cold `REGSEED` image. On cold boot,
@@ -129,7 +143,7 @@ Descriptor commentary:
 
 `CMD_LOW_ALL` is used for commands whose tiny wrapper calls shared allocator or
 screen helpers elsewhere in `LOWPACK`. Those commands copy the full current
-`$061B` low pack to keep resident RAM small.
+`$063D` low pack to keep resident RAM small.
 
 ```asm
 .macro CMD_LOW_ALL id, sig, label, name
@@ -784,7 +798,7 @@ before the command reports `?RB ERROR code`:
 | `RB_CMD_F_LOW` | Descriptor flag for a command whose executable code runs from the low overlay window. |
 | `RB_CMD_F_HIDDEN` | Descriptor flag for a command whose executable code runs under BASIC ROM RAM. |
 | `__LOWPACK_RUN__` | Linker symbol for the packed low-overlay image before it is copied to REU bank `$45`. |
-| `__LOWPACK_SIZE__` | Measured size of the whole low pack, currently `$061B` bytes. |
+| `__LOWPACK_SIZE__` | Measured size of the whole low pack, currently `$063D` bytes. |
 | `RB_LOW_BASE` | Runtime low-overlay base, currently `$A900`. |
 | `__HIDDENPACK_RUN__` | Linker symbol for the packed hidden-overlay image. |
 | `RB_HIDDEN_BASE` | Runtime hidden-overlay base, currently `$A800`. |

@@ -149,18 +149,18 @@
   <header>
     <h1>ReadyBASIC Making Command Guide</h1>
     <p class="muted">A teaching guide for how current bare <code>COMMAND(...)</code> examples are wired into descriptors, parser signatures, low overlays, hidden overlays, and REU handles.</p>
-    <p><span class="chip">128 descriptor slots</span><span class="chip">SCRCAP slot 14</span><span class="chip">SCRPUT slot 128</span><span class="chip">LOWPACK $061B</span></p>
+    <p><span class="chip">128 descriptor slots</span><span class="chip">SCRCAP slot 14</span><span class="chip">SCRPUT slot 128</span><span class="chip">LOWPACK $063D</span></p>
   </header>
 
 	  <section class="teaching">
 	    <h2>What You Are Building</h2>
 	    <p>A ReadyBASIC command is not just one assembler routine. It is a contract between BASIC text, resident parser code, a cold REU descriptor, and an overlay worker copied into C64 RAM only when needed.</p>
 		    <div class="card warn">
-			      <p>Native <code>PROC</code>/<code>FUNC</code> routines are new ReadyBASIC language features, not BASIC V2 functions and not plugin commands. Users can write them directly in their own ReadyBASIC programs and call <code>PROC</code> routines with bare <code>EXEC</code>, so they do not need descriptors, command ids, signature ids, <code>LOWPACK</code>, <code>HIDDENPACK</code>, or REU bank <code>$45</code> code bytes. Use this guide when adding new descriptor-backed command overlays.</p>
+			      <p>Native <code>PROC</code>/<code>FUNC</code> routines, <code>REPEAT</code>/<code>UNTIL</code>, <code>LABEL</code>/<code>JUMP</code>, and <code>ERRCODE</code>/<code>ERRLINE</code> are ReadyBASIC language/runtime features, not plugin commands. Use this guide when adding new descriptor-backed command overlays.</p>
 		    </div>
 		    <div class="card reu">
 		      <h3>Built-In And Module Command Growth</h3>
-		      <p>ReadyBASIC's built-in command set is intended to include the core commands and the 100+ additional file, graphics, sound, REU, and utility commands that are similar in spirit to other BASIC extensions. The current layout still leaves roughly 40KB for more built-in assembler command code.</p>
+		      <p>ReadyBASIC's built-in command set is intended to include the core commands and the 100+ additional file, graphics, sound, REU, and utility commands that are similar in spirit to other BASIC extensions. The current REU code bank still leaves about 62.4K of addressable command-code space; today's C64 <code>CMDPACK</code> seed window has about 3.6K unused before it needs a larger or additional cold-load seed range.</p>
 		      <p>Beyond that built-in set, ReadyBASIC will also support dynamically loaded command modules that can use additional REU banks, so other authors can add hundreds more commands without forcing everything into the core command bank.</p>
 		    </div>
 		    <div class="flow">
@@ -190,6 +190,7 @@
     <div class="card">
       <p><code>PROC</code> has input formals only. <code>FUNC</code> also declares input formals only and returns with <code>RET expr</code>; use <code>RET% expr</code> or <code>RET$ expr</code> when the return type should be explicit. <code>FUNC</code> is called as an expression and does not take a final output actual. V1 supports <code>%</code> integer, <code>$</code> string, and plain C64 BASIC float formals; arrays, locals, by-reference parameters, and multiple outputs remain out of scope. Definitions should live after <code>END</code>; fall-through into a definition is invalid.</p>
       <p>Use a descriptor-backed command overlay when the routine needs hidden RAM, REU handles, fast machine-code loops, direct screen/color memory, or shared command behavior.</p>
+      <p>Use resident language work when the feature changes BASIC control flow or interpreter state. <code>REPEAT</code>/<code>UNTIL</code> stores and restores <code>TXTPTR</code>/<code>CURLIN</code>; <code>LABEL</code>/<code>JUMP</code> scans stored BASIC lines; <code>ERRCODE</code>/<code>ERRLINE</code> returns resident runtime state.</p>
     </div>
   </section>
 
@@ -736,7 +737,7 @@ CMD_LOW_ALL CMD_SCRPUT, SIG_SCRPUT, cmd_scrput_low, "SCRPUT"</code></pre>
         <tr><td><code>RB_PAGEBUF</code></td><td>RAM page buffer used to fetch one 256-byte descriptor page, eight descriptors at a time.</td></tr>
         <tr><td><code>RB_DESC_BUF</code></td><td>Resident copy of the single matched descriptor.</td></tr>
         <tr><td><code>__LOWPACK_RUN__</code></td><td>Linker symbol for the packed low-overlay image before prestash to REU bank <code>$45</code>.</td></tr>
-        <tr><td><code>__LOWPACK_SIZE__</code></td><td>Measured full low-pack size, currently <code>$061B</code>.</td></tr>
+        <tr><td><code>__LOWPACK_SIZE__</code></td><td>Measured full low-pack size, currently <code>$063D</code>.</td></tr>
         <tr><td><code>RB_LOW_BASE</code></td><td>Runtime low-overlay base address, currently <code>$A900</code>.</td></tr>
         <tr><td><code>RB_HIDDEN_BASE</code></td><td>Runtime hidden-overlay base address, currently <code>$A800</code>.</td></tr>
       </tbody>

@@ -37,7 +37,7 @@ ReadyBASIC now duplicates a small amount of ReadyOS REU and shim knowledge in as
 
 - ReadyBASIC still uses:
   - `SHIM_RETURN = $C80C`
-  - bridge state at `$C000-$C1EB`
+  - bridge state at `$C000-$C1F3`
   - shared frames and visible helper shadow at `$C200-$C5FF`
   - app runtime zero-page/stack save in REU bank `$44` offsets `$0A00/$0B00`
 - Do not place ReadyBasic state in `$C800-$C9FF`; that remains shim ABI territory.
@@ -45,17 +45,17 @@ ReadyBASIC now duplicates a small amount of ReadyOS REU and shim knowledge in as
 
 ## Current ReadyBASIC Memory Snapshot
 
-- `BASIC_START = $2901`; BASIC owns `$2901-$9FFF`, with `30461` formula empty free bytes.
+- `BASIC_START = $2AC1`; BASIC owns `$2AC1-$9FFF`, with `30013` formula empty free bytes.
 - `ENTRY` lives at `$1000-$1102`.
-- `RESIDENT` lives at `$1200-$28FC` and must stay below `$2900`.
-- `CMDPACK` load-only seed space is `$2900-$3FFF`; it is copied to REU bank `$45` on cold entry.
+- `RESIDENT` lives at `$1200-$2AB9` and must stay below `$2AC0`.
+- `CMDPACK` load-only seed space is `$2B00-$3FFF`; it is copied to REU bank `$45` on cold entry.
 - `HIDLOAD` load-only helper seed starts at `$4000`.
 - `BRLOAD` load-only bridge seed starts at `$4800`.
 - `REGSEED` load-only registry seed is `$5000-$600F`, size `$1010`.
-- Runtime `LOWPACK` is `$A900-$AF1A`, size `$061B`.
+- Runtime `LOWPACK` is `$A900-$AF3C`, size `$063D`.
 - Runtime `HIDDENPACK` is `$A800-$A84C`, size `$004D`.
-- Runtime `BRIDGE` is `$C000-$C1EB`, size `$01EC`; the native `PROC`/`FUNC`
-  return stack lives here and must stay below shared frames at `$C200`.
+- Runtime `BRIDGE` is `$C000-$C1F3`, size `$01F4`; the native `PROC`/`FUNC`
+  return stack and flow-control scratch live here and must stay below shared frames at `$C200`.
 
 ## Bank `$44` ReadyBASIC Core Layout
 
@@ -77,8 +77,8 @@ scans eight descriptors locally, and copies the matched descriptor into
 
 ## Bank `$45` Command Code Layout
 
-- `$0000-$061A`: packed low overlay code fetched to `$A900-$AF1A`.
-- `$061B-$0667`: packed hidden worker code fetched to `$A800-$A84C`.
+- `$0000-$063C`: packed low overlay code fetched to `$A900-$AF3C`.
+- `$063D-$0689`: packed hidden worker code fetched to `$A800-$A84C`.
 
 Cold entry prestashes these bytes once. Warm resume reuses the REU copies and
 must not reread `CMDPACK`, `HIDLOAD`, `BRLOAD`, or `REGSEED` from BASIC-owned

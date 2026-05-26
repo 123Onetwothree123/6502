@@ -5,10 +5,39 @@ layout and addresses that were current when the tests were run. For the current
 memory map, use `READYBASIC_CURRENT_DESIGN.md`.
 
 Current runtime command names use `ZECHO1`, `ZADD16`, `UPPER`, `LOWER`,
-`ZHIDDENRAM`, `ZSUMNUMARRAY`, `ZRANGENUMARRAY`, `ZTEMPSCRATCH`, and `ZFAIL` for
-the demo/proof commands. Older entries below may mention historical names such
+`ZHIDDENRAM`, `ZSUMNUMARRAY`, `ZRANGENUMARRAY`, `ZTEMPSCRATCH`, `ZPAUSE`,
+`ZFAIL`, `FREEMEM`, `ERRCODE`, and `ERRLINE` for
+the demo/proof commands. Native language features also include `PROC`/`FUNC`,
+`REPEAT`/`UNTIL`, and `LABEL`/`JUMP`. Older entries below may mention historical names such
 as `PING`, `ADD16`, `STRUP`, `HCRC`, `SUMAI`, `RANGEAI`, `TEMPSCRATCH`, and
 `FAIL`; those are retained as dated notes, not current aliases.
+
+## 2026-05-25: Repeat/Until, Label/Jump, And Error Introspection
+
+- Branch: `codex/0.2.4-dev` after merging the ReadyBASIC repeat/label work.
+- Added resident `REPEAT` / `UNTIL expr` post-test loops. The loop stack is four
+  entries deep; overflow reports `?RB ERROR 35`, and `UNTIL` without a matching
+  active `REPEAT` reports `?RB ERROR 36`.
+- Added resident `LABEL name` / `JUMP name` stored-program transfer. `JUMP`
+  scans for the named label and works forward, backward, after colons, and after
+  normalized `IF ... THEN`. Missing labels report `?RB ERROR 39`; numeric
+  `GOTO` remains BASIC ROM behavior.
+- Added `ERRCODE` and `ERRLINE` expression/statement forms for the last
+  ReadyBASIC runtime error code and line.
+- Memory impact versus expression-style branch:
+  - `BASIC_START`: `$2401` -> `$2AC1`.
+  - Empty BASIC free bytes: `31741` -> `30013`, delta `-1728`.
+  - `RESIDENT`: `$11FE` / 4606B -> `$18BA` / 6330B, delta `+1724`.
+  - `BRIDGE`: `$01EA` / 490B -> `$01F4` / 500B, delta `+10`.
+  - `LOWPACK`: `$061A` / 1562B -> `$063D` / 1597B, delta `+35`.
+  - `HIDDEN`: unchanged at `$0377`; `HIDDENPACK`: unchanged at `$004D`.
+  - `REGSEED`: unchanged at `$1010`.
+  - `bin/readybasic.prg`: unchanged at `20994` bytes.
+- Verification:
+  - `make verify PROFILE=precog-d81`: pass.
+  - `build_support/vice_readybasic_repeat_label_probe.sh`: pass, 29/29 steps.
+  - Full ReadyBASIC visual verification suite: pass, 167/167 steps.
+  - `make easyflash-smoke`: pass.
 
 ## 2026-05-23: Proper Nested Terms Plus Float Experiment
 

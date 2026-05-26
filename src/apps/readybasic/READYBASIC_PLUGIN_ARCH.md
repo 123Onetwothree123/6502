@@ -2,15 +2,15 @@
 
 ## Current V1 Layout
 
-- `BASIC_START = $2901`; BASIC owns `$2901-$9FFF`, with `30461` formula empty free bytes (29.7K).
+- `BASIC_START = $2AC1`; BASIC owns `$2AC1-$9FFF`, with `30013` formula empty free bytes (29.3K).
 - `$1000-$1102`: tiny app entry (`$0103`, 259B) that copies hidden helpers and bridge state before BASIC starts.
-- `$1200-$28FC`: visible resident core (`$16FD`, 5885B). This is the only code that calls BASIC ROM helpers.
-- `$2900`: BASIC sentinel byte; it must stay zero before stored-program `RUN`.
-- `$A900-$AF1A`: low command overlay slot under BASIC ROM. Current packed low command image is `$061B` bytes (1.5K, 1563 exact bytes).
+- `$1200-$2AB9`: visible resident core (`$18BA`, 6330B). This is the only code that calls BASIC ROM helpers.
+- `$2AC0`: BASIC sentinel byte; it must stay zero before stored-program `RUN`.
+- `$A900-$AF3C`: low command overlay slot under BASIC ROM. Current packed low command image is `$063D` bytes (1.6K, 1597 exact bytes).
 - `$C200-$C5FF`: fixed call frame, result frame, descriptor buffer, command-name buffer, page buffer, and warm-resume staging (`$0400`, 1.0K).
 - `$A000-$A376`: hidden helper code (`$0377`, 887B), restored from the visible `$C280` shadow.
 - `$A800-$A84C`: hidden worker overlay slot (`$004D`, 77B) used by `ZHIDDENRAM`.
-- `$C000-$C1EB`: bridge state plus native routine return stack (`$01EC`, 492B); the implementation stays below `$C200`.
+- `$C000-$C1F3`: bridge state plus native routine return stack and flow-control scratch (`$01F4`, 500B); the implementation stays below `$C200`.
 
 ## REU Banks
 
@@ -24,6 +24,8 @@
   workspace after launch.
 - Native `PROC`/`FUNC` definitions are ordinary BASIC program text. They do not
   use descriptors, `LOWPACK`, `HIDDENPACK`, or bank `$45` command-code storage.
+- Native `REPEAT`/`UNTIL` and `LABEL`/`JUMP` markers are also visible BASIC text
+  handled by resident parser code; they do not allocate descriptor slots.
 
 ## Bank `$44` Regions
 
@@ -42,7 +44,7 @@
 ## Bank `$45` Regions
 
 - Offset `$0000`: low overlay pack copied from the linker `LOWPACK` segment.
-- Offset `$061B`: hidden overlay pack copied from the linker `HIDDENPACK` segment.
+- Offset `$063D`: hidden overlay pack copied from the linker `HIDDENPACK` segment.
 - Descriptors store code offsets and run offsets; normal low commands copy only their slice. Buffer/heap/screen sample commands currently load the whole low pack because their REU descriptor, allocator, bitmap, and screen-copy helpers live in the overlay pack rather than resident core RAM.
 
 ## Descriptor ABI
@@ -95,6 +97,9 @@ Each descriptor is 32 bytes:
 - `FREEMEM()`: low overlay, prints the current live BASIC free-byte count and refreshes the header.
 - `SCRCAP(H%)` / `SCRCAP()`: low overlay, captures screen text plus color RAM into a typed screen handle.
 - `FADD(A,B,OUT)` / `FADD(A,B)`: resident-computed demo command, returns a plain C64 BASIC float.
+- `ZPAUSE(TICKS)`: low overlay, waits for a number of jiffies.
+- `ERRCODE(OUT%)` / `ERRCODE()`: resident-precomputed, returns the last ReadyBASIC runtime error code.
+- `ERRLINE(OUT%)` / `ERRLINE()`: resident-precomputed, returns the last ReadyBASIC runtime error line, or `0` in direct mode.
 - `SCRPUT(H%)`: low overlay, validates a typed screen handle and restores screen text plus color RAM. This descriptor lives in slot 128 to prove full-table lookup.
 
 Native reusable BASIC routines:
@@ -103,6 +108,14 @@ Native reusable BASIC routines:
 - `FUNC NAME(P%,S$) ... RET expr ... ENDP`: input formals only; `RET`, `RET%`, or `RET$` supplies the return value.
 - `EXEC NAME(...)`: scans stored BASIC text for the matching `PROC`, binds `%`/`$` actuals to formals, pushes a four-entry return stack in bridge state, and resumes at the routine body. `FUNC` is expression-only; `EXEC FUNC(...)` is rejected.
 - `CALL` remains reserved for a future non-returning named transfer and is not implemented.
+
+Native flow-control forms:
+
+- `REPEAT ... UNTIL expr`: post-test loop, nested four deep. Overflow reports
+  `?RB ERROR 35`; `UNTIL` without an active `REPEAT` reports `?RB ERROR 36`.
+- `LABEL NAME`: stored-program marker.
+- `JUMP NAME`: scans the stored program for `LABEL NAME`, then resumes there.
+  Missing labels report `?RB ERROR 39`. Numeric `GOTO` remains BASIC ROM.
 
 ## Known V1 Boundaries
 
@@ -125,7 +138,25 @@ Native reusable BASIC routines:
   returns through `RET`, `RET%`, or `RET$` and has one returned value.
 - Native routine definitions should be placed after `END`; fall-through into
   `PROC`/`FUNC` is invalid in V1.
+- `REPEAT`/`UNTIL` and `LABEL`/`JUMP` are resident language features. They are
+  stored as readable BASIC text and handled through the execute hook.
 - The persistent typed heap currently suballocates 48KB inside bank `$44`; handle type `1` is a byte buffer and type `2` is a screen text+color buffer. Future large/long-lived data can allocate extra REU banks and record those banks in the same REU-backed handle directory.
+
+## Repeat/Label Current Branch
+
+The current branch is stacked on the proper float-term work. It adds resident
+flow control and error introspection:
+
+- `REPEAT` / `UNTIL expr`: post-test loops, nested four deep.
+- `LABEL name` / `JUMP name`: named stored-program transfer without changing
+  numeric `GOTO`.
+- `ERRCODE()` / `ERRLINE()` and statement output forms return the last
+  ReadyBASIC runtime error code and line.
+
+Measured branch layout: `BASIC_START=$2AC1`; BASIC owns `$2AC1-$9FFF`, for
+`30013` formula empty free bytes. `RESIDENT` is `$1200-$2AB9` (`6330` bytes),
+`BRIDGE` is `$C000-$C1F3` (`500` bytes), `LOWPACK` is `$063D` (`1597` bytes),
+and `bin/readybasic.prg` remains `20994` bytes.
 
 ## Lean Nested-Term Experiment
 
