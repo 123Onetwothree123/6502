@@ -110,6 +110,10 @@ if [[ "$TRUE_DRIVE" = "1" ]]; then
       -devicebackend9 0 \
       +busdevice8 \
       +busdevice9 \
+      +trapdevice8 \
+      +trapdevice9 \
+      +trapdevice10 \
+      +trapdevice11 \
       ${EXTRA_VICE_ARGS[@]+"${EXTRA_VICE_ARGS[@]}"} \
       -drive8truedrive \
       -drive9truedrive \
@@ -130,6 +134,10 @@ if [[ "$TRUE_DRIVE" = "1" ]]; then
       -devicebackend9 0 \
       +busdevice8 \
       +busdevice9 \
+      +trapdevice8 \
+      +trapdevice9 \
+      +trapdevice10 \
+      +trapdevice11 \
       ${EXTRA_VICE_ARGS[@]+"${EXTRA_VICE_ARGS[@]}"} \
       -drive8truedrive \
       -drive9truedrive \
@@ -153,6 +161,10 @@ else
       -devicebackend9 0 \
       +busdevice8 \
       +busdevice9 \
+      +trapdevice8 \
+      +trapdevice9 \
+      +trapdevice10 \
+      +trapdevice11 \
       ${EXTRA_VICE_ARGS[@]+"${EXTRA_VICE_ARGS[@]}"} \
       -8 "$CASE_DISK_8" \
       -9 "$CASE_DISK_9" \
@@ -171,6 +183,10 @@ else
       -devicebackend9 0 \
       +busdevice8 \
       +busdevice9 \
+      +trapdevice8 \
+      +trapdevice9 \
+      +trapdevice10 \
+      +trapdevice11 \
       ${EXTRA_VICE_ARGS[@]+"${EXTRA_VICE_ARGS[@]}"} \
       -8 "$CASE_DISK_8" \
       -9 "$CASE_DISK_9" \

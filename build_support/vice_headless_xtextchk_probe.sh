@@ -89,6 +89,10 @@ if [[ "$TRUE_DRIVE" = "1" ]]; then
       -drive8type 1571 \
       -devicebackend8 0 \
       +busdevice8 \
+      +trapdevice8 \
+      +trapdevice9 \
+      +trapdevice10 \
+      +trapdevice11 \
       -drive8truedrive \
       -8 "$CASE_DISK_8" \
       -limitcycles "$LIMIT_CYCLES" \
@@ -103,6 +107,10 @@ if [[ "$TRUE_DRIVE" = "1" ]]; then
       -drive8type 1571 \
       -devicebackend8 0 \
       +busdevice8 \
+      +trapdevice8 \
+      +trapdevice9 \
+      +trapdevice10 \
+      +trapdevice11 \
       -drive8truedrive \
       -8 "$CASE_DISK_8" \
       -limitcycles "$LIMIT_CYCLES" \
@@ -120,6 +128,10 @@ else
       -drive8type 1571 \
       -devicebackend8 0 \
       +busdevice8 \
+      +trapdevice8 \
+      +trapdevice9 \
+      +trapdevice10 \
+      +trapdevice11 \
       -8 "$CASE_DISK_8" \
       -limitcycles "$LIMIT_CYCLES" \
       -autostartprgmode 1 \
@@ -133,6 +145,10 @@ else
       -drive8type 1571 \
       -devicebackend8 0 \
       +busdevice8 \
+      +trapdevice8 \
+      +trapdevice9 \
+      +trapdevice10 \
+      +trapdevice11 \
       -8 "$CASE_DISK_8" \
       -limitcycles "$LIMIT_CYCLES" \
       -autostartprgmode 1 \
