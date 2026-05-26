@@ -110,7 +110,7 @@ if [[ "$TRUE_DRIVE" = "1" ]]; then
       -devicebackend9 0 \
       +busdevice8 \
       +busdevice9 \
-      "${EXTRA_VICE_ARGS[@]}" \
+      ${EXTRA_VICE_ARGS[@]+"${EXTRA_VICE_ARGS[@]}"} \
       -drive8truedrive \
       -drive9truedrive \
       -8 "$CASE_DISK_8" \
@@ -130,7 +130,7 @@ if [[ "$TRUE_DRIVE" = "1" ]]; then
       -devicebackend9 0 \
       +busdevice8 \
       +busdevice9 \
-      "${EXTRA_VICE_ARGS[@]}" \
+      ${EXTRA_VICE_ARGS[@]+"${EXTRA_VICE_ARGS[@]}"} \
       -drive8truedrive \
       -drive9truedrive \
       -8 "$CASE_DISK_8" \
@@ -153,7 +153,7 @@ else
       -devicebackend9 0 \
       +busdevice8 \
       +busdevice9 \
-      "${EXTRA_VICE_ARGS[@]}" \
+      ${EXTRA_VICE_ARGS[@]+"${EXTRA_VICE_ARGS[@]}"} \
       -8 "$CASE_DISK_8" \
       -9 "$CASE_DISK_9" \
       -limitcycles "$LIMIT_CYCLES" \
@@ -171,7 +171,7 @@ else
       -devicebackend9 0 \
       +busdevice8 \
       +busdevice9 \
-      "${EXTRA_VICE_ARGS[@]}" \
+      ${EXTRA_VICE_ARGS[@]+"${EXTRA_VICE_ARGS[@]}"} \
       -8 "$CASE_DISK_8" \
       -9 "$CASE_DISK_9" \
       -limitcycles "$LIMIT_CYCLES" \
