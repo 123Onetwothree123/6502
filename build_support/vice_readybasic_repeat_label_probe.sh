@@ -2,15 +2,28 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-HARNESS_ROOT="${VICE_TASKS_ROOT:-/Users/karlprosserpp/dev/c64projects/agenticdevharness/tools/vice_tasks_dotnet}"
-PROJECT="$HARNESS_ROOT/src/ViceTasks.Binary/ViceTasks.Binary.csproj"
-WORK_DIR="$HARNESS_ROOT/AGENTWORKING"
-PLAN="$WORK_DIR/readybasic_repeat_label_probe.generated.yaml"
+if [ -n "${VICE_TASKS_ROOT:-}" ]; then
+  VICE_TOOL_ROOT="$(cd "$VICE_TASKS_ROOT" && pwd)"
+  HARNESS_REPO="$(cd "$VICE_TOOL_ROOT/../.." && pwd)"
+else
+  HARNESS_REPO="${VICE_TASKS_REPO:-$ROOT/../agenticdevharness}"
+  HARNESS_REPO="$(cd "$HARNESS_REPO" && pwd)"
+  VICE_TOOL_ROOT="$HARNESS_REPO/tools/vice_tasks_dotnet"
+fi
+PROJECT="$VICE_TOOL_ROOT/src/ViceTasks.Binary/ViceTasks.Binary.csproj"
+PLAN="${READYBASIC_REPEAT_PLAN:-$ROOT/logs/readybasic_repeat_label_probe.generated.yaml}"
 READYBASIC_VISIBLE="${READYBASIC_VISIBLE:-0}"
 READYBASIC_KEEP_VICE="${READYBASIC_KEEP_VICE:-0}"
 VICE_HEADLESS="true"
 VICE_CLOSE="true"
 CLI_CLOSE_ARG="--close-vice"
+
+if [ ! -f "$PROJECT" ]; then
+  echo "ReadyBASIC repeat-label VICE probe could not find the VICE task runner at: $PROJECT" >&2
+  echo "Set VICE_TASKS_REPO or VICE_TASKS_ROOT to the external agenticdevharness checkout." >&2
+  exit 2
+fi
+mkdir -p "$(dirname "$PLAN")"
 
 if [ "$READYBASIC_VISIBLE" = "1" ]; then
   VICE_HEADLESS="false"
@@ -229,6 +242,6 @@ steps:
       command: "r"
 YAML
 
-cd "$HARNESS_ROOT/../.."
+cd "$HARNESS_REPO"
 dotnet build "$PROJECT"
 dotnet run --project "$PROJECT" -- run-plan --plan "$PLAN" $CLI_CLOSE_ARG

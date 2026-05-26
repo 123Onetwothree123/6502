@@ -698,13 +698,13 @@ descriptor layout remains fixed.
 The current full visual suite is:
 
 ```sh
-READYBASIC_VISIBLE=1 /Users/karlprosserpp/dev/c64projects/agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_full_suite_visual_verification.sh
+READYBASIC_VISIBLE=1 build_support/run_readybasic_full_suite_visual_verification.sh
 ```
 
 Latest documented pass on the REU-backed 128-handle branch:
 
 - Run dir:
-  `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260522_154424`
+  `../agenticdevharness/logs/vice_auto_20260522_154424`
 - Result: 133/133 concrete steps, `FailedStep: null`, no degraded steps; the
   wrapper reports `partial`, matching the current no-failed-step harness
   behavior.

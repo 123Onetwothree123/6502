@@ -639,6 +639,9 @@ readybasic-plugin-static-check: $(READYBASIC) $(BUILD_SUPPORT_DIR)/verify_readyb
 readybasic-repeat-label-vice: $(BUILD_SUPPORT_DIR)/vice_readybasic_repeat_label_probe.sh
 	$(BUILD_SUPPORT_DIR)/vice_readybasic_repeat_label_probe.sh
 
+readybasic-full-vice: $(BUILD_SUPPORT_DIR)/run_readybasic_full_suite_visual_verification.sh
+	$(BUILD_SUPPORT_DIR)/run_readybasic_full_suite_visual_verification.sh
+
 # ReadyBASIC sample program (relocated to ReadyBASIC's $2AC1 BASIC workspace).
 $(READYBASIC_RBTEST1): $(APPS_DIR)/readybasic/rbtest1.bas
 	@mkdir -p "$(OBJ_DIR)"
@@ -1144,6 +1147,7 @@ help:
 	@echo "  readyshell-vm-smoke-host - Run ReadyShell VM/pipeline host smoke checks"
 	@echo "  readyshell-reu-tests-host - Run ReadyShell REU heap/value host tests"
 	@echo "  readyshell-overlay-report - Generate ReadyShell overlay Markdown + HTML docs"
+	@echo "  readybasic-full-vice - Run the full ReadyBASIC VICE visual suite"
 	@echo "  seed-cal26  - Seed CAL26 REL files on the latest built precog-dual-d71 drive 8 image"
 	@echo "  launcher-verbose - Rebuild launcher with verbose config diagnostics"
 	@echo "  run         - Run Ready OS through run.sh for PROFILE=<id>"
@@ -1199,5 +1203,5 @@ probe-rel:
 launcher-verbose:
 	$(MAKE) LAUNCHER_CFG_VERBOSE=1 $(LAUNCHER)
 
-.PHONY: all clean verify verify-resume shim-verify fullcheck help run run-test seed-cal26 probe-rel launcher-verbose readybasic-plugin-static-check readybasic-repeat-label-vice readyshell-host-tests readyshell-parse-smoke-host readyshell-vm-smoke-host readyshell-reu-tests-host editor-smoke-host tasklist-smoke-host programs prepare-version profile profiles release-all easyflash easyflash-verify easyflash-smoke easyflash-smoke-long easyflash-preload-verify easyflash-clean FORCE
+.PHONY: all clean verify verify-resume shim-verify fullcheck help run run-test seed-cal26 probe-rel launcher-verbose readybasic-plugin-static-check readybasic-repeat-label-vice readybasic-full-vice readyshell-host-tests readyshell-parse-smoke-host readyshell-vm-smoke-host readyshell-reu-tests-host editor-smoke-host tasklist-smoke-host programs prepare-version profile profiles release-all easyflash easyflash-verify easyflash-smoke easyflash-smoke-long easyflash-preload-verify easyflash-clean FORCE
 EASYFLASH_LAUNCHER_CPPFLAGS ?=

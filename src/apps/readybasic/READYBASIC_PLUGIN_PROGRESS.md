@@ -185,17 +185,17 @@ as `PING`, `ADD16`, `STRUP`, `HCRC`, `SUMAI`, `RANGEAI`, `TEMPSCRATCH`, and
 - Verification:
   - `make readybasic-plugin-static-check`
   - Positive `RBPROC1` stored-program probe:
-    `/Users/karlprosserpp/dev/c64projects/readyosprecog/logs/vice_auto_20260522_174557`
+    `./logs/vice_auto_20260522_174557`
   - Negative `RBPROCERR` stored-program probe with screen clear between cases:
-    `/Users/karlprosserpp/dev/c64projects/readyosprecog/logs/vice_auto_20260522_180449`
+    `./logs/vice_auto_20260522_180449`
   - Existing `rbtest1` probe:
-    `/Users/karlprosserpp/dev/c64projects/readyosprecog/logs/vice_auto_20260522_174629`
+    `./logs/vice_auto_20260522_174629`
   - Existing direct command probe:
-    `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260522_174650`
+    `../agenticdevharness/logs/vice_auto_20260522_174650`
   - Existing lifecycle probe:
-    `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260522_174916`
+    `../agenticdevharness/logs/vice_auto_20260522_174916`
   - Existing stored-program command probe:
-    `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260522_174948`
+    `../agenticdevharness/logs/vice_auto_20260522_174948`
 
 ## 2026-05-22: Command Rename, LOWER, And Making-Command Guide
 
@@ -209,13 +209,13 @@ as `PING`, `ADD16`, `STRUP`, `HCRC`, `SUMAI`, `RANGEAI`, `TEMPSCRATCH`, and
   `ok`; the harness wrapper still reported process-level `partial` with
   `FailedStep: null`, matching the known wrapper behavior.
 - Run dirs:
-  - Direct: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260522_164329`
-  - Program: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260522_165634`
-  - Lifecycle: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260522_165745`
-  - State: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260522_165814`
-  - Large vars: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260522_165907`
-  - `rbtest1`: `/Users/karlprosserpp/dev/c64projects/readyosprecog/logs/vice_auto_20260522_170005`
-  - Full visual: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260522_170022`
+  - Direct: `../agenticdevharness/logs/vice_auto_20260522_164329`
+  - Program: `../agenticdevharness/logs/vice_auto_20260522_165634`
+  - Lifecycle: `../agenticdevharness/logs/vice_auto_20260522_165745`
+  - State: `../agenticdevharness/logs/vice_auto_20260522_165814`
+  - Large vars: `../agenticdevharness/logs/vice_auto_20260522_165907`
+  - `rbtest1`: `./logs/vice_auto_20260522_170005`
+  - Full visual: `../agenticdevharness/logs/vice_auto_20260522_170022`
 - Current static layout:
   - `ENTRY` `$1000-$1102`, size `$0103` (259B).
   - `RESIDENT` `$1200-$1BB3`, size `$09B4` (2484B).
@@ -246,12 +246,12 @@ as `PING`, `ADD16`, `STRUP`, `HCRC`, `SUMAI`, `RANGEAI`, `TEMPSCRATCH`, and
   concrete assertion with `FailedStep: null`; the wrapper still reported
   `partial`, matching the current harness behavior when no concrete step fails.
 - Run dirs:
-  - Direct: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260522_153017`
-  - Program: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260522_154145`
-  - Lifecycle: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260522_154246`
-  - State: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260522_154309`
-  - Large vars: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260522_154359`
-  - Full visual: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260522_154424`
+  - Direct: `../agenticdevharness/logs/vice_auto_20260522_153017`
+  - Program: `../agenticdevharness/logs/vice_auto_20260522_154145`
+  - Lifecycle: `../agenticdevharness/logs/vice_auto_20260522_154246`
+  - State: `../agenticdevharness/logs/vice_auto_20260522_154309`
+  - Large vars: `../agenticdevharness/logs/vice_auto_20260522_154359`
+  - Full visual: `../agenticdevharness/logs/vice_auto_20260522_154424`
 - Current static layout:
   - `ENTRY` `$1000-$1102`, size `$0103` (259B).
   - `RESIDENT` `$1200-$1BAF`, size `$09B0` (2480B).
@@ -348,7 +348,7 @@ as `PING`, `ADD16`, `STRUP`, `HCRC`, `SUMAI`, `RANGEAI`, `TEMPSCRATCH`, and
   - Hidden helper shadow is refreshed at `$C280-$C5B6` (`$0337`, 0.8K).
   - Zero page and stack snapshots live in REU bank `$44` offsets `$0A00/$0B00`.
 - Latest full visual verification:
-  - Run dir: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260521_202657`
+  - Run dir: `../agenticdevharness/logs/vice_auto_20260521_202657`
   - Result: 98/98 steps, `FailedStep: null`, no degraded steps.
 
 ## 2026-05-11: Assembler Spine Build
@@ -421,8 +421,8 @@ as `PING`, `ADD16`, `STRUP`, `HCRC`, `SUMAI`, `RANGEAI`, `TEMPSCRATCH`, and
 
 ## 2026-05-11: Interrupted Visible Boot/Resume Run
 
-- Command: `make readybasic-plugin-static-check && READYBASIC_VISIBLE=1 /Users/karlprosserpp/dev/c64projects/agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_plugin_command_probe.sh`
-- Run dir: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260511_201407`
+- Command: `make readybasic-plugin-static-check && READYBASIC_VISIBLE=1 ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_plugin_command_probe.sh`
+- Run dir: `../agenticdevharness/logs/vice_auto_20260511_201407`
 - Result: interrupted/terminated manually after VICE appeared locked before the ReadyBasic banner.
 - Key trace:
   - Static guardrail passed before launch.
@@ -441,8 +441,8 @@ as `PING`, `ADD16`, `STRUP`, `HCRC`, `SUMAI`, `RANGEAI`, `TEMPSCRATCH`, and
 
 ## 2026-05-11: Visible Plugin Probe Passed
 
-- Command: `READYBASIC_VISIBLE=1 /Users/karlprosserpp/dev/c64projects/agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_plugin_command_probe.sh`
-- Run dir: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260511_202147`
+- Command: `READYBASIC_VISIBLE=1 ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_plugin_command_probe.sh`
+- Run dir: `../agenticdevharness/logs/vice_auto_20260511_202147`
 - Result: pass, 44/44 steps.
 - Key trace:
   - Cold boot reached `READYBASIC REU PLUGINS`.
@@ -456,8 +456,8 @@ as `PING`, `ADD16`, `STRUP`, `HCRC`, `SUMAI`, `RANGEAI`, `TEMPSCRATCH`, and
 
 ## 2026-05-11: Visible Resume-State Probe Passed
 
-- Command: `READYBASIC_SKIP_BUILD=1 READYBASIC_VISIBLE=1 /Users/karlprosserpp/dev/c64projects/agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_plugin_command_probe.sh`
-- Run dir: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260511_202329`
+- Command: `READYBASIC_SKIP_BUILD=1 READYBASIC_VISIBLE=1 ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_plugin_command_probe.sh`
+- Run dir: `../agenticdevharness/logs/vice_auto_20260511_202329`
 - Result: pass, 47/47 steps.
 - Key trace:
   - Reused the already-built `precog-d81` image from the previous passing run.
@@ -475,8 +475,8 @@ as `PING`, `ADD16`, `STRUP`, `HCRC`, `SUMAI`, `RANGEAI`, `TEMPSCRATCH`, and
 - Branch: `codex/readybasic-reu-plugin-spine`
 - Static command: `make readybasic-plugin-static-check`
 - Static result: pass.
-- Automation command: `READYBASIC_VISIBLE=1 /Users/karlprosserpp/dev/c64projects/agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_plugin_command_probe.sh`
-- Run dir: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260511_202716`
+- Automation command: `READYBASIC_VISIBLE=1 ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_plugin_command_probe.sh`
+- Run dir: `../agenticdevharness/logs/vice_auto_20260511_202716`
 - Result: pass, 47/47 steps after a fresh `precog-d81` profile build with `runappfirst=readybasic`.
 - Key trace:
   - Cold ReadyOS boot autoloaded ReadyBasic through the generated app config.
@@ -492,8 +492,8 @@ as `PING`, `ADD16`, `STRUP`, `HCRC`, `SUMAI`, `RANGEAI`, `TEMPSCRATCH`, and
 
 ## 2026-05-11: Program-Mode Probe Passed
 
-- First failing command: `READYBASIC_SKIP_BUILD=1 READYBASIC_VISIBLE=1 bash /Users/karlprosserpp/dev/c64projects/agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_program_probe.sh`
-- First failing run dir: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260511_203414`
+- First failing command: `READYBASIC_SKIP_BUILD=1 READYBASIC_VISIBLE=1 bash ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_program_probe.sh`
+- First failing run dir: `../agenticdevharness/logs/vice_auto_20260511_203414`
 - First failing step/code: `assert_program_ping_run`, screen contained `?SYNTAX ERROR` instead of `PRPING 1`.
 - Key diagnosis:
   - `LIST` showed `10 !PING`, so raw stored text survived crunch/list.
@@ -506,8 +506,8 @@ as `PING`, `ADD16`, `STRUP`, `HCRC`, `SUMAI`, `RANGEAI`, `TEMPSCRATCH`, and
   - Removed the now-unused saved-`TXTPTR` bridge bytes after switching back to non-mutating peek; final `BRIDGE` remains `$C000-$C075`.
 - Static command: `make readybasic-plugin-static-check`
 - Static result: pass.
-- Passing program command: `READYBASIC_VISIBLE=1 bash /Users/karlprosserpp/dev/c64projects/agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_program_probe.sh`
-- Passing program run dir: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260511_204630`
+- Passing program command: `READYBASIC_VISIBLE=1 bash ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_program_probe.sh`
+- Passing program run dir: `../agenticdevharness/logs/vice_auto_20260511_204630`
 - Program result: pass, 24/24 steps after a fresh `precog-d81` profile build with `runappfirst=readybasic`.
 - Program trace:
   - `!PING OUT%` works from stored BASIC and survives `LIST`.
@@ -517,8 +517,8 @@ as `PING`, `ADD16`, `STRUP`, `HCRC`, `SUMAI`, `RANGEAI`, `TEMPSCRATCH`, and
   - Integer array input/output works: `SUMAI` and `RANGEAI`.
   - Persistent REU handle lifecycle works: `BUFNEW`, `BUFFILL`, `BUFFREE`.
   - Error path works: `!FAIL 7,X%` reports `?RB ERROR 7` and leaves the pre-cleared output variable at zero.
-- Regression command: `READYBASIC_SKIP_BUILD=1 READYBASIC_VISIBLE=1 bash /Users/karlprosserpp/dev/c64projects/agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_plugin_command_probe.sh`
-- Regression run dir: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260511_204727`
+- Regression command: `READYBASIC_SKIP_BUILD=1 READYBASIC_VISIBLE=1 bash ../agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_plugin_command_probe.sh`
+- Regression run dir: `../agenticdevharness/logs/vice_auto_20260511_204727`
 - Regression result: pass, 47/47 steps.
 - Next hypothesis:
   - The raw `!COMMAND args` path is now proven for both direct mode and stored program mode.
@@ -526,10 +526,10 @@ as `PING`, `ADD16`, `STRUP`, `HCRC`, `SUMAI`, `RANGEAI`, `TEMPSCRATCH`, and
 
 ## 2026-05-12: Full Suite Visual Verification Passed
 
-- Script: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_full_suite_visual_verification.sh`
+- Script: `build_support/run_readybasic_full_suite_visual_verification.sh`
 - Generated plan id: `readybasic_full_suite_visual_verification`
-- Command: `READYBASIC_VISIBLE=1 /Users/karlprosserpp/dev/c64projects/agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_full_suite_visual_verification.sh`
-- Run dir: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260512_002033`
+- Command: `READYBASIC_VISIBLE=1 build_support/run_readybasic_full_suite_visual_verification.sh`
+- Run dir: `../agenticdevharness/logs/vice_auto_20260512_002033`
 - Result: pass, 84/84 steps after a fresh `precog-d81` profile build with `READYOS_CONFIG_RUN_FIRST=readybasic`.
 - Visual pacing:
   - All input sections use `post_delay_s: 3.0`, so the current result or `LIST` output remains visible for three seconds before the next screen-clearing section begins.
@@ -564,24 +564,24 @@ as `PING`, `ADD16`, `STRUP`, `HCRC`, `SUMAI`, `RANGEAI`, `TEMPSCRATCH`, and
   (`$0165`).
 - Fresh-build command probe:
   - Command: `READYBASIC_VISIBLE=1 bash .../run_readybasic_plugin_command_probe.sh`
-  - Run dir: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260521_010753`
-  - Follow-up run with direct `IF 1 THEN !PING`: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260521_011815`
+  - Run dir: `../agenticdevharness/logs/vice_auto_20260521_010753`
+  - Follow-up run with direct `IF 1 THEN !PING`: `../agenticdevharness/logs/vice_auto_20260521_011815`
   - All steps reported `ok`; wrapper status was `partial` with no failed step.
 - Program probe:
-  - Run dir: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260521_012044`
+  - Run dir: `../agenticdevharness/logs/vice_auto_20260521_012044`
   - All steps reported `ok`, including stored `IF 1 THEN !PING`, `IF 0 THEN`,
     `FOR/NEXT`, and `THEN !` inside string/`REM`/`DATA` text.
 - Full visual suite:
-  - Run dir: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260521_012154`
+  - Run dir: `../agenticdevharness/logs/vice_auto_20260521_012154`
   - All 98 steps reported `ok`; wrapper status was `partial` with no failed step.
 - Additional probes:
-  - Lifecycle: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260521_012603`, all 47 steps `ok`.
-  - State: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260521_012627`, all 57 steps `ok`.
-  - `RBTEST1`: `/Users/karlprosserpp/dev/c64projects/readyosprecog/logs/vice_auto_20260521_012719`, all 12 steps `ok`.
-  - Large vars: `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260521_012739`, all 19 steps `ok`.
+  - Lifecycle: `../agenticdevharness/logs/vice_auto_20260521_012603`, all 47 steps `ok`.
+  - State: `../agenticdevharness/logs/vice_auto_20260521_012627`, all 57 steps `ok`.
+  - `RBTEST1`: `./logs/vice_auto_20260521_012719`, all 12 steps `ok`.
+  - Large vars: `../agenticdevharness/logs/vice_auto_20260521_012739`, all 19 steps `ok`.
 - Harness instability:
   - Cross-app resume reached step 200/206 before VICE exited with code 137:
-    `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260521_012802`.
+    `../agenticdevharness/logs/vice_auto_20260521_012802`.
   - A rerun failed near launch with the same VICE exit code 137, and the
     second-entry editor probe also failed before reaching ReadyBASIC due VICE
     monitor/exit-137 launch failures.

@@ -12,10 +12,10 @@ proven, adjusted, or rejected during implementation.
 - Baseline static gate passed with:
   `make bin/readybasic.prg && make readybasic-plugin-static-check`.
 - Baseline VICE gate passed with:
-  `READYBASIC_VISIBLE=1 /Users/karlprosserpp/dev/c64projects/agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_full_suite_visual_verification.sh`.
+  `READYBASIC_VISIBLE=1 build_support/run_readybasic_full_suite_visual_verification.sh`.
   Result was `success`, 167/167 steps, failed step `null`, no degraded steps.
   Run dir:
-  `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260525_205922`.
+  `../agenticdevharness/logs/vice_auto_20260525_205922`.
 - Baseline memory:
   - `BASIC_START=$2AC1`.
   - Formula BASIC free bytes: `30013 ($753D)`.
@@ -42,10 +42,10 @@ proven, adjusted, or rejected during implementation.
 - Static gate:
   `make bin/readybasic.prg && make readybasic-plugin-static-check` passed.
 - VICE gate:
-  `READYBASIC_VISIBLE=1 /Users/karlprosserpp/dev/c64projects/agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_full_suite_visual_verification.sh`
+  `READYBASIC_VISIBLE=1 build_support/run_readybasic_full_suite_visual_verification.sh`
   passed with `success`, 167/167 steps, failed step `null`, no degraded steps.
   Run dir:
-  `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260525_210853`.
+  `../agenticdevharness/logs/vice_auto_20260525_210853`.
 - Memory delta versus baseline:
   - `BASIC_START` unchanged at `$2AC1`.
   - Formula BASIC free bytes unchanged at `30013 ($753D)`.
@@ -71,10 +71,10 @@ proven, adjusted, or rejected during implementation.
 - Static gate:
   `make bin/readybasic.prg && make readybasic-plugin-static-check` passed.
 - VICE gate:
-  `READYBASIC_VISIBLE=1 /Users/karlprosserpp/dev/c64projects/agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_full_suite_visual_verification.sh`
+  `READYBASIC_VISIBLE=1 build_support/run_readybasic_full_suite_visual_verification.sh`
   passed with `success`, 167/167 steps, failed step `null`, no degraded steps.
   Run dir:
-  `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260525_212413`.
+  `../agenticdevharness/logs/vice_auto_20260525_212413`.
 - Memory delta versus baseline:
   - `BASIC_START` unchanged at `$2AC1`; formula BASIC free bytes unchanged at
     `30013 ($753D)`.
@@ -110,10 +110,10 @@ proven, adjusted, or rejected during implementation.
 - Static gate:
   `make bin/readybasic.prg && make readybasic-plugin-static-check` passed.
 - VICE gate:
-  `READYBASIC_VISIBLE=1 /Users/karlprosserpp/dev/c64projects/agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_full_suite_visual_verification.sh`
+  `READYBASIC_VISIBLE=1 build_support/run_readybasic_full_suite_visual_verification.sh`
   passed with `success`, 167/167 steps, failed step `null`, no degraded steps.
   Run dir:
-  `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260525_213645`.
+  `../agenticdevharness/logs/vice_auto_20260525_213645`.
 - Memory delta versus baseline:
   - `BASIC_START` unchanged at `$2AC1`; formula BASIC free bytes unchanged at
     `30013 ($753D)`.
@@ -149,10 +149,10 @@ proven, adjusted, or rejected during implementation.
 - Static gate:
   `make bin/readybasic.prg && make readybasic-plugin-static-check` passed.
 - VICE gate:
-  `READYBASIC_VISIBLE=1 /Users/karlprosserpp/dev/c64projects/agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_full_suite_visual_verification.sh`
+  `READYBASIC_VISIBLE=1 build_support/run_readybasic_full_suite_visual_verification.sh`
   passed with `success`, 175/175 steps, failed step `null`, no degraded steps.
   Run dir:
-  `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260525_215209`.
+  `../agenticdevharness/logs/vice_auto_20260525_215209`.
 - Memory delta versus baseline:
   - `BASIC_START` unchanged at `$2AC1`; formula BASIC free bytes unchanged at
     `30013 ($753D)`.
@@ -191,10 +191,10 @@ proven, adjusted, or rejected during implementation.
 - Static gate:
   `make bin/readybasic.prg && make readybasic-plugin-static-check` passed.
 - VICE gate:
-  `READYBASIC_VISIBLE=1 /Users/karlprosserpp/dev/c64projects/agenticdevharness/tools/vice_tasks_dotnet/AGENTWORKING/run_readybasic_full_suite_visual_verification.sh`
+  `READYBASIC_VISIBLE=1 build_support/run_readybasic_full_suite_visual_verification.sh`
   passed with `success`, 181/181 steps, failed step `null`, no degraded steps.
   Run dir:
-  `/Users/karlprosserpp/dev/c64projects/agenticdevharness/logs/vice_auto_20260525_222934`.
+  `../agenticdevharness/logs/vice_auto_20260525_222934`.
 - Memory delta versus Slice 4:
   - `BASIC_START` unchanged at `$2AC1`; formula BASIC free bytes unchanged at
     `30013 ($753D)`.
@@ -227,3 +227,26 @@ proven, adjusted, or rejected during implementation.
 - Acceptance rule for this pass: do not delete content unless it is completely
   irrelevant. If older content is historically useful but no longer current,
   annotate it as historical/pre-module rather than removing it.
+
+## Local ReadyBASIC VICE Suite Ownership
+
+- Moved the full ReadyBASIC visual-suite script into this repo as
+  `build_support/run_readybasic_full_suite_visual_verification.sh`.
+- The script still uses the external `agenticdevharness` VICE task runner, but
+  finds it through `../agenticdevharness` by default or through
+  `VICE_TASKS_REPO` / `VICE_TASKS_ROOT`; no local user home path is embedded.
+- `make readybasic-full-vice` is now the repo-owned gate for the 181-step full
+  visual suite.
+- Updated the repeat-label VICE probe to use the same relative/env-var harness
+  discovery and to write its generated plan under this repo's `logs/`.
+- Verified:
+  `make readybasic-plugin-static-check` passed, and
+  `READYBASIC_VISIBLE=0 make readybasic-full-vice` passed with `success`,
+  181/181 steps, failed step `null`, no degraded steps.
+- Also verified:
+  `READYBASIC_VISIBLE=0 make readybasic-repeat-label-vice` passed with
+  `success`, 29/29 steps, failed step `null`, no degraded steps.
+- Latest run dir:
+  `../agenticdevharness/logs/vice_auto_20260526_143236`.
+- Latest repeat-label run dir:
+  `../agenticdevharness/logs/vice_auto_20260526_144120`.
