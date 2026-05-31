@@ -12,6 +12,17 @@ readable, `LIST` shows visible `PROC`, `FUNC`, `EXEC`, `ENDP`, and command text,
 and the execute/eval hooks recognize extensions when BASIC dispatches a
 statement or expression.
 
+For the most visual current memory explanation, regenerate and open
+`docs/readybasic_memory_diagrams.html` with:
+
+```sh
+make readybasic-memory-report
+```
+
+That special report is generated from the current ReadyBASIC map/linker/source
+facts and shows the proportional C64 RAM, cold-load seed, steady-state BASIC
+workspace, under-ROM slot, and REU bank `$44`/`$45` pictures.
+
 ## Current Module/Submodule Snapshot
 
 This section is the current source of truth for the module/submodule branch.
@@ -228,13 +239,14 @@ support, not the final product command catalog.
 |---|---|---|
 | Scalar Outputs | `ZECHO1`, `ZADD16` | Prove integer output variables, numeric expression parsing, and scalar result commit. |
 | String Transfer/Transform | `UPPER`, `LOWER` | Prove string input capture and resident-owned BASIC string output allocation. |
-| Hidden Banked Worker | `ZHIDDENRAM` | Prove worker code can run under BASIC ROM RAM in the `$A800` hidden overlay slot. |
+| Under-ROM Worker | `ZHIDDENRAM` | Prove worker code can run behind BASIC ROM in the shared slot-0 module payload. |
 | Integer Array Transfer | `ZSUMNUMARRAY`, `ZRANGENUMARRAY` | Prove array input/output via explicit base element plus count. |
 | Persistent REU Handles | `BUFNEW`, `BUFFILL`, `BUFFREE`, `SCRCAP`, `SCRPUT` | Prove stable BASIC-visible handles for persistent REU-backed data, including typed screen text+color resources. |
 | Temporary REU Workspace | `ZTEMPSCRATCH` | Prove temporary page allocation and cleanup. |
 | Error/Failure Contract | `ZFAIL` | Prove outputs are cleared before execution and stale results are not committed. |
 | Timing/Delay | `ZPAUSE` | Prove a small timing command can wait for a number of jiffies without command overlay growth elsewhere. |
 | Runtime Introspection | `FREEMEM`, `ERRCODE`, `ERRLINE` | Prints live BASIC free memory, refreshes the header value, and exposes the last ReadyBASIC runtime error. |
+| Module/Submodule Proofs | `ZSLOT0`, `ZSLOT1`, `ZSLOT2`, `ZSPAN`, `ZOVL1`, `ZOVL2`, `ZCPYRST`, `ZCOPY`, `ZMODLD`, `ZDM1`, `ZDM2S`, `ZDOV1`, `ZDOV2` | Prove slot dispatch, multi-slot span loading, overlay replacement, no-recopy behavior, and disk-loaded module registration. |
 | ReadyOS Yield | `EXIT` | Save BASIC runtime state, restore vectors, and return through the ReadyOS shim. |
 
 ### Command Inventory
@@ -242,29 +254,35 @@ support, not the final product command catalog.
 | Command | Code placement | Parameters | Result behavior |
 |---|---|---|---|
 | `ZECHO1(OUT%)` / `ZECHO1()` | Resident-precomputed result; a legacy low stub remains in `LOWPACK` | output integer, or expression integer | Returns `1` without fetching an overlay in the current branch. |
-| `ZADD16(A,B,OUT%)` / `ZADD16(A,B)` | Low overlay at `$A900+$0015`, copy `$001E` | two numeric expressions, output integer or expression integer | Returns 16-bit sum. |
-| `FADD(A,B,OUT)` / `FADD(A,B)` | Resident-computed float demo command, descriptor slot 16 has a one-byte low stub | two plain numeric expressions, output plain numeric variable or expression float | Uses BASIC ROM floating addition. Statement output must be a plain numeric variable, not `%`. |
-| `ZPAUSE(TICKS)` | Low overlay at `$A900+$0034`, copy `$0022` | tick count | Waits for the requested jiffy count. |
-| `UPPER(S$,OUT$)` / `UPPER(S$)` | Low overlay at `$A900+$0056`, copy `$003B` | string variable or quoted literal, output string or expression string | Uppercases staged bytes. |
-| `LOWER(S$,OUT$)` / `LOWER(S$)` | Low overlay at `$A900+$0091`, copy `$003B` | string variable or quoted literal, output string or expression string | Lowercases staged byte values. On the default C64 screen this is verified by `ASC()` values, because display case is charset-dependent. |
-| `ZHIDDENRAM(S$,OUT%)` / `ZHIDDENRAM(S$)` | Hidden overlay at `$A800`, copy `$004D` (77B) | string variable or quoted literal, output integer or expression integer | Returns a simple uppercase-byte checksum. |
-| `ZSUMNUMARRAY(A%(0),COUNT,OUT%)` / `ZSUMNUMARRAY(A%(0),COUNT)` | Low overlay at `$A900+$00CC`, copy `$0044` | integer array base, count, output integer or expression integer | Sums integer array elements. |
-| `ZRANGENUMARRAY(START,COUNT,A%(0))` | Low overlay at `$A900+$0110`, copy `$003D` | start value, count, output array base | Stages consecutive integers, then resident code writes them to the array. |
-| `BUFNEW(LEN,H%)` / `BUFNEW(LEN)` | Low overlay entry `$014D`, copy full `$063D` (1.6K) low pack | byte length, output handle or expression handle | Allocates buffer pages in REU bank `$44` and returns a one-based handle. |
-| `BUFFILL(H%,BYTE)` | Low overlay entry `$0151`, copy full `$063D` (1.6K) low pack | buffer handle, fill byte | Fills buffer handles through the `$C500` page buffer and rejects non-buffer handles. |
-| `BUFFREE(H%)` | Low overlay entry `$0155`, copy full `$063D` (1.6K) low pack | handle | Frees any valid handle type and clears metadata/page bitmap state. |
-| `ZTEMPSCRATCH(LEN,OUT%)` / `ZTEMPSCRATCH(LEN)` | Low overlay entry `$0159`, copy full `$063D` (1.6K) low pack | byte length, output integer or expression integer | Allocates and frees temporary pages, returning page count. |
-| `ZFAIL(CODE,OUT%)` | Low overlay at `$A900+$015D`, copy `$001B` | error code, output integer | Clears output first, then reports `?RB ERROR code`. |
-| `FREEMEM()` | Low overlay at `$A900+$0178`, copy `$0016` | none | Prints current live BASIC free bytes and refreshes the header. |
-| `SCRCAP(H%)` / `SCRCAP()` | Slot 14 descriptor; low overlay entry `$018E`, copy full `$063D` (1.6K) low pack | output handle or expression handle | Captures screen text `$0400-$07E7` and color RAM `$D800-$DBE7` into a typed screen handle. |
+| `ZADD16(A,B,OUT%)` / `ZADD16(A,B)` | Module 1 slot 0 at `$A800+`, descriptor-backed slice | two numeric expressions, output integer or expression integer | Returns 16-bit sum. |
+| `FADD(A,B,OUT)` / `FADD(A,B)` | Resident-computed float demo command; descriptor slot 16 has a tiny slot-0 stub | two plain numeric expressions, output plain numeric variable or expression float | Uses BASIC ROM floating addition. Statement output must be a plain numeric variable, not `%`. |
+| `ZPAUSE(TICKS)` | Module 1 slot 0 at `$A800+`, descriptor-backed slice | tick count | Waits for the requested jiffy count. |
+| `UPPER(S$,OUT$)` / `UPPER(S$)` | Module 1 slot 0 at `$A800+`, descriptor-backed slice | string variable or quoted literal, output string or expression string | Uppercases staged bytes. |
+| `LOWER(S$,OUT$)` / `LOWER(S$)` | Module 1 slot 0 at `$A800+`, descriptor-backed slice | string variable or quoted literal, output string or expression string | Lowercases string byte values. On the default C64 screen this is verified by `ASC()` values, because display case is charset-dependent. |
+| `ZHIDDENRAM(S$,OUT%)` / `ZHIDDENRAM(S$)` | Module 1 slot 0 at `$A800+`, unified under-ROM dispatch | string variable or quoted literal, output integer or expression integer | Returns a simple uppercase-byte checksum. |
+| `ZSUMNUMARRAY(A%(0),COUNT,OUT%)` / `ZSUMNUMARRAY(A%(0),COUNT)` | Module 1 slot 0 at `$A800+`, descriptor-backed slice | integer array base, count, output integer or expression integer | Sums integer array elements. |
+| `ZRANGENUMARRAY(START,COUNT,A%(0))` | Module 1 slot 0 at `$A800+`, descriptor-backed slice | start value, count, output array base | Stages consecutive integers, then resident code writes them to the array. |
+| `BUFNEW(LEN,H%)` / `BUFNEW(LEN)` | Module 1 slot 0, copies full `$06C7` slot-0 payload | byte length, output handle or expression handle | Allocates buffer pages in REU bank `$44` and returns a one-based handle. |
+| `BUFFILL(H%,BYTE)` | Module 1 slot 0, copies full `$06C7` slot-0 payload | buffer handle, fill byte | Fills buffer handles through the `$C500` page buffer and rejects non-buffer handles. |
+| `BUFFREE(H%)` | Module 1 slot 0, copies full `$06C7` slot-0 payload | handle | Frees any valid handle type and clears metadata/page bitmap state. |
+| `ZTEMPSCRATCH(LEN,OUT%)` / `ZTEMPSCRATCH(LEN)` | Module 1 slot 0, copies full `$06C7` slot-0 payload | byte length, output integer or expression integer | Allocates and frees temporary pages, returning page count. |
+| `ZFAIL(CODE,OUT%)` | Module 1 slot 0 at `$A800+`, descriptor-backed slice | error code, output integer | Clears output first, then reports `?RB ERROR code`. |
+| `FREEMEM()` | Module 1 slot 0 at `$A800+`, descriptor-backed slice | none | Prints current live BASIC free bytes and refreshes the header. |
+| `SCRCAP(H%)` / `SCRCAP()` | Slot 14 descriptor; module 1 slot 0, copies full `$06C7` slot-0 payload | output handle or expression handle | Captures screen text `$0400-$07E7` and color RAM `$D800-$DBE7` into a typed screen handle. |
 | `ERRCODE(OUT%)` / `ERRCODE()` | Resident-precomputed result; legacy low stub remains in `LOWPACK` | output integer, or expression integer | Returns the last ReadyBASIC runtime error code. |
 | `ERRLINE(OUT%)` / `ERRLINE()` | Resident-precomputed result; legacy low stub remains in `LOWPACK` | output integer, or expression integer | Returns the line number of the last ReadyBASIC runtime error, or `0` for direct mode. |
-| `SCRPUT(H%)` | Slot 128 descriptor; low overlay entry `$01B7`, copy full `$063D` (1.6K) low pack | screen handle | Validates the screen handle type and restores text plus color RAM. |
+| `SCRPUT(H%)` | Slot 128 descriptor; module 1 slot 0, copies full `$06C7` slot-0 payload | screen handle | Validates the screen handle type and restores text plus color RAM. |
+| `ZSLOT0()` / `ZSLOT1()` / `ZSLOT2()` | Built-in module proof payloads in slot 0, slot 1, and slot 2 | none | Prove each 2K submodule slot can dispatch independently. |
+| `ZSPAN()` | Built-in module 2 two-slot span payload for slots 1+2 | none | Proves a payload can claim adjacent slots. |
+| `ZOVL1()` / `ZOVL2()` | Built-in module 2 slot-2 overlay proof payloads | none | Prove overlay replacement in slot 2. |
+| `ZCPYRST()` / `ZCOPY()` | Built-in module 1 slot-0 copy-count proof helpers | none | Reset and inspect the tiny no-recopy proof counter. |
+| `ZMODLD(NAME$)` | Built-in module 2 slot-1 disk-module loader | module filename string | Loads generated module files such as `RBM1` and `RBM2`, registering their descriptors and payloads in REU. |
+| `ZDM1()` / `ZDM2S()` / `ZDOV1()` / `ZDOV2()` | Disk-loaded sample module payloads in REU bank `$45` | none | Prove disk module, span, and overlay registration after `ZMODLD`. |
 
-The handle-oriented commands copy the full low pack because their wrappers share
-allocator helper routines that currently live in the packed low overlay. That
-keeps the resident core lean at the cost of copying more overlay bytes for these
-sample commands.
+The handle-oriented commands copy the full slot-0 payload because their wrappers
+share allocator helper routines that currently live in that module payload.
+That keeps the resident core lean at the cost of copying more under-ROM bytes
+for these sample commands.
 
 `SCRCAP`/`SCRPUT` were named to avoid C64 BASIC tokenizer conflicts with
 embedded `SAVE`/`LOAD` tokens. They are the implemented forms of the original
@@ -283,7 +301,7 @@ inside that one PRG load image:
 
 | File or artifact | Role |
 |---|---|
-| `src/apps/readybasic/readybasic.s` | All current ReadyBASIC code, command descriptors, low overlay code, hidden overlay code, and hidden helpers. |
+| `src/apps/readybasic/readybasic.s` | All current ReadyBASIC code, command descriptors, module/submodule payloads, overlay proof payloads, and hidden helpers. |
 | `cfg/ready_app_readybasic.cfg` | Defines the load/run split: resident code, `CMDPACK`, `REGSEED`, hidden helper load image, bridge load image, and runtime overlay slots. |
 | `Makefile` | Assembles `readybasic.s`, links it with `ready_app_readybasic.cfg`, and writes `bin/readybasic.prg` plus `obj/readybasic.map`. |
 | `obj/readybasic.map` | Current source of truth for segment ranges and sizes. |
@@ -299,31 +317,33 @@ The linker puts packed command bytes in the PRG load image at `CMDPACK`
 
 | Segment | Size | Load/source role | Runtime role |
 |---|---:|---|---|
-| `LOWPACK` | `$063D` (1.6K, 1597 exact bytes) | Packed low command bytes loaded from `CMDPACK` and prestashed to REU bank `$45` offset `$0000`. | Fetched on demand into the banked low overlay slot at `$A900+`, under BASIC ROM. |
-| `HIDDENPACK` | `$004D` (77B) | Packed hidden worker bytes loaded after `LOWPACK` in `CMDPACK` and prestashed to REU bank `$45` offset `$063D`. | Fetched on demand into hidden RAM at `$A800-$A84C`. |
-| `HIDLOAD` | `$0377` (0.9K, 887 exact bytes) | Load-only hidden helper seed starting at `$4000`. | Copied on cold boot into `$A000-$A376` and the visible `$C280-$C5F6` warm-resume shadow. |
-| `BRLOAD` | `$01F4` (500B) | Load-only bridge seed starting at `$4800`. | Copied on cold boot into `$C000-$C1F3`. |
+| `LOWPACK` | `$06C7` (1.7K, 1735 exact bytes) | Historical segment name for the built-in module 1 slot-0 payload loaded from `CMDPACK` and prestashed to REU bank `$45:$0000`. | Fetched on demand into `$A800-$AEC6`. |
+| `SLOTPACK1` | `$0141` (321B) | Built-in module 2 proof and `ZMODLD` loader payload, prestashed to REU bank `$45:$06C7`. | Fetched on demand into `$B000-$B140`. |
+| `SLOTPACK2` / `SPANPACK` / `OVL1PACK` / `OVL2PACK` | `$0015` each (21B) | Built-in module 2 slot, span, and overlay proof payloads, prestashed after `SLOTPACK1`. | Fetched into slot 2, slots 1+2, or slot-2 overlay target addresses. |
+| `HIDLOAD` | `$0365` (0.8K, 869 exact bytes) | Load-only hidden helper seed starting at `$4000`. | Copied on cold boot into `$A000-$A364` and the visible `$C280` warm-resume shadow. |
+| `BRLOAD` | `$01F7` (503B) | Load-only bridge seed starting at `$4800`. | Copied on cold boot into `$C000-$C1F6`. |
 | `REGSEED` | `$1010` (4.0K, 4112 exact bytes) | Load-only registry header and 128 command descriptors at `$5000-$600F`. | Copied on cold boot into REU bank `$44` offsets `$0000` and `$1000`. |
 
 Cold boot is the only time the load-image command pack and `REGSEED` are trusted.
 The hidden helper copies the registry/header to REU bank `$44` and copies
-`LOWPACK` plus `HIDDENPACK` to REU bank `$45`. After that, BASIC may own the
-former load-image addresses, so warm resume reuses the REU copies and does not
-reseed from `$2B00+`, `$4000+`, `$4800+`, or `$5000+`.
+the built-in module/submodule payloads from `CMDPACK` to REU bank `$45`. After
+that, BASIC may own the former load-image addresses, so warm resume reuses the
+REU copies and does not reseed from `$2B00+`, `$4000+`, `$4800+`, or `$5000+`.
 
 At command execution time, the descriptor tells the resident loader which bytes
 to fetch:
 
-1. Low commands use descriptor offsets `2-5` for code offset/size and `10-11`
-   for entry offset. ReadyBASIC maps RAM under BASIC ROM, fetches from bank
-   `$45` into `$A900 + offset`, and jumps through the computed low overlay
-   entry.
-2. Hidden commands use descriptor offsets `6-9` for code offset/size and
-   `12-13` for entry offset. ReadyBASIC maps RAM under BASIC ROM, fetches into
-   `$A000 + entry offset`, and calls the hidden overlay entry.
-3. Commands can fetch a small slice or the whole low pack. The current handle
-   and screen-handle commands fetch the whole `$063D` low pack because their
-   shared allocator and screen-copy helpers live there.
+1. Descriptor bytes `2-5` name the payload offset and size in REU bank `$45`.
+2. Descriptor bytes `6-9` name the submodule id, overlay id, slot mask, and
+   generation/check byte.
+3. Descriptor bytes `10-13` name the runtime destination offset from `$A000`
+   and the entry offset inside the loaded payload.
+4. ReadyBASIC maps RAM under BASIC ROM, fetches the payload into `$A800`,
+   `$B000`, `$B800`, or a multi-slot span, calls the entry, then returns to
+   visible resident code for result commit.
+5. Commands can fetch a small slice or a full slot payload. The current handle
+   and screen-handle commands fetch the whole `$06C7` slot-0 payload because
+   their shared allocator and screen-copy helpers live there.
 
 ## C64 RAM Layout
 
@@ -333,18 +353,19 @@ metadata and shim space above that are not general ReadyBASIC scratch.
 | Region | Current range | Size | Owner and role |
 |---|---:|---:|---|
 | `ENTRY` | `$1000-$1102` | `$0103` (259B) | Tiny entry, cold/warm discriminator, early hidden/bridge copies. |
-| `RESIDENT` | `$1200-$2AB9` | `$18BA` (6.2K, 6330 exact bytes) | Visible parser, vector hooks, BASIC ROM calls, REU DMA wrappers, result commit, bare command dispatch, expression hook, native `PROC`/`FUNC`/`RET`, `REPEAT`/`UNTIL`, `LABEL`/`JUMP`, error introspection, proper nested term state, and float helpers. |
+| `RESIDENT` | `$1200-$2ABB` | `$18BC` (6.2K, 6332 exact bytes) | Visible parser, vector hooks, BASIC ROM calls, REU DMA wrappers, result commit, bare command dispatch, expression hook, native `PROC`/`FUNC`/`RET`, `REPEAT`/`UNTIL`, `LABEL`/`JUMP`, error introspection, proper nested term state, and float helpers. |
 | BASIC sentinel | `$2AC0` | 1 byte | Must stay zero before stored-program `RUN`. |
 | BASIC workspace | `$2AC1-$9FFF` | `$753F` region, `30013` formula free bytes (29.3K) | Program text, variables, arrays, string heap. |
-| Command pack load image | `$2B00-$3FFF` | `$1500` (5.25K) file range | Low and hidden overlay seed bytes before cold prestash. |
-| Hidden helper load image | `$4000+` | `$0377` (0.9K, 887 exact bytes) load-only | Hidden helper seed copied to `$A000` and `$C280`. |
-| Bridge load image | `$4800+` | `$01F4` (500B) load-only | Bridge seed copied to `$C000`. |
+| Command pack load image | `$2B00-$3FFF` | `$1500` (5.25K) file range | Built-in module/submodule payload seed bytes before cold prestash. |
+| Hidden helper load image | `$4000+` | `$0365` (0.8K, 869 exact bytes) load-only | Hidden helper seed copied to `$A000` and `$C280`. |
+| Bridge load image | `$4800+` | `$01F7` (503B) load-only | Bridge seed copied to `$C000`. |
 | Registry seed load image | `$5000-$600F` | `$1010` (4.0K, 4112 exact bytes) load-only | Header and 128 descriptors copied to REU bank `$44`. |
 | Runtime snapshot | REU bank `$44`, offsets `$0A00-$0BFF` | `$0200` (0.5K) plus bridge metadata | Saved zero page, stack page, SP, resume mode, line-chain guards. |
-| `HIDDEN` | `$A000-$A376` | `$0377` (0.9K) | Helper code run with RAM mapped under BASIC ROM. |
-| `HIDDENPACK` | `$A800-$A84C` | `$004D` (77B) | Hidden worker overlay image. |
-| `LOWPACK` runtime | `$A900-$AF3C` | `$063D` (1.6K) | Banked low command pack fetched from REU bank `$45`. |
-| `BRIDGE` | `$C000-$C1F3` | `$01F4` (500B) | Persistent bridge state, saved vectors, overlay variables, current handle scratch, debug bytes, native routine return stack, and flow-control scratch. |
+| Common under-ROM helper | `$A000-$A364` | `$0365` (869B) | Helper code run with RAM mapped under BASIC ROM. |
+| Slot 0 module payload | `$A800-$AEC6` | `$06C7` (1735B) | Module 1 system/default payload fetched from REU bank `$45`. |
+| Slot 1 module payload | `$B000-$B140` | `$0141` (321B) | Module 2 proof and `ZMODLD` loader payload. |
+| Slot 2 proof/overlays | `$B800-$B83E` | `$003F` (63B) | Current slot-2 base and overlay proof slices. |
+| `BRIDGE` | `$C000-$C1F6` | `$01F7` (503B) | Persistent bridge state, saved vectors, overlay variables, current handle scratch, debug bytes, native routine return stack, and flow-control scratch. |
 | Shared frames | `$C200-$C5FF` | `$0400` (1.0K) | Call frame, result frame, descriptor buffer, command-name buffer, page/runtime buffers. |
 | Hidden shadow | `$C280-$C5F6` | `$0377` (0.9K) | Visible-RAM source for restoring `$A000` helper on warm resume; refreshed during `EXIT`. |
 | ReadyOS REU metadata | `$C600-$C7FF` | `$0200` (0.5K) shared | ReadyBASIC only marks REU bank ownership here. |
@@ -365,9 +386,9 @@ not a contradiction; it is a time-of-use distinction.
 | Stage | C64 RAM ownership | BASIC-visible effect |
 |---|---|---|
 | PRG load / cold seed | `CMDPACK` is loaded at `$2B00-$3FFF`, `HIDLOAD` at `$4000+`, `BRLOAD` at `$4800+`, and `REGSEED` at `$5000-$600F`. These ranges are inside the future BASIC workspace but BASIC is not live there yet. | No user BASIC program or variables exist yet, so the load image can safely occupy this space temporarily. |
-| End of cold seed | `LOWPACK`/`HIDDENPACK` have been copied from `CMDPACK` to REU bank `$45`; the registry has been copied to REU bank `$44`; hidden and bridge live copies are in their runtime homes. | `$2AC1-$9FFF` becomes the BASIC workspace. The former load-image bytes are now disposable. |
-| Ready prompt / running BASIC | BASIC owns `$2AC1-$9FFF`, including the old `$2B00-$600F` load ranges. Command code is fetched from REU into `$A800/$A900` under BASIC ROM only while a command runs. | Empty BASIC free space is `30013` formula bytes. Warm resume never trusts the old load-image addresses. |
-| Future command growth | The current `CMDPACK` reservation is `$1500` (5.25K). Today it carries `LOWPACK` `$063D` plus `HIDDENPACK` `$004D`, about 1.6K of actual packed command code. | The remaining reserved `CMDPACK` capacity can absorb about 3.6K more packed command code without reducing steady-state BASIC free bytes. Growing beyond the reserved load-only area may increase PRG size or require another cold-only seed range, but it should still be reclaimed before BASIC owns the workspace. |
+| End of cold seed | Built-in module/submodule payloads have been copied from `CMDPACK` to REU bank `$45`; the registry has been copied to REU bank `$44`; hidden and bridge live copies are in their runtime homes. | `$2AC1-$9FFF` becomes the BASIC workspace. The former load-image bytes are now disposable. |
+| Ready prompt / running BASIC | BASIC owns `$2AC1-$9FFF`, including the old `$2B00-$600F` load ranges. Command code is fetched from REU into `$A800`, `$B000`, and/or `$B800` under BASIC ROM only while a command runs. | Empty BASIC free space is `30013` formula bytes. Warm resume never trusts the old load-image addresses. |
+| Future command growth | The current `CMDPACK` reservation is `$1500` (5.25K). Today it carries `$085C` / 2.1K of built-in module/submodule payloads. | The remaining reserved `CMDPACK` capacity can absorb `$0CA4` / 3.2K more built-in payload seed bytes without reducing steady-state BASIC free bytes. Growing beyond the reserved load-only area may increase PRG size or require another cold-only seed range, but it should still be reclaimed before BASIC owns the workspace. |
 
 The visual way to read this: `CMDPACK` looks like it overlaps BASIC RAM in the
 link/load map because it really does during cold loading. It does not reduce the
@@ -377,9 +398,9 @@ store a BASIC program.
 `CMDPACK` is only the current C64 cold-load seed window. It is not the total
 command-code capacity of the architecture. The current descriptor format points
 into REU bank `$45` with 16-bit offsets and sizes, so the current single code
-bank can hold up to `$10000` bytes (64.0K) of packed command bodies. The build
-currently uses `$068A` (1.6K, 1674 exact bytes), leaving `$F976` (62.4K, 63862
-exact bytes) available in bank `$45`. To actually seed beyond the current 5.25K
+bank can hold up to `$10000` bytes (64.0K) of packed command bodies. The built-in
+payloads currently use `$085C` (2.1K, 2140 exact bytes), leaving `$F7A4`
+(61.9K, 63396 exact bytes) available in bank `$45`. To actually seed beyond the current 5.25K
 `CMDPACK` linker window, the cold-load layout would need a larger or additional
 load-only seed range, copied to REU before BASIC owns `$2AC1-$9FFF`. Going
 beyond one 64K code bank would require a descriptor/loader extension for
@@ -432,7 +453,7 @@ Current per-command overhead:
 
 | New command kind | Permanent C64 RAM overhead | REU/load-image overhead |
 |---|---:|---|
-| New command reusing an existing signature and overlay slot | Usually `0` bytes of BASIC workspace and `0` bytes of resident RAM. | One 32-byte descriptor in bank `$44`, command code bytes in bank `$45`, and matching load-image bytes in `LOWPACK` or `HIDDENPACK`. |
+| New command reusing an existing signature and submodule slot | Usually `0` bytes of BASIC workspace and `0` bytes of resident RAM. | One 32-byte descriptor in bank `$44`, command code bytes in bank `$45`, and matching load-image bytes in the appropriate module/submodule payload. |
 | New command needing a new parameter/result signature | No BASIC workspace cost, but resident parser/commit code grows by the new shared support. | One 32-byte descriptor plus command code bytes. |
 | New command needing persistent data | No BASIC workspace cost if represented as a handle. | Descriptor/code bytes plus REU data-bank allocation and handle metadata. |
 | New command needing a larger fixed C64 buffer | Permanent C64 RAM cost only if it expands `$C200-$C5FF`, the overlay slots, resident RAM, or bridge state. | Depends on whether the data can be moved to REU instead. |
@@ -469,8 +490,8 @@ cannot accidentally dispatch through stale ReadyBASIC code.
    parse parameters and capture output references.
 7. Output variables are cleared before command execution.
 8. The call frame at `$C200` is mirrored to REU bank `$44` offset `$0400`.
-9. Command code is fetched from REU bank `$45` into the low overlay slot
-   `$A900` or hidden overlay slot `$A800`.
+9. Command code is fetched from REU bank `$45` into one or more under-ROM
+   submodule slots at `$A800`, `$B000`, and `$B800`.
 10. The worker writes a compact result frame at `$C300`.
 11. The result frame is mirrored to REU bank `$44` offset `$0400`.
 12. Resident code checks status, prints `?RB ERROR n` on failure, or commits
@@ -500,13 +521,15 @@ The descriptor ABI is fixed-size and compact:
 | Descriptor offset | Field |
 |---:|---|
 | `0` | Command id. |
-| `1` | Flags: low overlay, hidden overlay, or both. |
-| `2-3` | Low code offset in REU bank `$45`. |
-| `4-5` | Low code size. |
-| `6-7` | Hidden code offset in REU bank `$45`. |
-| `8-9` | Hidden code size. |
-| `10-11` | Low entry offset from `$A900`. |
-| `12-13` | Hidden entry offset from `$A000`. |
+| `1` | Module id. |
+| `2-3` | Payload offset in REU bank `$45`. |
+| `4-5` | Payload size. |
+| `6` | Submodule id. |
+| `7` | Overlay id, or `0` for a base submodule. |
+| `8` | Slot mask: bit 0 = `$A800`, bit 1 = `$B000`, bit 2 = `$B800`. |
+| `9` | Generation/check byte. |
+| `10-11` | Runtime destination offset from `$A000`. |
+| `12-13` | Entry offset inside the loaded payload. |
 | `14` | Signature id. |
 | `15` | Uppercase command-name length. |
 | `16-31` | Uppercase command-name bytes, zero padded. |
@@ -575,12 +598,18 @@ banks and keep the same small handle model.
 
 | Offset | Region |
 |---:|---|
-| `$0000-$0619` | Low overlay pack copied into `$A900-$AF19`. |
-| `$061A-$0666` | Hidden overlay pack copied into `$A800-$A84C`. |
+| `$0000-$06C6` | Built-in module 1 slot-0 payload copied into `$A800-$AEC6` (`$06C7`, 1735B). |
+| `$06C7-$0807` | Built-in module 2 slot-1 proof and `ZMODLD` loader payload copied into `$B000-$B140` (`$0141`, 321B). |
+| `$0808-$085B` | Built-in slot-2, span, and overlay proof slices (`$0054`, 84B total). |
+| `$085C-$14FF` | Free gap before current disk-module descriptor proof offsets (`$0CA4`, 3236B). |
+| `$1500-$151F` | `RBM1` descriptor proof for `ZDM1`. |
+| `$1600-$165F` | `RBM2` descriptors for `ZDM2S`, `ZDOV1`, and `ZDOV2`. |
+| `$3000-$3016`, `$3200-$3216`, `$3300-$3316`, `$3400-$3416` | Sample disk-loaded module payload proofs. |
 
-Descriptors point into these packed bytes. Normal low commands fetch only their
-slice. The REU handle and screen-handle commands currently fetch the whole low
-pack because shared allocator and screen-copy helpers live there.
+Descriptors point into these packed bytes with payload offset, payload size,
+slot mask, runtime destination, and entry offset. Heap and screen-handle
+commands currently fetch the whole `$06C7` slot-0 payload because shared
+allocator and screen-copy helpers live there.
 
 ## Cold Boot Lifecycle
 
@@ -679,12 +708,13 @@ Current static layout:
 | Segment | Range | Size |
 |---|---:|---:|
 | `ENTRY` | `$1000-$1102` | `$0103` (259B) |
-| `RESIDENT` | `$1200-$2AB9` | `$18BA` (6.2K, 6330 exact bytes) |
+| `RESIDENT` | `$1200-$2ABB` | `$18BC` (6.2K, 6332 exact bytes) |
 | `REGSEED` | `$5000-$600F` | `$1010` (4.0K, 4112 exact bytes) |
-| `HIDDEN` | `$A000-$A376` | `$0377` (0.9K, 887 exact bytes) |
-| `HIDDENPACK` | `$A800-$A84C` | `$004D` (77B) |
-| `LOWPACK` | `$A900-$AF3C` | `$063D` (1.6K, 1597 exact bytes) |
-| `BRIDGE` | `$C000-$C1F3` | `$01F4` (500B) |
+| `HIDDEN` | `$A000-$A364` | `$0365` (869B) |
+| `LOWPACK` / slot 0 payload | `$A800-$AEC6` | `$06C7` (1735B) |
+| `SLOTPACK1` / slot 1 payload | `$B000-$B140` | `$0141` (321B) |
+| slot 2 proof/overlays | `$B800-$B83E` | `$003F` (63B) |
+| `BRIDGE` | `$C000-$C1F6` | `$01F7` (503B) |
 
 Before/after for native `PROC`/`FUNC`:
 
@@ -839,8 +869,9 @@ RET X*1.5
 ENDP
 ```
 
-`FADD(A,B)` is the first float demo command. It is resident-computed because the
-low overlay runs with BASIC ROM hidden and cannot safely call ROM float helpers.
+`FADD(A,B)` is the first float demo command. On that historical branch it was
+resident-computed because the low overlay ran with BASIC ROM hidden and could
+not safely call ROM float helpers.
 The descriptor still exists so registry lookup and syntax are exercised; the
 low code is only a one-byte `RTS` stub. `FADD(A,B,Q)` is the statement form and
 requires a plain numeric output variable. `FADD(A,B,A%)` is rejected.

@@ -63,22 +63,39 @@ the same ReadyOS and REU discipline.
 
 ## Bank `$45` Regions
 
-- Offset `$0000`: low overlay pack copied from the linker `LOWPACK` segment.
-- Offset `$063D`: hidden overlay pack copied from the linker `HIDDENPACK` segment.
-- Descriptors store code offsets and run offsets; normal low commands copy only their slice. Buffer/heap/screen sample commands currently load the whole low pack because their REU descriptor, allocator, bitmap, and screen-copy helpers live in the overlay pack rather than resident core RAM.
+- `$0000-$06C6`: built-in module 1 slot-0 payload, fetched into
+  `$A800-$AEC6` (`$06C7`, 1735B). The linker symbol is still named
+  `LOWPACK` for compatibility, but the current runtime slot base is `$A800`.
+- `$06C7-$0807`: built-in module 2 slot-1 proof and `ZMODLD` loader payload,
+  fetched into `$B000-$B140` (`$0141`, 321B).
+- `$0808-$085B`: built-in slot-2, span, and overlay proof slices (`$0054`,
+  84B total). Each proof slice is 21B.
+- `$085C-$14FF`: free gap before the current disk-module proof offsets
+  (`$0CA4`, 3236B).
+- `$1500-$151F`: `RBM1` descriptor proof for `ZDM1`.
+- `$1600-$165F`: `RBM2` descriptors for `ZDM2S`, `ZDOV1`, and `ZDOV2`.
+- `$3000-$3016`, `$3200-$3216`, `$3300-$3316`, `$3400-$3416`: sample
+  disk-loaded module payload proofs.
+
+Descriptors store payload offsets, payload sizes, slot masks, runtime
+destinations, and entry offsets. Heap and screen commands currently fetch the
+whole slot-0 payload because their allocator, REU descriptor, bitmap, and
+screen-copy helpers live together in that payload rather than resident core RAM.
 
 ## Descriptor ABI
 
 Each descriptor is 32 bytes:
 
 - `0`: command id.
-- `1`: flags (`LOW`, `HIDDEN`).
-- `2-3`: low code offset in bank `$45`.
-- `4-5`: low code size.
-- `6-7`: hidden code offset in bank `$45`.
-- `8-9`: hidden code size.
-- `10-11`: low run offset from `$A900`.
-- `12-13`: hidden run offset from `$A000`.
+- `1`: module id.
+- `2-3`: payload offset in REU bank `$45`.
+- `4-5`: payload size.
+- `6`: submodule id.
+- `7`: overlay id.
+- `8`: slot mask; bit 0 is `$A800`, bit 1 is `$B000`, bit 2 is `$B800`.
+- `9`: generation/check byte.
+- `10-11`: runtime destination offset from `$A000`.
+- `12-13`: entry offset within the loaded payload.
 - `14`: signature id.
 - `15`: uppercase command-name length.
 - `16-31`: uppercase command-name bytes, padded with zeroes.
@@ -103,24 +120,28 @@ Each descriptor is 32 bytes:
 ## Implemented Commands
 
 - `ZECHO1(OUT%)` / `ZECHO1()`: resident-precomputed scalar result, returns `1`.
-- `ZADD16(A,B,OUT%)` / `ZADD16(A,B)`: low overlay, returns 16-bit sum.
-- `UPPER(S$,OUT$)` / `UPPER(S$)`: low overlay, copies and uppercases a string variable or quoted literal.
-- `LOWER(S$,OUT$)` / `LOWER(S$)`: low overlay, lowercases string byte values; tests verify bytes with `ASC()` because screen display case depends on the C64 charset mode.
-- `ZHIDDENRAM(S$,OUT%)` / `ZHIDDENRAM(S$)`: hidden `$A800` overlay, returns a simple checksum.
-- `ZSUMNUMARRAY(A%(0),COUNT,OUT%)` / `ZSUMNUMARRAY(A%(0),COUNT)`: low overlay, sums integer array elements.
-- `ZRANGENUMARRAY(START,COUNT,A%(0))`: low overlay, stages integer array output and resident commit writes it.
-- `BUFNEW(LEN,H%)` / `BUFNEW(LEN)`: low overlay, creates a persistent handle in bank `$44`.
-- `BUFFILL(H%,BYTE)`: low overlay, fills buffer handle pages and rejects non-buffer handles.
-- `BUFFREE(H%)`: low overlay, frees any valid handle type.
-- `ZTEMPSCRATCH(LEN,OUT%)` / `ZTEMPSCRATCH(LEN)`: low overlay, allocates and frees temporary pages, returning page count.
-- `ZFAIL(CODE,OUT%)`: low overlay, exercises the error path after output clearing.
-- `FREEMEM()`: low overlay, prints the current live BASIC free-byte count and refreshes the header.
-- `SCRCAP(H%)` / `SCRCAP()`: low overlay, captures screen text plus color RAM into a typed screen handle.
+- `ZADD16(A,B,OUT%)` / `ZADD16(A,B)`: module 1 slot 0 payload, returns 16-bit sum.
+- `UPPER(S$,OUT$)` / `UPPER(S$)`: module 1 slot 0 payload, copies and uppercases a string variable or quoted literal.
+- `LOWER(S$,OUT$)` / `LOWER(S$)`: module 1 slot 0 payload, lowercases string byte values; tests verify bytes with `ASC()` because screen display case depends on the C64 charset mode.
+- `ZHIDDENRAM(S$,OUT%)` / `ZHIDDENRAM(S$)`: module 1 slot 0 under-ROM worker proof, returns a simple checksum.
+- `ZSUMNUMARRAY(A%(0),COUNT,OUT%)` / `ZSUMNUMARRAY(A%(0),COUNT)`: module 1 slot 0 payload, sums integer array elements.
+- `ZRANGENUMARRAY(START,COUNT,A%(0))`: module 1 slot 0 payload, stages integer array output and resident commit writes it.
+- `BUFNEW(LEN,H%)` / `BUFNEW(LEN)`: module 1 slot 0 payload, creates a persistent handle in bank `$44`.
+- `BUFFILL(H%,BYTE)`: module 1 slot 0 payload, fills buffer handle pages and rejects non-buffer handles.
+- `BUFFREE(H%)`: module 1 slot 0 payload, frees any valid handle type.
+- `ZTEMPSCRATCH(LEN,OUT%)` / `ZTEMPSCRATCH(LEN)`: module 1 slot 0 payload, allocates and frees temporary pages, returning page count.
+- `ZFAIL(CODE,OUT%)`: module 1 slot 0 payload, exercises the error path after output clearing.
+- `FREEMEM()`: module 1 slot 0 payload, prints the current live BASIC free-byte count and refreshes the header.
+- `SCRCAP(H%)` / `SCRCAP()`: module 1 slot 0 payload, captures screen text plus color RAM into a typed screen handle.
 - `FADD(A,B,OUT)` / `FADD(A,B)`: resident-computed demo command, returns a plain C64 BASIC float.
-- `ZPAUSE(TICKS)`: low overlay, waits for a number of jiffies.
+- `ZPAUSE(TICKS)`: module 1 slot 0 payload, waits for a number of jiffies.
 - `ERRCODE(OUT%)` / `ERRCODE()`: resident-precomputed, returns the last ReadyBASIC runtime error code.
 - `ERRLINE(OUT%)` / `ERRLINE()`: resident-precomputed, returns the last ReadyBASIC runtime error line, or `0` in direct mode.
-- `SCRPUT(H%)`: low overlay, validates a typed screen handle and restores screen text plus color RAM. This descriptor lives in slot 128 to prove full-table lookup.
+- `SCRPUT(H%)`: module 1 slot 0 payload, validates a typed screen handle and restores screen text plus color RAM. This descriptor lives in slot 128 to prove full-table lookup.
+- `ZSLOT0`, `ZSLOT1`, `ZSLOT2`, `ZSPAN`, `ZOVL1`, `ZOVL2`, `ZCPYRST`, and
+  `ZCOPY`: built-in slot/span/overlay proof commands.
+- `ZMODLD(name$)`: module 2 slot 1 disk-loader proof command.
+- `ZDM1`, `ZDM2S`, `ZDOV1`, and `ZDOV2`: disk-loaded sample module commands.
 
 Native reusable BASIC routines:
 
@@ -206,9 +227,9 @@ ReadyBASIC calls.
 
 Proven forms include `ABS(FADD(1.2,2.3)-3)`, `ADDI(1,ADDI(2,3))`,
 `FADD(1.5,FADD(2.25,3.25))`, `LEFT$(GREET("READY")+"!",3)`, and
-`LEFT$(UPPER(GREET("ready")),2)`. `FADD` is computed by resident code and keeps
-only a one-byte low-overlay stub because the actual calculation calls BASIC ROM
-float helpers.
+`LEFT$(UPPER(GREET("ready")),2)`. On that historical branch, `FADD` was
+computed by resident code and kept only a one-byte low-overlay stub because the
+actual calculation called BASIC ROM float helpers.
 
 Measured branch layout: `BASIC_START=$2901`; BASIC owns `$2901-$9FFF`, for
 `30461` formula empty free bytes. `RESIDENT` is `$1200-$28FC` (`5885` bytes),

@@ -94,7 +94,10 @@ Prefix conventions:
 
 Current public names include `ZECHO1`, `ZADD16`, `UPPER`, `LOWER`,
 `ZHIDDENRAM`, `ZSUMNUMARRAY`, `ZRANGENUMARRAY`, `ZTEMPSCRATCH`, `ZPAUSE`,
-`ZFAIL`, `FREEMEM`, `ERRCODE`, and `ERRLINE`.
+`ZFAIL`, `FREEMEM`, `ERRCODE`, `ERRLINE`, `BUFNEW`, `BUFFILL`, `BUFFREE`,
+`SCRCAP`, `SCRPUT`, `FADD`, `ZSLOT0`, `ZSLOT1`, `ZSLOT2`, `ZSPAN`, `ZOVL1`,
+`ZOVL2`, `ZCPYRST`, `ZCOPY`, and `ZMODLD`. Disk-module samples add `ZDM1`,
+`ZDM2S`, `ZDOV1`, and `ZDOV2` after `ZMODLD("RBM1")` or `ZMODLD("RBM2")`.
 
 ## How To Read The Examples
 
@@ -163,13 +166,16 @@ descriptors locally, and copies the match into `RB_DESC_BUF`.
 
 ```asm
 .macro CMD_LOW id, sig, label, endlabel, name
-        .byte id, RB_CMD_F_LOW       ; public id and low-overlay flag
-        .word label - __LOWPACK_RUN__ ; packed-code offset in REU bank $45
-        .word endlabel - label        ; copy length for this command
-        .word 0, 0                    ; no hidden overlay slice
-        .word label - RB_LOW_BASE     ; runtime entry offset from $A900
-        .word 0                       ; no hidden runtime entry
-        .byte sig, .strlen(name)      ; parser signature and name length
+        .byte id, RB_MODULE_SYSTEM
+        .word 0                       ; payload offset in REU bank $45
+        .word __LOWPACK_SIZE__        ; slot-0 payload size
+        .byte RB_SUBMOD_LEGACY_LOW
+        .byte 0                       ; overlay id
+        .byte RB_SLOT_LEGACY_LOW      ; slot mask: slot 0 / $A800
+        .byte 1                       ; generation/check byte
+        .word 0                       ; runtime destination offset from $A000
+        .word label - __LOWPACK_RUN__ ; entry offset in slot-0 payload
+        .byte sig, .strlen(name)
         .byte name
         .res 16 - .strlen(name), 0
 .endmacro
@@ -179,28 +185,33 @@ Descriptor commentary:
 
 | Line or field | Meaning |
 | --- | --- |
-| `.macro CMD_LOW id, sig, label, endlabel, name` | Defines a descriptor template for a command whose worker lives in the low overlay at `$A900`. |
+| `.macro CMD_LOW id, sig, label, endlabel, name` | Legacy macro name for a module-aware descriptor whose current worker lives in module 1 slot 0 at `$A800`. |
 | `id` | The stable internal command id. Runtime behavior should not rely on the command's slot number. |
 | `sig` | The parser signature id. Resident dispatch uses it to select the `parse_sig_*` routine before the overlay runs. |
 | `label` / `endlabel` | Assembler labels bracketing the worker code. Their difference is the exact copy size. |
 | `name` | The visible command text, padded to the descriptor's 16-byte name field. |
-| `RB_CMD_F_LOW` | Descriptor flag telling lookup to copy low overlay code and call the `$A900` entry. |
-| `label - __LOWPACK_RUN__` | Offset of this worker inside the packed LOWPACK image stored in REU bank `$45`. |
-| `endlabel - label` | Number of bytes to copy for this command. Small wrappers copy only themselves. |
-| `label - RB_LOW_BASE` | Runtime entry offset after the worker has been copied into the low overlay window. |
+| `RB_MODULE_SYSTEM` | Built-in system/default module id. |
+| Payload offset/size | The REU bank `$45` byte range to fetch before calling the command. Current slot-0 commands fetch the slot-0 payload from `$45:$0000`. |
+| Submodule/overlay id | Which submodule or overlay must be resident. Overlay id is `0` for a normal base submodule. |
+| Slot mask | Which under-ROM slots the payload occupies: bit 0 = `$A800`, bit 1 = `$B000`, bit 2 = `$B800`. |
+| Runtime destination offset | Offset from `$A000` to the slot base. Slot 0 uses `0`, slot 1 uses `$1000`, slot 2 uses `$1800`. |
+| Entry offset | Offset inside the runtime submodule payload where the worker entry lives. |
 
 `CMD_LOW_ALL` is used for commands whose tiny wrapper calls shared allocator or
-screen helpers elsewhere in `LOWPACK`. Those commands copy the full current
-`$063D` low pack to keep resident RAM small.
+screen helpers elsewhere in the slot-0 payload. Those commands copy the full
+current `$06C7` slot-0 payload to keep resident RAM small.
 
 ```asm
 .macro CMD_LOW_ALL id, sig, label, name
-        .byte id, RB_CMD_F_LOW
-        .word 0                    ; packed-code offset is whole LOWPACK
-        .word __LOWPACK_SIZE__      ; copy the whole shared low pack
-        .word 0, 0
-        .word label - RB_LOW_BASE   ; runtime entry offset from $A900
+        .byte id, RB_MODULE_SYSTEM
         .word 0
+        .word __LOWPACK_SIZE__
+        .byte RB_SUBMOD_LEGACY_LOW
+        .byte 0
+        .byte RB_SLOT_LEGACY_LOW
+        .byte 1
+        .word 0
+        .word label - __LOWPACK_RUN__
         .byte sig, .strlen(name)
         .byte name
         .res 16 - .strlen(name), 0
@@ -208,29 +219,33 @@ screen helpers elsewhere in `LOWPACK`. Those commands copy the full current
 ```
 
 `CMD_LOW_ALL` keeps the descriptor format the same but deliberately copies the
-whole low pack. That is appropriate when the command entry is tiny but calls
-other low-overlay helpers, such as handle allocation or screen-copy routines.
+whole slot-0 payload. That is appropriate when the command entry is tiny but
+calls other slot-0 helpers, such as handle allocation or screen-copy routines.
 
-Hidden commands use the same descriptor shape, but point at a hidden packed
-slice and a hidden runtime entry under BASIC ROM RAM:
+Slot 1, slot 2, span, and overlay proof commands use the same descriptor shape
+with different payload offsets, slot masks, and entry offsets:
 
 ```asm
-.macro CMD_HIDDEN id, sig, label, endlabel, name
-        .byte id, RB_CMD_F_HIDDEN
-        .word 0, 0
-        .word label - __HIDDENPACK_RUN__ ; hidden packed-code offset
-        .word endlabel - label           ; hidden copy length
+.macro CMD_SLOT1 id, sig, label, name
+        .byte id, 2
+        .word __SLOTPACK1_LOAD__ - __LOWPACK_LOAD__
+        .word __SLOTPACK1_SIZE__
+        .byte RB_SUBMOD_PROOF_SLOT1
+        .byte 0
+        .byte RB_SLOT_PROOF_1
+        .byte 1
         .word 0
-        .word label - RB_HIDDEN_BASE     ; runtime entry offset from $A800
+        .word label - __SLOTPACK1_RUN__
         .byte sig, .strlen(name)
         .byte name
         .res 16 - .strlen(name), 0
 .endmacro
 ```
 
-`CMD_HIDDEN` uses the hidden fields in the descriptor instead of the low fields.
-ReadyBASIC copies that slice to `$A800`, maps RAM under BASIC ROM, calls the
-entry, then restores normal banking.
+The source still has macro names such as `CMD_HIDDEN` because they are useful
+compatibility labels while the command catalog is being migrated. They now emit
+module-aware descriptors; the special pre-module LOW/HIDDEN descriptor category
+is gone.
 
 ## ZECHO1: Smallest Scalar Command
 
@@ -441,12 +456,14 @@ Why it matters: string commands separate byte transformation from BASIC heap
 ownership. Visual lowercase on a C64 depends on charset/display mode, so tests
 assert `ASC()` byte values for `LOWER`.
 
-## ZHIDDENRAM: Hidden Worker Command
+## ZHIDDENRAM: Under-ROM Worker Command
 
-`ZHIDDENRAM` proves that a command can run under BASIC ROM RAM in the hidden
-overlay slot at `$A800`. Its descriptor uses `CMD_HIDDEN`, so ReadyBASIC fetches
-the hidden slice into `$A800`, maps RAM under BASIC ROM, calls it, and restores
-banking immediately afterward.
+`ZHIDDENRAM` proves that a command can run under BASIC ROM RAM in the current
+module 1 slot-0 payload at `$A800`. The macro name `CMD_HIDDEN` is retained as
+a compatibility label, but it now emits the same module-aware descriptor shape
+as the other slot-0 commands. ReadyBASIC fetches the payload into `$A800`, maps
+RAM under BASIC ROM, calls the entry point, and restores banking immediately
+afterward.
 
 Basic invocation examples:
 
@@ -467,8 +484,8 @@ Descriptor commentary:
 | --- | --- |
 | `CMD_ZHIDDENRAM` | Internal command id for the hidden-memory proof command. |
 | `SIG_ZHIDDENRAM` | Parser signature that stages a string input and integer output. |
-| `cmd_zhiddenram_hidden` | Hidden overlay entry copied to `$A800`. |
-| `cmd_zhiddenram_hidden_end` | End label used to compute the hidden copy size. |
+| `cmd_zhiddenram_hidden` | Historical label for the slot-0 under-ROM worker entry copied to `$A800`. |
+| `cmd_zhiddenram_hidden_end` | End label used for descriptor copy-size math. |
 | `"ZHIDDENRAM"` | Public command text; this is a proof/demo command under the `Z...` namespace. |
 
 The worker itself reads `CF_STR_BUF`, sums staged bytes, and returns an integer
@@ -770,7 +787,7 @@ Line-by-line commentary:
 
 | Line or group | What it does |
 | --- | --- |
-| `cmd_bufnew_low` / `jsr rb_handle_alloc` | Delegates allocation to shared low-overlay handle code. The descriptor uses `CMD_LOW_ALL` so the helper is present. |
+| `cmd_bufnew_low` / `jsr rb_handle_alloc` | Delegates allocation to shared slot-0 handle code. The descriptor uses `CMD_LOW_ALL` so the helper is present. |
 | `cmd_buffill_low` / `jsr rb_handle_fill` | Validates a type-1 buffer handle and fills its heap pages through a small C64 transfer buffer. |
 | `cmd_buffree_low` / `jsr rb_handle_free` | Frees any valid typed handle and clears REU metadata. |
 | `cmd_scrcap_low` / `jsr rb_screen_handle_alloc` | Allocates a type-2 screen text+color handle. |
@@ -779,7 +796,7 @@ Line-by-line commentary:
 | `cmd_scrput_low` / `jsr rb_screen_handle_validate` | Checks that the input handle exists and is type-2 before restoring. |
 | `jsr rb_screen_load_text` / `jsr rb_screen_load_color` | Copies the saved text and color pages back to the C64 screen. |
 | `RF_TAG = RB_VAL_NONE` | Tells resident commit there is no BASIC output variable for `SCRPUT`. |
-| `CMD_LOW_ALL ...` descriptors | Publish commands that depend on shared low-overlay helpers rather than copying tiny isolated slices. |
+| `CMD_LOW_ALL ...` descriptors | Publish commands that depend on shared slot-0 helpers rather than copying tiny isolated slices. |
 
 Why it matters: this is how future large objects should work. Keep BASIC-visible
 values small, keep canonical resource metadata in REU, and validate handle type
@@ -828,7 +845,7 @@ before the command reports `?RB ERROR code`:
 3. Add or reuse a parser signature that fills the call frame and clears outputs.
 4. Add a low or hidden worker that only writes the result frame on success.
 5. Add a descriptor entry; use `CMD_LOW_ALL` only when shared helpers require the
-   full low pack.
+   full slot-0 payload.
 6. Keep resident changes minimal. Prefer REU metadata and existing scratch pages.
 7. Add direct and stored-program VICE coverage, including error behavior.
 8. Update Markdown and HTML docs after static and VICE verification, using
@@ -843,13 +860,13 @@ before the command reports `?RB ERROR code`:
 | `$44:$1000-$1FFF` | REU location of the 128 descriptor table. Runtime lookup pages through this table. |
 | `RB_PAGEBUF` | C64 RAM page buffer used to fetch one 256-byte descriptor page, eight descriptors at a time. |
 | `RB_DESC_BUF` | Resident buffer containing the single descriptor selected by lookup. |
-| `RB_CMD_F_LOW` | Descriptor flag for a command whose executable code runs from the low overlay window. |
-| `RB_CMD_F_HIDDEN` | Descriptor flag for a command whose executable code runs under BASIC ROM RAM. |
-| `__LOWPACK_RUN__` | Linker symbol for the packed low-overlay image before it is copied to REU bank `$45`. |
-| `__LOWPACK_SIZE__` | Measured size of the whole low pack, currently `$063D` bytes. |
-| `RB_LOW_BASE` | Runtime low-overlay base, currently `$A900`. |
-| `__HIDDENPACK_RUN__` | Linker symbol for the packed hidden-overlay image. |
-| `RB_HIDDEN_BASE` | Runtime hidden-overlay base, currently `$A800`. |
+| `RB_MODULE_SYSTEM` | Built-in system/default module id used by the current slot-0 command payload. |
+| `__LOWPACK_LOAD__` / `__LOWPACK_RUN__` | Linker symbols for the current built-in slot-0 payload seed and runtime image. The historical name remains, but runtime slot 0 is `$A800-$AFFF`. |
+| `__LOWPACK_SIZE__` | Measured size of the current slot-0 payload, currently `$06C7` / 1735B. |
+| `__SLOTPACK1_LOAD__` / `__SLOTPACK1_RUN__` | Linker symbols for module 2 slot-1 proof/loader payload, currently `$0141` / 321B. |
+| `__SLOTPACK2_LOAD__`, `__SPANPACK_LOAD__`, `__OVL1PACK_LOAD__`, `__OVL2PACK_LOAD__` | Linker symbols for the current 21B proof payloads and overlays. |
+| `RB_SLOT0_BASE`, `RB_SLOT1_BASE`, `RB_SLOT2_BASE` | Runtime submodule slot bases: `$A800`, `$B000`, and `$B800`. |
+| `RB_SLOT_*` masks | Descriptor slot masks; bit 0 selects `$A800`, bit 1 selects `$B000`, and bit 2 selects `$B800`. |
 
 ## Appendix B: Call Frame And Result Frame Fields
 
@@ -881,9 +898,9 @@ before the command reports `?RB ERROR code`:
 
 | Helper or label | Meaning |
 | --- | --- |
-| `cmd_*_low` | Entry point for code copied to the low overlay window. |
+| `cmd_*_low` | Historical label suffix for code copied into the current slot-0 under-ROM payload. |
 | `cmd_*_low_end` | End marker used for descriptor copy-size math. |
-| `cmd_*_hidden` | Entry point for code copied to the hidden overlay window under BASIC ROM RAM. |
+| `cmd_*_hidden` | Historical label suffix for the `ZHIDDENRAM` worker now handled through unified slot-0 under-ROM dispatch. |
 | `rb_handle_alloc` | Allocates a typed handle descriptor and heap pages in REU bank `$44`. |
 | `rb_handle_fill` | Fills a generic buffer handle, rejecting non-buffer handle types. |
 | `rb_handle_free` | Frees any valid typed handle. |

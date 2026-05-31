@@ -688,6 +688,9 @@ readybasic-vice-plans: $(READYBASIC_VICE_SCRIPTS)
 
 readybasic-vice-suites: readybasic-demo-vice readybasic-repeat-label-vice readybasic-lifecycle-vice readybasic-plugin-command-vice readybasic-program-vice readybasic-rbtest1-vice readybasic-state-vice readybasic-large-vars-vice readybasic-cross-app-resume-vice readybasic-second-entry-editor-vice readybasic-full-vice
 
+readybasic-memory-report: $(READYBASIC) $(BUILD_SUPPORT_DIR)/readybasic_memory_report.py
+	$(PYTHON) $(BUILD_SUPPORT_DIR)/readybasic_memory_report.py --html-out docs/readybasic_memory_diagrams.html
+
 # ReadyBASIC sample program (relocated to ReadyBASIC's $2AC1 BASIC workspace).
 $(READYBASIC_RBTEST1): $(APPS_DIR)/readybasic/rbtest1.bas
 	@mkdir -p "$(OBJ_DIR)"
@@ -1196,6 +1199,7 @@ help:
 	@echo "  readybasic-vice-plans - Regenerate tracked ReadyBASIC VICE YAML plans"
 	@echo "  readybasic-vice-suites - Run all repo-owned ReadyBASIC VICE suites"
 	@echo "  readybasic-full-vice - Run the full ReadyBASIC VICE visual suite"
+	@echo "  readybasic-memory-report - Generate the ReadyBASIC proportional RAM/REU HTML report"
 	@echo "  seed-cal26  - Seed CAL26 REL files on the latest built precog-dual-d71 drive 8 image"
 	@echo "  launcher-verbose - Rebuild launcher with verbose config diagnostics"
 	@echo "  run         - Run Ready OS through run.sh for PROFILE=<id>"
@@ -1251,5 +1255,5 @@ probe-rel:
 launcher-verbose:
 	$(MAKE) LAUNCHER_CFG_VERBOSE=1 $(LAUNCHER)
 
-.PHONY: all clean verify verify-resume shim-verify fullcheck help run run-test seed-cal26 probe-rel launcher-verbose readybasic-plugin-static-check readybasic-demo-vice readybasic-repeat-label-vice readybasic-full-vice readybasic-cross-app-resume-vice readybasic-large-vars-vice readybasic-lifecycle-vice readybasic-plugin-command-vice readybasic-program-vice readybasic-rbtest1-vice readybasic-second-entry-editor-vice readybasic-state-vice readybasic-vice-plans readybasic-vice-suites readyshell-host-tests readyshell-parse-smoke-host readyshell-vm-smoke-host readyshell-reu-tests-host editor-smoke-host tasklist-smoke-host programs prepare-version profile profiles release-all easyflash easyflash-verify easyflash-smoke easyflash-smoke-long easyflash-preload-verify easyflash-clean FORCE
+.PHONY: all clean verify verify-resume shim-verify fullcheck help run run-test seed-cal26 probe-rel launcher-verbose readybasic-plugin-static-check readybasic-demo-vice readybasic-repeat-label-vice readybasic-full-vice readybasic-cross-app-resume-vice readybasic-large-vars-vice readybasic-lifecycle-vice readybasic-plugin-command-vice readybasic-program-vice readybasic-rbtest1-vice readybasic-second-entry-editor-vice readybasic-state-vice readybasic-vice-plans readybasic-vice-suites readybasic-memory-report readyshell-host-tests readyshell-parse-smoke-host readyshell-vm-smoke-host readyshell-reu-tests-host editor-smoke-host tasklist-smoke-host programs prepare-version profile profiles release-all easyflash easyflash-verify easyflash-smoke easyflash-smoke-long easyflash-preload-verify easyflash-clean FORCE
 EASYFLASH_LAUNCHER_CPPFLAGS ?=

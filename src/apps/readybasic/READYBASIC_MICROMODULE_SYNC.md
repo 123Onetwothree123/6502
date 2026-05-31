@@ -70,14 +70,16 @@ uppercase name field.
 
 - `BASIC_START = $2AC1`; BASIC owns `$2AC1-$9FFF`, with `30013` formula empty free bytes.
 - `ENTRY` lives at `$1000-$1102`.
-- `RESIDENT` lives at `$1200-$2AB9` and must stay below `$2AC0`.
+- `RESIDENT` lives at `$1200-$2ABB` (`$18BC`, 6332B) and must stay below `$2AC0`.
 - `CMDPACK` load-only seed space is `$2B00-$3FFF`; it is copied to REU bank `$45` on cold entry.
 - `HIDLOAD` load-only helper seed starts at `$4000`.
 - `BRLOAD` load-only bridge seed starts at `$4800`.
 - `REGSEED` load-only registry seed is `$5000-$600F`, size `$1010`.
-- Runtime `LOWPACK` is `$A900-$AF3C`, size `$063D`.
-- Runtime `HIDDENPACK` is `$A800-$A84C`, size `$004D`.
-- Runtime `BRIDGE` is `$C000-$C1F3`, size `$01F4`; the native `PROC`/`FUNC`
+- Runtime common under-ROM helper code is `$A000-$A364`, size `$0365` / 869B.
+- Runtime submodule slot 0 is `$A800-$AFFF`; current module 1/default payload uses `$A800-$AEC6`, size `$06C7` / 1735B.
+- Runtime submodule slot 1 is `$B000-$B7FF`; current module 2 proof/loader payload uses `$B000-$B140`, size `$0141` / 321B.
+- Runtime submodule slot 2 is `$B800-$BFFF`; current proof/overlay payloads use `$B800-$B83E` in 21B slices.
+- Runtime `BRIDGE` is `$C000-$C1F6`, size `$01F7` / 503B; the native `PROC`/`FUNC`
   return stack and flow-control scratch live here and must stay below shared frames at `$C200`.
 
 ## Bank `$44` ReadyBASIC Core Layout
@@ -100,8 +102,15 @@ scans eight descriptors locally, and copies the matched descriptor into
 
 ## Bank `$45` Command Code Layout
 
-- `$0000-$063C`: packed low overlay code fetched to `$A900-$AF3C`.
-- `$063D-$0689`: packed hidden worker code fetched to `$A800-$A84C`.
+- `$0000-$06C6`: built-in module 1/default slot-0 payload, fetched to `$A800-$AEC6`.
+- `$06C7-$0807`: built-in module 2 slot-1 proof and `ZMODLD` loader payload, fetched to `$B000-$B140`.
+- `$0808-$081C`: built-in module 2 slot-2 proof payload, fetched to `$B800-$B814`.
+- `$081D-$0831`: built-in two-slot span proof payload, fetched to `$B000-$B014`.
+- `$0832-$0846`: built-in slot-2 overlay proof 1, fetched to `$B815-$B829`.
+- `$0847-$085B`: built-in slot-2 overlay proof 2, fetched to `$B82A-$B83E`.
+- `$1500-$151F`: `RBM1` disk-module descriptor sample for `ZDM1`.
+- `$1600-$165F`: `RBM2` disk-module descriptor samples for `ZDM2S`, `ZDOV1`, and `ZDOV2`.
+- `$3000-$3016`, `$3200-$3216`, `$3300-$3316`, `$3400-$3416`: current disk-module proof payloads.
 
 Cold entry prestashes these bytes once. Warm resume reuses the REU copies and
 must not reread `CMDPACK`, `HIDLOAD`, `BRLOAD`, or `REGSEED` from BASIC-owned

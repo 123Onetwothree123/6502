@@ -694,6 +694,7 @@
       <a href="#philosophy">Philosophy</a>
       <a href="#memory">RAM Map</a>
       <a href="#reu">REU Banks</a>
+      <a href="../../../docs/readybasic_memory_diagrams.html">Special Report</a>
       <a href="#cold">Cold Boot</a>
       <a href="#resume">Suspend/Resume</a>
       <a href="#pipeline">Command Pipeline</a>
@@ -718,6 +719,7 @@
         <tr><td><code>$C600-$C9FF</code></td><td><strong>ReadyOS-owned area.</strong> REU metadata and shim ABI; not ReadyBASIC scratch.</td><td><span class="tag">reserved</span></td></tr>
       </table>
       <div class="callout good"><strong>REU model:</strong> bank <code>$44</code> holds registry/runtime state, descriptors, handles, snapshots, and typed heap. Bank <code>$45</code> holds built-in and disk-loaded command/module payload bytes. Disk proof modules <code>RBM1</code> and <code>RBM2</code> register commands through <code>ZMODLD</code>, which lives in module 2 rather than resident code.</div>
+      <div class="callout good"><strong>Generated visual companion:</strong> <a href="../../../docs/readybasic_memory_diagrams.html">ReadyBASIC Memory Diagrams</a> is the proportional special report for the current RAM, REU, cold-load, and module/submodule pictures. Regenerate it with <code>make readybasic-memory-report</code> after layout changes.</div>
     </section>
 
     <section id="philosophy" class="band">
@@ -741,8 +743,8 @@
           string heap writes, REU DMA wrappers, and result commit.</p>
         </div>
         <div>
-          <h3>Low and hidden overlays</h3>
-          <p class="muted">Do command work from copied slices. They do not own
+          <h3>Module payloads</h3>
+          <p class="muted">Do command work from copied under-ROM slot slices. They do not own
           BASIC's live interpreter contracts.</p>
         </div>
         <div>
@@ -799,30 +801,32 @@
       <div class="memory-map" aria-label="ReadyBASIC memory map">
         <div class="addr">$1000-$1102</div>
         <div class="region r-entry"><span><b>ENTRY</b><small>Cold/warm cookie and early copy code.</small></span><strong>$0103</strong></div>
-        <div class="addr">$1200-$2AB9</div>
-        <div class="region r-resident"><span><b>RESIDENT</b><small>Parser, crunch/execute/eval hooks, BASIC ROM calls, REU DMA, commit path, PROC/FUNC/RET, flow control, proper float terms.</small></span><strong>$18BA<br>6.2K</strong></div>
+        <div class="addr">$1200-$2ABB</div>
+        <div class="region r-resident"><span><b>RESIDENT</b><small>Parser, crunch/execute/eval hooks, BASIC ROM calls, REU DMA, commit path, PROC/FUNC/RET, flow control, proper float terms.</small></span><strong>$18BC<br>6.2K</strong></div>
         <div class="addr">$2AC0</div>
         <div class="region r-basic"><span><b>BASIC SENTINEL</b><small>Must be zero for stored BASIC RUN.</small></span><strong>1B</strong></div>
         <div class="addr">$2AC1-$9FFF</div>
         <div class="region r-basic"><span><b>BASIC WORKSPACE</b><small>Program text, variables, arrays, string heap.</small></span><strong>$753F<br>30013 free / 29.3K</strong></div>
         <div class="addr">$2B00-$3FFF</div>
-        <div class="region r-pack"><span><b>CMDPACK LOAD IMAGE</b><small>Low and hidden overlay seed bytes before cold prestash.</small></span><strong>$1500<br>5.25K</strong></div>
+        <div class="region r-pack"><span><b>CMDPACK LOAD IMAGE</b><small>Built-in module/submodule payload seed bytes before cold prestash.</small></span><strong>$1500<br>5.25K</strong></div>
         <div class="addr">$4000+</div>
-        <div class="region r-hidden"><span><b>HIDLOAD IMAGE</b><small>Hidden helper seed copied to $A000 and $C280.</small></span><strong>$0377<br>0.9K</strong></div>
+        <div class="region r-hidden"><span><b>HIDLOAD IMAGE</b><small>Hidden helper seed copied to $A000 and $C280.</small></span><strong>$0365<br>869B</strong></div>
         <div class="addr">$4800+</div>
-        <div class="region r-bridge"><span><b>BRLOAD IMAGE</b><small>Bridge seed copied to $C000.</small></span><strong>$01F4<br>500B</strong></div>
+        <div class="region r-bridge"><span><b>BRLOAD IMAGE</b><small>Bridge seed copied to $C000.</small></span><strong>$01F7<br>503B</strong></div>
         <div class="addr">$5000-$600F</div>
         <div class="region r-pack"><span><b>REGSEED IMAGE</b><small>Header and 128 descriptors copied to REU $44:$1000.</small></span><strong>$1010<br>4.0K</strong></div>
         <div class="addr">REU $44:$0A00-$0BFF</div>
         <div class="region r-save"><span><b>RUNTIME SNAPSHOT</b><small>Zero page, stack, saved SP, mode, line-chain guards.</small></span><strong>$0200<br>0.5K</strong></div>
-        <div class="addr">$A000-$A376</div>
-        <div class="region r-hidden"><span><b>HIDDEN HELPER</b><small>Runs with RAM mapped under BASIC ROM.</small></span><strong>$0377<br>0.9K</strong></div>
-        <div class="addr">$A800-$A84C</div>
-        <div class="region r-hidden"><span><b>HIDDEN OVERLAY</b><small>ZHIDDENRAM worker slot.</small></span><strong>$004D<br>77B</strong></div>
-        <div class="addr">$A900-$AF3C</div>
-        <div class="region r-low"><span><b>LOW OVERLAY</b><small>Low command pack runs under BASIC ROM RAM.</small></span><strong>$063D<br>1.6K</strong></div>
-        <div class="addr">$C000-$C1F3</div>
-        <div class="region r-bridge"><span><b>BRIDGE STATE</b><small>Magic, saved vectors, overlay vars, handle scratch, PROC/FUNC stack.</small></span><strong>$01F4<br>500B</strong></div>
+        <div class="addr">$A000-$A364</div>
+        <div class="region r-hidden"><span><b>COMMON HELPER</b><small>Runs with RAM mapped under BASIC ROM.</small></span><strong>$0365<br>869B</strong></div>
+        <div class="addr">$A800-$AEC6</div>
+        <div class="region r-hidden"><span><b>SLOT 0 PAYLOAD</b><small>Module 1 system/default payload.</small></span><strong>$06C7<br>1.7K</strong></div>
+        <div class="addr">$B000-$B140</div>
+        <div class="region r-low"><span><b>SLOT 1 PAYLOAD</b><small>Module 2 proof and ZMODLD loader.</small></span><strong>$0141<br>321B</strong></div>
+        <div class="addr">$B800-$B83E</div>
+        <div class="region r-low"><span><b>SLOT 2 / OVERLAYS</b><small>Proof and overlay slices.</small></span><strong>$003F<br>63B</strong></div>
+        <div class="addr">$C000-$C1F6</div>
+        <div class="region r-bridge"><span><b>BRIDGE STATE</b><small>Magic, saved vectors, overlay vars, handle scratch, PROC/FUNC stack.</small></span><strong>$01F7<br>503B</strong></div>
         <div class="addr">$C200-$C5FF</div>
         <div class="region r-shared"><span><b>SHARED FRAMES</b><small>Call/result frames, descriptor/name/page buffers; hidden shadow at $C280.</small></span><strong>$0400<br>1.0K</strong></div>
         <div class="addr">$C600-$C7FF</div>
@@ -848,12 +852,13 @@
                 <div class="prop-track">
                 <div class="prop-seg r-basic" style="width: 0.21%" title="$2AC1-$2AFF: $003F / 63B"><b>$2AC1</b><small>gap</small></div>
                 <div class="prop-seg r-pack" style="width: 17.91%" title="$2B00-$3FFF: $1500 / 5.25K / 5376 exact bytes"><b>$2B00-$3FFF</b><small>CMDPACK $1500 / 5.25K</small></div>
-                <div class="prop-seg r-hidden" style="width: 2.95%" title="$4000-$4376: $0377 / 0.9K / 887 exact bytes"><b>$4000</b><small>HID</small></div>
-                <div class="prop-seg r-basic" style="width: 3.87%" title="$4377-$47FF: $0489 / 1.1K / 1161 exact bytes"><b>$4377</b><small>pad</small></div>
-                <div class="prop-seg r-bridge" style="width: 1.67%" title="$4800-$49F3: $01F4 / 500B"><b>$4800</b><small>BR</small></div>
-                <div class="prop-seg r-basic" style="width: 5.16%" title="$49F4-$4FFF: $060C / 1.5K / 1548 exact bytes"><b>$49F4</b><small>pad</small></div>
+                <div class="prop-seg r-hidden" style="width: 2.90%" title="$4000-$4364: $0365 / 869B"><b>$4000</b><small>HID</small></div>
+                <div class="prop-seg r-basic" style="width: 3.93%" title="$4365-$47FF: $049B / 1.2K / 1179 exact bytes"><b>$4365</b><small>pad</small></div>
+                <div class="prop-seg r-bridge" style="width: 1.68%" title="$4800-$49F6: $01F7 / 503B"><b>$4800</b><small>BR</small></div>
+                <div class="prop-seg r-basic" style="width: 5.15%" title="$49F7-$4FFF: $0609 / 1.5K / 1545 exact bytes"><b>$49F7</b><small>pad</small></div>
                 <div class="prop-seg r-pack" style="width: 13.70%" title="$5000-$600F: $1010 / 4.0K / 4112 exact bytes"><b>$5000-$600F</b><small>REGSEED $1010</small></div>
-                <div class="prop-seg r-basic" style="width: 54.53%" title="$6010-$9FFF: $3FF0 / 16.0K / 16368 exact bytes"><b>$6010-$9FFF</b><small>future BASIC</small></div>
+                <div class="prop-seg r-basic" style="width: 1.65%" title="$6010-$61FF: $01F0 / 496B"><b>$6010</b><small>reserve</small></div>
+                <div class="prop-seg r-basic" style="width: 52.88%" title="$6200-$9FFF: $3E00 / 15.5K / 15872 exact bytes"><b>$6200-$9FFF</b><small>future BASIC</small></div>
               </div>
             </div>
             <p class="stage-note">
@@ -866,21 +871,23 @@
               <tbody>
                 <tr><td><span class="legend-swatch r-basic"></span><code>$2AC1-$2AFF</code></td><td>Sentinel-adjacent future BASIC/padding before `CMDPACK`.</td><td><code>$003F</code></td><td>63B</td><td>63</td><td>0.21%</td></tr>
                 <tr><td><span class="legend-swatch r-pack"></span><code>$2B00-$3FFF</code></td><td>`CMDPACK` reserved cold-load image.</td><td><code>$1500</code></td><td>5.25K</td><td>5376</td><td>17.91%</td></tr>
-                <tr><td><span class="legend-swatch r-hidden"></span><code>$4000-$4376</code></td><td>`HIDLOAD` seed.</td><td><code>$0377</code></td><td>0.9K</td><td>887</td><td>2.95%</td></tr>
-                <tr><td><span class="legend-swatch r-basic"></span><code>$4377-$47FF</code></td><td>Padding / future BASIC after cold seed.</td><td><code>$0489</code></td><td>1.1K</td><td>1161</td><td>3.87%</td></tr>
-                <tr><td><span class="legend-swatch r-bridge"></span><code>$4800-$49F3</code></td><td>`BRLOAD` seed.</td><td><code>$01F4</code></td><td>500B</td><td>500</td><td>1.67%</td></tr>
-                <tr><td><span class="legend-swatch r-basic"></span><code>$49F4-$4FFF</code></td><td>Padding / future BASIC after cold seed.</td><td><code>$060C</code></td><td>1.5K</td><td>1548</td><td>5.16%</td></tr>
+                <tr><td><span class="legend-swatch r-hidden"></span><code>$4000-$4364</code></td><td>`HIDLOAD` seed.</td><td><code>$0365</code></td><td>869B</td><td>869</td><td>2.90%</td></tr>
+                <tr><td><span class="legend-swatch r-basic"></span><code>$4365-$47FF</code></td><td>Padding / future BASIC after cold seed.</td><td><code>$049B</code></td><td>1.2K</td><td>1179</td><td>3.93%</td></tr>
+                <tr><td><span class="legend-swatch r-bridge"></span><code>$4800-$49F6</code></td><td>`BRLOAD` seed.</td><td><code>$01F7</code></td><td>503B</td><td>503</td><td>1.68%</td></tr>
+                <tr><td><span class="legend-swatch r-basic"></span><code>$49F7-$4FFF</code></td><td>Padding / future BASIC after cold seed.</td><td><code>$0609</code></td><td>1.5K</td><td>1545</td><td>5.15%</td></tr>
                 <tr><td><span class="legend-swatch r-pack"></span><code>$5000-$600F</code></td><td>`REGSEED` header plus 128 descriptors.</td><td><code>$1010</code></td><td>4.0K</td><td>4112</td><td>13.70%</td></tr>
-                <tr><td><span class="legend-swatch r-basic"></span><code>$6010-$9FFF</code></td><td>Future BASIC bytes after `REGSEED`.</td><td><code>$3FF0</code></td><td>16.0K</td><td>16368</td><td>54.53%</td></tr>
+                <tr><td><span class="legend-swatch r-basic"></span><code>$6010-$61FF</code></td><td>`REGSEED` reserved tail.</td><td><code>$01F0</code></td><td>496B</td><td>496</td><td>1.65%</td></tr>
+                <tr><td><span class="legend-swatch r-basic"></span><code>$6200-$9FFF</code></td><td>Future BASIC bytes after `REGSEED` reserve.</td><td><code>$3E00</code></td><td>15.5K</td><td>15872</td><td>52.88%</td></tr>
               </tbody>
             </table>
             <div class="cmd-subgrid">
               <div>
                 <h3>Inside `CMDPACK` During Load</h3>
                 <div class="stage-bar">
-                  <div class="stage-seg r-low" style="width: 29.71%" title="$2B00-$313C: $063D / 1.6K / 1597 exact bytes"><b>LOWPACK</b><small>$063D / 1.6K / 1597 exact bytes</small></div>
-                  <div class="stage-seg r-hidden" style="width: 1.43%" title="$313D-$3189: $004D / 77B"><b>H</b><small>77B</small></div>
-                  <div class="stage-seg r-pack" style="width: 68.86%" title="$318A-$3FFF: $0E76 / 3.6K / 3702 exact bytes"><b>available reserved room</b><small>$0E76 / 3.6K / 3702 exact bytes</small></div>
+                  <div class="stage-seg r-low" style="width: 32.27%" title="$2B00-$31C6: $06C7 / 1735 exact bytes"><b>slot 0</b><small>$06C7 / 1735B</small></div>
+                  <div class="stage-seg r-hidden" style="width: 5.97%" title="$31C7-$3307: $0141 / 321B"><b>slot 1</b><small>$0141 / 321B</small></div>
+                  <div class="stage-seg r-low" style="width: 1.95%" title="$3308-$335B: four 21B proof slices"><b>proof slices</b><small>4 x 21B</small></div>
+                  <div class="stage-seg r-pack" style="width: 60.19%" title="$335C-$3FFF: $0CA4 / 3.2K / 3236 exact bytes"><b>available reserved room</b><small>$0CA4 / 3.2K / 3236 exact bytes</small></div>
                 </div>
               </div>
               <div>
@@ -899,13 +906,15 @@
             <div class="prop-stage">
               <div class="prop-label">Runtime command copy<small>under BASIC ROM RAM</small></div>
               <div class="prop-track">
-                <div class="prop-seg r-hidden" style="width: 4.70%" title="$A800-$A84C: $004D / 77B"><b>$A800-$A84C</b><small>hidden 77B</small></div>
-                <div class="prop-seg r-low" style="width: 95.40%" title="$A900-$AF3C: $063D / 1.6K / 1597 exact bytes"><b>$A900-$AF3C</b><small>low overlay $063D / 1.6K</small></div>
+                <div class="prop-seg r-hidden" style="width: 28.24%" title="$A800-$AEC6: $06C7 / 1735B"><b>$A800-$AEC6</b><small>slot 0 / 1735B</small></div>
+                <div class="prop-seg r-low" style="width: 5.22%" title="$B000-$B140: $0141 / 321B"><b>$B000-$B140</b><small>slot 1 / 321B</small></div>
+                <div class="prop-seg r-low" style="width: 1.03%" title="$B800-$B83E: $003F / 63B"><b>$B800-$B83E</b><small>slot 2 proofs</small></div>
+                <div class="prop-seg r-pack" style="width: 65.51%" title="Free room across the three 2K slots"><b>free slot room</b><small>remaining 6K window</small></div>
               </div>
             </div>
             <div class="cmdpack-meter" aria-label="CMDPACK reserved capacity">
               <span></span>
-              <strong>Current packed command content: $068A / 1.6K / 1674 exact bytes. That is inside today's $1500 / 5.25K cold-load seed window, not the long-term command-code ceiling</strong>
+              <strong>Current built-in packed command content: $085C / 2.1K / 2140 exact bytes. That is inside today's $1500 / 5.25K cold-load seed window, not the long-term command-code ceiling</strong>
             </div>
             <p class="stage-note">
               `CMDPACK` growth up to the current reserved space changes the cold
@@ -920,7 +929,7 @@
               </div>
               <div class="capacity-card">
                 <b>64.0K current REU bank</b>
-                <p>Descriptors use 16-bit offsets/sizes into REU bank <code>$45</code>. Current packed code uses <code>$068A</code> / 1.6K, leaving <code>$F976</code> / 62.4K.</p>
+                <p>Descriptors use 16-bit offsets/sizes into REU bank <code>$45</code>. Current built-in packed code uses <code>$085C</code> / 2.1K, leaving <code>$F7A4</code> / 61.9K.</p>
               </div>
               <div class="capacity-card">
                 <b>More than 64K later</b>
@@ -959,10 +968,12 @@
 
         <div class="bank code">
           <div class="bank-title">REU Bank $45: Packed Command Code</div>
-          <div class="slice"><span>$0000-$063C</span><span>Low overlay pack fetched into `$A900-$AF3C`. <span class="size-pill">$063D / 1.6K / 1597 exact bytes</span></span></div>
-          <div class="slice"><span>$063D-$0689</span><span>Hidden overlay pack fetched into `$A800-$A84C`. <span class="size-pill">$004D / 77B</span></span></div>
-          <div class="slice"><span>$068A-$FFFF</span><span>Available packed-code bank space for future command bodies. <span class="size-pill">$F976 / 62.4K / 63862 exact bytes</span></span></div>
-          <div class="slice"><span>descriptor</span><span>Each descriptor stores code offset, code length, run offset, flags, signature, and name. Descriptor table lives in bank `$44`, not here.</span></div>
+          <div class="slice"><span>$0000-$06C6</span><span>Built-in module 1 slot-0 payload fetched into `$A800-$AEC6`. <span class="size-pill">$06C7 / 1.7K / 1735 exact bytes</span></span></div>
+          <div class="slice"><span>$06C7-$0807</span><span>Built-in module 2 slot-1 proof and ZMODLD loader payload fetched into `$B000-$B140`. <span class="size-pill">$0141 / 321B</span></span></div>
+          <div class="slice"><span>$0808-$085B</span><span>Built-in slot-2, span, and overlay proof slices. <span class="size-pill">$0054 / 84B</span></span></div>
+          <div class="slice"><span>$1500/$1600</span><span>Disk-module descriptor proof regions for RBM1 and RBM2.</span></div>
+          <div class="slice"><span>$3000+</span><span>Disk-loaded proof payloads for ZDM1, ZDM2S, ZDOV1, and ZDOV2.</span></div>
+          <div class="slice"><span>descriptor</span><span>Each descriptor stores payload offset/size, slot mask, runtime destination, entry offset, signature, and name. Descriptor table lives in bank `$44`, not here.</span></div>
           <div class="slice"><span>$C600</span><span>ReadyOS allocation table marks `$44` as type 14 and `$45` as type 15. This is C64 metadata, not REU bank `$45` content.</span></div>
         </div>
       </div>
@@ -1048,7 +1059,8 @@
         </div>
         <div class="pipe-card">
           <h3><span class="dot cyan"></span> 3. Execute</h3>
-          <p>Copy command code from REU bank `$45` into `$A900` or `$A800`, call
+          <p>Copy command code from REU bank `$45` into the `$A800`, `$B000`,
+          and/or `$B800` submodule slots, call
           it, and stash call/result frames back into bank `$44` for inspection.</p>
         </div>
         <div class="pipe-card">
@@ -1075,8 +1087,8 @@
       <h2>Command Code And Data Movement</h2>
       <p>
         These commands are representative samples for the plugin spine. Some are
-        tiny single-slice low overlays; the handle and screen commands currently copy the
-        whole low pack to keep REU descriptor, bitmap, and allocator helpers out of resident RAM.
+        tiny single-slice module payloads; the handle and screen commands currently copy the
+        whole slot-0 payload to keep REU descriptor, bitmap, and allocator helpers out of resident RAM.
       </p>
 
       <div class="command-grid">
@@ -1087,72 +1099,72 @@
         </div>
         <div class="command">
           <h3>ZADD16(A,B,OUT%) / ZADD16(A,B)</h3>
-          <div class="command-meta"><span class="chip low">low $A900</span><span class="chip">offset $0015</span><span class="chip">copy $001E / 30B</span></div>
+          <div class="command-meta"><span class="chip low">slot 0 $A800</span><span class="chip">small slice</span><span class="chip">module 1</span></div>
           <p>Parses two numeric expressions through BASIC ROM and returns a 16-bit sum.</p>
         </div>
         <div class="command">
           <h3>UPPER(S$,OUT$) / UPPER(S$)</h3>
-          <div class="command-meta"><span class="chip low">low $A900</span><span class="chip">offset $0056</span><span class="chip">copy $003B / 59B</span></div>
+          <div class="command-meta"><span class="chip low">slot 0 $A800</span><span class="chip">small slice</span><span class="chip">module 1</span></div>
           <p>Copies a string variable or quoted literal into the call frame, uppercases it, and lets resident code allocate the BASIC string result.</p>
         </div>
         <div class="command">
           <h3>LOWER(S$,OUT$) / LOWER(S$)</h3>
-          <div class="command-meta"><span class="chip low">low $A900</span><span class="chip">offset $0091</span><span class="chip">copy $003B / 59B</span></div>
+          <div class="command-meta"><span class="chip low">slot 0 $A800</span><span class="chip">small slice</span><span class="chip">module 1</span></div>
           <p>Lowercases string byte values. Tests check <code>ASC()</code> output because visual lowercase depends on the active C64 character set.</p>
         </div>
         <div class="command">
           <h3>ZHIDDENRAM(S$,OUT%) / ZHIDDENRAM(S$)</h3>
-          <div class="command-meta"><span class="chip hidden">hidden</span><span class="chip">bank $45+$063D</span><span class="chip">copy $004D / 77B</span></div>
-          <p>Copies hidden code into `$A800`, maps RAM under BASIC ROM, and returns a checksum-like uppercase byte sum.</p>
+          <div class="command-meta"><span class="chip hidden">slot 0 $A800</span><span class="chip">under-ROM worker</span><span class="chip">module 1</span></div>
+          <p>Copies worker code into `$A800`, maps RAM under BASIC ROM, and returns a checksum-like uppercase byte sum.</p>
         </div>
         <div class="command">
           <h3>ZSUMNUMARRAY(A%(0),COUNT,OUT%) / ZSUMNUMARRAY(A%(0),COUNT)</h3>
-          <div class="command-meta"><span class="chip low">low $A900</span><span class="chip">offset $00CC</span><span class="chip">copy $0044 / 68B</span></div>
+          <div class="command-meta"><span class="chip low">slot 0 $A800</span><span class="chip">small slice</span><span class="chip">module 1</span></div>
           <p>Uses explicit array base plus count, resolves the array pointer, and sums integer elements.</p>
         </div>
         <div class="command">
           <h3>ZRANGENUMARRAY(START,COUNT,A%(0))</h3>
-          <div class="command-meta"><span class="chip low">low $A900</span><span class="chip">offset $0110</span><span class="chip">copy $003D / 61B</span></div>
+          <div class="command-meta"><span class="chip low">slot 0 $A800</span><span class="chip">small slice</span><span class="chip">module 1</span></div>
           <p>Stages consecutive integer values in the result frame; resident code writes them into the output array.</p>
         </div>
         <div class="command">
           <h3>BUFNEW(LEN,H%) / BUFNEW(LEN)</h3>
-          <div class="command-meta"><span class="chip low">low $A900</span><span class="chip reu">REU handle</span><span class="chip">copy $063D / 1.6K</span></div>
+          <div class="command-meta"><span class="chip low">slot 0 $A800</span><span class="chip reu">REU handle</span><span class="chip">copy $06C7 / 1.7K</span></div>
           <p>Allocates contiguous 256-byte buffer pages inside bank `$44` and returns a one-based handle.</p>
         </div>
         <div class="command">
           <h3>BUFFILL(H%,BYTE)</h3>
-          <div class="command-meta"><span class="chip low">low $A900</span><span class="chip reu">REU data</span><span class="chip">copy $063D / 1.6K</span></div>
+          <div class="command-meta"><span class="chip low">slot 0 $A800</span><span class="chip reu">REU data</span><span class="chip">copy $06C7 / 1.7K</span></div>
           <p>Fills `$C500` with a byte and stashes it page by page into a type-1 buffer handle.</p>
         </div>
         <div class="command">
           <h3>BUFFREE(H%)</h3>
-          <div class="command-meta"><span class="chip low">low $A900</span><span class="chip reu">metadata</span><span class="chip">copy $063D / 1.6K</span></div>
+          <div class="command-meta"><span class="chip low">slot 0 $A800</span><span class="chip reu">metadata</span><span class="chip">copy $06C7 / 1.7K</span></div>
           <p>Clears the REU-backed page bitmap and handle descriptor for any valid handle type.</p>
         </div>
         <div class="command">
           <h3>ZTEMPSCRATCH(LEN,OUT%) / ZTEMPSCRATCH(LEN)</h3>
-          <div class="command-meta"><span class="chip low">low $A900</span><span class="chip reu">temp heap</span><span class="chip">copy $063D / 1.6K</span></div>
+          <div class="command-meta"><span class="chip low">slot 0 $A800</span><span class="chip reu">temp heap</span><span class="chip">copy $06C7 / 1.7K</span></div>
           <p>Allocates and immediately frees pages, returning the number of pages required.</p>
         </div>
         <div class="command">
           <h3>ZFAIL(CODE,OUT%)</h3>
-          <div class="command-meta"><span class="chip low">low $A900</span><span class="chip err">error path</span><span class="chip">copy $001B / 27B</span></div>
+          <div class="command-meta"><span class="chip low">slot 0 $A800</span><span class="chip err">error path</span><span class="chip">small slice</span></div>
           <p>Proves outputs are cleared before execution and stale result frames are not committed after failure.</p>
         </div>
         <div class="command">
           <h3>FREEMEM()</h3>
-          <div class="command-meta"><span class="chip low">low $A900</span><span class="chip">offset $0178</span><span class="chip">copy $0016 / 22B</span></div>
+          <div class="command-meta"><span class="chip low">slot 0 $A800</span><span class="chip">free-byte probe</span><span class="chip">small slice</span></div>
           <p>Prints current live BASIC free bytes and refreshes the header.</p>
         </div>
         <div class="command">
           <h3>SCRCAP(H%) / SCRCAP()</h3>
-          <div class="command-meta"><span class="chip low">slot 14</span><span class="chip reu">screen handle</span><span class="chip">copy $063D / 1.6K</span></div>
+          <div class="command-meta"><span class="chip low">slot 14</span><span class="chip reu">screen handle</span><span class="chip">copy $06C7 / 1.7K</span></div>
           <p>Captures `$0400-$07E7` screen text and `$D800-$DBE7` color RAM into a type-2 handle.</p>
         </div>
         <div class="command">
           <h3>SCRPUT(H%)</h3>
-          <div class="command-meta"><span class="chip low">slot 128</span><span class="chip reu">screen handle</span><span class="chip">copy $063D / 1.6K</span></div>
+          <div class="command-meta"><span class="chip low">slot 128</span><span class="chip reu">screen handle</span><span class="chip">copy $06C7 / 1.7K</span></div>
           <p>Validates a type-2 handle, then restores screen text and color RAM.</p>
         </div>
       </div>

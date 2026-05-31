@@ -219,7 +219,7 @@
 	          <tr><td><code>XU*</code></td><td>Alpha/beta Ultimate-specific commands whose behavior or parameter shape is not settled yet.</td></tr>
 	        </tbody>
 	      </table>
-		      <p>Current public names include <code>ZECHO1</code>, <code>ZADD16</code>, <code>UPPER</code>, <code>LOWER</code>, <code>ZHIDDENRAM</code>, <code>ZSUMNUMARRAY</code>, <code>ZRANGENUMARRAY</code>, <code>ZTEMPSCRATCH</code>, and <code>ZFAIL</code>.</p>
+		      <p>Current public names include <code>ZECHO1</code>, <code>ZADD16</code>, <code>UPPER</code>, <code>LOWER</code>, <code>ZHIDDENRAM</code>, <code>ZSUMNUMARRAY</code>, <code>ZRANGENUMARRAY</code>, <code>BUFNEW</code>, <code>BUFFILL</code>, <code>BUFFREE</code>, <code>SCRCAP</code>, <code>SCRPUT</code>, <code>ZTEMPSCRATCH</code>, <code>ZPAUSE</code>, <code>ZFAIL</code>, <code>FREEMEM</code>, <code>ERRCODE</code>, <code>ERRLINE</code>, <code>ZSLOT0</code>, <code>ZSLOT1</code>, <code>ZSLOT2</code>, <code>ZSPAN</code>, <code>ZOVL1</code>, <code>ZOVL2</code>, <code>ZCPYRST</code>, <code>ZCOPY</code>, and <code>ZMODLD</code>. Disk-module samples add <code>ZDM1</code>, <code>ZDM2S</code>, <code>ZDOV1</code>, and <code>ZDOV2</code>.</p>
     </div>
   </section>
 
@@ -227,35 +227,44 @@
     <h2>Descriptor Shape</h2>
     <p>Descriptors are cold-seeded into REU bank <code>$44:$1000-$1FFF</code>. Runtime lookup fetches one 256-byte page, scans eight descriptors, then copies the match to <code>RB_DESC_BUF</code>.</p>
 <pre><code>.macro CMD_LOW id, sig, label, endlabel, name
-        .byte id, RB_CMD_F_LOW
-        .word label - __LOWPACK_RUN__ ; offset in REU bank $45
-        .word endlabel - label        ; copy length
-        .word 0, 0
-        .word label - RB_LOW_BASE     ; run offset from $A900
-        .word 0
+        .byte id, RB_MODULE_SYSTEM
+        .word 0                       ; payload offset in REU bank $45
+        .word __LOWPACK_SIZE__        ; slot-0 payload size
+        .byte RB_SUBMOD_LEGACY_LOW
+        .byte 0                       ; overlay id
+        .byte RB_SLOT_LEGACY_LOW      ; slot mask: $A800
+        .byte 1                       ; generation/check byte
+        .word 0                       ; runtime destination offset from $A000
+        .word label - __LOWPACK_RUN__ ; entry offset
         .byte sig, .strlen(name)
         .byte name
         .res 16 - .strlen(name), 0
 .endmacro</code></pre>
 <pre><code>.macro CMD_LOW_ALL id, sig, label, name
-        .byte id, RB_CMD_F_LOW
-        .word 0                    ; whole LOWPACK
+        .byte id, RB_MODULE_SYSTEM
+        .word 0                    ; whole slot-0 payload
         .word __LOWPACK_SIZE__
-        .word 0, 0
-        .word label - RB_LOW_BASE
+        .byte RB_SUBMOD_LEGACY_LOW
+        .byte 0
+        .byte RB_SLOT_LEGACY_LOW
+        .byte 1
         .word 0
+        .word label - __LOWPACK_RUN__
         .byte sig, .strlen(name)
         .byte name
         .res 16 - .strlen(name), 0
 .endmacro
 
-.macro CMD_HIDDEN id, sig, label, endlabel, name
-        .byte id, RB_CMD_F_HIDDEN
-        .word 0, 0
-        .word label - __HIDDENPACK_RUN__
-        .word endlabel - label
+.macro CMD_SLOT1 id, sig, label, name
+        .byte id, 2
+        .word __SLOTPACK1_LOAD__ - __LOWPACK_LOAD__
+        .word __SLOTPACK1_SIZE__
+        .byte RB_SUBMOD_PROOF_SLOT1
+        .byte 0
+        .byte RB_SLOT_PROOF_1
+        .byte 1
         .word 0
-        .word label - RB_HIDDEN_BASE
+        .word label - __SLOTPACK1_RUN__
         .byte sig, .strlen(name)
         .byte name
         .res 16 - .strlen(name), 0
@@ -265,10 +274,10 @@
       <tbody>
         <tr><td><code>id</code></td><td>Internal command id. It is stable command identity, separate from the command's slot number.</td></tr>
         <tr><td><code>sig</code></td><td>Parser signature id. This is how lookup chooses which resident parser routine fills the call frame.</td></tr>
-        <tr><td><code>label</code> / <code>endlabel</code></td><td>Assembler labels that define both the packed-code offset and the exact number of bytes to copy.</td></tr>
-        <tr><td><code>RB_CMD_F_LOW</code></td><td>Flag saying the worker runs from the low overlay window at <code>$A900</code>.</td></tr>
-        <tr><td><code>RB_CMD_F_HIDDEN</code></td><td>Flag saying the worker runs under BASIC ROM RAM at <code>$A800</code>.</td></tr>
-        <tr><td><code>CMD_LOW_ALL</code></td><td>Used when a tiny command wrapper calls shared helpers elsewhere in the low pack, so the whole low pack must be available.</td></tr>
+        <tr><td><code>label</code> / <code>endlabel</code></td><td>Assembler labels that define the worker entry and, for slice-copy commands, the exact number of bytes to copy.</td></tr>
+        <tr><td><code>module/submodule/overlay</code></td><td>Identifies which module payload or overlay must be resident before the entry is called.</td></tr>
+        <tr><td><code>slot mask</code></td><td>Bit 0 selects <code>$A800</code>, bit 1 selects <code>$B000</code>, and bit 2 selects <code>$B800</code>.</td></tr>
+        <tr><td><code>CMD_LOW_ALL</code></td><td>Used when a tiny command wrapper calls shared helpers elsewhere in the slot-0 payload, so the whole slot-0 payload must be available.</td></tr>
       </tbody>
     </table>
   </section>
@@ -319,8 +328,8 @@ rb_precompute_zecho1:
       </div>
       <div class="card">
         <h3>ZADD16</h3>
-        <p><span class="chip low">low overlay</span><span class="chip">two numeric inputs</span></p>
-        <p>Proves BASIC ROM expression parsing in resident code, then simple arithmetic in the overlay.</p>
+        <p><span class="chip low">slot 0 payload</span><span class="chip">two numeric inputs</span></p>
+        <p>Proves BASIC ROM expression parsing in resident code, then simple arithmetic in the under-ROM worker.</p>
 <pre><code>10 ZADD16(4,5,A%)
 
 20 PRINT "OUT";A%
@@ -359,7 +368,7 @@ cmd_zadd16_low:
             <tr><td><code>adc CF_NUM1_LO</code></td><td>Adds low bytes and leaves carry ready for the high-byte addition.</td></tr>
             <tr><td><code>adc CF_NUM1_HI</code></td><td>Adds high bytes plus carry, producing a 16-bit result.</td></tr>
             <tr><td><code>RF_VAL_LO/HI</code></td><td>Holds the staged result. The overlay does not write BASIC variables directly.</td></tr>
-            <tr><td><code>CMD_LOW ... "ZADD16"</code></td><td>The descriptor connects the visible command to this parser and this exact low-overlay copy range.</td></tr>
+            <tr><td><code>CMD_LOW ... "ZADD16"</code></td><td>The descriptor connects the visible command to this parser and this slot-0 payload entry range.</td></tr>
           </tbody>
         </table>
       </div>
@@ -425,11 +434,11 @@ CMD_LOW CMD_LOWER, SIG_LOWER,
   </section>
 
   <section>
-    <h2>Array And Hidden Examples</h2>
+    <h2>Array And Under-ROM Examples</h2>
     <div class="stack">
       <article class="card hidden">
         <h3>ZHIDDENRAM</h3>
-        <p>Uses <code>CMD_HIDDEN</code>, fetches code into <code>$A800</code>, maps RAM under BASIC ROM, runs a checksum-like worker, and restores banking.</p>
+        <p>Uses the compatibility macro <code>CMD_HIDDEN</code> to publish a module-aware slot-0 descriptor, fetches code into <code>$A800</code>, maps RAM under BASIC ROM, runs a checksum-like worker, and restores banking.</p>
 <pre><code>10 ZHIDDENRAM("AB",H%)
 20 PRINT "HIDDEN";H%
 
@@ -678,7 +687,7 @@ CMD_LOW_ALL CMD_SCRPUT, SIG_SCRPUT, cmd_scrput_low, "SCRPUT"</code></pre>
         <tr><td><code>lda RF_STATUS</code> / <code>beq :+</code></td><td>Stops immediately if allocation or validation failed, preserving the error status for resident code.</td></tr>
         <tr><td><code>rb_screen_save_text/color</code></td><td>Copies text RAM and color RAM into the typed REU handle.</td></tr>
         <tr><td><code>rb_screen_load_text/color</code></td><td>Restores text RAM and color RAM only after the handle type has been validated.</td></tr>
-        <tr><td><code>CMD_LOW_ALL ...</code></td><td>These commands call shared helpers, so the descriptor copies the whole low pack instead of just the wrapper bytes.</td></tr>
+        <tr><td><code>CMD_LOW_ALL ...</code></td><td>These commands call shared helpers, so the descriptor copies the whole slot-0 payload instead of just the wrapper bytes.</td></tr>
       </tbody>
     </table>
     <p class="muted">The handle lesson is to keep BASIC-visible values small, keep canonical resource metadata in REU, and validate handle type at command boundaries. <code>BUFFILL</code> accepts only type-1 buffer handles; <code>SCRPUT</code> accepts only type-2 screen text+color handles; <code>BUFFREE</code> frees any valid type.</p>
@@ -733,7 +742,7 @@ CMD_LOW_ALL CMD_SCRPUT, SIG_SCRPUT, cmd_scrput_low, "SCRPUT"</code></pre>
       <li>Add command id and signature id.</li>
       <li>Add or reuse a parser signature that fills the call frame and clears outputs.</li>
       <li>Add a low or hidden worker that writes the result frame only on success.</li>
-      <li>Add a descriptor entry; use <code>CMD_LOW_ALL</code> only when shared helpers require the full low pack.</li>
+      <li>Add a descriptor entry; use <code>CMD_LOW_ALL</code> only when shared helpers require the full slot-0 payload.</li>
       <li>Keep resident growth minimal; prefer REU metadata and existing scratch pages.</li>
       <li>Add direct, stored-program, error-path, and resume/slot coverage.</li>
       <li>Update Markdown and HTML docs with measured map values after tests pass.</li>
@@ -749,10 +758,10 @@ CMD_LOW_ALL CMD_SCRPUT, SIG_SCRPUT, cmd_scrput_low, "SCRPUT"</code></pre>
         <tr><td><code>$44:$1000-$1FFF</code></td><td>REU location of the descriptor table. Lookup pages through this range.</td></tr>
         <tr><td><code>RB_PAGEBUF</code></td><td>RAM page buffer used to fetch one 256-byte descriptor page, eight descriptors at a time.</td></tr>
         <tr><td><code>RB_DESC_BUF</code></td><td>Resident copy of the single matched descriptor.</td></tr>
-        <tr><td><code>__LOWPACK_RUN__</code></td><td>Linker symbol for the packed low-overlay image before prestash to REU bank <code>$45</code>.</td></tr>
-        <tr><td><code>__LOWPACK_SIZE__</code></td><td>Measured full low-pack size, currently <code>$063D</code>.</td></tr>
-        <tr><td><code>RB_LOW_BASE</code></td><td>Runtime low-overlay base address, currently <code>$A900</code>.</td></tr>
-        <tr><td><code>RB_HIDDEN_BASE</code></td><td>Runtime hidden-overlay base address, currently <code>$A800</code>.</td></tr>
+        <tr><td><code>__LOWPACK_LOAD__</code> / <code>__LOWPACK_RUN__</code></td><td>Historical symbol names for the current built-in slot-0 payload seed and runtime image. Runtime slot 0 is <code>$A800-$AFFF</code>.</td></tr>
+        <tr><td><code>__LOWPACK_SIZE__</code></td><td>Measured slot-0 payload size, currently <code>$06C7</code> / 1735B.</td></tr>
+        <tr><td><code>__SLOTPACK1_RUN__</code></td><td>Runtime symbol for module 2 slot-1 proof/loader payload at <code>$B000</code>, currently <code>$0141</code> / 321B.</td></tr>
+        <tr><td><code>RB_SLOT0_BASE</code>, <code>RB_SLOT1_BASE</code>, <code>RB_SLOT2_BASE</code></td><td>Runtime submodule slot bases: <code>$A800</code>, <code>$B000</code>, and <code>$B800</code>.</td></tr>
       </tbody>
     </table>
   </section>
