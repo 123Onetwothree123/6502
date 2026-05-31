@@ -793,6 +793,17 @@ def ensure_generated_assets(profile: Dict[str, object],
 
 def managed_build_names(profile: Dict[str, object], apps_set: set[str]) -> set[str]:
     managed = {"apps.cfg"}
+    for disk in profile.get("disks", []):
+        for entry in disk.get("contents", []):
+            keep_on_demand = bool(entry.get("include_even_if_not_catalog", False))
+            if (not keep_on_demand and entry["type"] == "prg" and
+                    str(entry["name"]) in KNOWN_APP_NAMES and
+                    str(entry["name"]) not in apps_set):
+                continue
+            app_name = entry.get("app")
+            if app_name and str(app_name) not in apps_set:
+                continue
+            managed.add(str(entry["name"]))
     for entry in app_manifest_entries(profile):
         managed.add(str(entry["disk_name"]))
     for entry in build_owned_support_entries(None):

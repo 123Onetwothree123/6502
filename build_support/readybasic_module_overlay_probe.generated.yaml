@@ -19,9 +19,9 @@ global_defaults:
     capture_state: true
     capture_dump: false
   vice:
-    disk8: "Releases/0.2.4/precog-d81/readyos-v0.2.4c-d81.d81"
-    disk9: "Releases/0.2.4/precog-d81/readyos-v0.2.4c-d81.d81"
-    autostart_prg: "Releases/0.2.4/precog-d81/readyos-v0.2.4c-d81-preboot.prg"
+    disk8: "Releases/0.2.4/precog-d81/readyos-v0.2.4d-d81.d81"
+    disk9: "Releases/0.2.4/precog-d81/readyos-v0.2.4d-d81.d81"
+    autostart_prg: "Releases/0.2.4/precog-d81/readyos-v0.2.4d-d81-preboot.prg"
     drive8_type: 1581
     drive9_type: 1581
     true_drive: false
@@ -127,20 +127,44 @@ steps:
     type: assert.screen
     params:
       contains: "31113"
-  - id: rbm_sample3_copy_probe
+  - id: rbm_sample3_copy_same_overlay_probe
     type: input.sequence
     params:
-      keys: [80,82,73,78,84,32,67,72,82,36,40,49,52,55,41,13,80,82,73,78,84,32,34,82,49,34,59,90,67,80,89,82,83,84,40,41,13,65,61,90,83,65,65,40,41,13,66,61,90,83,65,66,40,41,13,80,82,73,78,84,32,34,67,49,34,59,90,67,79,80,89,40,41,13,80,82,73,78,84,32,34,82,50,34,59,90,67,80,89,82,83,84,40,41,13,65,61,90,83,65,65,40,41,13,66,61,90,83,66,65,40,41,13,80,82,73,78,84,32,34,67,50,34,59,90,67,79,80,89,40,41,13,80,82,73,78,84,32,34,82,51,34,59,90,67,80,89,82,83,84,40,41,13,65,61,90,83,65,65,40,41,13,66,61,90,84,65,65,40,41,13,80,82,73,78,84,32,34,67,51,34,59,90,67,79,80,89,40,41,13]
+      keys: [80,82,73,78,84,32,67,72,82,36,40,49,52,55,41,13,80,82,73,78,84,32,34,82,49,34,59,90,67,80,89,82,83,84,40,41,13,65,61,90,83,65,65,40,41,13,66,61,90,83,65,66,40,41,13,80,82,73,78,84,32,34,67,49,34,59,90,67,79,80,89,40,41,13]
       inter_key_delay_s: 0.03
-      post_delay_s: 2.0
+      post_delay_s: 1.5
+  - id: capture_rbm_sample3_copy_same_overlay
+    type: screen.capture
+    params:
+      label: after_rbm_sample3_copy_same_overlay
   - id: assert_copy_same_overlay_no_reload
     type: assert.screen
     params:
       contains: "C1 2"
+  - id: rbm_sample3_copy_different_overlay_probe
+    type: input.sequence
+    params:
+      keys: [80,82,73,78,84,32,67,72,82,36,40,49,52,55,41,13,80,82,73,78,84,32,34,82,50,34,59,90,67,80,89,82,83,84,40,41,13,65,61,90,83,65,65,40,41,13,66,61,90,83,66,65,40,41,13,80,82,73,78,84,32,34,67,50,34,59,90,67,79,80,89,40,41,13]
+      inter_key_delay_s: 0.03
+      post_delay_s: 1.5
+  - id: capture_rbm_sample3_copy_different_overlay
+    type: screen.capture
+    params:
+      label: after_rbm_sample3_copy_different_overlay
   - id: assert_copy_different_overlay_reload
     type: assert.screen
     params:
       contains: "C2 3"
+  - id: rbm_sample3_copy_different_submodule_probe
+    type: input.sequence
+    params:
+      keys: [80,82,73,78,84,32,67,72,82,36,40,49,52,55,41,13,80,82,73,78,84,32,34,82,51,34,59,90,67,80,89,82,83,84,40,41,13,65,61,90,83,65,65,40,41,13,66,61,90,84,65,65,40,41,13,80,82,73,78,84,32,34,67,51,34,59,90,67,79,80,89,40,41,13]
+      inter_key_delay_s: 0.03
+      post_delay_s: 1.5
+  - id: capture_rbm_sample3_copy_different_submodule
+    type: screen.capture
+    params:
+      label: after_rbm_sample3_copy_different_submodule
   - id: assert_copy_different_submodule_reload
     type: assert.screen
     params:

@@ -342,7 +342,7 @@ profiles:
 | --- | --- | --- | --- |
 | `rbm.sample1` | Module 3 | `ZDM1()` returns `61` | Single slot-1 submodule. |
 | `rbm.sample2` | Module 4 | `ZDM2S()` returns `74`; `ZDOV1()`/`ZDOV2()` return `72`/`73` | Two-slot slot 1+2 span plus two slot-2 overlays. `ZDOV1` and `ZDOV2` both use submodule 5 because they are different overlays of the same submodule family. |
-| `rbm.sample3` | Module 5 | `ZM6O1A(S$)`-`ZM8O5B(S$)` return command name | Larger package with 30 descriptors. The command names encode submodule, overlay, and entrypoint: `ZM6O1A` is submodule 6, overlay 1, entry A; `ZM6O1B` is the second entrypoint in that same resident overlay image. |
+| `rbm.sample3` | Module 5 | `ZSAA()`-`ZUEB()` return integer sentinels | Larger package with 30 descriptors. The command names encode submodule, overlay, and entrypoint: `ZSAA` is submodule 6, overlay 1, entry A; `ZSAB` is the second entrypoint in that same resident overlay image. `ZT*` and `ZU*` cover submodules 7 and 8. |
 
 The long-term loader should still:
 

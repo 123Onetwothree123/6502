@@ -190,20 +190,44 @@ steps:
     type: assert.screen
     params:
       contains: "31113"
-  - id: rbm_sample3_copy_probe
+  - id: rbm_sample3_copy_same_overlay_probe
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rPRINT "R1";ZCPYRST()\rA=ZSAA()\rB=ZSAB()\rPRINT "C1";ZCOPY()\rPRINT "R2";ZCPYRST()\rA=ZSAA()\rB=ZSBA()\rPRINT "C2";ZCOPY()\rPRINT "R3";ZCPYRST()\rA=ZSAA()\rB=ZTAA()\rPRINT "C3";ZCOPY()\r')]
+      keys: [$(keys $'PRINT CHR$(147)\rPRINT "R1";ZCPYRST()\rA=ZSAA()\rB=ZSAB()\rPRINT "C1";ZCOPY()\r')]
       inter_key_delay_s: 0.03
-      post_delay_s: 2.0
+      post_delay_s: 1.5
+  - id: capture_rbm_sample3_copy_same_overlay
+    type: screen.capture
+    params:
+      label: after_rbm_sample3_copy_same_overlay
   - id: assert_copy_same_overlay_no_reload
     type: assert.screen
     params:
       contains: "C1 2"
+  - id: rbm_sample3_copy_different_overlay_probe
+    type: input.sequence
+    params:
+      keys: [$(keys $'PRINT CHR$(147)\rPRINT "R2";ZCPYRST()\rA=ZSAA()\rB=ZSBA()\rPRINT "C2";ZCOPY()\r')]
+      inter_key_delay_s: 0.03
+      post_delay_s: 1.5
+  - id: capture_rbm_sample3_copy_different_overlay
+    type: screen.capture
+    params:
+      label: after_rbm_sample3_copy_different_overlay
   - id: assert_copy_different_overlay_reload
     type: assert.screen
     params:
       contains: "C2 3"
+  - id: rbm_sample3_copy_different_submodule_probe
+    type: input.sequence
+    params:
+      keys: [$(keys $'PRINT CHR$(147)\rPRINT "R3";ZCPYRST()\rA=ZSAA()\rB=ZTAA()\rPRINT "C3";ZCOPY()\r')]
+      inter_key_delay_s: 0.03
+      post_delay_s: 1.5
+  - id: capture_rbm_sample3_copy_different_submodule
+    type: screen.capture
+    params:
+      label: after_rbm_sample3_copy_different_submodule
   - id: assert_copy_different_submodule_reload
     type: assert.screen
     params:

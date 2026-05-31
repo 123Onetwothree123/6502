@@ -253,7 +253,7 @@ support, not the final product command catalog.
 | Error/Failure Contract | `ZFAIL` | Prove outputs are cleared before execution and stale results are not committed. |
 | Timing/Delay | `ZPAUSE` | Prove a small timing command can wait for a number of jiffies without command overlay growth elsewhere. |
 | Runtime Introspection | `FREEMEM`, `ERRCODE`, `ERRLINE` | Prints live BASIC free memory, refreshes the header value, and exposes the last ReadyBASIC runtime error. |
-| Module/Submodule Proofs | `ZSLOT0`, `ZSLOT1`, `ZSLOT2`, `ZSPAN`, `ZOVL1`, `ZOVL2`, `ZCPYRST`, `ZCOPY`, `ZMODLD`, `ZDM1`, `ZDM2S`, `ZDOV1`, `ZDOV2`, `ZM6O1A`-`ZM8O5B` | Prove slot dispatch, multi-slot span loading, overlay replacement, no-recopy behavior, SEQ package streaming, and disk-loaded module registration. |
+| Module/Submodule Proofs | `ZSLOT0`, `ZSLOT1`, `ZSLOT2`, `ZSPAN`, `ZOVL1`, `ZOVL2`, `ZCPYRST`, `ZCOPY`, `ZMODLD`, `ZDM1`, `ZDM2S`, `ZDOV1`, `ZDOV2`, `ZSAA`-`ZUEB` | Prove slot dispatch, multi-slot span loading, overlay replacement, no-recopy behavior, SEQ package streaming, and disk-loaded module registration. |
 | ReadyOS Yield | `EXIT` | Save BASIC runtime state, restore vectors, and return through the ReadyOS shim. |
 
 ### Command Inventory
@@ -612,9 +612,9 @@ banks and keep the same small handle model.
 | `$0954-$14FF` | Free gap before current disk-module descriptor proof offsets (`$0BAC`, 2988B). |
 | `$1500-$151F` | `rbm.sample1` descriptor for `ZDM1`. |
 | `$1600-$165F` | `rbm.sample2` descriptors for `ZDM2S`, `ZDOV1`, and `ZDOV2`. |
-| `$1700-$1ABF` | `rbm.sample3` descriptors for `ZM6O1A`-`ZM8O5B`. |
+| `$1700-$1ABF` | `rbm.sample3` descriptors for `ZSAA`-`ZUEB`. |
 | `$3000-$3014`, `$3200-$3214`, `$3300-$3314`, `$3400-$3414` | Small sample disk-loaded payload proofs. |
-| `$3800-$46A3` | `rbm.sample3` payload records for `ZM6O1A`-`ZM8O5B`, stored on `$100`-byte strides. |
+| `$3800-$4629` | `rbm.sample3` payload records for `ZSAA`-`ZUEB`, stored on `$100`-byte strides. |
 
 Descriptors point into these packed bytes with payload offset, payload size,
 slot mask, runtime destination, and entry offset. Heap and screen-handle

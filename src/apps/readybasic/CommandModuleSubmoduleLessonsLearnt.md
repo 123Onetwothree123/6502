@@ -185,15 +185,17 @@ proven, adjusted, or rejected during implementation.
     `ZDOV1()` / `ZDOV2()` as slot-2 overlays returning `72` / `73`. Those two
     entries both use submodule 5 because they are two overlays of the same
     submodule family.
-  - `rbm.sample3` registers `ZM6O1A()` through `ZM8O5B()` across multiple
-    submodule families and overlays. Each command returns a small integer
-    sentinel, and the command name encodes submodule, overlay, and entrypoint.
+  - `rbm.sample3` registers `ZSAA()` through `ZUEB()` across multiple submodule
+    families and overlays. Each command returns a small integer sentinel, and
+    the command name encodes submodule, overlay, and entrypoint: `ZS`/`ZT`/`ZU`
+    are submodules 6/7/8, the middle `A`-`E` is overlay 1-5, and the final
+    `A`/`B` is the entrypoint inside that resident overlay image.
 - Added the generated module artifacts to ReadyBASIC-capable D81 and dual-D71
   profiles so the normal ReadyOS boot disk includes the sample modules.
 - Extended the local ReadyBASIC visual suite runner to assert:
   `ZMODLD("RBM.SAMPLE1")`, `ZDM1()`, `ZMODLD("RBM.SAMPLE2")`, `ZDM2S()`,
   `ZDOV1()/ZDOV2()`, `ZMODLD("RBM.SAMPLE3")`, and representative
-  `ZM6O1A$()`-`ZM8O5B$()` calls.
+  `ZSAA()`-`ZUEB()` calls.
 - Static gate:
   `make bin/readybasic.prg && make readybasic-plugin-static-check` passed.
 - VICE gate:

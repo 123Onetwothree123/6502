@@ -18,7 +18,7 @@ same ReadyOS and REU discipline.
   id, slot mask, payload REU offset/size, runtime destination, and entry offset.
 - The disk-loader proof command is `ZMODLD(name$)` in module 2/slot 1. It opens
   ReadyBasicModule SEQ packages named `rbm.<name>` and streams them into REU.
-  Sample packages add `ZDM1`, `ZDM2S`, `ZDOV1`, `ZDOV2`, and `ZM6O1A`-`ZM8O5B`.
+  Sample packages add `ZDM1`, `ZDM2S`, `ZDOV1`, `ZDOV2`, and `ZSAA`-`ZUEB`.
 
 ## Pre-Module V1 Layout Snapshot
 
@@ -76,10 +76,10 @@ same ReadyOS and REU discipline.
 - `$1500-$151F`: `rbm.sample1` descriptor proof for `ZDM1`.
 - `$1600-$165F`: `rbm.sample2` descriptors for `ZDM2S`, `ZDOV1`, and `ZDOV2`;
   submodule 5 appears twice because those entries are overlays 1 and 2.
-- `$1700-$1ABF`: `rbm.sample3` descriptors for `ZM6O1A`-`ZM8O5B`.
+- `$1700-$1ABF`: `rbm.sample3` descriptors for `ZSAA`-`ZUEB`.
 - `$3000-$3014`, `$3200-$3214`, `$3300-$3314`, `$3400-$3414`: small
   disk-loaded module payload proofs.
-- `$3800-$46A3`: `rbm.sample3` payload records for `ZM6O1A`-`ZM8O5B`.
+- `$3800-$4629`: `rbm.sample3` payload records for `ZSAA`-`ZUEB`.
 
 Descriptors store payload offsets, payload sizes, slot masks, runtime
 destinations, and entry offsets. Heap and screen commands currently fetch the
@@ -145,7 +145,7 @@ Each descriptor is 32 bytes:
 - `ZSLOT0`, `ZSLOT1`, `ZSLOT2`, `ZSPAN`, `ZOVL1`, `ZOVL2`, `ZCPYRST`, and
   `ZCOPY`: built-in slot/span/overlay proof commands.
 - `ZMODLD(name$)`: module 2 slot 1 SEQ package loader proof command.
-- `ZDM1`, `ZDM2S`, `ZDOV1`, `ZDOV2`, and `ZM6O1A`-`ZM8O5B`: disk-loaded sample module commands.
+- `ZDM1`, `ZDM2S`, `ZDOV1`, `ZDOV2`, and `ZSAA`-`ZUEB`: disk-loaded sample module commands.
 
 Native reusable BASIC routines:
 
