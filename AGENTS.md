@@ -16,6 +16,7 @@
 - App working region is `$1000-$C5FF` (`$B600` bytes); REU save/restore also targets this range.
 - Shim jump table/data is resident at `$C800-$C9FF`; never place app data/code assumptions there unless intentionally using shim ABI.
 - Assume KERNAL/disk I/O can clobber app memory in the active region; keep persistent control state in defined safe areas only.
+- ReadyBASIC module packages are generated SEQ files named `rbm.<name>`; preserve/restore disk-image logic must treat names beginning with `rbm.` as build-owned artifacts, not user files to restore from an older disk image.
 - For load/switch behavior debugging, validate against launcher+shim flow, not standalone assumptions.
 - Always build and run ReadyOS through plain `run.sh` / `run.ps1`, booting ReadyOS itself rather than trying to load an individual app directly.
 - Never call `run.sh` with a specific app name such as `launcher`, `editor`, or any other single-app mode; those paths are not valid for normal ReadyOS verification.

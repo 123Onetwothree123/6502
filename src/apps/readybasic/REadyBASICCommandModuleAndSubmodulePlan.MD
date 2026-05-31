@@ -342,7 +342,7 @@ profiles:
 | --- | --- | --- | --- |
 | `rbm.sample1` | Module 3 | `ZDM1()` returns `61` | Single slot-1 submodule. |
 | `rbm.sample2` | Module 4 | `ZDM2S()` returns `74`; `ZDOV1()`/`ZDOV2()` return `72`/`73` | Two-slot slot 1+2 span plus two slot-2 overlays. `ZDOV1` and `ZDOV2` both use submodule 5 because they are different overlays of the same submodule family. |
-| `rbm.sample3` | Module 5 | `ZSAA()`-`ZUEB()` return integer sentinels | Larger package with 30 descriptors. The command names encode submodule, overlay, and entrypoint: `ZSAA` is submodule 6, overlay 1, entry A; `ZSAB` is the second entrypoint in that same resident overlay image. `ZT*` and `ZU*` cover submodules 7 and 8. |
+| `rbm.sample3` | Module 5 | `ZSAA()`-`ZUEB()` return stateful integer sentinels | Larger package with 30 descriptors. The command names encode submodule, overlay, and entrypoint: `ZSAA` is submodule 6, overlay 1, entry A; `ZSAB` is the second entrypoint in that same resident overlay image. Each overlay image carries one byte of local state so tests can prove when a resident overlay is reused versus freshly reloaded. `ZT*` and `ZU*` cover submodules 7 and 8. |
 
 The long-term loader should still:
 

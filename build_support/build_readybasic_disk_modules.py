@@ -13,6 +13,8 @@ SIG_BUFNEW = 8
 RB_SLOT_PROOF_1 = 0x02
 RB_SLOT_PROOF_2 = 0x04
 RB_SLOT_PROOF_12 = RB_SLOT_PROOF_1 | RB_SLOT_PROOF_2
+RB_SLOT1_BASE = 0xB000
+RB_SLOT2_BASE = 0xB800
 
 
 def int_command_payload(value: int) -> bytes:
@@ -42,6 +44,55 @@ def int_command_payload(value: int) -> bytes:
             0x60,
         ]
     )
+
+
+def stateful_int_entry(value: int, state_addr: int) -> bytes:
+    """Return one entrypoint that increments overlay-local state before returning."""
+    return bytes(
+        [
+            0xEE,
+            state_addr & 0xFF,
+            state_addr >> 8,  # inc state
+            0xA9,
+            0x00,
+            0x8D,
+            0x00,
+            0xC3,  # RF_STATUS = 0
+            0xA9,
+            0x01,
+            0x8D,
+            0x02,
+            0xC3,  # RF_TAG = RB_VAL_INT
+            0xA9,
+            value & 0xFF,
+            0x18,
+            0x6D,
+            state_addr & 0xFF,
+            state_addr >> 8,  # value + state
+            0x8D,
+            0x03,
+            0xC3,
+            0xA9,
+            value >> 8,
+            0x69,
+            0x00,
+            0x8D,
+            0x04,
+            0xC3,
+            0x60,
+        ]
+    )
+
+
+def stateful_overlay_payload(value_a: int, value_b: int, runtime_base: int) -> tuple[bytes, int]:
+    """Return two entrypoints plus one shared byte of overlay-local state."""
+    entry_len = 30
+    state_addr = runtime_base + (entry_len * 2)
+    payload_a = stateful_int_entry(value_a, state_addr)
+    payload_b = stateful_int_entry(value_b, state_addr)
+    if len(payload_a) != entry_len or len(payload_b) != entry_len:
+        raise ValueError("stateful payload entry length changed")
+    return payload_a + payload_b + b"\x00", len(payload_a)
 
 
 def num_string_payload(name: str) -> bytes:
@@ -293,9 +344,12 @@ def rbm3_payload_commands() -> list[dict[str, int | str | bytes]]:
             overlay_name = chr(ord("A") + overlay_id - 1)
             name_a = f"{submodule_name}{overlay_name}A"
             name_b = f"{submodule_name}{overlay_name}B"
-            payload_a = int_command_payload((submodule_id - 6) * 50 + overlay_id * 2 + 1)
-            payload_b = int_command_payload((submodule_id - 6) * 50 + overlay_id * 2 + 2)
-            payload = payload_a + payload_b
+            runtime_base = RB_SLOT2_BASE if slot_mask == RB_SLOT_PROOF_2 else RB_SLOT1_BASE
+            payload, entry_b_offset = stateful_overlay_payload(
+                (submodule_id - 6) * 50 + overlay_id * 2 + 1,
+                (submodule_id - 6) * 50 + overlay_id * 2 + 2,
+                runtime_base,
+            )
             commands.append(
                 {
                     "command_id": command_id,
@@ -317,7 +371,7 @@ def rbm3_payload_commands() -> list[dict[str, int | str | bytes]]:
                     "name": name_b,
                     "payload": payload,
                     "payload_size": len(payload),
-                    "entry_offset": len(payload_a),
+                    "entry_offset": entry_b_offset,
                     "reu_offset": reu_offset,
                     "submodule_id": submodule_id,
                     "overlay_id": overlay_id,

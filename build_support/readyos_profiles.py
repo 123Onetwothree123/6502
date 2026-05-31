@@ -837,7 +837,10 @@ def backup_user_files(disk_path: Path, managed_names: set[str]) -> tuple[Path, P
         ftype = parts[-1].lower()
         if ftype not in {"seq", "rel", "usr"}:
             continue
-        if name.lower() in managed_names:
+        lower_name = name.lower()
+        if lower_name.startswith("rbm."):
+            continue
+        if lower_name in managed_names:
             continue
 
         idx += 1

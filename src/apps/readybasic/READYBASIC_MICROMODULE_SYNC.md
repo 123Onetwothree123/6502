@@ -112,7 +112,7 @@ scans eight descriptors locally, and copies the matched descriptor into
 - `$1600-$165F`: `rbm.sample2` disk-module descriptor samples for `ZDM2S`, `ZDOV1`, and `ZDOV2`.
 - `$1700-$1ABF`: `rbm.sample3` disk-module descriptors for `ZSAA`-`ZUEB`.
 - `$3000-$3014`, `$3200-$3214`, `$3300-$3314`, `$3400-$3414`: current small disk-module proof payloads.
-- `$3800-$4629`: `rbm.sample3` payload records for `ZSAA`-`ZUEB`.
+- `$3800-$463C`: `rbm.sample3` payload records for `ZSAA`-`ZUEB`.
 
 Cold entry prestashes these bytes once. Warm resume reuses the REU copies and
 must not reread `CMDPACK`, `HIDLOAD`, `BRLOAD`, or `REGSEED` from BASIC-owned

@@ -186,10 +186,12 @@ proven, adjusted, or rejected during implementation.
     entries both use submodule 5 because they are two overlays of the same
     submodule family.
   - `rbm.sample3` registers `ZSAA()` through `ZUEB()` across multiple submodule
-    families and overlays. Each command returns a small integer sentinel, and
+    families and overlays. Each command returns a stateful integer sentinel, and
     the command name encodes submodule, overlay, and entrypoint: `ZS`/`ZT`/`ZU`
     are submodules 6/7/8, the middle `A`-`E` is overlay 1-5, and the final
-    `A`/`B` is the entrypoint inside that resident overlay image.
+    `A`/`B` is the entrypoint inside that resident overlay image. Each overlay
+    carries a one-byte local counter so the visual tests can prove resident
+    reuse versus fresh reload from REU.
 - Added the generated module artifacts to ReadyBASIC-capable D81 and dual-D71
   profiles so the normal ReadyOS boot disk includes the sample modules.
 - Extended the local ReadyBASIC visual suite runner to assert:

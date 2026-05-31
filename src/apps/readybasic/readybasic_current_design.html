@@ -825,7 +825,7 @@
           <tr><td><code>ZOVL1</code> / <code>ZOVL2</code> / <code>ZCPYRST</code> / <code>ZCOPY</code></td><td>Built-in overlay and no-recopy proof payloads</td><td>none</td><td>Prove overlay replacement and residency behavior.</td></tr>
           <tr><td><code>ZMODLD(NAME$)</code></td><td>Built-in module 2 slot-1 disk-module loader</td><td>module package filename string</td><td>Streams generated SEQ packages such as <code>RBM.SAMPLE1</code>, <code>RBM.SAMPLE2</code>, and <code>RBM.SAMPLE3</code> into REU.</td></tr>
           <tr><td><code>ZDM1()</code> / <code>ZDM2S()</code> / <code>ZDOV1()</code> / <code>ZDOV2()</code></td><td>Disk-loaded sample module payloads in REU bank <code>$45</code></td><td>none</td><td>Prove disk module, span, and overlay registration after <code>ZMODLD</code>.</td></tr>
-          <tr><td><code>ZSAA()</code>-<code>ZUEB()</code></td><td><code>rbm.sample3</code> disk-loaded proof payloads in REU bank <code>$45</code></td><td>none</td><td>Name encodes submodule, overlay, and entrypoint: <code>ZSAA</code> is submodule 6, overlay 1, entry A.</td></tr>
+          <tr><td><code>ZSAA()</code>-<code>ZUEB()</code></td><td><code>rbm.sample3</code> disk-loaded proof payloads in REU bank <code>$45</code></td><td>none</td><td>Return stateful integer sentinels. The name encodes submodule, overlay, and entrypoint: <code>ZSAA</code> is submodule 6, overlay 1, entry A. Each overlay image has one local counter byte, so reuse increments while reload resets.</td></tr>
         </tbody>
       </table>
       <p>

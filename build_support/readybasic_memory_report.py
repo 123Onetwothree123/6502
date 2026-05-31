@@ -250,8 +250,9 @@ def command_groups(commands: list[tuple[str, str]]) -> dict[str, tuple[str, ...]
 
 def disk_module_blocks() -> list[Block]:
     # Mirrored from build_support/build_readybasic_disk_modules.py. The small
-    # integer proof payloads are 21B; RBM3 overlay images contain two 21B
-    # entrypoints and are stored on $100-byte strides to make spacing visible.
+    # integer proof payloads are 21B; RBM3 overlay images contain two 30B
+    # stateful entrypoints plus one shared byte of overlay-local state and are
+    # stored on $100-byte strides to make spacing visible.
     return [
         Block("rbm.sample1 descriptor", 0x1500, 0x20, "desc", "ZDM1 descriptor streamed by ZMODLD.", ("ZDM1",)),
         Block("rbm.sample2 descriptors", 0x1600, 0x60, "desc", "Three descriptors; submodule 5 appears twice as overlays 1 and 2.", ("ZDM2S", "ZDOV1", "ZDOV2")),
@@ -260,9 +261,9 @@ def disk_module_blocks() -> list[Block]:
         Block("rbm.sample2 span payload", 0x3200, 21, "module-b", "Module 4, submodule 2, slots 1+2.", ("ZDM2S",)),
         Block("rbm.sample2 overlay 1", 0x3300, 21, "overlay", "Module 4, submodule 5, overlay 1, slot 2.", ("ZDOV1",)),
         Block("rbm.sample2 overlay 2", 0x3400, 21, "overlay", "Module 4, submodule 5, overlay 2, slot 2.", ("ZDOV2",)),
-        Block("rbm.sample3 group A", 0x3800, 0x42A, "module-a", "ZSAA-ZSEB payload records, submodule 6 overlays 1-5 with A/B entrypoints sharing each loaded overlay image.", ("ZSAA-ZSEB",)),
-        Block("rbm.sample3 group B", 0x3D00, 0x42A, "module-b", "ZTAA-ZTEB payload records, submodule 7 overlays 1-5 with A/B entrypoints sharing each loaded overlay image.", ("ZTAA-ZTEB",)),
-        Block("rbm.sample3 group C", 0x4200, 0x42A, "span", "ZUAA-ZUEB payload records, submodule 8 overlays 1-5 with A/B entrypoints sharing each loaded overlay image and using the slot 1+2 span mask.", ("ZUAA-ZUEB",)),
+        Block("rbm.sample3 group A", 0x3800, 0x43D, "module-a", "ZSAA-ZSEB payload records, submodule 6 overlays 1-5 with A/B entrypoints sharing one state byte inside each loaded overlay image.", ("ZSAA-ZSEB",)),
+        Block("rbm.sample3 group B", 0x3D00, 0x43D, "module-b", "ZTAA-ZTEB payload records, submodule 7 overlays 1-5 with A/B entrypoints sharing one state byte inside each loaded overlay image.", ("ZTAA-ZTEB",)),
+        Block("rbm.sample3 group C", 0x4200, 0x43D, "span", "ZUAA-ZUEB payload records, submodule 8 overlays 1-5 with A/B entrypoints sharing one state byte inside each loaded overlay image and using the slot 1+2 span mask.", ("ZUAA-ZUEB",)),
     ]
 
 
@@ -364,7 +365,7 @@ def render(ctx: dict[str, object]) -> str:
         *disk_blocks[:2],
         Block("Free gap", 0x1660, 0x3000 - 0x1660, "free", "Available packed-code space before sample payloads."),
         *disk_blocks[2:],
-        Block("Payload bank free tail", 0x462A, 0x10000 - 0x462A, "free", "Remaining space in the current single ReadyBASIC code bank."),
+        Block("Payload bank free tail", 0x463D, 0x10000 - 0x463D, "free", "Remaining space in the current single ReadyBASIC code bank."),
     ]
 
     reu_overview_blocks = [

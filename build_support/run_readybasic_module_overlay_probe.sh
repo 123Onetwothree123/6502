@@ -167,7 +167,7 @@ steps:
   - id: rbm_sample3_probe
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rPRINT "M3A";ZSAA();"/";ZSEB()\rPRINT "M3B";ZTAA();"/";ZTEB()\rPRINT "M3C";ZUAA();"/";ZUEB()\rFREEMEM()\r')]
+      keys: [$(keys $'PRINT CHR$(147)\rREM RBM3 FIRST CALLS: EACH OVERLAY STATE STARTS AT ZERO AFTER LOAD\rPRINT "M3A";ZSAA();"/";ZSEB()\rPRINT "M3B";ZTAA();"/";ZTEB()\rPRINT "M3C";ZUAA();"/";ZUEB()\rFREEMEM()\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 2.0
   - id: capture_rbm_sample3
@@ -177,15 +177,15 @@ steps:
   - id: assert_m3a
     type: assert.screen
     params:
-      contains: "M3A 3 / 12"
+      contains: "M3A 4 / 13"
   - id: assert_m3b
     type: assert.screen
     params:
-      contains: "M3B 53 / 62"
+      contains: "M3B 54 / 63"
   - id: assert_m3c
     type: assert.screen
     params:
-      contains: "M3C 103 / 112"
+      contains: "M3C 104 / 113"
   - id: assert_free_same
     type: assert.screen
     params:
@@ -193,7 +193,7 @@ steps:
   - id: rbm_sample3_copy_same_overlay_probe
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rPRINT "R1";ZCPYRST()\rA=ZSAA()\rB=ZSAB()\rPRINT "C1";ZCOPY()\r')]
+      keys: [$(keys $'PRINT CHR$(147)\rREM SAME OVERLAY: ZSAA LOADS, ZSAB REUSES RESIDENT IMAGE\rPRINT "R1";ZCPYRST()\rA=ZSAA()\rB=ZSAB()\rPRINT "S1";A;"/";B\rPRINT "C1";ZCOPY()\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 1.5
   - id: capture_rbm_sample3_copy_same_overlay
@@ -204,10 +204,14 @@ steps:
     type: assert.screen
     params:
       contains: "C1 2"
+  - id: assert_state_same_overlay_kept
+    type: assert.screen
+    params:
+      contains: "S1 4 / 6"
   - id: rbm_sample3_copy_different_overlay_probe
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rPRINT "R2";ZCPYRST()\rA=ZSAA()\rB=ZSBA()\rPRINT "C2";ZCOPY()\r')]
+      keys: [$(keys $'PRINT CHR$(147)\rREM DIFFERENT OVERLAY: ZSBA REPLACES ZSAA SLOT IMAGE\rPRINT "R2";ZCPYRST()\rA=ZSAA()\rB=ZSBA()\rC=ZSAA()\rPRINT "S2";A;"/";B;"/";C\rPRINT "C2";ZCOPY()\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 1.5
   - id: capture_rbm_sample3_copy_different_overlay
@@ -217,11 +221,15 @@ steps:
   - id: assert_copy_different_overlay_reload
     type: assert.screen
     params:
-      contains: "C2 3"
+      contains: "C2 4"
+  - id: assert_state_different_overlay_reloaded
+    type: assert.screen
+    params:
+      contains: "S2 4 / 6 / 4"
   - id: rbm_sample3_copy_different_submodule_probe
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rPRINT "R3";ZCPYRST()\rA=ZSAA()\rB=ZTAA()\rPRINT "C3";ZCOPY()\r')]
+      keys: [$(keys $'PRINT CHR$(147)\rREM DIFFERENT SUBMODULE: ZTAA REPLACES ZSAA SLOT IMAGE\rPRINT "R3";ZCPYRST()\rA=ZSAA()\rB=ZTAA()\rC=ZSAA()\rPRINT "S3";A;"/";B;"/";C\rPRINT "C3";ZCOPY()\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 1.5
   - id: capture_rbm_sample3_copy_different_submodule
@@ -231,7 +239,11 @@ steps:
   - id: assert_copy_different_submodule_reload
     type: assert.screen
     params:
-      contains: "C3 3"
+      contains: "C3 4"
+  - id: assert_state_different_submodule_reloaded
+    type: assert.screen
+    params:
+      contains: "S3 4 / 54 / 4"
 YAML
 
 if [ "${READYBASIC_GENERATE_PLAN_ONLY:-0}" = "1" ]; then

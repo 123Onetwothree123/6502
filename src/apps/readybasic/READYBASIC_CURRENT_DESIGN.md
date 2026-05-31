@@ -285,7 +285,7 @@ support, not the final product command catalog.
 | `ZCPYRST()` / `ZCOPY()` | Built-in module 1 slot-0 copy-count proof helpers | none | Reset and inspect the tiny no-recopy proof counter. |
 | `ZMODLD(NAME$)` | Built-in module 2 slot-1 disk-module loader | module package filename string | Opens generated SEQ packages such as `RBM.SAMPLE1`, `RBM.SAMPLE2`, and `RBM.SAMPLE3`, registering their descriptors in REU bank `$44` and payloads in bank `$45`. |
 | `ZDM1()` / `ZDM2S()` / `ZDOV1()` / `ZDOV2()` | Disk-loaded sample module payloads in REU bank `$45` | none | Prove disk module, span, and overlay registration after `ZMODLD`. |
-| `ZSAA()`-`ZUEB()` | `rbm.sample3` disk-loaded proof payloads in REU bank `$45` | none | Return small integer sentinels; the command name encodes submodule, overlay, and entrypoint while copy-count tests prove residency. `ZS/ZT/ZU` mean submodules 6/7/8, `A`-`E` mean overlays 1-5, and the final `A/B` is the entrypoint. |
+| `ZSAA()`-`ZUEB()` | `rbm.sample3` disk-loaded proof payloads in REU bank `$45` | none | Return stateful integer sentinels; the command name encodes submodule, overlay, and entrypoint while copy-count tests prove residency. `ZS/ZT/ZU` mean submodules 6/7/8, `A`-`E` mean overlays 1-5, and the final `A/B` is the entrypoint. Each overlay image has one local counter byte, so reuse increments while reload resets. |
 
 The handle-oriented commands copy the full slot-0 payload because their wrappers
 share allocator helper routines that currently live in that module payload.
@@ -614,7 +614,7 @@ banks and keep the same small handle model.
 | `$1600-$165F` | `rbm.sample2` descriptors for `ZDM2S`, `ZDOV1`, and `ZDOV2`. |
 | `$1700-$1ABF` | `rbm.sample3` descriptors for `ZSAA`-`ZUEB`. |
 | `$3000-$3014`, `$3200-$3214`, `$3300-$3314`, `$3400-$3414` | Small sample disk-loaded payload proofs. |
-| `$3800-$4629` | `rbm.sample3` payload records for `ZSAA`-`ZUEB`, stored on `$100`-byte strides. |
+| `$3800-$463C` | `rbm.sample3` payload records for `ZSAA`-`ZUEB`, stored on `$100`-byte strides. |
 
 Descriptors point into these packed bytes with payload offset, payload size,
 slot mask, runtime destination, and entry offset. Heap and screen-handle

@@ -106,11 +106,13 @@ Current public names include `ZECHO1`, `ZADD16`, `UPPER`, `LOWER`,
 `ZOVL2`, `ZCPYRST`, `ZCOPY`, and `ZMODLD`. Disk-module samples add `ZDM1`,
 `ZDM2S`, `ZDOV1`, and `ZDOV2` after `ZMODLD("RBM.SAMPLE1")` or
 `ZMODLD("RBM.SAMPLE2")`. The larger `ZMODLD("RBM.SAMPLE3")` proof adds
-`ZSAA` through `ZUEB`, each returning a small integer sentinel. The command
+`ZSAA` through `ZUEB`, each returning a stateful integer sentinel. The command
 name itself encodes submodule family, overlay, and entrypoint: `ZS`/`ZT`/`ZU`
 identify submodules 6/7/8, the middle letter `A`-`E` identifies overlays 1-5,
 and the final `A`/`B` identifies the entrypoint within that resident overlay
-image.
+image. Each overlay image also carries one byte of local state, so tests can
+see the difference between reusing the resident image and reloading a fresh
+copy from REU.
 
 ## How To Read The Examples
 

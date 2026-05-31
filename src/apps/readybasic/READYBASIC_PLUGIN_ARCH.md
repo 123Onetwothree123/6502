@@ -79,7 +79,7 @@ same ReadyOS and REU discipline.
 - `$1700-$1ABF`: `rbm.sample3` descriptors for `ZSAA`-`ZUEB`.
 - `$3000-$3014`, `$3200-$3214`, `$3300-$3314`, `$3400-$3414`: small
   disk-loaded module payload proofs.
-- `$3800-$4629`: `rbm.sample3` payload records for `ZSAA`-`ZUEB`.
+- `$3800-$463C`: `rbm.sample3` payload records for `ZSAA`-`ZUEB`.
 
 Descriptors store payload offsets, payload sizes, slot masks, runtime
 destinations, and entry offsets. Heap and screen commands currently fetch the

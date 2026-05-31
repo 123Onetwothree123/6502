@@ -336,7 +336,7 @@ Exact bank `$45` suballocation sizes:
 | `$1600-$165F` | `rbm.sample2` descriptors for `ZDM2S`, `ZDOV1`, and `ZDOV2`; submodule 5 appears twice because those entries are overlays 1 and 2. | `$0060` | 96B | 96 |
 | `$1700-$1ABF` | `rbm.sample3` descriptors for `ZSAA`-`ZUEB`. | `$03C0` | 960B | 960 |
 | `$3000-$3014`, `$3200-$3214`, `$3300-$3314`, `$3400-$3414` | Small disk-module proof payloads. | `$0015` each | 21B each | 21 each |
-| `$3800-$4629` | `rbm.sample3` payload records for `ZSAA`-`ZUEB`, stored on `$100`-byte strides. | `$002A` per overlay image | 42B per overlay image | 42 each |
+| `$3800-$463C` | `rbm.sample3` payload records for `ZSAA`-`ZUEB`, stored on `$100`-byte strides. | `$003D` per overlay image | 61B per overlay image | 61 each |
 
 ## Descriptor ABI
 
