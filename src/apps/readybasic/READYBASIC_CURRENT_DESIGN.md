@@ -37,13 +37,13 @@ Measured from the current `obj/readybasic.map`:
 | `BASIC_START` | `$2AC1` |
 | Empty BASIC free bytes | `30013` |
 | `ENTRY` | `$1000-$1102`, `$0103` / 259B |
-| `RESIDENT` | `$1200-$2ABB`, `$18BC` / 6332B |
+| `RESIDENT` | `$1200-$2ABE`, `$18BF` / 6335B |
 | BASIC sentinel | `$2AC0` |
 | Common under-ROM helper | `$A000-$A364`, `$0365` / 869B |
 | Slot 0 / module 1 | `$A800-$AEC6`, `$06C7` / 1735B |
-| Slot 1 / module 2 | `$B000-$B140`, `$0141` / 321B |
+| Slot 1 / module 2 | `$B000-$B238`, `$0239` / 569B |
 | Slot 2 / overlays | `$B800-$B83E`, proof slices |
-| `BRIDGE` | `$C000-$C1F6`, `$01F7` / 503B |
+| `BRIDGE` | `$C000-$C1F8`, `$01F9` / 505B |
 | Shared frames/buffers | `$C200-$C5FF` |
 | `REGSEED` load-only registry | `$5000-$600F`, `$1010` / 4112B |
 
@@ -70,9 +70,17 @@ hidden behind BASIC ROM.
 
 The current proof commands added by the module work are `ZSLOT0`, `ZSLOT1`,
 `ZSLOT2`, `ZSPAN`, `ZOVL1`, `ZOVL2`, `ZCPYRST`, and `ZCOPY`. The disk-module
-loader proof is `ZMODLD(name$)` in module 2/slot 1. It can load generated sample
-module files `RBM1` and `RBM2`, registering disk-loaded proof commands `ZDM1`,
-`ZDM2S`, `ZDOV1`, and `ZDOV2`.
+loader proof is `ZMODLD(name$)` in module 2/slot 1. It opens ReadyBasicModule
+SEQ packages named `rbm.<name>` and streams them through the `$C500` page buffer
+into REU, rather than loading them as PRG files. Current sample packages are
+`rbm.sample1`, `rbm.sample2`, and `rbm.sample3`.
+
+The naming nuance matters. A module is the logical command family identified by
+module id. A module package/container is the disk SEQ file that carries
+descriptors and payload records. A submodule is the runtime payload family that
+claims one or more 2K command slots. An overlay is one swappable image of that
+submodule. That is why the RBM2 sample can mention submodule `5` twice: both
+entries are the same submodule family, but they are different overlays.
 
 REU bank `$44` is the authoritative registry/runtime bank: header, call/result
 scratch, handle directory, zero-page/stack snapshots, command descriptors, and
@@ -245,7 +253,7 @@ support, not the final product command catalog.
 | Error/Failure Contract | `ZFAIL` | Prove outputs are cleared before execution and stale results are not committed. |
 | Timing/Delay | `ZPAUSE` | Prove a small timing command can wait for a number of jiffies without command overlay growth elsewhere. |
 | Runtime Introspection | `FREEMEM`, `ERRCODE`, `ERRLINE` | Prints live BASIC free memory, refreshes the header value, and exposes the last ReadyBASIC runtime error. |
-| Module/Submodule Proofs | `ZSLOT0`, `ZSLOT1`, `ZSLOT2`, `ZSPAN`, `ZOVL1`, `ZOVL2`, `ZCPYRST`, `ZCOPY`, `ZMODLD`, `ZDM1`, `ZDM2S`, `ZDOV1`, `ZDOV2` | Prove slot dispatch, multi-slot span loading, overlay replacement, no-recopy behavior, and disk-loaded module registration. |
+| Module/Submodule Proofs | `ZSLOT0`, `ZSLOT1`, `ZSLOT2`, `ZSPAN`, `ZOVL1`, `ZOVL2`, `ZCPYRST`, `ZCOPY`, `ZMODLD`, `ZDM1`, `ZDM2S`, `ZDOV1`, `ZDOV2`, `ZM6O1A`-`ZM8O5B` | Prove slot dispatch, multi-slot span loading, overlay replacement, no-recopy behavior, SEQ package streaming, and disk-loaded module registration. |
 | ReadyOS Yield | `EXIT` | Save BASIC runtime state, restore vectors, and return through the ReadyOS shim. |
 
 ### Command Inventory
@@ -275,8 +283,9 @@ support, not the final product command catalog.
 | `ZSPAN()` | Built-in module 2 two-slot span payload for slots 1+2 | none | Proves a payload can claim adjacent slots. |
 | `ZOVL1()` / `ZOVL2()` | Built-in module 2 slot-2 overlay proof payloads | none | Prove overlay replacement in slot 2. |
 | `ZCPYRST()` / `ZCOPY()` | Built-in module 1 slot-0 copy-count proof helpers | none | Reset and inspect the tiny no-recopy proof counter. |
-| `ZMODLD(NAME$)` | Built-in module 2 slot-1 disk-module loader | module filename string | Loads generated module files such as `RBM1` and `RBM2`, registering their descriptors and payloads in REU. |
+| `ZMODLD(NAME$)` | Built-in module 2 slot-1 disk-module loader | module package filename string | Opens generated SEQ packages such as `RBM.SAMPLE1`, `RBM.SAMPLE2`, and `RBM.SAMPLE3`, registering their descriptors in REU bank `$44` and payloads in bank `$45`. |
 | `ZDM1()` / `ZDM2S()` / `ZDOV1()` / `ZDOV2()` | Disk-loaded sample module payloads in REU bank `$45` | none | Prove disk module, span, and overlay registration after `ZMODLD`. |
+| `ZSAA()`-`ZUEB()` | `rbm.sample3` disk-loaded proof payloads in REU bank `$45` | none | Return small integer sentinels; the command name encodes submodule, overlay, and entrypoint while copy-count tests prove residency. `ZS/ZT/ZU` mean submodules 6/7/8, `A`-`E` mean overlays 1-5, and the final `A/B` is the entrypoint. |
 
 The handle-oriented commands copy the full slot-0 payload because their wrappers
 share allocator helper routines that currently live in that module payload.
@@ -317,7 +326,7 @@ The linker puts packed command bytes in the PRG load image at `CMDPACK`
 | Segment | Size | Load/source role | Runtime role |
 |---|---:|---|---|
 | `LOWPACK` | `$06C7` (1.7K, 1735 exact bytes) | Historical segment name for the built-in module 1 slot-0 payload loaded from `CMDPACK` and prestashed to REU bank `$45:$0000`. | Fetched on demand into `$A800-$AEC6`. |
-| `SLOTPACK1` | `$0141` (321B) | Built-in module 2 proof and `ZMODLD` loader payload, prestashed to REU bank `$45:$06C7`. | Fetched on demand into `$B000-$B140`. |
+| `SLOTPACK1` | `$0239` (569B) | Built-in module 2 proof and streaming `ZMODLD` loader payload, prestashed to REU bank `$45:$06C7`. | Fetched on demand into `$B000-$B238`. |
 | `SLOTPACK2` / `SPANPACK` / `OVL1PACK` / `OVL2PACK` | `$0015` each (21B) | Built-in module 2 slot, span, and overlay proof payloads, prestashed after `SLOTPACK1`. | Fetched into slot 2, slots 1+2, or slot-2 overlay target addresses. |
 | `HIDLOAD` | `$0365` (0.8K, 869 exact bytes) | Load-only hidden helper seed starting at `$4000`. | Copied on cold boot into `$A000-$A364` and the visible `$C280` warm-resume shadow. |
 | `BRLOAD` | `$01F7` (503B) | Load-only bridge seed starting at `$4800`. | Copied on cold boot into `$C000-$C1F6`. |
@@ -357,14 +366,14 @@ metadata and shim space above that are not general ReadyBASIC scratch.
 | BASIC workspace | `$2AC1-$9FFF` | `$753F` region, `30013` formula free bytes (29.3K) | Program text, variables, arrays, string heap. |
 | Command pack load image | `$2B00-$3FFF` | `$1500` (5.25K) file range | Built-in module/submodule payload seed bytes before cold prestash. |
 | Hidden helper load image | `$4000+` | `$0365` (0.8K, 869 exact bytes) load-only | Hidden helper seed copied to `$A000` and `$C280`. |
-| Bridge load image | `$4800+` | `$01F7` (503B) load-only | Bridge seed copied to `$C000`. |
+| Bridge load image | `$4800+` | `$01F9` (505B) load-only | Bridge seed copied to `$C000`. |
 | Registry seed load image | `$5000-$600F` | `$1010` (4.0K, 4112 exact bytes) load-only | Header and 128 descriptors copied to REU bank `$44`. |
 | Runtime snapshot | REU bank `$44`, offsets `$0A00-$0BFF` | `$0200` (0.5K) plus bridge metadata | Saved zero page, stack page, SP, resume mode, line-chain guards. |
 | Common under-ROM helper | `$A000-$A364` | `$0365` (869B) | Helper code run with RAM mapped under BASIC ROM. |
 | Slot 0 module payload | `$A800-$AEC6` | `$06C7` (1735B) | Module 1 system/default payload fetched from REU bank `$45`. |
-| Slot 1 module payload | `$B000-$B140` | `$0141` (321B) | Module 2 proof and `ZMODLD` loader payload. |
+| Slot 1 module payload | `$B000-$B238` | `$0239` (569B) | Module 2 proof and streaming `ZMODLD` loader payload. |
 | Slot 2 proof/overlays | `$B800-$B83E` | `$003F` (63B) | Current slot-2 base and overlay proof slices. |
-| `BRIDGE` | `$C000-$C1F6` | `$01F7` (503B) | Persistent bridge state, saved vectors, overlay variables, current handle scratch, debug bytes, native routine return stack, and flow-control scratch. |
+| `BRIDGE` | `$C000-$C1F8` | `$01F9` (505B) | Persistent bridge state, saved vectors, overlay variables, current handle scratch, debug bytes, native routine return stack, and flow-control scratch. |
 | Shared frames | `$C200-$C5FF` | `$0400` (1.0K) | Call frame, result frame, descriptor buffer, command-name buffer, page/runtime buffers. |
 | Hidden shadow | `$C280-$C5F6` | `$0377` (0.9K) | Visible-RAM source for restoring `$A000` helper on warm resume; refreshed during `EXIT`. |
 | ReadyOS REU metadata | `$C600-$C7FF` | `$0200` (0.5K) shared | ReadyBASIC only marks REU bank ownership here. |
@@ -598,12 +607,14 @@ banks and keep the same small handle model.
 | Offset | Region |
 |---:|---|
 | `$0000-$06C6` | Built-in module 1 slot-0 payload copied into `$A800-$AEC6` (`$06C7`, 1735B). |
-| `$06C7-$0807` | Built-in module 2 slot-1 proof and `ZMODLD` loader payload copied into `$B000-$B140` (`$0141`, 321B). |
-| `$0808-$085B` | Built-in slot-2, span, and overlay proof slices (`$0054`, 84B total). |
-| `$085C-$14FF` | Free gap before current disk-module descriptor proof offsets (`$0CA4`, 3236B). |
-| `$1500-$151F` | `RBM1` descriptor proof for `ZDM1`. |
-| `$1600-$165F` | `RBM2` descriptors for `ZDM2S`, `ZDOV1`, and `ZDOV2`. |
-| `$3000-$3016`, `$3200-$3216`, `$3300-$3316`, `$3400-$3416` | Sample disk-loaded module payload proofs. |
+| `$06C7-$08FF` | Built-in module 2 slot-1 proof and streaming `ZMODLD` loader payload copied into `$B000-$B238` (`$0239`, 569B). |
+| `$0900-$0953` | Built-in slot-2, span, and overlay proof slices (`$0054`, 84B total). |
+| `$0954-$14FF` | Free gap before current disk-module descriptor proof offsets (`$0BAC`, 2988B). |
+| `$1500-$151F` | `rbm.sample1` descriptor for `ZDM1`. |
+| `$1600-$165F` | `rbm.sample2` descriptors for `ZDM2S`, `ZDOV1`, and `ZDOV2`. |
+| `$1700-$1ABF` | `rbm.sample3` descriptors for `ZM6O1A`-`ZM8O5B`. |
+| `$3000-$3014`, `$3200-$3214`, `$3300-$3314`, `$3400-$3414` | Small sample disk-loaded payload proofs. |
+| `$3800-$46A3` | `rbm.sample3` payload records for `ZM6O1A`-`ZM8O5B`, stored on `$100`-byte strides. |
 
 Descriptors point into these packed bytes with payload offset, payload size,
 slot mask, runtime destination, and entry offset. Heap and screen-handle
@@ -707,13 +718,13 @@ Current static layout:
 | Segment | Range | Size |
 |---|---:|---:|
 | `ENTRY` | `$1000-$1102` | `$0103` (259B) |
-| `RESIDENT` | `$1200-$2ABB` | `$18BC` (6.2K, 6332 exact bytes) |
+| `RESIDENT` | `$1200-$2ABE` | `$18BF` (6.2K, 6335 exact bytes) |
 | `REGSEED` | `$5000-$600F` | `$1010` (4.0K, 4112 exact bytes) |
 | `HIDDEN` | `$A000-$A364` | `$0365` (869B) |
 | `LOWPACK` / slot 0 payload | `$A800-$AEC6` | `$06C7` (1735B) |
-| `SLOTPACK1` / slot 1 payload | `$B000-$B140` | `$0141` (321B) |
+| `SLOTPACK1` / slot 1 payload | `$B000-$B238` | `$0239` (569B) |
 | slot 2 proof/overlays | `$B800-$B83E` | `$003F` (63B) |
-| `BRIDGE` | `$C000-$C1F6` | `$01F7` (503B) |
+| `BRIDGE` | `$C000-$C1F8` | `$01F9` (505B) |
 
 Current measured guardrails:
 

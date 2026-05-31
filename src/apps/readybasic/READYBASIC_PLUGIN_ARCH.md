@@ -8,16 +8,17 @@ same ReadyOS and REU discipline.
 
 - `BASIC_START = $2AC1`; BASIC owns `$2AC1-$9FFF`, with `30013` formula empty
   free bytes.
-- `RESIDENT` is `$1200-$2ABB` (`$18BC`, 6332B).
-- `BRIDGE` is `$C000-$C1F6` (`$01F7`, 503B), still below `$C200`.
+- `RESIDENT` is `$1200-$2ABE` (`$18BF`, 6335B).
+- `BRIDGE` is `$C000-$C1F8` (`$01F9`, 505B), still below `$C200`.
 - Under BASIC ROM, `$A000-$A7FF` is the common helper area; `$A800-$AFFF`,
   `$B000-$B7FF`, and `$B800-$BFFF` are three 2KB submodule slots.
 - REU bank `$44` is the registry/runtime bank; REU bank `$45` is the built-in
   and disk-loaded module payload bank.
 - Descriptors remain 32 bytes but now carry module id, submodule id, overlay
   id, slot mask, payload REU offset/size, runtime destination, and entry offset.
-- The disk-loader proof command is `ZMODLD(name$)` in module 2/slot 1. Sample
-  disk modules add `ZDM1`, `ZDM2S`, `ZDOV1`, and `ZDOV2`.
+- The disk-loader proof command is `ZMODLD(name$)` in module 2/slot 1. It opens
+  ReadyBasicModule SEQ packages named `rbm.<name>` and streams them into REU.
+  Sample packages add `ZDM1`, `ZDM2S`, `ZDOV1`, `ZDOV2`, and `ZM6O1A`-`ZM8O5B`.
 
 ## Pre-Module V1 Layout Snapshot
 
@@ -66,16 +67,19 @@ same ReadyOS and REU discipline.
 - `$0000-$06C6`: built-in module 1 slot-0 payload, fetched into
   `$A800-$AEC6` (`$06C7`, 1735B). The linker symbol is still named
   `LOWPACK` for compatibility, but the current runtime slot base is `$A800`.
-- `$06C7-$0807`: built-in module 2 slot-1 proof and `ZMODLD` loader payload,
-  fetched into `$B000-$B140` (`$0141`, 321B).
-- `$0808-$085B`: built-in slot-2, span, and overlay proof slices (`$0054`,
+- `$06C7-$08FF`: built-in module 2 slot-1 proof and streaming `ZMODLD` loader
+  payload, fetched into `$B000-$B238` (`$0239`, 569B).
+- `$0900-$0953`: built-in slot-2, span, and overlay proof slices (`$0054`,
   84B total). Each proof slice is 21B.
-- `$085C-$14FF`: free gap before the current disk-module proof offsets
-  (`$0CA4`, 3236B).
-- `$1500-$151F`: `RBM1` descriptor proof for `ZDM1`.
-- `$1600-$165F`: `RBM2` descriptors for `ZDM2S`, `ZDOV1`, and `ZDOV2`.
-- `$3000-$3016`, `$3200-$3216`, `$3300-$3316`, `$3400-$3416`: sample
+- `$0954-$14FF`: free gap before the current disk-module proof offsets
+  (`$0BAC`, 2988B).
+- `$1500-$151F`: `rbm.sample1` descriptor proof for `ZDM1`.
+- `$1600-$165F`: `rbm.sample2` descriptors for `ZDM2S`, `ZDOV1`, and `ZDOV2`;
+  submodule 5 appears twice because those entries are overlays 1 and 2.
+- `$1700-$1ABF`: `rbm.sample3` descriptors for `ZM6O1A`-`ZM8O5B`.
+- `$3000-$3014`, `$3200-$3214`, `$3300-$3314`, `$3400-$3414`: small
   disk-loaded module payload proofs.
+- `$3800-$46A3`: `rbm.sample3` payload records for `ZM6O1A`-`ZM8O5B`.
 
 Descriptors store payload offsets, payload sizes, slot masks, runtime
 destinations, and entry offsets. Heap and screen commands currently fetch the
@@ -140,8 +144,8 @@ Each descriptor is 32 bytes:
 - `SCRPUT(H%)`: module 1 slot 0 payload, validates a typed screen handle and restores screen text plus color RAM. This descriptor lives in slot 128 to prove full-table lookup.
 - `ZSLOT0`, `ZSLOT1`, `ZSLOT2`, `ZSPAN`, `ZOVL1`, `ZOVL2`, `ZCPYRST`, and
   `ZCOPY`: built-in slot/span/overlay proof commands.
-- `ZMODLD(name$)`: module 2 slot 1 disk-loader proof command.
-- `ZDM1`, `ZDM2S`, `ZDOV1`, and `ZDOV2`: disk-loaded sample module commands.
+- `ZMODLD(name$)`: module 2 slot 1 SEQ package loader proof command.
+- `ZDM1`, `ZDM2S`, `ZDOV1`, `ZDOV2`, and `ZM6O1A`-`ZM8O5B`: disk-loaded sample module commands.
 
 Native reusable BASIC routines:
 

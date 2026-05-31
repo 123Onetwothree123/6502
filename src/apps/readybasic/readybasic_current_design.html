@@ -639,9 +639,10 @@
       </div>
       <div class="grid-3">
         <div class="callout good"><strong>Slot 0:</strong> module 1 system/default payload at <code>$A800-$AEC6</code>, copied from REU <code>$45:$0000</code>.</div>
-        <div class="callout good"><strong>Slot 1:</strong> module 2 proof and <code>ZMODLD</code> loader payload at <code>$B000-$B140</code>, copied from REU <code>$45:$06C7</code>.</div>
+        <div class="callout good"><strong>Slot 1:</strong> module 2 proof and streaming <code>ZMODLD</code> loader payload at <code>$B000-$B238</code>, copied from REU <code>$45:$06C7</code>.</div>
         <div class="callout good"><strong>Slot 2:</strong> proof and overlay target at <code>$B800-$B83E</code>; disk overlay samples use REU <code>$45:$3300</code> and <code>$45:$3400</code>.</div>
       </div>
+      <p><strong>Terms:</strong> a module is the logical command family; a module package is the SEQ disk container named <code>rbm.&lt;name&gt;</code>; a submodule is the runtime payload family that claims one or more slots; an overlay is a swappable image for that submodule. RBM2 repeats submodule <code>5</code> because <code>ZDOV1</code> and <code>ZDOV2</code> are different overlays of that same family.</p>
       <p>Descriptors remain 32 bytes but now carry module id, submodule id, overlay id, slot mask, generation/check byte, payload offset/size in REU bank <code>$45</code>, runtime destination, entry offset, signature id, and name. Older implementation names such as <code>LOWPACK</code> remain where they are still used by the linker and source.</p>
       <div class="callout good"><strong>Generated visual companion:</strong> <a href="../../../docs/readybasic_memory_diagrams.html">ReadyBASIC Memory Diagrams</a> is the proportional special report for the current RAM, REU, cold-load, and module/submodule pictures. Regenerate it with <code>make readybasic-memory-report</code> after layout changes.</div>
     </section>
@@ -822,8 +823,9 @@
           <tr><td><code>SCRPUT(H%)</code></td><td>Slot 128; module 1 slot 0, full <code>$06C7</code> payload</td><td>screen handle</td><td>Restores screen text and color RAM after type validation.</td></tr>
           <tr><td><code>ZSLOT0</code> / <code>ZSLOT1</code> / <code>ZSLOT2</code> / <code>ZSPAN</code></td><td>Built-in module proof payloads in slots 0, 1, and 2</td><td>none</td><td>Prove slot dispatch and multi-slot span loading.</td></tr>
           <tr><td><code>ZOVL1</code> / <code>ZOVL2</code> / <code>ZCPYRST</code> / <code>ZCOPY</code></td><td>Built-in overlay and no-recopy proof payloads</td><td>none</td><td>Prove overlay replacement and residency behavior.</td></tr>
-          <tr><td><code>ZMODLD(NAME$)</code></td><td>Built-in module 2 slot-1 disk-module loader</td><td>module filename string</td><td>Loads generated <code>RBM1</code>/<code>RBM2</code> module descriptors and payloads.</td></tr>
+          <tr><td><code>ZMODLD(NAME$)</code></td><td>Built-in module 2 slot-1 disk-module loader</td><td>module package filename string</td><td>Streams generated SEQ packages such as <code>RBM.SAMPLE1</code>, <code>RBM.SAMPLE2</code>, and <code>RBM.SAMPLE3</code> into REU.</td></tr>
           <tr><td><code>ZDM1()</code> / <code>ZDM2S()</code> / <code>ZDOV1()</code> / <code>ZDOV2()</code></td><td>Disk-loaded sample module payloads in REU bank <code>$45</code></td><td>none</td><td>Prove disk module, span, and overlay registration after <code>ZMODLD</code>.</td></tr>
+          <tr><td><code>ZSAA()</code>-<code>ZUEB()</code></td><td><code>rbm.sample3</code> disk-loaded proof payloads in REU bank <code>$45</code></td><td>none</td><td>Name encodes submodule, overlay, and entrypoint: <code>ZSAA</code> is submodule 6, overlay 1, entry A.</td></tr>
         </tbody>
       </table>
       <p>
@@ -874,7 +876,7 @@
         <thead><tr><th>Segment</th><th>Size</th><th>Load/source role</th><th>Runtime role</th></tr></thead>
         <tbody>
           <tr><td><code>LOWPACK</code></td><td><code>$06C7</code> (1.7K, 1735 exact bytes)</td><td>Historical segment name for the current built-in module 1 slot-0 payload, prestashed to bank <code>$45:$0000</code>.</td><td>Fetched on demand into <code>$A800-$AEC6</code>.</td></tr>
-          <tr><td><code>SLOTPACK1</code></td><td><code>$0141</code> (321B)</td><td>Built-in module 2 proof and <code>ZMODLD</code> loader payload, prestashed to bank <code>$45:$06C7</code>.</td><td>Fetched on demand into <code>$B000-$B140</code>.</td></tr>
+          <tr><td><code>SLOTPACK1</code></td><td><code>$0239</code> (569B)</td><td>Built-in module 2 proof and streaming <code>ZMODLD</code> loader payload, prestashed to bank <code>$45:$06C7</code>.</td><td>Fetched on demand into <code>$B000-$B238</code>.</td></tr>
           <tr><td><code>SLOTPACK2</code> / <code>SPANPACK</code> / overlays</td><td><code>$0015</code> each (21B)</td><td>Proof slot-2, span, and overlay payloads stored after <code>SLOTPACK1</code>.</td><td>Fetched into <code>$B800</code>, <code>$B000-$B014</code>, or slot-2 overlay addresses.</td></tr>
           <tr><td><code>HIDLOAD</code></td><td><code>$0365</code> (0.8K, 869 exact bytes)</td><td>Load-only hidden helper seed starting at <code>$4000</code>.</td><td>Copied on cold boot into <code>$A000-$A364</code> and the visible <code>$C280</code> warm-resume shadow.</td></tr>
 	          <tr><td><code>BRLOAD</code></td><td><code>$01F7</code> (503B)</td><td>Load-only bridge seed starting at <code>$4800</code>.</td><td>Copied on cold boot into <code>$C000-$C1F6</code>.</td></tr>
@@ -907,7 +909,7 @@
         <div class="addr">REU $44:$0A00-$0BFF</div><div class="region r-readyos"><b>Runtime Snapshot</b><small>Zero page, stack, SP, mode, line-chain guards.</small></div><div class="size">$0200<br><span>0.5K</span></div>
         <div class="addr">$A000-$A364</div><div class="region r-hidden"><b>COMMON HELPER</b><small>Helper code under BASIC ROM RAM.</small></div><div class="size">$0365<br><span>869B</span></div>
         <div class="addr">$A800-$AEC6</div><div class="region r-hidden"><b>SLOT 0 PAYLOAD</b><small>Module 1 system/default payload.</small></div><div class="size">$06C7<br><span>1.7K</span></div>
-        <div class="addr">$B000-$B140</div><div class="region r-overlay"><b>SLOT 1 PAYLOAD</b><small>Module 2 proof and ZMODLD loader payload.</small></div><div class="size">$0141<br><span>321B</span></div>
+        <div class="addr">$B000-$B238</div><div class="region r-overlay"><b>SLOT 1 PAYLOAD</b><small>Module 2 proof and streaming ZMODLD loader payload.</small></div><div class="size">$0239<br><span>569B</span></div>
         <div class="addr">$B800-$B83E</div><div class="region r-overlay"><b>SLOT 2 / OVERLAYS</b><small>Proof and overlay slices at the front of slot 2.</small></div><div class="size">$003F<br><span>63B</span></div>
         <div class="addr">$C000-$C1F6</div><div class="region r-bridge"><b>BRIDGE</b><small>Magic, saved vectors, overlay vars, current handle scratch, PROC/FUNC stack.</small></div><div class="size">$01F7<br><span>503B</span></div>
         <div class="addr">$C200-$C5FF</div><div class="region r-shared"><b>Shared Frames</b><small>Call/result frames, descriptor/name/page buffers; hidden shadow is refreshed at <code>$C280</code> on <code>EXIT</code>.</small></div><div class="size">$0400<br><span>1.0K</span></div>
@@ -1119,10 +1121,10 @@
         <div class="bank code">
           <div class="bank-title">Bank $45: Packed Command Code, type 15</div>
 	          <div class="slice"><span>$0000-$06C6</span><span>Built-in module 1 slot-0 payload, copied into <code>$A800-$AEC6</code>.</span></div>
-	          <div class="slice"><span>$06C7-$0807</span><span>Built-in module 2 slot-1 proof and <code>ZMODLD</code> loader payload, copied into <code>$B000-$B140</code>.</span></div>
-	          <div class="slice"><span>$0808-$085B</span><span>Slot-2, span, and overlay proof slices.</span></div>
-	          <div class="slice"><span>$1500/$1600</span><span>Disk-module descriptor proof regions for <code>RBM1</code> and <code>RBM2</code>.</span></div>
-	          <div class="slice"><span>$3000+</span><span>Disk-loaded proof payloads for <code>ZDM1</code>, <code>ZDM2S</code>, <code>ZDOV1</code>, and <code>ZDOV2</code>.</span></div>
+	          <div class="slice"><span>$06C7-$08FF</span><span>Built-in module 2 slot-1 proof and streaming <code>ZMODLD</code> loader payload, copied into <code>$B000-$B238</code>.</span></div>
+	          <div class="slice"><span>$0900-$0953</span><span>Slot-2, span, and overlay proof slices.</span></div>
+	          <div class="slice"><span>$1500-$1ABF</span><span>SEQ package descriptor regions for <code>rbm.sample1</code>, <code>rbm.sample2</code>, and <code>rbm.sample3</code>.</span></div>
+	          <div class="slice"><span>$3000+</span><span>Disk-loaded proof payloads for <code>ZDM1</code>, <code>ZDM2S</code>, <code>ZDOV1</code>, <code>ZDOV2</code>, and <code>ZM6O1A</code>-<code>ZM8O5B</code>.</span></div>
           <div class="slice"><span>desc</span><span>Descriptors point to payload offsets, sizes, slot masks, runtime destinations, and entry offsets.</span></div>
 	          <div class="slice"><span>handles</span><span>Handle and screen commands fetch the full <code>$06C7</code> slot-0 payload because shared helpers live there.</span></div>
         </div>

@@ -12,6 +12,7 @@ ASM = ROOT / "src/apps/readybasic/readybasic.s"
 MAP = ROOT / "obj/readybasic.map"
 REU_HDR = ROOT / "src/lib/reu_mgr.h"
 PRG = ROOT / "bin/readybasic.prg"
+MODULE_DIR = ROOT / "obj/readybasic_modules"
 
 
 def fail(message: str) -> None:
@@ -64,6 +65,10 @@ def main() -> None:
     require(r"^SIG_ZPAUSE\s*=\s*SIG_BUFFREE\b", asm, "ZPAUSE must reuse the one-integer parser signature")
     require(r"^CMD_ZMODLOAD\s*=\s*28\b", asm, "ZMODLOAD loader command id must stay stable")
     require(r"CMD_SLOT1\s+CMD_ZMODLOAD,\s+SIG_ZHIDDENRAM,\s+cmd_zmodload,\s+\"ZMODLD\"", asm, "ZMODLD loader command must live in module 2 slot 1")
+    require(r"^K_OPEN\s*=\s*\$FFC0\b", asm, "ZMODLD must use streamed KERNAL file I/O")
+    require(r"^K_CHRIN\s*=\s*\$FFCF\b", asm, "ZMODLD must stream module bytes with CHRIN")
+    if re.search(r"\bjsr\s+K_LOAD\b", asm):
+        fail("ZMODLD must not PRG-load ReadyBASIC modules")
     require(r"#define\s+REU_RB_CORE\s+14\b", reu_hdr, "REU_RB_CORE type must stay in sync")
     require(r"#define\s+REU_RB_CODE\s+15\b", reu_hdr, "REU_RB_CODE type must stay in sync")
     require(r"#define\s+REU_BANK_RB_CORE\s+0x44\b", reu_hdr, "REU_BANK_RB_CORE must be 0x44")
@@ -94,8 +99,8 @@ def main() -> None:
         fail(f"command slot 0 size changed from measured $06C7, got ${lowpack[2]:04X}")
     if slotpack1[0] != 0xB000 or slotpack1[1] > 0xB7FF:
         fail(f"command slot 1 must fit under BASIC ROM at $B000-$B7FF, got ${slotpack1[0]:04X}-${slotpack1[1]:04X}")
-    if slotpack1[2] != 0x0141:
-        fail(f"command slot 1 size changed from measured $0141, got ${slotpack1[2]:04X}")
+    if slotpack1[2] != 0x0239:
+        fail(f"command slot 1 size changed from measured $0239, got ${slotpack1[2]:04X}")
     if slotpack2[0] != 0xB800 or slotpack2[1] > 0xBFFF:
         fail(f"command slot 2 must fit under BASIC ROM at $B800-$BFFF, got ${slotpack2[0]:04X}-${slotpack2[1]:04X}")
     if slotpack2[2] != 0x0015:
@@ -138,6 +143,19 @@ def main() -> None:
             "PRG payload does not cover the load-image seed span "
             f"$1000-$61FF: got ${actual_payload:04X}, need ${expected_payload:04X}"
         )
+
+    for module_name in ("rbm.sample1.seq", "rbm.sample2.seq", "rbm.sample3.seq"):
+        module_path = MODULE_DIR / module_name
+        if not module_path.exists():
+            fail(f"{module_name} is missing; build ReadyBASIC module packages first")
+        data = module_path.read_bytes()
+        if data[:5] != b"RBM!\x01":
+            fail(f"{module_name} must start with RBM! version 1")
+        if len(data) >= 2 and data[:2] == b"\x00\xc5":
+            fail(f"{module_name} must be SEQ module data, not a PRG with a $C500 load address")
+    for legacy_name in ("rbm1.prg", "rbm2.prg"):
+        if (MODULE_DIR / legacy_name).exists():
+            fail(f"legacy PRG module package still exists: {legacy_name}")
 
     print("readybasic plugin static check OK")
 

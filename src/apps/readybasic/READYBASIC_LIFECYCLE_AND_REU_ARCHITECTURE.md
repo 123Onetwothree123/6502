@@ -229,11 +229,11 @@ the raw `$2AC0-$9FFF` cold-load span:
 | `$6200-$9FFF` | Future BASIC bytes after `REGSEED`. | `$3E00` | 15.5K | 15872 |
 
 Inside `CMDPACK`, the current packed built-in content is slot 0 payload
-`$2B00-$31C6` (`$06C7`, 1735B), slot 1 payload `$31C7-$3307`
-(`$0141`, 321B), slot 2 base payload `$3308-$331C` (`$0015`, 21B), span
-payload `$331D-$3331` (`$0015`, 21B), overlay 1 `$3332-$3346`
-(`$0015`, 21B), overlay 2 `$3347-$335B` (`$0015`, 21B), and reserved room
-`$335C-$3FFF` (`$0CA4`, 3.2K, 3236 exact bytes).
+`$2B00-$31C6` (`$06C7`, 1735B), slot 1 payload `$31C7-$33FF`
+(`$0239`, 569B), slot 2 base payload `$3400-$3414` (`$0015`, 21B), span
+payload `$3415-$3429` (`$0015`, 21B), overlay 1 `$342A-$343E`
+(`$0015`, 21B), overlay 2 `$343F-$3453` (`$0015`, 21B), and reserved room
+`$3454-$3FFF` (`$0BAC`, 2.9K, 2988 exact bytes).
 
 ## REU Layout
 
@@ -329,13 +329,14 @@ Exact bank `$45` suballocation sizes:
 | Offset range | Role | Hex size | Display size | Exact bytes |
 |---|---|---:|---:|---:|
 | `$0000-$06C6` | Built-in module 1 slot-0 payload fetched into `$A800-$AEC6`. | `$06C7` | 1.7K | 1735 |
-| `$06C7-$0807` | Built-in module 2 slot-1 proof and `ZMODLD` loader payload fetched into `$B000-$B140`. | `$0141` | 321B | 321 |
-| `$0808-$085B` | Built-in slot-2, span, and overlay proof slices. | `$0054` | 84B | 84 |
-| `$085C-$14FF` | Free gap before current disk-module descriptor proof offsets. | `$0CA4` | 3.2K | 3236 |
-| `$1500-$151F` | `RBM1` descriptor proof for `ZDM1`. | `$0020` | 32B | 32 |
-| `$1600-$165F` | `RBM2` descriptors for `ZDM2S`, `ZDOV1`, and `ZDOV2`. | `$0060` | 96B | 96 |
-| `$3000-$3016`, `$3200-$3216`, `$3300-$3316`, `$3400-$3416` | Disk-module proof payloads. | `$0017` each | 23B each | 23 each |
-| `$3417-$FFFF` | Available packed-code bank tail after current proof payloads. | `$CBE9` | 51.0K | 52201 |
+| `$06C7-$08FF` | Built-in module 2 slot-1 proof and streaming `ZMODLD` loader payload fetched into `$B000-$B238`. | `$0239` | 569B | 569 |
+| `$0900-$0953` | Built-in slot-2, span, and overlay proof slices. | `$0054` | 84B | 84 |
+| `$0954-$14FF` | Free gap before current disk-module descriptor proof offsets. | `$0BAC` | 2.9K | 2988 |
+| `$1500-$151F` | `rbm.sample1` descriptor proof for `ZDM1`. | `$0020` | 32B | 32 |
+| `$1600-$165F` | `rbm.sample2` descriptors for `ZDM2S`, `ZDOV1`, and `ZDOV2`; submodule 5 appears twice because those entries are overlays 1 and 2. | `$0060` | 96B | 96 |
+| `$1700-$1ABF` | `rbm.sample3` descriptors for `ZM6O1A`-`ZM8O5B`. | `$03C0` | 960B | 960 |
+| `$3000-$3014`, `$3200-$3214`, `$3300-$3314`, `$3400-$3414` | Small disk-module proof payloads. | `$0015` each | 21B each | 21 each |
+| `$3800-$46A3` | `rbm.sample3` payload records for `ZM6O1A`-`ZM8O5B`, stored on `$100`-byte strides. | `$00A4` per overlay image | 164B per overlay image | 164 each |
 
 ## Descriptor ABI
 

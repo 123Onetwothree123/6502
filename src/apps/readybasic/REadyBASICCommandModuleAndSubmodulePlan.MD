@@ -292,42 +292,42 @@ a nonzero diagnostic value in the `240` range for the current proof build.
 
 The implemented proof loader:
 
-1. Loads a small PRG-format module file into the existing `$C500` page buffer.
-2. Validates magic, format version, and small descriptor/payload counts.
-3. Copies ready-made command descriptors into REU bank `$44`.
-4. Copies payload chunks into REU bank `$45`.
-5. Invalidates the tiny current residency proof state.
-6. Leaves resident startup unchanged.
+1. Opens a ReadyBasicModule SEQ package named `rbm.<name>`.
+2. Streams the file through the existing `$C500` page buffer.
+3. Validates magic, format version, descriptor counts, and payload bounds.
+4. Copies ready-made command descriptors into REU bank `$44`.
+5. Copies payload chunks into REU bank `$45`.
+6. Invalidates the tiny current residency proof state.
+7. Leaves resident startup and BASIC free bytes unchanged.
 
 The proof format is intentionally smaller than the long-term `RBMD` format
-above. It fits in one page and is built by
+above, but it no longer depends on a one-page PRG load. It is built by
 `build_support/build_readybasic_disk_modules.py`.
 
 ### Implemented Proof File Format
 
-The generated files are PRGs with a load address of `$C500`. The payload at
-`$C500` is:
+The generated files are SEQ module packages, not PRGs. They do not have a load
+address. The byte stream is:
 
 | Offset | Size | Meaning |
 | --- | ---: | --- |
 | `0` | 4 | Magic `RBM!`. |
 | `4` | 1 | Format version, currently `1`. |
 | `5` | 1 | Module id. |
-| `6` | 1 | Command descriptor count, maximum `4` in this proof. |
-| `7` | 1 | Payload chunk count, maximum `4` in this proof. |
-| `8` | 1 | File offset of descriptor blob. |
-| `9` | 1 | File offset of payload directory. |
-| `10` | 2 | Destination offset in REU bank `$44` for descriptors. |
-| `12` | 4 | Reserved, zero. |
+| `6` | 1 | Command descriptor count, maximum `32` in this proof. |
+| `7` | 1 | Payload chunk count, maximum `32` in this proof. |
+| `8` | 2 | Destination offset in REU bank `$44` for descriptors. |
+| `10` | 6 | Reserved, zero. |
 
-Each payload directory entry is six bytes:
+The descriptor blob follows the 16-byte header directly. Payload records follow
+the descriptor blob; each record has a six-byte header immediately followed by
+its payload bytes:
 
 | Field | Size | Meaning |
 | --- | ---: | --- |
-| File offset | 1 | Offset inside the loaded `$C500` page. |
 | REU offset | 2 | Destination offset in REU bank `$45`. |
 | Size | 2 | Payload size in bytes. |
-| Flags | 1 | Reserved for future proof work. |
+| Flags/reserved | 2 | Reserved for future proof work. |
 
 Command descriptors use the normal 32-byte ReadyBASIC descriptor layout. Payload
 chunks are assembler-language command workers linked/generated for fixed slot
@@ -340,8 +340,9 @@ profiles:
 
 | Disk file | Module | Commands | Layout proved |
 | --- | --- | --- | --- |
-| `RBM1` | Module 3 | `ZDM1()` returns `61` | Single slot-1 submodule. |
-| `RBM2` | Module 4 | `ZDM2S()` returns `74`; `ZDOV1()`/`ZDOV2()` return `72`/`73` | Two-slot slot 1+2 span plus two slot-2 overlays. |
+| `rbm.sample1` | Module 3 | `ZDM1()` returns `61` | Single slot-1 submodule. |
+| `rbm.sample2` | Module 4 | `ZDM2S()` returns `74`; `ZDOV1()`/`ZDOV2()` return `72`/`73` | Two-slot slot 1+2 span plus two slot-2 overlays. `ZDOV1` and `ZDOV2` both use submodule 5 because they are different overlays of the same submodule family. |
+| `rbm.sample3` | Module 5 | `ZM6O1A(S$)`-`ZM8O5B(S$)` return command name | Larger package with 30 descriptors. The command names encode submodule, overlay, and entrypoint: `ZM6O1A` is submodule 6, overlay 1, entry A; `ZM6O1B` is the second entrypoint in that same resident overlay image. |
 
 The long-term loader should still:
 

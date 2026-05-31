@@ -40,11 +40,15 @@ BASIC_RESTORE_VECTORS = $E453
 
 K_CHROUT        = $FFD2
 K_CLRCHN        = $FFCC
+K_CHKIN         = $FFC6
+K_CLOSE         = $FFC3
+K_OPEN          = $FFC0
 K_PLOT          = $FFF0
+K_READST        = $FFB7
 K_RESTOR        = $FF8A
 K_SETLFS        = $FFBA
 K_SETNAM        = $FFBD
-K_LOAD          = $FFD5
+K_CHRIN         = $FFCF
 
 ; ---------------------------------------------------------------------------
 ; BASIC/KERNAL workspace
@@ -2009,8 +2013,7 @@ parse_sig_zrangenumarray:
 
 parse_sig_bufnew:
         jsr rb_parse_num0
-        jsr rb_parse_out_int
-        rts
+        jmp rb_parse_out_int
 
 parse_sig_buffill:
         jsr rb_parse_num0
@@ -2018,8 +2021,7 @@ parse_sig_buffill:
         rts
 
 parse_sig_buffree:
-        jsr rb_parse_num0
-        rts
+        jmp rb_parse_num0
 
 parse_sig_ztempscratch:
         jsr rb_parse_num0
@@ -2040,8 +2042,7 @@ parse_sig_scrcap:
         rts
 
 parse_sig_scrput:
-        jsr rb_parse_num0
-        rts
+        jmp rb_parse_num0
 
 parse_sig_fadd:
         jsr rb_parse_float0
@@ -2433,6 +2434,9 @@ rb_eval:
 @runtime:
         jmp rb_runtime_error
 rb_expr_return_result:
+        lda RF_TAG
+        cmp #RB_VAL_STRING
+        beq rb_expr_return_string
         lda rb_expr_type
         cmp #RB_EXPR_STRING
         beq rb_expr_return_string
@@ -3205,8 +3209,7 @@ parse_expr_errline:
         jmp rb_precompute_errline
 
 parse_expr_num0:
-        jsr rb_parse_num0
-        rts
+        jmp rb_parse_num0
 
 parse_expr_int_string:
         jsr rb_parse_string_value
@@ -3312,6 +3315,14 @@ rb_load_and_call_command:
         lda RB_DESC_BUF+4
         ora RB_DESC_BUF+5
         beq @done
+        jsr rb_desc_runtime_base
+        clc
+        lda rb_ptr_lo
+        adc RB_DESC_BUF+12
+        sta rb_overlay_vec_lo
+        lda rb_ptr_hi
+        adc RB_DESC_BUF+13
+        sta rb_overlay_vec_hi
         jsr rb_slot_resident
         bcs @resident
         lda RB_DESC_BUF+2
@@ -3322,7 +3333,6 @@ rb_load_and_call_command:
         sta rb_reu_len_lo
         lda RB_DESC_BUF+5
         sta rb_reu_len_hi
-        jsr rb_desc_runtime_base
         clc
         lda rb_ptr_lo
         adc RB_DESC_BUF+10
@@ -3330,13 +3340,6 @@ rb_load_and_call_command:
         lda rb_ptr_hi
         adc RB_DESC_BUF+11
         sta rb_reu_c64_hi
-        clc
-        lda rb_ptr_lo
-        adc RB_DESC_BUF+12
-        sta rb_overlay_vec_lo
-        lda rb_ptr_hi
-        adc RB_DESC_BUF+13
-        sta rb_overlay_vec_hi
         lda #RB_REU_CODE_BANK
         sta rb_reu_bank
         inc rb_copy_count
@@ -3363,7 +3366,7 @@ rb_desc_runtime_base:
 
 rb_slot_resident:
         lda rb_slot0_cmd
-        cmp RB_DESC_BUF
+        cmp RB_DESC_BUF+6
         bne @miss
         lda rb_slot0_overlay
         cmp RB_DESC_BUF+7
@@ -3375,7 +3378,7 @@ rb_slot_resident:
         rts
 
 rb_mark_slot_resident:
-        lda RB_DESC_BUF
+        lda RB_DESC_BUF+6
         sta rb_slot0_cmd
         lda RB_DESC_BUF+7
         sta rb_slot0_overlay
@@ -4494,6 +4497,8 @@ rb_cmd_len:     .byte 0
 rb_lookup_index:.byte 0
 rb_lookup_slots:.byte 0
 rb_lookup_char: .byte 0
+rb_zmod_eof:    .byte 0
+rb_saved_msgflg:.byte 0
 rb_target_off:  .byte 0
 rb_saved_count_lo:.byte 0
 rb_saved_count_hi:.byte 0
@@ -5584,30 +5589,33 @@ cmd_zslot1_end:
 
 cmd_zmodload:
         lda CF_STR_LEN
-        beq @fail_empty
+        bne :+
+        lda #240
+        jmp @return_int
+:       
         ldx #<CF_STR_BUF
         ldy #>CF_STR_BUF
         jsr K_SETNAM
         lda #1
         ldx #8
-        ldy #1
+        ldy #2
         jsr K_SETLFS
         lda MSGFLG
-        sta rb_lookup_char
+        sta rb_saved_msgflg
         lda #0
         sta MSGFLG
-        lda #0
-        ldx #<RB_PAGEBUF
-        ldy #>RB_PAGEBUF
-        jsr K_LOAD
-        php
-        lda rb_lookup_char
-        sta MSGFLG
-        jsr K_CLRCHN
-        plp
+        sta rb_zmod_eof
+        jsr K_OPEN
+        bcs @fail_io_finish
+        ldx #1
+        jsr K_CHKIN
+        bcs @fail_io_finish
+        lda #16
+        jsr rb_zmodload_read_pagebuf_bytes
         bcc @loaded
+@fail_io_finish:
         lda #241
-        jmp @return_int
+        jmp @finish
 @loaded:
         lda RB_PAGEBUF
         cmp #'R'
@@ -5626,27 +5634,35 @@ cmd_zmodload:
         bne @fail_version
         lda RB_PAGEBUF+6
         beq @fail_count
-        cmp #5
+        cmp #33
         bcs @fail_count
+        sta rb_saved_count_lo
         lda RB_PAGEBUF+7
-        cmp #5
+        cmp #33
         bcs @fail_count
+        sta rb_saved_count_hi
         jsr rb_zmodload_stash_descriptors
+        bcs @fail_bounds
         jsr rb_zmodload_stash_payloads
+        bcs @fail_bounds
         jsr rb_clear_slot_residency
-        lda RB_PAGEBUF+6
-        jmp @return_int
-@fail_empty:
-        lda #240
-        jmp @return_int
+        lda rb_saved_count_lo
+        jmp @finish
 @fail_magic:
         lda #242
-        jmp @return_int
+        jmp @finish
 @fail_version:
         lda #243
-        jmp @return_int
+        jmp @finish
 @fail_count:
         lda #244
+        jmp @finish
+@fail_bounds:
+        lda #245
+@finish:
+        pha
+        jsr rb_zmodload_close
+        pla
         jmp @return_int
 @return_int:
         sta RF_VAL_LO
@@ -5658,65 +5674,184 @@ cmd_zmodload:
         rts
 
 rb_zmodload_stash_descriptors:
+        lda rb_saved_count_lo
+        sta rb_copy_len_lo
+        lda #0
+        sta rb_copy_len_hi
+.repeat 5
+        asl rb_copy_len_lo
+        rol rb_copy_len_hi
+.endrepeat
         lda RB_PAGEBUF+8
-        sta rb_reu_c64_lo
-        lda #>RB_PAGEBUF
-        sta rb_reu_c64_hi
-        lda RB_PAGEBUF+10
         sta rb_reu_off_lo
-        lda RB_PAGEBUF+11
+        lda RB_PAGEBUF+9
         sta rb_reu_off_hi
+        cmp #>RB_REU_DESC_OFF
+        bcc @bad
+        cmp #>RB_REU_SLOT_STATE_OFF
+        bcs @bad
+        clc
+        lda rb_reu_off_lo
+        adc rb_copy_len_lo
+        tax
+        lda rb_reu_off_hi
+        adc rb_copy_len_hi
+        cmp #>RB_REU_SLOT_STATE_OFF
+        bcc @stream
+        bne @bad
+        txa
+        bne @bad
+@stream:
         lda #RB_REU_CORE_BANK
         sta rb_reu_bank
-        lda #0
-        sta rb_reu_len_hi
-        lda RB_PAGEBUF+6
-.repeat 5
-        asl
-        rol rb_reu_len_hi
-.endrepeat
-        sta rb_reu_len_lo
-        jsr rb_reu_stash
+        jmp rb_zmodload_stream_to_reu
+@bad:
+        sec
         rts
 
 rb_zmodload_stash_payloads:
-        lda RB_PAGEBUF+7
-        sta rb_copy_chunks
+        lda rb_saved_count_hi
+        sta rb_saved_count_hi
         beq @done
-        lda RB_PAGEBUF+9
-        sta rb_ptr_lo
-        lda #>RB_PAGEBUF
-        sta rb_ptr_hi
 @loop:
-        ldy #0
-        lda (rb_ptr_lo),y
+        lda #6
+        jsr rb_zmodload_read_pagebuf_bytes
+        bcs @bad
+        lda RB_PAGEBUF+2
+        ora RB_PAGEBUF+3
+        beq @bad
+        lda RB_PAGEBUF
+        sta rb_reu_off_lo
+        lda RB_PAGEBUF+1
+        sta rb_reu_off_hi
+        lda RB_PAGEBUF+2
+        sta rb_copy_len_lo
+        lda RB_PAGEBUF+3
+        sta rb_copy_len_hi
+        clc
+        lda rb_reu_off_lo
+        adc rb_copy_len_lo
+        lda rb_reu_off_hi
+        adc rb_copy_len_hi
+        bcs @bad
+        lda #RB_REU_CODE_BANK
+        sta rb_reu_bank
+        jsr rb_zmodload_stream_to_reu
+        bcs @bad
+        dec rb_saved_count_hi
+        bne @loop
+@done:
+        clc
+        rts
+@bad:
+        sec
+        rts
+
+rb_zmodload_read_pagebuf_bytes:
+        sta rb_copy_chunks
+        lda #0
+        sta rb_target_off
+@loop:
+        jsr rb_zmodload_read_byte
+        bcs @bad
+        ldy rb_target_off
+        sta RB_PAGEBUF,y
+        inc rb_target_off
+        dec rb_copy_chunks
+        bne @loop
+        clc
+        rts
+@bad:
+        sec
+        rts
+
+rb_zmodload_stream_to_reu:
+@more:
+        lda rb_copy_len_lo
+        ora rb_copy_len_hi
+        beq @done
+        lda rb_copy_len_hi
+        beq @last
+        lda #0
+        sta rb_reu_len_lo
+        lda #1
+        sta rb_reu_len_hi
+        jsr rb_zmodload_read_reu_chunk
+        bcs @bad
+        jsr rb_reu_stash
+        inc rb_reu_off_hi
+        dec rb_copy_len_hi
+        jmp @more
+@last:
+        lda rb_copy_len_lo
+        sta rb_reu_len_lo
+        lda #0
+        sta rb_reu_len_hi
+        jsr rb_zmodload_read_reu_chunk
+        bcs @bad
+        jsr rb_reu_stash
+        lda #0
+        sta rb_copy_len_lo
+@done:
+        clc
+        rts
+@bad:
+        sec
+        rts
+
+rb_zmodload_read_reu_chunk:
+        lda #<RB_PAGEBUF
         sta rb_reu_c64_lo
         lda #>RB_PAGEBUF
         sta rb_reu_c64_hi
-        iny
-        lda (rb_ptr_lo),y
-        sta rb_reu_off_lo
-        iny
-        lda (rb_ptr_lo),y
-        sta rb_reu_off_hi
-        iny
-        lda (rb_ptr_lo),y
-        sta rb_reu_len_lo
-        iny
-        lda (rb_ptr_lo),y
-        sta rb_reu_len_hi
-        lda #RB_REU_CODE_BANK
-        sta rb_reu_bank
-        jsr rb_reu_stash
-        clc
-        lda rb_ptr_lo
-        adc #6
-        sta rb_ptr_lo
-        bcc :+
-        inc rb_ptr_hi
-:       dec rb_copy_chunks
+        lda #0
+        sta rb_target_off
+@loop:
+        jsr rb_zmodload_read_byte
+        bcs @bad
+        ldy rb_target_off
+        sta RB_PAGEBUF,y
+        inc rb_target_off
+        lda rb_target_off
+        cmp rb_reu_len_lo
         bne @loop
-@done:
+        clc
+        rts
+@bad:
+        sec
+        rts
+
+rb_zmodload_read_byte:
+        lda rb_zmod_eof
+        bne @bad
+        jsr K_CHRIN
+        sta rb_lookup_char
+        jsr K_READST
+        beq @ok
+        cmp #$40
+        beq @eof
+        sec
+        lda rb_lookup_char
+        rts
+@eof:
+        lda #1
+        sta rb_zmod_eof
+@ok:
+        lda rb_lookup_char
+        clc
+        rts
+@bad:
+        sec
+        rts
+
+rb_zmodload_close:
+        lda rb_saved_msgflg
+        pha
+        jsr K_CLRCHN
+        lda #1
+        jsr K_CLOSE
+        pla
+        sta MSGFLG
         rts
 cmd_zmodload_end:
 

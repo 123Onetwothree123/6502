@@ -180,7 +180,7 @@ steps:
   - id: direct_disk_module_load
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rREM D-DISKMODULE LOAD PROOFS\rPRINT "D-LD1";ZMODLD("RBM1")\rPRINT "D-DM1";ZDM1()\rPRINT "D-LD2";ZMODLD("RBM2")\rPRINT "D-DM2";ZDM2S()\rPRINT "D-DOV";ZDOV1();"/";ZDOV2()\r')]
+      keys: [$(keys $'PRINT CHR$(147)\rREM D-DISKMODULE LOAD PROOFS\rPRINT "D-LD1";ZMODLD("RBM.SAMPLE1")\rPRINT "D-DM1";ZDM1()\rPRINT "D-LD2";ZMODLD("RBM.SAMPLE2")\rPRINT "D-DM2";ZDM2S()\rPRINT "D-DOV";ZDOV1();"/";ZDOV2()\rPRINT "D-LD3";ZMODLD("RBM.SAMPLE3")\rPRINT "D-M3";ZSAA();"/";ZUEB()\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 4.0
   - id: assert_direct_disk_module_load1
@@ -203,6 +203,14 @@ steps:
     type: assert.screen
     params:
       contains: "D-DOV 72 / 73"
+  - id: assert_direct_disk_module_load3
+    type: assert.screen
+    params:
+      contains: "D-LD3 30"
+  - id: assert_direct_disk_module_rbm3
+    type: assert.screen
+    params:
+      contains: "D-M3 3 / 112"
 
   - id: direct_strup_variable
     type: input.sequence

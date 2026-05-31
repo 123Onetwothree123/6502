@@ -713,12 +713,12 @@
         <tr><td><code>$2AC1-$9FFF</code></td><td><strong>BASIC workspace.</strong> Program text, variables, arrays, strings, and reclaimed cold seed space.</td><td><span class="tag">BASIC</span></td></tr>
         <tr><td><code>$A000-$A7FF</code></td><td><strong>Common under-ROM helper.</strong> Current helper uses <code>$A000-$A364</code>.</td><td><span class="tag">common</span></td></tr>
         <tr><td><code>$A800-$AFFF</code></td><td><strong>Submodule slot 0.</strong> Module 1 system/default payload uses <code>$A800-$AEC6</code>.</td><td><span class="tag">slot 0</span></td></tr>
-        <tr><td><code>$B000-$B7FF</code></td><td><strong>Submodule slot 1.</strong> Module 2 proof/loader payload uses <code>$B000-$B140</code>.</td><td><span class="tag">slot 1</span></td></tr>
+        <tr><td><code>$B000-$B7FF</code></td><td><strong>Submodule slot 1.</strong> Module 2 proof/streaming loader payload uses <code>$B000-$B238</code>.</td><td><span class="tag">slot 1</span></td></tr>
         <tr><td><code>$B800-$BFFF</code></td><td><strong>Submodule slot 2.</strong> Proof and overlay payloads use the front of this slot.</td><td><span class="tag">slot 2</span></td></tr>
         <tr><td><code>$C000-$C5FF</code></td><td><strong>Bridge and frames.</strong> Bridge through <code>$C1F6</code>; call/result/descriptor/name/page buffers through <code>$C5FF</code>.</td><td><span class="tag">frames</span></td></tr>
         <tr><td><code>$C600-$C9FF</code></td><td><strong>ReadyOS-owned area.</strong> REU metadata and shim ABI; not ReadyBASIC scratch.</td><td><span class="tag">reserved</span></td></tr>
       </table>
-      <div class="callout good"><strong>REU model:</strong> bank <code>$44</code> holds registry/runtime state, descriptors, handles, snapshots, and typed heap. Bank <code>$45</code> holds built-in and disk-loaded command/module payload bytes. Disk proof modules <code>RBM1</code> and <code>RBM2</code> register commands through <code>ZMODLD</code>, which lives in module 2 rather than resident code.</div>
+      <div class="callout good"><strong>REU model:</strong> bank <code>$44</code> holds registry/runtime state, descriptors, handles, snapshots, and typed heap. Bank <code>$45</code> holds built-in and disk-loaded command/module payload bytes. Disk proof packages <code>rbm.sample1</code>, <code>rbm.sample2</code>, and <code>rbm.sample3</code> are SEQ files streamed by <code>ZMODLD</code>, which lives in module 2 rather than resident code.</div>
       <div class="callout good"><strong>Generated visual companion:</strong> <a href="../../../docs/readybasic_memory_diagrams.html">ReadyBASIC Memory Diagrams</a> is the proportional special report for the current RAM, REU, cold-load, and module/submodule pictures. Regenerate it with <code>make readybasic-memory-report</code> after layout changes.</div>
     </section>
 
@@ -821,8 +821,8 @@
         <div class="region r-hidden"><span><b>COMMON HELPER</b><small>Runs with RAM mapped under BASIC ROM.</small></span><strong>$0365<br>869B</strong></div>
         <div class="addr">$A800-$AEC6</div>
         <div class="region r-hidden"><span><b>SLOT 0 PAYLOAD</b><small>Module 1 system/default payload.</small></span><strong>$06C7<br>1.7K</strong></div>
-        <div class="addr">$B000-$B140</div>
-        <div class="region r-low"><span><b>SLOT 1 PAYLOAD</b><small>Module 2 proof and ZMODLD loader.</small></span><strong>$0141<br>321B</strong></div>
+        <div class="addr">$B000-$B238</div>
+        <div class="region r-low"><span><b>SLOT 1 PAYLOAD</b><small>Module 2 proof and streaming ZMODLD loader.</small></span><strong>$0239<br>569B</strong></div>
         <div class="addr">$B800-$B83E</div>
         <div class="region r-low"><span><b>SLOT 2 / OVERLAYS</b><small>Proof and overlay slices.</small></span><strong>$003F<br>63B</strong></div>
         <div class="addr">$C000-$C1F6</div>
@@ -885,9 +885,9 @@
                 <h3>Inside `CMDPACK` During Load</h3>
                 <div class="stage-bar">
                   <div class="stage-seg r-low" style="width: 32.27%" title="$2B00-$31C6: $06C7 / 1735 exact bytes"><b>slot 0</b><small>$06C7 / 1735B</small></div>
-                  <div class="stage-seg r-hidden" style="width: 5.97%" title="$31C7-$3307: $0141 / 321B"><b>slot 1</b><small>$0141 / 321B</small></div>
-                  <div class="stage-seg r-low" style="width: 1.95%" title="$3308-$335B: four 21B proof slices"><b>proof slices</b><small>4 x 21B</small></div>
-                  <div class="stage-seg r-pack" style="width: 60.19%" title="$335C-$3FFF: $0CA4 / 3.2K / 3236 exact bytes"><b>available reserved room</b><small>$0CA4 / 3.2K / 3236 exact bytes</small></div>
+                  <div class="stage-seg r-hidden" style="width: 10.58%" title="$31C7-$33FF: $0239 / 569B"><b>slot 1</b><small>$0239 / 569B</small></div>
+                  <div class="stage-seg r-low" style="width: 1.56%" title="$3400-$3453: four 21B proof slices"><b>proof slices</b><small>4 x 21B</small></div>
+                  <div class="stage-seg r-pack" style="width: 55.59%" title="$3454-$3FFF: $0BAC / 2.9K / 2988 exact bytes"><b>available reserved room</b><small>$0BAC / 2.9K / 2988 exact bytes</small></div>
                 </div>
               </div>
               <div>
@@ -907,7 +907,7 @@
               <div class="prop-label">Runtime command copy<small>under BASIC ROM RAM</small></div>
               <div class="prop-track">
                 <div class="prop-seg r-hidden" style="width: 28.24%" title="$A800-$AEC6: $06C7 / 1735B"><b>$A800-$AEC6</b><small>slot 0 / 1735B</small></div>
-                <div class="prop-seg r-low" style="width: 5.22%" title="$B000-$B140: $0141 / 321B"><b>$B000-$B140</b><small>slot 1 / 321B</small></div>
+                <div class="prop-seg r-low" style="width: 9.26%" title="$B000-$B238: $0239 / 569B"><b>$B000-$B238</b><small>slot 1 / 569B</small></div>
                 <div class="prop-seg r-low" style="width: 1.03%" title="$B800-$B83E: $003F / 63B"><b>$B800-$B83E</b><small>slot 2 proofs</small></div>
                 <div class="prop-seg r-pack" style="width: 65.51%" title="Free room across the three 2K slots"><b>free slot room</b><small>remaining 6K window</small></div>
               </div>
@@ -969,10 +969,10 @@
         <div class="bank code">
           <div class="bank-title">REU Bank $45: Packed Command Code</div>
           <div class="slice"><span>$0000-$06C6</span><span>Built-in module 1 slot-0 payload fetched into `$A800-$AEC6`. <span class="size-pill">$06C7 / 1.7K / 1735 exact bytes</span></span></div>
-          <div class="slice"><span>$06C7-$0807</span><span>Built-in module 2 slot-1 proof and ZMODLD loader payload fetched into `$B000-$B140`. <span class="size-pill">$0141 / 321B</span></span></div>
-          <div class="slice"><span>$0808-$085B</span><span>Built-in slot-2, span, and overlay proof slices. <span class="size-pill">$0054 / 84B</span></span></div>
-          <div class="slice"><span>$1500/$1600</span><span>Disk-module descriptor proof regions for RBM1 and RBM2.</span></div>
-          <div class="slice"><span>$3000+</span><span>Disk-loaded proof payloads for ZDM1, ZDM2S, ZDOV1, and ZDOV2.</span></div>
+          <div class="slice"><span>$06C7-$08FF</span><span>Built-in module 2 slot-1 proof and streaming ZMODLD loader payload fetched into `$B000-$B238`. <span class="size-pill">$0239 / 569B</span></span></div>
+          <div class="slice"><span>$0900-$0953</span><span>Built-in slot-2, span, and overlay proof slices. <span class="size-pill">$0054 / 84B</span></span></div>
+          <div class="slice"><span>$1500-$1ABF</span><span>SEQ package descriptors for rbm.sample1, rbm.sample2, and rbm.sample3.</span></div>
+          <div class="slice"><span>$3000+</span><span>Disk-loaded proof payloads for ZDM1, ZDM2S, ZDOV1, ZDOV2, and ZM6O1A-ZM8O5B.</span></div>
           <div class="slice"><span>descriptor</span><span>Each descriptor stores payload offset/size, slot mask, runtime destination, entry offset, signature, and name. Descriptor table lives in bank `$44`, not here.</span></div>
           <div class="slice"><span>$C600</span><span>ReadyOS allocation table marks `$44` as type 14 and `$45` as type 15. This is C64 metadata, not REU bank `$45` content.</span></div>
         </div>

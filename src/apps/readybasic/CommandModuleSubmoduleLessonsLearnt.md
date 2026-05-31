@@ -177,17 +177,23 @@ proven, adjusted, or rejected during implementation.
 - Added `ZMODLD(name$)` as a module 2 / slot 1 command. The loader lives in
   under-ROM module payload code and uses existing resident REU stash helpers;
   resident size and BASIC free bytes did not move.
-- Added `build_support/build_readybasic_disk_modules.py` to generate two small
-  PRG-format ReadyBASIC module files:
-  - `RBM1` registers `ZDM1()` as a single slot-1 disk-loaded command returning
+- Added `build_support/build_readybasic_disk_modules.py` to generate
+  ReadyBasicModule SEQ packages named `rbm.<name>`:
+  - `rbm.sample1` registers `ZDM1()` as a single slot-1 disk-loaded command returning
     `61`.
-  - `RBM2` registers `ZDM2S()` as a slot 1+2 span returning `74`, plus
-    `ZDOV1()` / `ZDOV2()` as slot-2 overlays returning `72` / `73`.
+  - `rbm.sample2` registers `ZDM2S()` as a slot 1+2 span returning `74`, plus
+    `ZDOV1()` / `ZDOV2()` as slot-2 overlays returning `72` / `73`. Those two
+    entries both use submodule 5 because they are two overlays of the same
+    submodule family.
+  - `rbm.sample3` registers `ZM6O1A()` through `ZM8O5B()` across multiple
+    submodule families and overlays. Each command returns a small integer
+    sentinel, and the command name encodes submodule, overlay, and entrypoint.
 - Added the generated module artifacts to ReadyBASIC-capable D81 and dual-D71
   profiles so the normal ReadyOS boot disk includes the sample modules.
-- Extended the local ReadyBASIC full visual suite runner to assert:
-  `ZMODLD("RBM1")`, `ZDM1()`, `ZMODLD("RBM2")`, `ZDM2S()`, and
-  `ZDOV1()/ZDOV2()`.
+- Extended the local ReadyBASIC visual suite runner to assert:
+  `ZMODLD("RBM.SAMPLE1")`, `ZDM1()`, `ZMODLD("RBM.SAMPLE2")`, `ZDM2S()`,
+  `ZDOV1()/ZDOV2()`, `ZMODLD("RBM.SAMPLE3")`, and representative
+  `ZM6O1A$()`-`ZM8O5B$()` calls.
 - Static gate:
   `make bin/readybasic.prg && make readybasic-plugin-static-check` passed.
 - VICE gate:
@@ -201,8 +207,8 @@ proven, adjusted, or rejected during implementation.
   - `RESIDENT` remains `$18BC` / 6332B.
   - `HIDDEN` remains `$0365` / 869B.
   - Slot 0 `LOWPACK` remains `$06C7` / 1735B.
-  - Slot 1 `SLOTPACK1` changed from `$0015` / 21B to `$0141` / 321B because
-    it now contains the loader command.
+  - Slot 1 `SLOTPACK1` changed from `$0015` / 21B to `$0239` / 569B because
+    it now contains the streaming loader command.
   - Slot 2, span, and overlay proof payloads remain `$0015` / 21B each.
   - `BRIDGE` remains `$01F7` / 503B; `REGSEED` and PRG payload size remain
     unchanged.
@@ -210,10 +216,10 @@ proven, adjusted, or rejected during implementation.
   `ZMODLOAD` looked natural, but the `LOAD` suffix was tokenized before
   ReadyBASIC command lookup. `ZMODLD` avoids that and should be the naming
   pattern for future loader-style commands.
-- Lesson: KERNAL `LOAD` from a command works in this under-ROM shape, but its
-  normal `SEARCHING/LOADING` messages disturb expression output. The loader now
-  saves `MSGFLG`, silences those messages only around the load, and restores
-  the previous value.
+- Lesson: the pre-v1 module files are not PRGs. `ZMODLD` uses KERNAL file I/O
+  to stream SEQ bytes through `$C500`, then stashes descriptors in REU bank
+  `$44` and payload records in bank `$45`. This is what lets large package
+  files prove the module system without reducing BASIC bytes free.
 
 ## Documentation Hardening: Preserve Then Refresh
 

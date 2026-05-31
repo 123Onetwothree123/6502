@@ -160,8 +160,9 @@
       <div class="card lesson"><h3>Common</h3><p><code>$A000-$A7FF</code> is shared helper space, not a normal pageable command slot.</p></div>
       <div class="card lesson"><h3>Slot 0</h3><p><code>$A800-$AFFF</code> is the default/system module slot for common commands.</p></div>
       <div class="card lesson"><h3>Slot 1/2</h3><p><code>$B000-$B7FF</code> and <code>$B800-$BFFF</code> can hold swappable submodules, spans, and overlays.</p></div>
-      <div class="card lesson"><h3>Disk Modules</h3><p><code>ZMODLD(name$)</code> lives in module 2, loads PRG modules into <code>$C500</code>, then registers descriptors in REU <code>$44</code> and payloads in <code>$45</code>.</p></div>
+      <div class="card lesson"><h3>Disk Modules</h3><p><code>ZMODLD(name$)</code> lives in module 2 and opens ReadyBasicModule SEQ packages named <code>rbm.&lt;name&gt;</code>. <code>$C500</code> is only a streaming page buffer; descriptors land in REU <code>$44</code> and payloads in <code>$45</code>.</p></div>
     </div>
+    <p>A module is the logical command family. A module package is the disk container. A submodule is the runtime payload family that claims a slot mask. An overlay is a replaceable payload image for the same submodule, so repeated submodule ids are normal when overlay ids differ.</p>
     <div class="card warn"><p>Older references below to <code>LOWPACK</code>, <code>HIDDENPACK</code>, and <code>LOW/HIDDEN</code> flags remain as useful pre-module examples. For new commands, emit the module-aware descriptor fields and choose an explicit slot mask.</p></div>
   </section>
 
@@ -219,7 +220,7 @@
 	          <tr><td><code>XU*</code></td><td>Alpha/beta Ultimate-specific commands whose behavior or parameter shape is not settled yet.</td></tr>
 	        </tbody>
 	      </table>
-		      <p>Current public names include <code>ZECHO1</code>, <code>ZADD16</code>, <code>UPPER</code>, <code>LOWER</code>, <code>ZHIDDENRAM</code>, <code>ZSUMNUMARRAY</code>, <code>ZRANGENUMARRAY</code>, <code>BUFNEW</code>, <code>BUFFILL</code>, <code>BUFFREE</code>, <code>SCRCAP</code>, <code>SCRPUT</code>, <code>ZTEMPSCRATCH</code>, <code>ZPAUSE</code>, <code>ZFAIL</code>, <code>FREEMEM</code>, <code>ERRCODE</code>, <code>ERRLINE</code>, <code>ZSLOT0</code>, <code>ZSLOT1</code>, <code>ZSLOT2</code>, <code>ZSPAN</code>, <code>ZOVL1</code>, <code>ZOVL2</code>, <code>ZCPYRST</code>, <code>ZCOPY</code>, and <code>ZMODLD</code>. Disk-module samples add <code>ZDM1</code>, <code>ZDM2S</code>, <code>ZDOV1</code>, and <code>ZDOV2</code>.</p>
+		      <p>Current public names include <code>ZECHO1</code>, <code>ZADD16</code>, <code>UPPER</code>, <code>LOWER</code>, <code>ZHIDDENRAM</code>, <code>ZSUMNUMARRAY</code>, <code>ZRANGENUMARRAY</code>, <code>BUFNEW</code>, <code>BUFFILL</code>, <code>BUFFREE</code>, <code>SCRCAP</code>, <code>SCRPUT</code>, <code>ZTEMPSCRATCH</code>, <code>ZPAUSE</code>, <code>ZFAIL</code>, <code>FREEMEM</code>, <code>ERRCODE</code>, <code>ERRLINE</code>, <code>ZSLOT0</code>, <code>ZSLOT1</code>, <code>ZSLOT2</code>, <code>ZSPAN</code>, <code>ZOVL1</code>, <code>ZOVL2</code>, <code>ZCPYRST</code>, <code>ZCOPY</code>, and <code>ZMODLD</code>. Disk-module samples add <code>ZDM1</code>, <code>ZDM2S</code>, <code>ZDOV1</code>, <code>ZDOV2</code>, and <code>ZM6O1A</code>-<code>ZM8O5B</code> after loading <code>RBM.SAMPLE1</code>, <code>RBM.SAMPLE2</code>, or <code>RBM.SAMPLE3</code>.</p>
     </div>
   </section>
 
@@ -760,7 +761,7 @@ CMD_LOW_ALL CMD_SCRPUT, SIG_SCRPUT, cmd_scrput_low, "SCRPUT"</code></pre>
         <tr><td><code>RB_DESC_BUF</code></td><td>Resident copy of the single matched descriptor.</td></tr>
         <tr><td><code>__LOWPACK_LOAD__</code> / <code>__LOWPACK_RUN__</code></td><td>Historical symbol names for the current built-in slot-0 payload seed and runtime image. Runtime slot 0 is <code>$A800-$AFFF</code>.</td></tr>
         <tr><td><code>__LOWPACK_SIZE__</code></td><td>Measured slot-0 payload size, currently <code>$06C7</code> / 1735B.</td></tr>
-        <tr><td><code>__SLOTPACK1_RUN__</code></td><td>Runtime symbol for module 2 slot-1 proof/loader payload at <code>$B000</code>, currently <code>$0141</code> / 321B.</td></tr>
+        <tr><td><code>__SLOTPACK1_RUN__</code></td><td>Runtime symbol for module 2 slot-1 proof/streaming loader payload at <code>$B000</code>, currently <code>$0239</code> / 569B.</td></tr>
         <tr><td><code>RB_SLOT0_BASE</code>, <code>RB_SLOT1_BASE</code>, <code>RB_SLOT2_BASE</code></td><td>Runtime submodule slot bases: <code>$A800</code>, <code>$B000</code>, and <code>$B800</code>.</td></tr>
       </tbody>
     </table>
