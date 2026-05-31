@@ -4,7 +4,7 @@ ReadyBASIC now duplicates a small amount of ReadyOS REU and shim knowledge in as
 
 ## Current Module/Submodule Constants
 
-The module/submodule branch keeps the fixed ReadyOS contract and updates the
+The module/submodule design keeps the fixed ReadyOS contract and updates the
 under-ROM command layout:
 
 | Constant or range | Current value |
@@ -120,61 +120,35 @@ Native `PROC`/`FUNC` routines are deliberately absent from bank `$45`: their
 bodies are BASIC program text, found by scanning the stored program during
 `EXEC`. They add no descriptor slots and no command-code bank bytes.
 
-## Lean Nested-Term Branch Note
+## Current Nested-Term Sync Points
 
-The `exp/readybasic-lean-nested-terms` branch is stacked on
-`exp/readybasic-expression-style`. It keeps the command overlay layout stable
-while adding targeted ROM-consumable command/`FUNC` returns and one-wrapper
-numeric actual parsing.
+ReadyBASIC keeps the command overlay layout stable while supporting targeted
+ROM-consumable command/`FUNC` returns and one-wrapper numeric actual parsing.
 
-Branch-specific sync points:
-
-- `BASIC_START = $2501`; BASIC owns `$2501-$9FFF`, with `31485` formula empty
-  free bytes.
-- `RESIDENT = $1200-$2488`, size `$1289` / 4745B.
-- `BRIDGE = $C000-$C1EA`, size `$01EB` / 491B.
-- `LOWPACK` remains `$061A`; command overlay bytes did not grow.
 - Proven targeted nested return forms: `ABS(ADDI(1,6)-10)` and
   `LEFT$(GREET("READY"),2)`.
 - Proven one-wrapper numeric actual forms: `ADDI(1,(2+4))`,
   `ZADD16(1,(2+4))`, and `ADDI((1+2),(3+4))`.
 
-## Proper Float-Term Branch Note
+## Current Float-Term Sync Points
 
-The `exp/readybasic-proper-float-terms` branch is stacked on
-`exp/readybasic-lean-nested-terms`. It keeps the fixed frame addresses but adds
-float slots in the call/result frame and resident state preservation for nested
-ReadyBASIC expression terms.
+ReadyBASIC keeps the fixed frame addresses and supports float slots in the
+call/result frame plus resident state preservation for nested ReadyBASIC
+expression terms.
 
-Branch-specific sync points:
-
-- `BASIC_START = $2901`; BASIC owns `$2901-$9FFF`, with `30461` formula empty
-  free bytes.
-- `RESIDENT = $1200-$28FC`, size `$16FD` / 5885B.
-- `BRIDGE = $C000-$C1EB`, size `$01EC` / 492B.
-- `LOWPACK = $061B`; command overlay grew by one byte for the resident-computed
-  `FADD` low stub.
 - `FADD(A,B)` and `FADD(A,B,Q)` use plain C64 BASIC float values.
 - Proven proper-term forms include `ADDI(1,ADDI(2,3))`,
   `FADD(1.5,FADD(2.25,3.25))`, `ABS(FADD(1.2,2.3)-3)`, and
   `LEFT$(GREET("READY")+"!",3)`.
 
-## Expression-Style Branch Note
+## Current Expression-Style Sync Points
 
-The `exp/readybasic-expression-style` branch adds bare `COMMAND(...)`
-statements plus an eval-vector hook, but keeps command overlays unchanged.
-Expression-safe command calls are resident dispatch wrappers over existing
-descriptors.
+ReadyBASIC supports bare `COMMAND(...)` statements plus an eval-vector hook, but
+keeps command overlays unchanged. Expression-safe command calls are resident
+dispatch wrappers over existing descriptors.
 
-Branch-specific sync points:
-
-- `BASIC_START = $2401`; BASIC owns `$2401-$9FFF`, with `31741` formula empty
-  free bytes.
-- `RESIDENT = $1200-$23FD`, size `$11FE` / 4606B.
-- `BRIDGE = $C000-$C1F4`, size `$01F5` / 501B.
-- `LOWPACK` remains `$061A`; command overlay bytes did not grow.
 - Bare statement commands use the same descriptor/signature parser as expression
-  commands; the legacy `!` statement path is removed on this branch.
+  commands.
 - Command expressions cover scalar/string-result signatures such as
   `ZECHO1()`, `ZADD16(a,b)`, `UPPER(s$)`, `LOWER(s$)`, `ZHIDDENRAM(s$)`,
   `BUFNEW(n)`, `ZTEMPSCRATCH(n)`, `SCRCAP()`, and `ZSUMNUMARRAY(a%(0),n)`.

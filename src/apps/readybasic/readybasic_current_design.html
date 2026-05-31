@@ -630,7 +630,7 @@
   <main class="page">
     <section id="module-update" class="band">
       <h2>Current Module/Submodule Memory Update</h2>
-      <p>This page keeps the detailed command, syntax, lifecycle, and historical implementation material below. The current command-module branch updates the placement model: after cold initialization, BASIC owns <code>$2AC1-$9FFF</code>, while registries and module payloads are authoritative in REU banks <code>$44</code> and <code>$45</code>.</p>
+      <p>This page is the current ReadyBASIC module/submodule design. After cold initialization, BASIC owns <code>$2AC1-$9FFF</code>, while registries and module payloads are authoritative in REU banks <code>$44</code> and <code>$45</code>.</p>
       <div class="dashboard">
         <div class="metric"><b>$2AC1</b><span>BASIC start; formula empty free bytes remain 30013.</span></div>
         <div class="metric"><b>$A000-$A7FF</b><span>Common under-ROM helper area, current helper through $A364.</span></div>
@@ -642,7 +642,7 @@
         <div class="callout good"><strong>Slot 1:</strong> module 2 proof and <code>ZMODLD</code> loader payload at <code>$B000-$B140</code>, copied from REU <code>$45:$06C7</code>.</div>
         <div class="callout good"><strong>Slot 2:</strong> proof and overlay target at <code>$B800-$B83E</code>; disk overlay samples use REU <code>$45:$3300</code> and <code>$45:$3400</code>.</div>
       </div>
-      <p>Descriptors remain 32 bytes but now carry module id, submodule id, overlay id, slot mask, generation/check byte, payload offset/size in REU bank <code>$45</code>, runtime destination, entry offset, signature id, and name. Older references below to <code>LOWPACK</code> at <code>$A900</code>, <code>HIDDENPACK</code>, or <code>LOW/HIDDEN</code> flags are preserved as pre-module implementation detail unless a section explicitly says it is current.</p>
+      <p>Descriptors remain 32 bytes but now carry module id, submodule id, overlay id, slot mask, generation/check byte, payload offset/size in REU bank <code>$45</code>, runtime destination, entry offset, signature id, and name. Older implementation names such as <code>LOWPACK</code> remain where they are still used by the linker and source.</p>
       <div class="callout good"><strong>Generated visual companion:</strong> <a href="../../../docs/readybasic_memory_diagrams.html">ReadyBASIC Memory Diagrams</a> is the proportional special report for the current RAM, REU, cold-load, and module/submodule pictures. Regenerate it with <code>make readybasic-memory-report</code> after layout changes.</div>
     </section>
 
@@ -656,13 +656,14 @@
           <p>
             Statement commands use output variables as final actuals where the
             command has a statement-output form. Expression-safe commands return
-            scalar, string, or float values directly. The old
-            <code>!COMMAND args</code> path is removed on this branch.
+            scalar, string, or float values directly. Older non-parenthesized
+            command syntax is no longer part of the current design.
           </p>
           <div class="callout good">
-            <strong>IF normalization:</strong> <code>IF 1 THEN ZECHO1(P%)</code> and
-            <code>IF 1 THEN EXEC SHOWI(7)</code> work, but store/list with a colon after
-            <code>THEN</code> so BASIC reaches the normal statement dispatcher.
+            <strong>IF normalization:</strong> <code>IF 1 THEN EXEC SHOWI(7)</code> and
+            <code>IF I%&gt;0 THEN JUMP LOOP</code> store/list with a colon after
+            <code>THEN</code>. Descriptor-backed command statements should write that
+            colon explicitly, for example <code>IF 1 THEN :ZECHO1(P%)</code>.
           </div>
         </div>
         <ul class="status-list">
@@ -670,7 +671,7 @@
           <li><span class="pill">Yes</span><span>Stored program line start.</span></li>
           <li><span class="pill">Yes</span><span>After <code>:</code>, for example <code>PRINT "A":ZECHO1(P%)</code>.</span></li>
           <li><span class="pill">Yes</span><span>Inside a <code>FOR/NEXT</code> body as a normal statement.</span></li>
-          <li><span class="pill">Yes</span><span>After <code>IF ... THEN</code>, through the lean crunch rewrite.</span></li>
+          <li><span class="pill">Some</span><span>After <code>IF ... THEN</code>: <code>EXEC</code> and <code>JUMP</code> are normalized; bare command statements use an explicit colon.</span></li>
           <li><span class="pill text">Text</span><span>Inside strings, <code>REM</code>, and <code>DATA</code>; not rewritten or dispatched.</span></li>
           <li><span class="pill">Some</span><span>Inside expressions for scalar/string-safe commands and <code>FUNC</code> returns.</span></li>
           <li><span class="pill no">No</span><span><code>ELSE</code> is not native BASIC V2 and is not added by ReadyBASIC.</span></li>
@@ -800,7 +801,7 @@
       <table>
         <thead><tr><th>Command</th><th>Placement</th><th>Parameters</th><th>Result</th></tr></thead>
         <tbody>
-          <tr><td><code>ZECHO1(OUT%) / ZECHO1()</code></td><td>Resident-precomputed result; legacy low stub remains in <code>LOWPACK</code></td><td>output integer or expression integer</td><td>Returns <code>1</code> without fetching an overlay in the current branch.</td></tr>
+          <tr><td><code>ZECHO1(OUT%) / ZECHO1()</code></td><td>Resident-precomputed result; legacy low stub remains in <code>LOWPACK</code></td><td>output integer or expression integer</td><td>Returns <code>1</code> without fetching an overlay in the current runtime.</td></tr>
           <tr><td><code>ZADD16(A,B,OUT%) / ZADD16(A,B)</code></td><td>Module 1 slot 0 at <code>$A800+</code>, descriptor-backed slice</td><td>two numeric expressions, output integer</td><td>Returns 16-bit sum.</td></tr>
           <tr><td><code>FADD(A,B,OUT) / FADD(A,B)</code></td><td>Resident-computed float demo; one-byte low stub</td><td>two plain numeric expressions, output float</td><td>Uses BASIC ROM floating addition.</td></tr>
           <tr><td><code>ZPAUSE(TICKS)</code></td><td>Module 1 slot 0 at <code>$A800+</code>, descriptor-backed slice</td><td>tick count</td><td>Waits for the requested jiffy count.</td></tr>
@@ -1029,9 +1030,10 @@
       <table>
         <thead><tr><th>Vector</th><th>Address</th><th>ReadyBASIC role</th></tr></thead>
         <tbody>
-          <tr><td>Crunch</td><td><code>$0304/$0305</code></td><td>Calls ROM crunch first, then normalizes tokenized <code>THEN !</code> into <code>THEN :!</code>.</td></tr>
+          <tr><td>Crunch</td><td><code>$0304/$0305</code></td><td>Calls ROM crunch first, then normalizes tokenized <code>THEN EXEC ...</code> and <code>THEN JUMP ...</code> into colon-prefixed statements.</td></tr>
           <tr><td>List</td><td><code>$0306/$0307</code></td><td>Saved/restored; V1 leaves normal ROM listing behavior.</td></tr>
-          <tr><td>Execute</td><td><code>$0308/$0309</code></td><td>Peeks for <code>!</code> or <code>EXIT</code>; otherwise tail-calls the original execute vector without advancing <code>TXTPTR</code>.</td></tr>
+          <tr><td>Execute</td><td><code>$0308/$0309</code></td><td>Peeks for <code>EXIT</code>, <code>PROC</code>, <code>FUNC</code>, <code>EXEC</code>, <code>ENDP</code>, or a bare descriptor command; otherwise tail-calls the original execute vector without advancing <code>TXTPTR</code>.</td></tr>
+          <tr><td>Eval</td><td><code>$030A/$030B</code></td><td>Recognizes selected <code>COMMAND(...)</code> and <code>FUNC(...)</code> expression returns, then falls back to ROM expression evaluation.</td></tr>
         </tbody>
       </table>
       <div class="callout error">
@@ -1181,23 +1183,23 @@
       <h2>Current Verification Evidence</h2>
       <p>Static guardrails are checked with <code>make readybasic-plugin-static-check</code>.</p>
       <table>
-        <thead><tr><th>Measure</th><th>Before PROC/FUNC</th><th>After</th></tr></thead>
+        <thead><tr><th>Measure</th><th>Current value</th></tr></thead>
         <tbody>
-          <tr><td><code>BASIC_START</code></td><td><code>$1C01</code></td><td><code>$2101</code></td></tr>
-          <tr><td>Empty BASIC free bytes</td><td>33789</td><td>32509 formula / 32519 live header</td></tr>
-          <tr><td><code>bin/readybasic.prg</code></td><td>20994 bytes</td><td>20994 bytes</td></tr>
-          <tr><td><code>RESIDENT</code></td><td><code>$09B4</code> / 2484B</td><td><code>$0EF4</code> / 3828B, delta <code>+$0540</code></td></tr>
-          <tr><td><code>LOWPACK</code></td><td><code>$061B</code> / 1563B</td><td><code>$061B</code> / 1563B, delta 0B</td></tr>
-          <tr><td><code>BRIDGE</code></td><td><code>$019B</code> / 411B</td><td><code>$01FB</code> / 507B, delta <code>+$0060</code></td></tr>
-          <tr><td><code>REGSEED</code></td><td><code>$1010</code> / 4112B</td><td><code>$1010</code> / 4112B</td></tr>
+          <tr><td><code>BASIC_START</code></td><td><code>$2AC1</code></td></tr>
+          <tr><td>Empty BASIC free bytes</td><td>30013</td></tr>
+          <tr><td><code>bin/readybasic.prg</code></td><td>20994 bytes</td></tr>
+          <tr><td><code>RESIDENT</code></td><td><code>$18BC</code> / 6332B</td></tr>
+          <tr><td><code>LOWPACK</code></td><td><code>$06C7</code> / 1735B</td></tr>
+          <tr><td><code>BRIDGE</code></td><td><code>$01F7</code> / 503B</td></tr>
+          <tr><td><code>REGSEED</code></td><td><code>$1010</code> / 4112B</td></tr>
         </tbody>
       </table>
       <table>
         <thead><tr><th>Probe</th><th>Coverage</th></tr></thead>
         <tbody>
           <tr><td>Full expression probe</td><td>Direct bare command statements, command expressions, parenthesized <code>EXEC</code>, numeric <code>FUNC</code> expression return, numeric <code>FUNC</code> assignment, string <code>FUNC</code> expression return, and readable <code>LIST</code>.</td></tr>
-          <tr><td>Plugin command probe</td><td>Direct command statements, direct <code>IF 1 THEN ZECHO1(P%)</code>, <code>UPPER</code>/<code>LOWER</code>, old-name rejection, string/REM safety, leading-comma rejection, <code>SCRCAP</code>/<code>SCRPUT</code>, slot-128 lookup, 128-handle edge, 48KB heap edge, screen heap exhaustion, wrong-handle-type rejection, screen-handle free, resume.</td></tr>
-          <tr><td>Program probe</td><td>Stored line start, colon chains, true/false <code>IF ... THEN COMMAND(...)</code>, <code>FOR/NEXT</code>, strings, REM, DATA, arrays, hidden worker, handles, failure clearing.</td></tr>
+          <tr><td>Plugin command probe</td><td>Direct command statements, <code>IF ... THEN</code> assignment/expression coverage, <code>UPPER</code>/<code>LOWER</code>, old-name rejection, string/REM safety, leading-comma rejection, <code>SCRCAP</code>/<code>SCRPUT</code>, slot-128 lookup, 128-handle edge, 48KB heap edge, screen heap exhaustion, wrong-handle-type rejection, screen-handle free, resume.</td></tr>
+          <tr><td>Program probe</td><td>Stored line start, colon chains, true/false <code>IF ... THEN</code> assignment/expression coverage, <code>FOR/NEXT</code>, strings, REM, DATA, arrays, hidden worker, handles, failure clearing.</td></tr>
           <tr><td><code>rbproc1</code> probe</td><td>Positive stored <code>PROC</code>/<code>FUNC</code> coverage, including readable <code>LIST</code>, colon chain, normalized IF, nested depth 2, return assignments, command return inside top-level <code>ABS(...)</code>, flat numeric expression actuals, and string command return inside a <code>FUNC</code> body.</td></tr>
           <tr><td><code>rbprocerr</code> probe</td><td>Negative routine coverage: unknown routine, wrong count/type, missing output, extra actual, bare <code>ENDP</code>, and stack overflow.</td></tr>
           <tr><td>Full visual verification</td><td>Human-watchable command, program, screen-handle, handle/heap edge, resume, and error coverage.</td></tr>
@@ -1211,7 +1213,7 @@
       </table>
       <p class="muted">
         The broad external command/program/lifecycle/state wrappers have been
-        refreshed for bare parenthesized syntax on this branch. The demo suite is
+        refreshed for bare parenthesized syntax. The demo suite is
         intentionally viewer-paced; regression probes stay shorter and more
         assertion-heavy.
       </p>
@@ -1223,15 +1225,15 @@
     </section>
 
     <section>
-      <h2>Lean Nested-Term Branch</h2>
+      <h2>Current Bare Commands And Expressions</h2>
       <p>
-        The <code>exp/readybasic-lean-nested-terms</code> branch keeps the bare
-        <code>COMMAND(...)</code> statements and a small eval-vector hook for
-        expression-safe calls: <code>ZADD16(a,b)</code> and <code>ZHIDDENRAM(s$)</code>
-        return integers, while <code>UPPER(s$)</code> returns a string. Native
-        routines accept parenthesized non-empty argument lists, such as
-        <code>PROC SHOWI(P%)</code> and <code>EXEC SHOWI(7)</code>. Zero-argument
-        routines still use <code>EXEC NAME</code>.
+        Parenthesized calls are the preferred syntax. A small eval-vector hook
+        supports expression-safe calls: <code>ZADD16(a,b)</code> and
+        <code>ZHIDDENRAM(s$)</code> return integers, while <code>UPPER(s$)</code>
+        returns a string. Native routines accept parenthesized non-empty
+        argument lists, such as <code>PROC SHOWI(P%)</code> and
+        <code>EXEC SHOWI(7)</code>. Zero-argument routines still use
+        <code>EXEC NAME</code>.
       </p>
       <p>
         <code>FUNC</code> calls return through <code>RET</code> and can be assigned or
@@ -1241,43 +1243,28 @@
         <code>ADDI((1+2),(3+4))</code>. Command and <code>FUNC</code> returns work
         in the tested ROM consumer forms <code>ABS(ZADD16(1,6)-10)</code>,
         <code>ABS(ADDI(1,6)-10)</code>, and
-        <code>LEFT$(GREET("READY"),2)</code>.
+        <code>LEFT$(GREET("READY"),2)</code>. Fully recursive ReadyBASIC terms
+        inside other ReadyBASIC actual lists remain future work.
       </p>
-      <table>
-        <thead><tr><th>Measure</th><th>Expression branch</th><th>Lean nested branch</th></tr></thead>
-        <tbody>
-          <tr><td><code>BASIC_START</code></td><td><code>$2401</code></td><td><code>$2501</code></td></tr>
-          <tr><td>Empty BASIC free bytes</td><td>31741</td><td>31485</td></tr>
-          <tr><td><code>RESIDENT</code></td><td><code>$11FE</code> / 4606B</td><td><code>$1289</code> / 4745B</td></tr>
-          <tr><td><code>BRIDGE</code></td><td><code>$01EA</code> / 490B</td><td><code>$01EB</code> / 491B</td></tr>
-          <tr><td><code>LOWPACK</code></td><td><code>$061A</code> / 1562B</td><td><code>$061A</code> / 1562B</td></tr>
-          <tr><td><code>bin/readybasic.prg</code></td><td>20994B</td><td>20994B</td></tr>
-        </tbody>
-      </table>
     </section>
 
     <section>
-      <h2>Proper Float-Term Branch</h2>
+      <h2>Current Float-Term Support</h2>
       <p>
-        The <code>exp/readybasic-proper-float-terms</code> branch adds plain
-        C64 BASIC float formals/returns and preserves parser state around nested
-        ReadyBASIC terms. Proven forms include
+        Selected ReadyBASIC calls behave like real BASIC expression terms in the
+        tested nested contexts. Plain C64 BASIC float values are supported on
+        command and <code>FUNC</code> paths. Proven forms include
         <code>ABS(FADD(1.2,2.3)-3)</code>,
         <code>ADDI(1,ADDI(2,3))</code>,
         <code>FADD(1.5,FADD(2.25,3.25))</code>, and
         <code>LEFT$(GREET("READY")+"!",3)</code>.
       </p>
-      <table>
-        <thead><tr><th>Measure</th><th>Expression branch</th><th>Proper float-term branch</th></tr></thead>
-        <tbody>
-          <tr><td><code>BASIC_START</code></td><td><code>$2401</code></td><td><code>$2901</code></td></tr>
-          <tr><td>Empty BASIC free bytes</td><td>31741</td><td>30461</td></tr>
-          <tr><td><code>RESIDENT</code></td><td><code>$11FE</code> / 4606B</td><td><code>$16FD</code> / 5885B</td></tr>
-          <tr><td><code>BRIDGE</code></td><td><code>$01EA</code> / 490B</td><td><code>$01EC</code> / 492B</td></tr>
-          <tr><td><code>LOWPACK</code></td><td><code>$061A</code> / 1562B</td><td><code>$061B</code> / 1563B</td></tr>
-          <tr><td><code>bin/readybasic.prg</code></td><td>20994B</td><td>20994B</td></tr>
-        </tbody>
-      </table>
+      <p>
+        <code>FADD(A,B)</code> is resident-computed because the low overlay runs
+        with BASIC ROM hidden and cannot safely call ROM float helpers. The
+        descriptor still exists so registry lookup and syntax are exercised;
+        the low code is only a one-byte <code>RTS</code> stub.
+      </p>
     </section>
   </main>
 

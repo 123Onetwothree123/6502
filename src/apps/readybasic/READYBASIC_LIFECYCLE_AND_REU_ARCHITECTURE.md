@@ -30,8 +30,9 @@ flow control. It is not currently a custom BASIC token system. Stored
 lines preserve readable command and routine text, and the wedge recognizes the
 extensions when BASIC dispatches statements through `$0308` or expressions
 through `$030A`. A tiny crunch hook delegates to ROM crunch first, then rewrites
-real `THEN COMMAND(...)`, `THEN EXEC ...`, or `THEN JUMP ...` cases as
-colon-prefixed statements so the normal statement dispatcher is used.
+real `THEN EXEC ...` and `THEN JUMP ...` cases as colon-prefixed statements so
+the normal statement dispatcher is used. Descriptor-backed command statements
+after `THEN` should write the colon explicitly.
 
 The design is deliberately lean:
 
@@ -60,7 +61,7 @@ being mistaken for the latest slot layout:
 | `LOWPACK` | `$A900-$AF3C` | `$063D` (1.6K, 1597 exact bytes) | Banked low overlay image under BASIC ROM, loaded from REU bank `$45`. |
 | `BRIDGE` | `$C000-$C1F3` | `$01F4` (500B) | Persistent bridge/state bytes plus the four-entry native routine return stack and flow-control scratch. |
 
-Module/submodule branch update: the table above is preserved as the detailed
+Module/submodule update: the table above is preserved as the detailed
 pre-module plugin-spine snapshot. The current post-BASIC runtime map is:
 
 | Range | Owner after init | Current meaning |
@@ -85,7 +86,7 @@ pre-module plugin-spine snapshot. The current post-BASIC runtime map is:
 | `$D000-$DFFF` | I/O or character ROM | REU registers are in I/O space. |
 | `$E000-$FFFF` | KERNAL ROM normally visible | KERNAL calls remain available after normal banking is restored. |
 
-Current measured branch values are `BASIC_START=$2AC1`, `RESIDENT=$18BC`,
+Current measured values are `BASIC_START=$2AC1`, `RESIDENT=$18BC`,
 `BRIDGE=$01F7`, common helper `$0365`, slot 0 `$06C7`, slot 1 `$0141`, and
 formula empty BASIC free bytes `30013`.
 
@@ -126,7 +127,7 @@ The V1 spine intentionally avoids a few attractive but expensive abstractions:
 - No per-command REU bank.
 - No command-per-bank storage.
 - No private command token or custom lister yet.
-- Only tiny post-ROM-crunch `THEN COMMAND(...)` and `THEN EXEC` normalizers are
+- Only tiny post-ROM-crunch `THEN EXEC ...` and `THEN JUMP ...` normalizers are
   installed.
 - No generalized signature bytecode interpreter yet; signatures are dispatched
   by compact hand-written routines.
@@ -677,11 +678,11 @@ These invariants are the current safety rails:
 
 - ReadyBASIC must be booted through normal ReadyOS profile/run flow, not as a
   standalone app.
-- On the current repeat/label branch, `BASIC_START` stays `$2AC1`.
+- In the current repeat/label/error-introspection design, `BASIC_START` stays `$2AC1`.
 
-## Current Repeat/Label Branch Delta
+## Current Repeat/Label Delta
 
-The current branch moves the live BASIC workspace to `$2AC1-$9FFF` so
+The current design moves the live BASIC workspace to `$2AC1-$9FFF` so
 `REPEAT`/`UNTIL`, `LABEL`/`JUMP`, and `ERRCODE`/`ERRLINE` can fit on top of the
 proper nested expression and float-term work.
 The sections above have been updated to the current repeat/label layout;
@@ -700,8 +701,8 @@ older dated measurements remain in `READYBASIC_PLUGIN_PROGRESS.md`.
 Formula empty BASIC free bytes are `30013`, a `1728` byte reduction from the
 expression-style `$2401` layout. Command overlays grow to `$063D` and the REU
 descriptor layout remains fixed.
-- On this branch, `$2AC0` stays zero before stored-program `RUN`.
-- On this branch, `RESIDENT` stays below `$2AC0`.
+- `$2AC0` stays zero before stored-program `RUN`.
+- `RESIDENT` stays below `$2AC0`.
 - `BRIDGE` stays below `$C200`, leaving `$C200-$C5FF` for shared frames.
 - `$C600-$C7FF` is ReadyOS REU metadata, not ReadyBASIC scratch.
 - `$C800-$C9FF` remains shim ABI.
@@ -721,7 +722,7 @@ The current full visual suite is:
 READYBASIC_VISIBLE=1 build_support/run_readybasic_full_suite_visual_verification.sh
 ```
 
-Latest documented pass on the REU-backed 128-handle branch:
+Latest documented pass on the REU-backed 128-handle path:
 
 - Run dir:
   `../agenticdevharness/logs/vice_auto_20260522_154424`

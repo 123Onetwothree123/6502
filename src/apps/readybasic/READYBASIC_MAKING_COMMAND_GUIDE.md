@@ -79,7 +79,7 @@ everything into the core command bank.
 
 ReadyBASIC command names are visible BASIC text; they are not private tokens.
 Current code prefers bare `COMMAND(...)` statements and selected
-`COMMAND(...)` expressions. The older `!COMMAND args` statement form was removed.
+`COMMAND(...)` expressions.
 Avoid substrings that C64 BASIC can tokenize inside the command name. That is
 why the array examples use `NUM` instead of `INT`.
 

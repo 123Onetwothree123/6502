@@ -25,12 +25,10 @@ workspace, under-ROM slot, and REU bank `$44`/`$45` pictures.
 
 ## Current Module/Submodule Snapshot
 
-This section is the current source of truth for the module/submodule branch.
-Older detailed sections below are retained because they document command
-behavior, parser behavior, lifecycle proof work, and historical measurements.
-Where an older section still talks about `LOWPACK` at `$A900`, `HIDDENPACK`, or
-`LOW`/`HIDDEN` descriptor flags, read that as the pre-module implementation
-history unless the section explicitly says otherwise.
+This section is the current source of truth for ReadyBASIC's module/submodule
+layout. Older implementation names such as `LOWPACK` remain in a few labels and
+tables because they are still used by the linker and source, but the current
+runtime model is the module-aware layout described here.
 
 Measured from the current `obj/readybasic.map`:
 
@@ -94,9 +92,9 @@ PRINT COMMAND(arg,arg)
 ```
 
 Statement commands keep the existing output-variable convention. Expression
-commands return the scalar or string result directly. The older `!COMMAND args`
-statement path was removed on the expression-style branch; current examples and
-tests use bare `COMMAND(...)`.
+commands return the scalar, string, or float result directly. Older
+non-parenthesized command syntax is no longer part of the current design;
+current examples and tests use bare `COMMAND(...)`.
 
 Bare commands are recognized only where BASIC is about to dispatch a statement
 or evaluate an expression:
@@ -107,15 +105,16 @@ or evaluate an expression:
 | Stored program line start | Yes | Raw command text survives `LIST` and runs through `$0308`. |
 | After `:` | Yes | Example: `PRINT "A":ZECHO1(P%)`. |
 | Inside `FOR/NEXT` body | Yes | Use it as a statement in the loop body. |
-| After `IF ... THEN` | Yes | The crunch hook rewrites `THEN COMMAND(...)` to `THEN :COMMAND(...)` for known command names. |
+| After `IF ... THEN` | Limited | `EXEC` and `JUMP` are normalized by the crunch hook to `THEN :EXEC` and `THEN :JUMP`. Bare command statements should use an explicit colon, such as `IF 1 THEN :ZECHO1(P%)`. Ordinary BASIC assignments like `IF 1 THEN A%=ZADD16(1,2)` work through BASIC's normal assignment path. |
 | Inside `PRINT`, assignments, or larger expressions | Selected commands only | `ZADD16(2,3)+7`, `ABS(ADDI(1,6)-10)`, `ABS(FADD(1.2,2.3)-3)`, `LEFT$(GREET("READY")+"!",3)`, `UPPER(S$)`, and numeric/string/float `FUNC` expression returns are supported. |
 | Inside strings, `REM`, or `DATA` | Ordinary text | These are not rewritten or dispatched. |
 | After `ELSE` | No native support | BASIC V2 has no `ELSE`; ReadyBASIC does not add it. |
 
-`IF 1 THEN ZECHO1(P%)` works when typed interactively, but the stored/listed form
-becomes `IF 1 THEN :ZECHO1(P%)`. That is an intentional size-saving
-normalization. It lets BASIC's existing statement dispatcher reach the normal
-ReadyBASIC execute hook without adding a larger custom IF parser.
+`IF 1 THEN EXEC SHOW(7)` and `IF I%>0 THEN JUMP LOOP` work when typed
+interactively, but their stored/listed forms include the inserted colon after
+`THEN`. For descriptor-backed command statements, write the colon explicitly:
+`IF 1 THEN :ZECHO1(P%)`. This keeps BASIC's existing statement dispatcher in
+charge without adding a larger custom IF parser.
 
 Native routines use ordinary BASIC program text:
 
@@ -163,7 +162,7 @@ assignment then return works:
 This is still intentionally smaller than a general BASIC subinterpreter: V1
 `FUNC` bodies support scalar `%`/`$`/plain numeric assignments before `RET`,
 including nested command/`FUNC` calls in the tested assignment forms. Other
-statements inside a `FUNC` body remain invalid. The proper float-term branch
+statements inside a `FUNC` body remain invalid. The current implementation
 preserves enough BASIC ROM expression/string-descriptor state for nested ROM
 consumers and ReadyBASIC actuals such as `ABS(ADDI(1,6)-10)`,
 `ABS(FADD(1.2,2.3)-3)`, `LEFT$(GREET("READY")+"!",3)`,
@@ -253,7 +252,7 @@ support, not the final product command catalog.
 
 | Command | Code placement | Parameters | Result behavior |
 |---|---|---|---|
-| `ZECHO1(OUT%)` / `ZECHO1()` | Resident-precomputed result; a legacy low stub remains in `LOWPACK` | output integer, or expression integer | Returns `1` without fetching an overlay in the current branch. |
+| `ZECHO1(OUT%)` / `ZECHO1()` | Resident-precomputed result; a legacy low stub remains in `LOWPACK` | output integer, or expression integer | Returns `1` without fetching an overlay in the current runtime. |
 | `ZADD16(A,B,OUT%)` / `ZADD16(A,B)` | Module 1 slot 0 at `$A800+`, descriptor-backed slice | two numeric expressions, output integer or expression integer | Returns 16-bit sum. |
 | `FADD(A,B,OUT)` / `FADD(A,B)` | Resident-computed float demo command; descriptor slot 16 has a tiny slot-0 stub | two plain numeric expressions, output plain numeric variable or expression float | Uses BASIC ROM floating addition. Statement output must be a plain numeric variable, not `%`. |
 | `ZPAUSE(TICKS)` | Module 1 slot 0 at `$A800+`, descriptor-backed slice | tick count | Waits for the requested jiffy count. |
@@ -447,7 +446,7 @@ Strategies to maximize BASIC RAM while adding many more commands:
   support additional packed code banks rather than lowering BASIC's top or
   adding permanent C64-resident command code.
 - Consider a compact REU-backed signature/parameter table if many future
-  commands would otherwise require one resident parser branch each.
+  commands would otherwise require one resident parser case each.
 
 Current per-command overhead:
 
@@ -464,7 +463,7 @@ ReadyBASIC saves the original BASIC vectors, then installs:
 
 | Vector | Address | ReadyBASIC role |
 |---|---:|---|
-| Crunch | `$0304/$0305` | Calls ROM crunch first, then normalizes tokenized `THEN COMMAND(...)` and `THEN EXEC ...` into a colon-prefixed statement. |
+| Crunch | `$0304/$0305` | Calls ROM crunch first, then normalizes tokenized `THEN EXEC ...` and `THEN JUMP ...` into colon-prefixed statements. |
 | Execute | `$0308/$0309` | Peeks for `EXIT`, `PROC`, `FUNC`, `EXEC`, `ENDP`, or a bare descriptor command; otherwise tail-calls the original execute vector without advancing `TXTPTR`. |
 | Eval | `$030A/$030B` | Recognizes selected `COMMAND(...)` and `FUNC(...)` expression returns, then falls back to ROM expression evaluation. |
 | List | `$0306/$0307` | Saved/restored, but V1 leaves normal ROM listing behavior. |
@@ -716,48 +715,29 @@ Current static layout:
 | slot 2 proof/overlays | `$B800-$B83E` | `$003F` (63B) |
 | `BRIDGE` | `$C000-$C1F6` | `$01F7` (503B) |
 
-Before/after for native `PROC`/`FUNC`:
+Current measured guardrails:
 
-| Measure | Before | After |
-|---|---:|---:|
-| `BASIC_START` | `$1C01` | `$2101` |
-| Empty BASIC free bytes | `33789` | `32509` formula bytes (`32519` live header bytes) |
-| `bin/readybasic.prg` size | `20994` | `20994` |
-| `RESIDENT` | `$09B4` / 2484B | `$0EF4` / 3828B |
-| Resident delta | - | `+$0540` / `+1344B` |
-| `LOWPACK` | `$061A` / 1562B | `$061A` / 1562B |
-| Command overlay delta | - | `0B` |
-| `BRIDGE` | `$019B` / 411B | `$01FB` / 507B |
-| Bridge/shared-state delta | - | `+$0060` / `+96B` |
-| `REGSEED` | `$1010` / 4112B | `$1010` / 4112B |
-
-Before/after for the current repeat/label/error branch versus the expression-style branch:
-
-| Measure | Expression-style branch | Current branch |
-|---|---:|---:|
-| `BASIC_START` | `$2401` | `$2AC1` |
-| Empty BASIC free bytes | `31741` | `30013` |
-| BASIC-free delta | - | `-1728` bytes |
-| `bin/readybasic.prg` size | `20994` | `20994` |
-| `RESIDENT` | `$11FE` / 4606B | `$18BA` / 6330B |
-| Resident delta | - | `+$06BC` / `+1724B` |
-| `LOWPACK` | `$061A` / 1562B | `$063D` / 1597B |
-| Command overlay delta | - | `+35B` |
-| `BRIDGE` | `$01EA` / 490B | `$01F4` / 500B |
-| Bridge/shared-state delta | - | `+$000A` / `+10B` |
-| `REGSEED` | `$1010` / 4112B | `$1010` / 4112B |
+| Measure | Current value |
+|---|---:|
+| `BASIC_START` | `$2AC1` |
+| Empty BASIC free bytes | `30013` |
+| `bin/readybasic.prg` size | `20994` |
+| `RESIDENT` | `$18BC` / 6332B |
+| `LOWPACK` | `$06C7` / 1735B |
+| `BRIDGE` | `$01F7` / 503B |
+| `REGSEED` | `$1010` / 4112B |
 
 Recent VICE coverage includes:
 
 The broad external command/program/lifecycle/state wrappers have been refreshed
-for bare parenthesized syntax on this branch. The demo suite is intentionally
-viewer-paced; the regression probes stay shorter and more assertion-heavy.
+for bare parenthesized syntax. The demo suite is intentionally viewer-paced;
+the regression probes stay shorter and more assertion-heavy.
 
 | Probe | Coverage |
 |---|---|
 | Full expression probe | Direct bare command statements, command expressions, parenthesized `EXEC PROC`, `FUNC` with later assignment plus `RET`, numeric `FUNC` expression return/assignment, string `FUNC` expression return, and readable `LIST`. |
-| Plugin command probe | Direct command statements, direct `IF 1 THEN ZECHO1(P%)`, `UPPER`/`LOWER`, old-name rejection, string/REM safety, leading-comma rejection, `SCRCAP`/`SCRPUT`, slot-128 lookup, 128-handle edge, 48KB heap edge, screen heap exhaustion, wrong-handle-type rejection, screen-handle free, resume. |
-| Program probe | Stored line start, colon chains, true/false `IF ... THEN COMMAND(...)`, `FOR/NEXT`, strings, REM, DATA, arrays, hidden worker, handles, failure clearing. |
+| Plugin command probe | Direct command statements, `IF ... THEN` assignment/expression coverage, `UPPER`/`LOWER`, old-name rejection, string/REM safety, leading-comma rejection, `SCRCAP`/`SCRPUT`, slot-128 lookup, 128-handle edge, 48KB heap edge, screen heap exhaustion, wrong-handle-type rejection, screen-handle free, resume. |
+| Program probe | Stored line start, colon chains, true/false `IF ... THEN` assignment/expression coverage, `FOR/NEXT`, strings, REM, DATA, arrays, hidden worker, handles, failure clearing. |
 | `rbproc1` probe | Stored positive `PROC`/`FUNC`: no-param PROC, `%`, `$`, explicit `RET%`/`RET$`, colon chain, normalized `IF THEN :EXEC`, nested depth 2, int/string/float command and FUNC returns, `FADD` expression and statement forms, nested ReadyBASIC actuals, string concatenation, and readable `LIST`. |
 | `rbprocerr` probe | Stored negative `PROC`/`FUNC`: unknown routine, wrong count/type, statement `EXEC` to `FUNC`, PROC extra actual, `ENDP` without `EXEC`, return-stack overflow, malformed nested actuals, and return/context type errors. |
 | Full visual verification | Human-watchable command, program, screen-handle, handle/heap edge, resume, and error coverage. |
@@ -773,10 +753,10 @@ Some harness wrappers can report a process-level `partial` status even when
 every step is `ok` and `FailedStep` is `null`; for ReadyBASIC these were treated
 as harness shutdown-status quirks, not command failures.
 
-## Bare Command And Expression Branch: 2026-05-23
+## Current Bare Commands And Expressions
 
-This branch makes parenthesized calls the preferred syntax and enables BASIC
-expression returns while keeping the resident implementation tight.
+Parenthesized calls are the preferred syntax. Selected commands can return
+values as BASIC expressions while keeping the resident implementation tight.
 
 Supported command expressions:
 
@@ -814,46 +794,20 @@ BASIC statements remain outside V1.
 
 Numeric actuals for command and `FUNC` calls can be ordinary numeric
 expressions in the flat forms tested by `rbproc1`, such as `ADDI(1,2+4)`.
-This branch also accepts a single wrapper pair around numeric actual
+ReadyBASIC also accepts a single wrapper pair around numeric actual
 expressions, including `ADDI(1,(2+4))`, `ZADD16(1,(2+4))`, and
 `ADDI((1+2),(3+4))`. String actuals remain string variables or quoted literals.
 Command and `FUNC` returns can be assigned or printed directly; command numeric
 returns work in `ABS(ZADD16(1,6)-10)`, and `FUNC` returns now work in the tested
 ROM consumer forms `ABS(ADDI(1,6)-10)` and `LEFT$(GREET("READY"),2)`. Fully
-recursive ReadyBASIC terms inside other ReadyBASIC actual lists remain branch-2
-scope.
+recursive ReadyBASIC terms inside other ReadyBASIC actual lists remain future
+work.
 
-Memory comparison against the expression-style branch baseline:
+## Current Float-Term Support
 
-| Measure | Expression branch | Lean nested-term branch |
-|---|---:|---:|
-| Source branch commit | `1690035` | `1690035` plus branch edits |
-| `BASIC_START` | `$2401` | `$2501` |
-| Empty BASIC free bytes | `31741` | `31485` |
-| BASIC-free delta | - | `-256` bytes |
-| `RESIDENT` | `$11FE` / 4606B | `$1289` / 4745B |
-| Resident delta | - | `+139` bytes |
-| `BRIDGE` | `$01EA` / 490B | `$01EB` / 491B |
-| Bridge delta | - | `+1` byte |
-| `LOWPACK` | `$061A` / 1562B | `$061A` / 1562B |
-| Command overlay delta | - | `0` bytes |
-| `HIDDEN` / `HIDDENPACK` | `$0377` / `$004D` | `$0377` / `$004D` |
-| `REGSEED` | `$1010` / 4112B | `$1010` / 4112B |
-| `bin/readybasic.prg` size | `20994` | `20994` |
-
-Verification for this branch:
-
-| Probe | Result |
-|---|---|
-| `make readybasic-plugin-static-check` | Pass after updating the measured `$2501`/`$1289` guardrails. |
-| Focused VICE `RBPROC1` probe | Pass: bare statement commands, command/FUNC expression returns, `ABS(ADDI(1,6)-10)`, `LEFT$(GREET("READY"),2)`, `ADDI(1,(2+4))`, `ZADD16(1,(2+4))`, and `ADDI((1+2),(3+4))`. |
-
-## Proper Float-Term Branch: 2026-05-23
-
-The `exp/readybasic-proper-float-terms` branch is stacked on
-`exp/readybasic-lean-nested-terms` commit `6afae5f`. It makes the selected
-ReadyBASIC calls behave like real BASIC expression terms in the tested nested
-contexts and adds plain C64 BASIC float values to command and `FUNC` paths.
+Selected ReadyBASIC calls behave like real BASIC expression terms in the tested
+nested contexts. Plain C64 BASIC float values are supported on command and
+`FUNC` paths.
 
 Supported examples:
 
@@ -869,34 +823,15 @@ RET X*1.5
 ENDP
 ```
 
-`FADD(A,B)` is the first float demo command. On that historical branch it was
-resident-computed because the low overlay ran with BASIC ROM hidden and could
-not safely call ROM float helpers.
-The descriptor still exists so registry lookup and syntax are exercised; the
-low code is only a one-byte `RTS` stub. `FADD(A,B,Q)` is the statement form and
+`FADD(A,B)` is the float demo command. It is resident-computed because the low
+overlay runs with BASIC ROM hidden and cannot safely call ROM float helpers.
+The descriptor still exists so registry lookup and syntax are exercised; the low
+code is only a one-byte `RTS` stub. `FADD(A,B,Q)` is the statement form and
 requires a plain numeric output variable. `FADD(A,B,A%)` is rejected.
 
-Memory comparison against the expression-style branch baseline:
-
-| Measure | Expression branch | Proper float-term branch |
-|---|---:|---:|
-| Source branch commit | `1690035` | `6afae5f` plus branch edits |
-| `BASIC_START` | `$2401` | `$2AC1` |
-| Empty BASIC free bytes | `31741` | `30013` |
-| BASIC-free delta | - | `-1280` bytes |
-| `RESIDENT` | `$11FE` / 4606B | `$18BA` / 6330B |
-| Resident delta | - | `+1279` bytes |
-| `BRIDGE` | `$01EA` / 490B | `$01F4` / 500B |
-| Bridge delta | - | `+2` bytes |
-| `LOWPACK` | `$061A` / 1562B | `$063D` / 1597B |
-| Command overlay delta | - | `+1` byte |
-| `HIDDEN` / `HIDDENPACK` | `$0377` / `$004D` | `$0377` / `$004D` |
-| `REGSEED` | `$1010` / 4112B | `$1010` / 4112B |
-| `bin/readybasic.prg` size | `20994` | `20994` |
-
-Verification additions on this branch include `rbproc1` lines for `FADD`,
-nested `FADD`, float `FUNC` input/return, nested `ADDI`, `ABS(FADD(...)-3)`,
-statement-form float output, string concatenation with a `FUNC` return, and
+Current verification includes `rbproc1` lines for `FADD`, nested `FADD`, float
+`FUNC` input/return, nested `ADDI`, `ABS(FADD(...)-3)`, statement-form float
+output, string concatenation with a `FUNC` return, and
 `LEFT$(UPPER(GREET(...)),2)`. `rbprocerr` adds negative sections for malformed
 nested actuals, float output to `%`, string return in numeric context, and
 numeric return in string context.

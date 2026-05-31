@@ -35,7 +35,7 @@ still keeping the BASIC-visible handle value compact.
 
 The current signature parser is intentionally small and resident-code driven.
 Future work should consider a compact REU-backed signature table so commands can
-share parameter shapes without adding one resident parser branch per new
+share parameter shapes without adding one resident parser case per new
 command. The goal is not a large dynamic parser, but a small data-driven layer
 for common forms such as numeric inputs, string inputs, array base/count pairs,
 typed handles, and optional output targets.
@@ -48,12 +48,12 @@ possible follow-ups are `CALL` for non-returning named transfer, fall-through
 skipping of definitions, richer parameter types, and optionally a small formal
 metadata cache if repeated `EXEC` scans become too slow.
 
-The expression-style experiment proved a useful split: expression-safe command
+The expression-style work proved a useful split: expression-safe command
 returns, string/numeric `FUNC` expression returns, and `FUNC` bodies with simple
-assignments before `RET` are viable. The lean nested-term follow-up proved the
+assignments before `RET` are viable. The nested-term work proved the
 specific ROM-consumer forms `ABS(ADDI(1,6)-10)` and
 `LEFT$(GREET("READY"),2)` plus one-wrapper numeric actuals such as
-`ADDI(1,(2+4))`. The proper float-term branch then added plain C64 BASIC float
+`ADDI(1,(2+4))`. The float-term work then added plain C64 BASIC float
 formals/returns and tested nested ReadyBASIC terms inside ROM functions,
 arithmetic, string concatenation, and other ReadyBASIC actual lists. Future
 work can now focus on richer in-body statements, a data-driven signature parser,
@@ -70,8 +70,9 @@ that means avoiding embedded words such as `SAVE`, `LOAD`, `RUN`, `LIST`, `NEW`,
 synonym over adding another resident parser exception.
 
 Every new name should have direct and stored-program probes that cover `LIST`,
-`RUN`, colon chains, and `IF ... THEN COMMAND(...)` or `IF ... THEN EXEC`. This
-catches tokenizer surprises before the command becomes part of the user-facing
+`RUN`, colon chains, expression use after `IF ... THEN`, explicit-colon command
+statements after `THEN`, and normalized `THEN EXEC`/`THEN JUMP`. This catches
+tokenizer surprises before the command becomes part of the user-facing
 vocabulary.
 
 ## Resource-Oriented Commands
@@ -84,7 +85,7 @@ while allowing richer graphics, text, storage, and tool workflows.
 
 ## Module Catalog And Residency
 
-The current module/submodule branch proves fixed-address assembler payloads,
+The current module/submodule design proves fixed-address assembler payloads,
 three 2KB under-ROM submodule slots, two built-in modules, overlay rotation, and
 a disk-module loader command that lives in module 2 rather than resident code.
 Future work should fill in the richer REU bank `$44:$2000-$3FFF` catalog that

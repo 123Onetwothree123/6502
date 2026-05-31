@@ -1,10 +1,10 @@
 # ReadyBASIC Lean REU Plugin Architecture
 
-## Current Module/Submodule Branch Update
+## Current Module/Submodule Update
 
 This file keeps the lean-plugin history and earlier V1 notes below. The current
-command-module branch has updated the command placement model while preserving
-the same ReadyOS and REU discipline.
+command-module design uses the module-aware placement model while preserving the
+same ReadyOS and REU discipline.
 
 - `BASIC_START = $2AC1`; BASIC owns `$2AC1-$9FFF`, with `30013` formula empty
   free bytes.
@@ -163,8 +163,9 @@ Native flow-control forms:
 - No private command token: stored lines remain visible `COMMAND(...)` text, so
   regular BASIC `LIST` shows the command text.
 - A tiny crunch hook delegates to ROM first, then normalizes tokenized
-  `THEN COMMAND(...)` and `THEN EXEC ...` to colon-prefixed statements so
-  BASIC's existing statement dispatcher reaches the `$0308` execute hook. String,
+  `THEN EXEC ...` and `THEN JUMP ...` to colon-prefixed statements so BASIC's
+  existing statement dispatcher reaches the `$0308` execute hook. Descriptor
+  command statements after `THEN` should write the colon explicitly. String,
   `REM`, and `DATA` text are left alone.
 - Raw stored-program `RUN` is supported through the `$0308` execute hook; the
   relocated BASIC sentinel byte at `BASIC_START-1` must stay zero.
@@ -183,10 +184,9 @@ Native flow-control forms:
   stored as readable BASIC text and handled through the execute hook.
 - The persistent typed heap currently suballocates 48KB inside bank `$44`; handle type `1` is a byte buffer and type `2` is a screen text+color buffer. Future large/long-lived data can allocate extra REU banks and record those banks in the same REU-backed handle directory.
 
-## Repeat/Label Current Branch
+## Current Flow And Error Introspection
 
-The current branch is stacked on the proper float-term work. It adds resident
-flow control and error introspection:
+The current design includes resident flow control and error introspection:
 
 - `REPEAT` / `UNTIL expr`: post-test loops, nested four deep.
 - `LABEL name` / `JUMP name`: named stored-program transfer without changing
@@ -194,54 +194,41 @@ flow control and error introspection:
 - `ERRCODE()` / `ERRLINE()` and statement output forms return the last
   ReadyBASIC runtime error code and line.
 
-Measured branch layout: `BASIC_START=$2AC1`; BASIC owns `$2AC1-$9FFF`, for
-`30013` formula empty free bytes. `RESIDENT` is `$1200-$2AB9` (`6330` bytes),
-`BRIDGE` is `$C000-$C1F3` (`500` bytes), `LOWPACK` is `$063D` (`1597` bytes),
+Measured current layout: `BASIC_START=$2AC1`; BASIC owns `$2AC1-$9FFF`, for
+`30013` formula empty free bytes. `RESIDENT` is `$1200-$2ABB` (`6332` bytes),
+`BRIDGE` is `$C000-$C1F6` (`503` bytes), `LOWPACK` is `$06C7` (`1735` bytes),
 and `bin/readybasic.prg` remains `20994` bytes.
 
-## Lean Nested-Term Experiment
+## Current Nested-Term Support
 
-The `exp/readybasic-lean-nested-terms` branch is stacked on the
-expression-style work. It keeps descriptor-backed commands in the same REU
-layout and adds only resident parsing/return handling:
+ReadyBASIC keeps descriptor-backed commands in the same REU layout and uses
+resident parsing/return handling for selected nested expression forms:
 
 - Command and `FUNC` returns can be consumed by the tested BASIC ROM wrappers
   `ABS(ADDI(1,6)-10)` and `LEFT$(GREET("READY"),2)`.
 - Numeric actuals for commands and `FUNC` calls accept one extra wrapper pair,
   as in `ADDI(1,(2+4))`, `ZADD16(1,(2+4))`, and `ADDI((1+2),(3+4))`.
-- Plain float formals/returns and fully recursive ReadyBASIC terms remain
-  deferred to the proper-term/float branch.
+- Fully recursive ReadyBASIC terms inside other ReadyBASIC actual lists remain
+  future work.
 
-Measured branch layout: `BASIC_START=$2501`; BASIC owns `$2501-$9FFF`, for
-`31485` formula empty free bytes. `RESIDENT` is `$1200-$2488` (`4745` bytes),
-`BRIDGE` is `$C000-$C1EA` (`491` bytes), and command overlays remain unchanged.
+## Current Float-Term Support
 
-## Proper Float-Term Experiment
-
-The `exp/readybasic-proper-float-terms` branch is stacked on
-`exp/readybasic-lean-nested-terms`. It adds plain numeric float parameters and
-returns for commands and native `FUNC`, and preserves ReadyBASIC parser state
-around nested command/`FUNC` calls so selected calls work as BASIC expression
-terms inside ROM functions, arithmetic, string concatenation, and other
-ReadyBASIC calls.
+ReadyBASIC supports plain numeric float parameters and returns for commands and
+native `FUNC`, and preserves parser state around nested command/`FUNC` calls so
+selected calls work as BASIC expression terms inside ROM functions, arithmetic,
+string concatenation, and other ReadyBASIC calls.
 
 Proven forms include `ABS(FADD(1.2,2.3)-3)`, `ADDI(1,ADDI(2,3))`,
 `FADD(1.5,FADD(2.25,3.25))`, `LEFT$(GREET("READY")+"!",3)`, and
-`LEFT$(UPPER(GREET("ready")),2)`. On that historical branch, `FADD` was
-computed by resident code and kept only a one-byte low-overlay stub because the
-actual calculation called BASIC ROM float helpers.
+`LEFT$(UPPER(GREET("ready")),2)`. `FADD` is computed by resident code and keeps
+only a one-byte low-overlay stub because the actual calculation calls BASIC ROM
+float helpers.
 
-Measured branch layout: `BASIC_START=$2901`; BASIC owns `$2901-$9FFF`, for
-`30461` formula empty free bytes. `RESIDENT` is `$1200-$28FC` (`5885` bytes),
-`BRIDGE` is `$C000-$C1EB` (`492` bytes), `LOWPACK` is `$061B` (`1563` bytes),
-and `bin/readybasic.prg` remains `20994` bytes.
+## Current Expression-Style Dispatch
 
-## Expression-Style Experiment
-
-On the `exp/readybasic-expression-style` branch, ReadyBASIC installs an
-additional eval-vector hook at `$030A/$030B`. The hook recognizes a small
-allow-list of expression-safe command calls and selected numeric/string `FUNC`
-calls.
+ReadyBASIC installs an additional eval-vector hook at `$030A/$030B`. The hook
+recognizes a small allow-list of expression-safe command calls and selected
+numeric/string `FUNC` calls.
 
 - Command expressions: `ZECHO1()`, `ZADD16(a,b)`, `ZHIDDENRAM(s$)`,
   `ZSUMNUMARRAY(a%(0),n)`, `BUFNEW(n)`, `ZTEMPSCRATCH(n)`, and `SCRCAP()`
@@ -254,7 +241,3 @@ calls.
   markers to make the return type explicit. Expression `FUNC` calls scan the
   routine body, execute simple scalar assignments before `RET`, and then
   evaluate the return expression.
-
-Measured branch layout: `BASIC_START=$2401`; BASIC owns `$2401-$9FFF`, for
-`31741` formula empty free bytes. `RESIDENT` is `$1200-$23FD` (`4606` bytes),
-`BRIDGE` is `$C000-$C1F4` (`501` bytes), and command overlays remain unchanged.
