@@ -115,32 +115,34 @@ cat >>"$PLAN" <<YAML
     params:
       text: "READY OS"
       wait_timeout_s: 30
-  - id: move_from_readybasic_to_readyshell_$i
+  # The cross-app leg deliberately uses Editor as the deterministic
+  # "other app" so this probe tests ReadyBASIC suspend/resume only.
+  - id: move_from_readybasic_to_editor_$i
     type: input.sequence
     params:
-      keys: [145,145,145,13]
+      keys: [145,145,145,145,13]
       inter_key_delay_s: 0.08
       post_delay_s: 2.0
-  - id: wait_readyshell_$i
+  - id: wait_editor_$i
     type: screen.wait_contains
     params:
-      text: "readyshell"
+      text: "editor"
       wait_timeout_s: 60
-  - id: ctrl_b_to_launcher_from_readyshell_$i
+  - id: ctrl_b_to_launcher_from_editor_$i
     type: input.sequence
     params:
       keys: [2]
       inter_key_delay_s: 0.03
       post_delay_s: 1.0
-  - id: wait_launcher_after_readyshell_$i
+  - id: wait_launcher_after_editor_$i
     type: screen.wait_contains
     params:
       text: "READY OS"
       wait_timeout_s: 30
-  - id: move_from_readyshell_to_readybasic_$i
+  - id: move_from_editor_to_readybasic_$i
     type: input.sequence
     params:
-      keys: [17,17,17,13]
+      keys: [17,17,17,17,13]
       inter_key_delay_s: 0.08
       post_delay_s: 2.0
   - id: wait_readybasic_resume_$i
