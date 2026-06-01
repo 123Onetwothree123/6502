@@ -188,8 +188,15 @@ emit_wait_step "wait_launcher_after_editor_demo" "READY OS" "30"
 emit_key_step "move_editor_to_readybasic_demo" "17,17,17,17,13" "$STEP_POST"
 emit_wait_step "wait_readybasic_after_editor_demo" "READY." "60"
 emit_type_step "demo_03_resume_intro" $'PRINT CHR$(147);CHR$(158);"BACK IN READYBASIC"\rPRINT "VARIABLES AND PROGRAM TEXT SHOULD REMAIN":PRINT CHR$(5)\r' "$READ_PAUSE"
-emit_type_step "demo_03_resume_proof" $'FREEMEM()\rPRINT "A STILL";A%\rPRINT CHR$(158);"EXPECT: A IS 42 AND RUN STILL WORKS"\rPRINT CHR$(5)\rRUN\r' "$RUN_POST"
+emit_type_step "demo_03_resume_var_proof" $'FREEMEM()\rPRINT "A STILL";A%\rPRINT CHR$(158);"EXPECT: A IS 42 AND RUN STILL WORKS"\rPRINT CHR$(5)\r' "$STEP_POST"
+cat >>"$PLAN" <<'YAML'
+  - id: capture_demo_03_resume_var_proof
+    type: screen.capture
+    params:
+      label: demo_03_resume_var_proof
+YAML
 emit_assert_step "assert_demo_03_var_restored" "A STILL 42"
+emit_type_step "demo_03_resume_run_proof" $'RUN\r' "$RUN_POST"
 emit_assert_step "assert_demo_03_program_restored" "PROGRAM SUM 50"
 
 emit_type_step "demo_04_intro" $'PRINT CHR$(147);CHR$(158);"DEMO 3: ASSEMBLER COMMANDS"\rPRINT "COMMANDS RETURN VALUES AS EXPRESSIONS":PRINT CHR$(5)\r' "$READ_PAUSE"

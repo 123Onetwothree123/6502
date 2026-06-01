@@ -26,7 +26,7 @@ global_defaults:
     drive9_type: 1581
     true_drive: false
     close_vice: true
-    headless: false
+    headless: true
     speed_percent: 100
 steps:
   - id: launch_preboot

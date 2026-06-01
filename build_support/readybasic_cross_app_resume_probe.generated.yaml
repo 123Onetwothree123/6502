@@ -19,9 +19,9 @@ global_defaults:
     capture_state: true
     capture_dump: false
   vice:
-    disk8: "Releases/0.2.4/precog-d81/readyos-v0.2.4t-d81.d81"
-    disk9: "Releases/0.2.4/precog-d81/readyos-v0.2.4t-d81.d81"
-    autostart_prg: "Releases/0.2.4/precog-d81/readyos-v0.2.4t-d81-preboot.prg"
+    disk8: "Releases/0.2.4/precog-d81/readyos-v0.2.4f-d81.d81"
+    disk9: "Releases/0.2.4/precog-d81/readyos-v0.2.4f-d81.d81"
+    autostart_prg: "Releases/0.2.4/precog-d81/readyos-v0.2.4f-d81-preboot.prg"
     drive8_type: 1581
     drive9_type: 1581
     true_drive: false
@@ -64,32 +64,34 @@ steps:
     params:
       text: "READY OS"
       wait_timeout_s: 30
-  - id: move_from_readybasic_to_readyshell_1
+  # The cross-app leg deliberately uses Editor as the deterministic
+  # "other app" so this probe tests ReadyBASIC suspend/resume only.
+  - id: move_from_readybasic_to_editor_1
     type: input.sequence
     params:
-      keys: [145,145,145,13]
+      keys: [145,145,145,145,13]
       inter_key_delay_s: 0.08
       post_delay_s: 2.0
-  - id: wait_readyshell_1
+  - id: wait_editor_1
     type: screen.wait_contains
     params:
-      text: "readyshell"
+      text: "editor"
       wait_timeout_s: 60
-  - id: ctrl_b_to_launcher_from_readyshell_1
+  - id: ctrl_b_to_launcher_from_editor_1
     type: input.sequence
     params:
       keys: [2]
       inter_key_delay_s: 0.03
       post_delay_s: 1.0
-  - id: wait_launcher_after_readyshell_1
+  - id: wait_launcher_after_editor_1
     type: screen.wait_contains
     params:
       text: "READY OS"
       wait_timeout_s: 30
-  - id: move_from_readyshell_to_readybasic_1
+  - id: move_from_editor_to_readybasic_1
     type: input.sequence
     params:
-      keys: [17,17,17,13]
+      keys: [17,17,17,17,13]
       inter_key_delay_s: 0.08
       post_delay_s: 2.0
   - id: wait_readybasic_resume_1
@@ -169,32 +171,34 @@ steps:
     params:
       text: "READY OS"
       wait_timeout_s: 30
-  - id: move_from_readybasic_to_readyshell_2
+  # The cross-app leg deliberately uses Editor as the deterministic
+  # "other app" so this probe tests ReadyBASIC suspend/resume only.
+  - id: move_from_readybasic_to_editor_2
     type: input.sequence
     params:
-      keys: [145,145,145,13]
+      keys: [145,145,145,145,13]
       inter_key_delay_s: 0.08
       post_delay_s: 2.0
-  - id: wait_readyshell_2
+  - id: wait_editor_2
     type: screen.wait_contains
     params:
-      text: "readyshell"
+      text: "editor"
       wait_timeout_s: 60
-  - id: ctrl_b_to_launcher_from_readyshell_2
+  - id: ctrl_b_to_launcher_from_editor_2
     type: input.sequence
     params:
       keys: [2]
       inter_key_delay_s: 0.03
       post_delay_s: 1.0
-  - id: wait_launcher_after_readyshell_2
+  - id: wait_launcher_after_editor_2
     type: screen.wait_contains
     params:
       text: "READY OS"
       wait_timeout_s: 30
-  - id: move_from_readyshell_to_readybasic_2
+  - id: move_from_editor_to_readybasic_2
     type: input.sequence
     params:
-      keys: [17,17,17,13]
+      keys: [17,17,17,17,13]
       inter_key_delay_s: 0.08
       post_delay_s: 2.0
   - id: wait_readybasic_resume_2
@@ -274,32 +278,34 @@ steps:
     params:
       text: "READY OS"
       wait_timeout_s: 30
-  - id: move_from_readybasic_to_readyshell_3
+  # The cross-app leg deliberately uses Editor as the deterministic
+  # "other app" so this probe tests ReadyBASIC suspend/resume only.
+  - id: move_from_readybasic_to_editor_3
     type: input.sequence
     params:
-      keys: [145,145,145,13]
+      keys: [145,145,145,145,13]
       inter_key_delay_s: 0.08
       post_delay_s: 2.0
-  - id: wait_readyshell_3
+  - id: wait_editor_3
     type: screen.wait_contains
     params:
-      text: "readyshell"
+      text: "editor"
       wait_timeout_s: 60
-  - id: ctrl_b_to_launcher_from_readyshell_3
+  - id: ctrl_b_to_launcher_from_editor_3
     type: input.sequence
     params:
       keys: [2]
       inter_key_delay_s: 0.03
       post_delay_s: 1.0
-  - id: wait_launcher_after_readyshell_3
+  - id: wait_launcher_after_editor_3
     type: screen.wait_contains
     params:
       text: "READY OS"
       wait_timeout_s: 30
-  - id: move_from_readyshell_to_readybasic_3
+  - id: move_from_editor_to_readybasic_3
     type: input.sequence
     params:
-      keys: [17,17,17,13]
+      keys: [17,17,17,17,13]
       inter_key_delay_s: 0.08
       post_delay_s: 2.0
   - id: wait_readybasic_resume_3
@@ -379,32 +385,34 @@ steps:
     params:
       text: "READY OS"
       wait_timeout_s: 30
-  - id: move_from_readybasic_to_readyshell_4
+  # The cross-app leg deliberately uses Editor as the deterministic
+  # "other app" so this probe tests ReadyBASIC suspend/resume only.
+  - id: move_from_readybasic_to_editor_4
     type: input.sequence
     params:
-      keys: [145,145,145,13]
+      keys: [145,145,145,145,13]
       inter_key_delay_s: 0.08
       post_delay_s: 2.0
-  - id: wait_readyshell_4
+  - id: wait_editor_4
     type: screen.wait_contains
     params:
-      text: "readyshell"
+      text: "editor"
       wait_timeout_s: 60
-  - id: ctrl_b_to_launcher_from_readyshell_4
+  - id: ctrl_b_to_launcher_from_editor_4
     type: input.sequence
     params:
       keys: [2]
       inter_key_delay_s: 0.03
       post_delay_s: 1.0
-  - id: wait_launcher_after_readyshell_4
+  - id: wait_launcher_after_editor_4
     type: screen.wait_contains
     params:
       text: "READY OS"
       wait_timeout_s: 30
-  - id: move_from_readyshell_to_readybasic_4
+  - id: move_from_editor_to_readybasic_4
     type: input.sequence
     params:
-      keys: [17,17,17,13]
+      keys: [17,17,17,17,13]
       inter_key_delay_s: 0.08
       post_delay_s: 2.0
   - id: wait_readybasic_resume_4
@@ -484,32 +492,34 @@ steps:
     params:
       text: "READY OS"
       wait_timeout_s: 30
-  - id: move_from_readybasic_to_readyshell_5
+  # The cross-app leg deliberately uses Editor as the deterministic
+  # "other app" so this probe tests ReadyBASIC suspend/resume only.
+  - id: move_from_readybasic_to_editor_5
     type: input.sequence
     params:
-      keys: [145,145,145,13]
+      keys: [145,145,145,145,13]
       inter_key_delay_s: 0.08
       post_delay_s: 2.0
-  - id: wait_readyshell_5
+  - id: wait_editor_5
     type: screen.wait_contains
     params:
-      text: "readyshell"
+      text: "editor"
       wait_timeout_s: 60
-  - id: ctrl_b_to_launcher_from_readyshell_5
+  - id: ctrl_b_to_launcher_from_editor_5
     type: input.sequence
     params:
       keys: [2]
       inter_key_delay_s: 0.03
       post_delay_s: 1.0
-  - id: wait_launcher_after_readyshell_5
+  - id: wait_launcher_after_editor_5
     type: screen.wait_contains
     params:
       text: "READY OS"
       wait_timeout_s: 30
-  - id: move_from_readyshell_to_readybasic_5
+  - id: move_from_editor_to_readybasic_5
     type: input.sequence
     params:
-      keys: [17,17,17,13]
+      keys: [17,17,17,17,13]
       inter_key_delay_s: 0.08
       post_delay_s: 2.0
   - id: wait_readybasic_resume_5
@@ -589,32 +599,34 @@ steps:
     params:
       text: "READY OS"
       wait_timeout_s: 30
-  - id: move_from_readybasic_to_readyshell_6
+  # The cross-app leg deliberately uses Editor as the deterministic
+  # "other app" so this probe tests ReadyBASIC suspend/resume only.
+  - id: move_from_readybasic_to_editor_6
     type: input.sequence
     params:
-      keys: [145,145,145,13]
+      keys: [145,145,145,145,13]
       inter_key_delay_s: 0.08
       post_delay_s: 2.0
-  - id: wait_readyshell_6
+  - id: wait_editor_6
     type: screen.wait_contains
     params:
-      text: "readyshell"
+      text: "editor"
       wait_timeout_s: 60
-  - id: ctrl_b_to_launcher_from_readyshell_6
+  - id: ctrl_b_to_launcher_from_editor_6
     type: input.sequence
     params:
       keys: [2]
       inter_key_delay_s: 0.03
       post_delay_s: 1.0
-  - id: wait_launcher_after_readyshell_6
+  - id: wait_launcher_after_editor_6
     type: screen.wait_contains
     params:
       text: "READY OS"
       wait_timeout_s: 30
-  - id: move_from_readyshell_to_readybasic_6
+  - id: move_from_editor_to_readybasic_6
     type: input.sequence
     params:
-      keys: [17,17,17,13]
+      keys: [17,17,17,17,13]
       inter_key_delay_s: 0.08
       post_delay_s: 2.0
   - id: wait_readybasic_resume_6
@@ -694,32 +706,34 @@ steps:
     params:
       text: "READY OS"
       wait_timeout_s: 30
-  - id: move_from_readybasic_to_readyshell_7
+  # The cross-app leg deliberately uses Editor as the deterministic
+  # "other app" so this probe tests ReadyBASIC suspend/resume only.
+  - id: move_from_readybasic_to_editor_7
     type: input.sequence
     params:
-      keys: [145,145,145,13]
+      keys: [145,145,145,145,13]
       inter_key_delay_s: 0.08
       post_delay_s: 2.0
-  - id: wait_readyshell_7
+  - id: wait_editor_7
     type: screen.wait_contains
     params:
-      text: "readyshell"
+      text: "editor"
       wait_timeout_s: 60
-  - id: ctrl_b_to_launcher_from_readyshell_7
+  - id: ctrl_b_to_launcher_from_editor_7
     type: input.sequence
     params:
       keys: [2]
       inter_key_delay_s: 0.03
       post_delay_s: 1.0
-  - id: wait_launcher_after_readyshell_7
+  - id: wait_launcher_after_editor_7
     type: screen.wait_contains
     params:
       text: "READY OS"
       wait_timeout_s: 30
-  - id: move_from_readyshell_to_readybasic_7
+  - id: move_from_editor_to_readybasic_7
     type: input.sequence
     params:
-      keys: [17,17,17,13]
+      keys: [17,17,17,17,13]
       inter_key_delay_s: 0.08
       post_delay_s: 2.0
   - id: wait_readybasic_resume_7
@@ -799,32 +813,34 @@ steps:
     params:
       text: "READY OS"
       wait_timeout_s: 30
-  - id: move_from_readybasic_to_readyshell_8
+  # The cross-app leg deliberately uses Editor as the deterministic
+  # "other app" so this probe tests ReadyBASIC suspend/resume only.
+  - id: move_from_readybasic_to_editor_8
     type: input.sequence
     params:
-      keys: [145,145,145,13]
+      keys: [145,145,145,145,13]
       inter_key_delay_s: 0.08
       post_delay_s: 2.0
-  - id: wait_readyshell_8
+  - id: wait_editor_8
     type: screen.wait_contains
     params:
-      text: "readyshell"
+      text: "editor"
       wait_timeout_s: 60
-  - id: ctrl_b_to_launcher_from_readyshell_8
+  - id: ctrl_b_to_launcher_from_editor_8
     type: input.sequence
     params:
       keys: [2]
       inter_key_delay_s: 0.03
       post_delay_s: 1.0
-  - id: wait_launcher_after_readyshell_8
+  - id: wait_launcher_after_editor_8
     type: screen.wait_contains
     params:
       text: "READY OS"
       wait_timeout_s: 30
-  - id: move_from_readyshell_to_readybasic_8
+  - id: move_from_editor_to_readybasic_8
     type: input.sequence
     params:
-      keys: [17,17,17,13]
+      keys: [17,17,17,17,13]
       inter_key_delay_s: 0.08
       post_delay_s: 2.0
   - id: wait_readybasic_resume_8
@@ -904,32 +920,34 @@ steps:
     params:
       text: "READY OS"
       wait_timeout_s: 30
-  - id: move_from_readybasic_to_readyshell_9
+  # The cross-app leg deliberately uses Editor as the deterministic
+  # "other app" so this probe tests ReadyBASIC suspend/resume only.
+  - id: move_from_readybasic_to_editor_9
     type: input.sequence
     params:
-      keys: [145,145,145,13]
+      keys: [145,145,145,145,13]
       inter_key_delay_s: 0.08
       post_delay_s: 2.0
-  - id: wait_readyshell_9
+  - id: wait_editor_9
     type: screen.wait_contains
     params:
-      text: "readyshell"
+      text: "editor"
       wait_timeout_s: 60
-  - id: ctrl_b_to_launcher_from_readyshell_9
+  - id: ctrl_b_to_launcher_from_editor_9
     type: input.sequence
     params:
       keys: [2]
       inter_key_delay_s: 0.03
       post_delay_s: 1.0
-  - id: wait_launcher_after_readyshell_9
+  - id: wait_launcher_after_editor_9
     type: screen.wait_contains
     params:
       text: "READY OS"
       wait_timeout_s: 30
-  - id: move_from_readyshell_to_readybasic_9
+  - id: move_from_editor_to_readybasic_9
     type: input.sequence
     params:
-      keys: [17,17,17,13]
+      keys: [17,17,17,17,13]
       inter_key_delay_s: 0.08
       post_delay_s: 2.0
   - id: wait_readybasic_resume_9
@@ -1009,32 +1027,34 @@ steps:
     params:
       text: "READY OS"
       wait_timeout_s: 30
-  - id: move_from_readybasic_to_readyshell_10
+  # The cross-app leg deliberately uses Editor as the deterministic
+  # "other app" so this probe tests ReadyBASIC suspend/resume only.
+  - id: move_from_readybasic_to_editor_10
     type: input.sequence
     params:
-      keys: [145,145,145,13]
+      keys: [145,145,145,145,13]
       inter_key_delay_s: 0.08
       post_delay_s: 2.0
-  - id: wait_readyshell_10
+  - id: wait_editor_10
     type: screen.wait_contains
     params:
-      text: "readyshell"
+      text: "editor"
       wait_timeout_s: 60
-  - id: ctrl_b_to_launcher_from_readyshell_10
+  - id: ctrl_b_to_launcher_from_editor_10
     type: input.sequence
     params:
       keys: [2]
       inter_key_delay_s: 0.03
       post_delay_s: 1.0
-  - id: wait_launcher_after_readyshell_10
+  - id: wait_launcher_after_editor_10
     type: screen.wait_contains
     params:
       text: "READY OS"
       wait_timeout_s: 30
-  - id: move_from_readyshell_to_readybasic_10
+  - id: move_from_editor_to_readybasic_10
     type: input.sequence
     params:
-      keys: [17,17,17,13]
+      keys: [17,17,17,17,13]
       inter_key_delay_s: 0.08
       post_delay_s: 2.0
   - id: wait_readybasic_resume_10
