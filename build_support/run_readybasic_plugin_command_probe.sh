@@ -109,7 +109,7 @@ steps:
   - id: probe_01_ping
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rZECHO1(P%)\rPRINT "ZECHO";P%\r')]
+      keys: [$(keys $'ZECHO1(P%)\rPRINT "ZECHO";P%\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 0.8
   - id: capture_01_ping
@@ -128,7 +128,7 @@ steps:
   - id: probe_02_add16
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rA%=ZADD16(5,10)\rPRINT "ADD";A%\r')]
+      keys: [$(keys $'A%=ZADD16(5,10)\rPRINT "ADD";A%\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 0.8
   - id: assert_02_add16
@@ -139,7 +139,7 @@ steps:
   - id: probe_02a_if_then_direct
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rP%=0\rIF 1 THEN P%=ZADD16(0,1)\rPRINT "IFDIR";P%\r')]
+      keys: [$(keys $'P%=0\rIF 1 THEN P%=ZADD16(0,1)\rPRINT "IFDIR";P%\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 0.8
   - id: capture_02a_if_then_direct
@@ -154,7 +154,7 @@ steps:
   - id: probe_03_strup_variable
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rS$="abc"\rT$=UPPER(S$)\rPRINT "STR";T$\r')]
+      keys: [$(keys $'S$="abc"\rT$=UPPER(S$)\rPRINT "STR";T$\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 0.8
   - id: assert_03_strup_variable
@@ -165,7 +165,7 @@ steps:
   - id: probe_04_strup_literal
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rU$=UPPER("def")\rPRINT "LIT";U$\r')]
+      keys: [$(keys $'U$=UPPER("def")\rPRINT "LIT";U$\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 0.8
   - id: assert_04_strup_literal
@@ -176,7 +176,7 @@ steps:
   - id: probe_04a_lower_variable
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rS$="ABC"\rL$=LOWER(S$)\rPRINT "LOWASC";ASC(L$);ASC(MID$(L$,2,1));ASC(MID$(L$,3,1))\r')]
+      keys: [$(keys $'S$="ABC"\rL$=LOWER(S$)\rPRINT "LOWASC";ASC(L$);ASC(MID$(L$,2,1));ASC(MID$(L$,3,1))\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 0.8
   - id: assert_04a_lower_variable
@@ -187,7 +187,7 @@ steps:
   - id: probe_04b_lower_literal
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rL$=LOWER("GHI")\rPRINT "LITLOWASC";ASC(L$);ASC(MID$(L$,2,1));ASC(MID$(L$,3,1))\r')]
+      keys: [$(keys $'L$=LOWER("GHI")\rPRINT "LITLOWASC";ASC(L$);ASC(MID$(L$,2,1));ASC(MID$(L$,3,1))\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 0.8
   - id: assert_04b_lower_literal
@@ -198,7 +198,7 @@ steps:
   - id: probe_05_hcrc_hidden
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rH%=ZHIDDENRAM("AB")\rPRINT "ZHIDDENRAM";H%\r')]
+      keys: [$(keys $'H%=ZHIDDENRAM("AB")\rPRINT "ZHIDDENRAM";H%\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 0.8
   - id: assert_05_hcrc_hidden
@@ -213,7 +213,7 @@ steps:
   - id: probe_06_sumai
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rDIM A%(3)\rA%(0)=1:A%(1)=2:A%(2)=3\rS%=ZSUMNUMARRAY(A%(0),3)\rPRINT "SUM";S%\r')]
+      keys: [$(keys $'DIM A%(3)\rA%(0)=1:A%(1)=2:A%(2)=3\rS%=ZSUMNUMARRAY(A%(0),3)\rPRINT "SUM";S%\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 1.0
   - id: assert_06_sumai
@@ -224,7 +224,7 @@ steps:
   - id: probe_07_rangeai
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rDIM R%(4)\rZRANGENUMARRAY(7,4,R%(0))\rPRINT "RANGE";R%(0);R%(3)\r')]
+      keys: [$(keys $'DIM R%(4)\rZRANGENUMARRAY(7,4,R%(0))\rPRINT "RANGE";R%(0);R%(3)\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 1.0
   - id: assert_07_rangeai
@@ -235,7 +235,7 @@ steps:
   - id: probe_08_bufnew
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rH%=BUFNEW(300)\rPRINT "BUFNEW";H%;":END"\r')]
+      keys: [$(keys $'H%=BUFNEW(300)\rPRINT "BUFNEW";H%;":END"\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 0.8
   - id: assert_08_bufnew
@@ -250,7 +250,7 @@ steps:
   - id: probe_09_buffill
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rBUFFILL(H%,170)\rPRINT "FILL OK"\r')]
+      keys: [$(keys $'BUFFILL(H%,170)\rPRINT "FILL OK"\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 0.8
   - id: assert_09_buffill
@@ -265,7 +265,7 @@ steps:
   - id: probe_10_buffree
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rBUFFREE(H%)\rPRINT "FREE OK"\r')]
+      keys: [$(keys $'BUFFREE(H%)\rPRINT "FREE OK"\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 0.8
   - id: assert_10_buffree
@@ -280,7 +280,7 @@ steps:
   - id: probe_10a_scrcap_scrput_slot128
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rPRINT "SCRMARK"\rS%=SCRCAP()\rPRINT "CHANGED"\rSCRPUT(S%)\rPRINT "SCRPUT";S%\r')]
+      keys: [$(keys $'PRINT "SCRMARK"\rS%=SCRCAP()\rPRINT "CHANGED"\rSCRPUT(S%)\rPRINT "SCRPUT";S%\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 1.0
   - id: assert_10a_scrcap_restored_text
@@ -294,7 +294,7 @@ steps:
   - id: probe_10b_buffill_rejects_screen_handle
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rBUFFILL(S%,170)\r')]
+      keys: [$(keys $'BUFFILL(S%,170)\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 0.8
   - id: assert_10b_buffill_rejects_screen_handle
@@ -318,7 +318,7 @@ steps:
   - id: probe_10d_scrput_rejects_buffer_handle
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rB%=BUFNEW(300)\rSCRPUT(B%)\r')]
+      keys: [$(keys $'B%=BUFNEW(300)\rSCRPUT(B%)\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 0.8
   - id: assert_10d_scrput_rejects_buffer_handle
@@ -343,7 +343,7 @@ steps:
   - id: probe_10f_allocate_128_handles
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rNEW\r10 FOR I=1 TO 128\r20 H%=BUFNEW(1)\r30 NEXT I\r40 PRINT "HMAX";H%\rRUN\r')]
+      keys: [$(keys $'NEW\r10 FOR I=1 TO 128\r20 H%=BUFNEW(1)\r30 NEXT I\r40 PRINT "HMAX";H%\rRUN\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 4.0
   - id: assert_10f_allocate_128_handles
@@ -358,7 +358,7 @@ steps:
   - id: probe_10g_handle_129_rejected
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rE%=BUFNEW(1)\r')]
+      keys: [$(keys $'E%=BUFNEW(1)\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 0.8
   - id: assert_10g_handle_129_rejected
@@ -384,7 +384,7 @@ steps:
   - id: probe_10i_reuse_low_handle
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rR%=BUFNEW(1)\rPRINT "HREUSE";R%\rBUFFREE(R%)\r')]
+      keys: [$(keys $'R%=BUFNEW(1)\rPRINT "HREUSE";R%\rBUFFREE(R%)\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 0.8
   - id: assert_10i_reuse_low_handle
@@ -399,7 +399,7 @@ steps:
   - id: probe_10j_allocate_48k_heap
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rM%=BUFNEW(49152)\rPRINT "HMAXBUF";M%\r')]
+      keys: [$(keys $'M%=BUFNEW(49152)\rPRINT "HMAXBUF";M%\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 1.0
   - id: assert_10j_allocate_48k_heap
@@ -414,7 +414,7 @@ steps:
   - id: probe_10k_heap_full_rejected
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rE%=BUFNEW(1)\r')]
+      keys: [$(keys $'E%=BUFNEW(1)\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 0.8
   - id: assert_10k_heap_full_rejected
@@ -440,7 +440,7 @@ steps:
   - id: probe_10m_screen_handles_fill_heap
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rNEW\r10 FOR I=1 TO 24\r20 S%=SCRCAP()\r30 NEXT I\r40 PRINT "SMAX";S%\rRUN\r')]
+      keys: [$(keys $'NEW\r10 FOR I=1 TO 24\r20 S%=SCRCAP()\r30 NEXT I\r40 PRINT "SMAX";S%\rRUN\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 4.0
   - id: assert_10m_screen_handles_fill_heap
@@ -455,7 +455,7 @@ steps:
   - id: probe_10n_screen_heap_full_rejected
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rS%=SCRCAP()\r')]
+      keys: [$(keys $'S%=SCRCAP()\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 0.8
   - id: assert_10n_screen_heap_full_rejected
@@ -481,7 +481,7 @@ steps:
   - id: probe_11_tempscratch
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rT%=ZTEMPSCRATCH(513)\rPRINT "TEMP";T%\r')]
+      keys: [$(keys $'T%=ZTEMPSCRATCH(513)\rPRINT "TEMP";T%\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 0.8
   - id: assert_11_tempscratch
@@ -492,7 +492,7 @@ steps:
   - id: probe_12_fail_clears_output
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rX%=99\rZFAIL(7,X%)\r')]
+      keys: [$(keys $'X%=99\rZFAIL(7,X%)\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 0.8
   - id: assert_12_fail_error
@@ -513,7 +513,7 @@ steps:
   - id: probe_13_unknown_command
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rNOPE()\r')]
+      keys: [$(keys $'NOPE()\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 0.8
   - id: assert_13_unknown_command
@@ -524,7 +524,7 @@ steps:
   - id: probe_13_old_ping_rejected
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rSCALAR(P%)\r')]
+      keys: [$(keys $'SCALAR(P%)\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 0.8
   - id: assert_13_old_ping_rejected
@@ -535,7 +535,7 @@ steps:
   - id: probe_13_old_add16_rejected
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rADD16(1,2,A%)\r')]
+      keys: [$(keys $'ADD16(1,2,A%)\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 0.8
   - id: assert_13_old_add16_rejected
@@ -546,7 +546,7 @@ steps:
   - id: probe_13_old_strup_rejected
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rSTRUP("abc",T$)\r')]
+      keys: [$(keys $'STRUP("abc",T$)\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 0.8
   - id: assert_13_old_strup_rejected
@@ -557,7 +557,7 @@ steps:
   - id: probe_13_old_hcrc_rejected
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rHCRC("AB",H%)\r')]
+      keys: [$(keys $'HCRC("AB",H%)\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 0.8
   - id: assert_13_old_hcrc_rejected
@@ -568,7 +568,7 @@ steps:
   - id: probe_13_old_sumai_rejected
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rSUMAI(A%(0),1,S%)\r')]
+      keys: [$(keys $'SUMAI(A%(0),1,S%)\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 0.8
   - id: assert_13_old_sumai_rejected
@@ -579,7 +579,7 @@ steps:
   - id: probe_13_old_rangeai_rejected
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rRANGEAI(1,1,A%(0))\r')]
+      keys: [$(keys $'RANGEAI(1,1,A%(0))\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 0.8
   - id: assert_13_old_rangeai_rejected
@@ -590,7 +590,7 @@ steps:
   - id: probe_13a_command_name_in_string
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rPRINT "NOPE()"\r')]
+      keys: [$(keys $'PRINT "NOPE()"\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 0.8
   - id: assert_13a_command_name_in_string
@@ -605,7 +605,7 @@ steps:
   - id: probe_13b_command_name_in_rem
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rREM NOPE()\rPRINT "REMOK"\r')]
+      keys: [$(keys $'REM NOPE()\rPRINT "REMOK"\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 0.8
   - id: assert_13b_command_name_in_rem
@@ -620,7 +620,7 @@ steps:
   - id: probe_13c_first_comma_rejected
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rZADD16(,1,2,A%)\r')]
+      keys: [$(keys $'ZADD16(,1,2,A%)\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 0.8
   - id: assert_13c_first_comma_rejected
@@ -631,7 +631,7 @@ steps:
   - id: probe_13d_missing_out_marker_rejected
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rZADD16 1,2,A%\r')]
+      keys: [$(keys $'ZADD16 1,2,A%\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 0.8
   - id: assert_13d_missing_out_marker_rejected
@@ -642,7 +642,7 @@ steps:
   - id: probe_14_seed_resume_vars
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rV%=321:VS$="OK"\rPRINT "SEEDED";V%;":";VS$\r')]
+      keys: [$(keys $'V%=321:VS$="OK"\rPRINT "SEEDED";V%;":";VS$\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 0.8
   - id: assert_14_seed_resume_vars
@@ -670,15 +670,27 @@ steps:
   - id: wait_readybasic_after_resume
     type: screen.wait_contains
     params:
-      text: "readybasic"
+      text: "READY."
       wait_timeout_s: 30
       capture_label: readybasic_after_plugin_resume
   - id: probe_16_registry_after_resume
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rPRINT "STATE";V%;":";VS$\rP%=ZADD16(0,1)\rPRINT "RESUME";P%\r')]
+      keys: [$(keys $'PRINT "STATE";V%;":";VS$\rP%=ZADD16(0,1)\rPRINT "RESUME";P%\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 0.8
+  - id: capture_16_registry_after_resume
+    type: screen.capture
+    params:
+      label: after_registry_resume
+  - id: dump_16_vectors_after_resume
+    type: dump.memory_ranges
+    params:
+      ranges:
+        - { label: page3_vectors, start: 0x0304, end: 0x030B }
+        - { label: desc_buf, start: 0xC480, end: 0xC49F }
+        - { label: bridge_tail, start: 0xC1D0, end: 0xC20F }
+        - { label: low_slot_head, start: 0xA800, end: 0xA83F }
   - id: assert_16_basic_state_after_resume
     type: assert.screen
     params:

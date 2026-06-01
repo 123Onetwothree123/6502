@@ -130,10 +130,10 @@ def main() -> None:
     require(r"^RB_LOW_BASE\s*=\s*RB_SLOT0_BASE\b", asm, "legacy low base alias must point at slot 0")
     require(r"^RUNTIME_ZP_BUF\s*=\s*\$C400\b", asm, "RUNTIME_ZP_BUF must be $C400")
     require(r"^RUNTIME_STACK_BUF\s*=\s*\$C500\b", asm, "RUNTIME_STACK_BUF must be $C500")
-    require(r"^HIDDEN_SHADOW\s*=\s*\$C280\b", asm, "HIDDEN_SHADOW must be visible RAM at $C280")
-    hidden_shadow_end = 0xC280 + hidden[2] - 1
-    if hidden_shadow_end >= 0xC600:
-        fail(f"HIDDEN shadow copy must stay below $C600, got $C280-${hidden_shadow_end:04X}")
+    require(r"^HIDDEN_SHADOW\s*=\s*\$A400\b", asm, "HIDDEN_SHADOW must live under BASIC ROM at $A400")
+    hidden_shadow_end = 0xA400 + hidden[2] - 1
+    if hidden_shadow_end >= 0xA800:
+        fail(f"HIDDEN shadow copy must stay below command slot 0 at $A800, got $A400-${hidden_shadow_end:04X}")
     if regseed[0] != 0x5000 or regseed[2] > 0x1200:
         fail(f"REGSEED must stay within cold seed $5000-$61FF, got ${regseed[0]:04X} size ${regseed[2]:04X}")
     expected_payload = 0x6200 - 0x1000

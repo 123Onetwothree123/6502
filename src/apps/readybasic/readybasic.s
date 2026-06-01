@@ -87,7 +87,7 @@ BASIC_INPUT_BUF = $0200
 BASIC_INPUT_MAX = $58
 RUNTIME_ZP_BUF  = $C400
 RUNTIME_STACK_BUF = $C500
-HIDDEN_SHADOW   = $C280
+HIDDEN_SHADOW   = $A400
 
 CPU_DDR         = $0000
 CPU_PORT        = $0001
@@ -342,8 +342,6 @@ entry:
         lda #>__HIDDEN_SIZE__
         sta rb_entry_len+1
         jsr entry_copy_block
-        lda rb_entry_cpu
-        sta CPU_PORT
 
         lda #<__HIDDEN_LOAD__
         sta rb_entry_src
@@ -358,6 +356,8 @@ entry:
         lda #>__HIDDEN_SIZE__
         sta rb_entry_len+1
         jsr entry_copy_block
+        lda rb_entry_cpu
+        sta CPU_PORT
 
         lda #<__BRIDGE_LOAD__
         sta rb_entry_src
@@ -640,6 +640,14 @@ rb_maybe_bare_command:
         jmp BASIC_NEXT_STMT
 @fallback:
         lda rb_peek_lo
+        sta rb_stmt_lo
+        lda rb_peek_hi
+        sta rb_stmt_hi
+        jsr rb_expr_exec_assignment
+        bcc :+
+        jmp BASIC_NEXT_STMT
+:
+        lda rb_peek_lo
         bne :+
         dec rb_peek_hi
 :
@@ -865,6 +873,12 @@ cmd_exit:
         sta rb_entry_magic2
         jsr call_hidden_save_state
         jsr restore_vectors
+        lda CPU_DDR
+        ora #$07
+        sta CPU_DDR
+        lda CPU_PORT
+        and #RAM_UNDER_BASIC_KEEP_KERNAL
+        sta CPU_PORT
         jmp SHIM_RETURN
 
 call_hidden_save_state:
@@ -1396,8 +1410,7 @@ rb_bind_exec_args:
 @loop:
         jsr rb_next_formal
         bcs @formal
-        jsr rb_actual_at_end
-        rts
+        jmp rb_actual_at_end
 @formal:
         lda TXTPTR
         sta rb_form_lo
@@ -1692,8 +1705,7 @@ rb_plugin_statement_found:
         jsr rb_load_and_call_command
         jsr rb_stash_result_frame
 @commit:
-        jsr rb_commit_result
-        rts
+        jmp rb_commit_result
 
 rb_parse_command_name:
         jsr rb_skip_spaces
@@ -1767,6 +1779,8 @@ rb_parse_command_name:
         cmp #'Z' + 1
         bcc @store
 @maybe_digit:
+        cpx #0
+        beq @done
         cmp #'0'
         bcc @done
         cmp #'9' + 1
@@ -1982,24 +1996,20 @@ parse_sig_zecho1:
 parse_sig_zadd16:
         jsr rb_parse_num0
         jsr rb_parse_num1
-        jsr rb_parse_out_int
-        rts
+        jmp rb_parse_out_int
 
 parse_sig_string_out:
         jsr rb_parse_string_value
-        jsr rb_parse_out_string
-        rts
+        jmp rb_parse_out_string
 
 parse_sig_zhiddenram:
         jsr rb_parse_string_value
-        jsr rb_parse_out_int
-        rts
+        jmp rb_parse_out_int
 
 parse_sig_zsumnumarray:
         jsr rb_parse_int_array_input
         jsr rb_parse_out_int
-        jsr rb_resolve_int_array_input_ptr
-        rts
+        jmp rb_resolve_int_array_input_ptr
 
 parse_sig_zrangenumarray:
         jsr rb_parse_num0
@@ -2008,8 +2018,7 @@ parse_sig_zrangenumarray:
         sta rb_saved_count_lo
         lda CF_NUM1_HI
         sta rb_saved_count_hi
-        jsr rb_parse_out_int_array
-        rts
+        jmp rb_parse_out_int_array
 
 parse_sig_bufnew:
         jsr rb_parse_num0
@@ -2017,29 +2026,24 @@ parse_sig_bufnew:
 
 parse_sig_buffill:
         jsr rb_parse_num0
-        jsr rb_parse_num1
-        rts
+        jmp rb_parse_num1
 
 parse_sig_buffree:
         jmp rb_parse_num0
 
 parse_sig_ztempscratch:
         jsr rb_parse_num0
-        jsr rb_parse_out_int
-        rts
+        jmp rb_parse_out_int
 
 parse_sig_zfail:
         jsr rb_parse_num0
-        jsr rb_parse_out_int
-        rts
+        jmp rb_parse_out_int
 
 parse_sig_freemem:
-        jsr rb_parse_no_args
-        rts
+        jmp rb_parse_no_args
 
 parse_sig_scrcap:
-        jsr rb_parse_out_int_current
-        rts
+        jmp rb_parse_out_int_current
 
 parse_sig_scrput:
         jmp rb_parse_num0
@@ -2156,8 +2160,6 @@ rb_parse_float0:
 rb_parse_float1:
         lda #CF_FLOAT1-RB_CF
         bne rb_parse_float_to_slot
-rb_parse_float2:
-        lda #CF_FLOAT2-RB_CF
 rb_parse_float_to_slot:
         sta rb_target_off
         jsr rb_parse_arg_sep
@@ -2353,28 +2355,6 @@ rb_parse_string_value_current:
         inc CF_PARAM_COUNT
         rts
 
-rb_parse_quoted_string:
-        jsr CHRGET
-        ldy #0
-@loop:
-        jsr CHRGOT
-        beq @done
-        cmp #$22
-        beq @close
-        cpy #RB_MAX_STR
-        bcs @skip
-        sta CF_STR_BUF,y
-        iny
-@skip:
-        jsr CHRGET
-        jmp @loop
-@close:
-        jsr CHRGET
-@done:
-        sty CF_STR_LEN
-        inc CF_PARAM_COUNT
-        rts
-
 rb_parse_type_error:
         jmp BASIC_SYNERR
 
@@ -2392,6 +2372,7 @@ rb_eval:
         lda TXTPTR+1
         sta rb_eval_save_hi
         jsr CHRGET
+rb_eval_current:
         jsr rb_parse_command_name
         bcs :+
         jmp rb_eval_fallback
@@ -2402,9 +2383,7 @@ rb_eval:
 :       jsr rb_lookup_command
         bcs :+
         jsr rb_eval_func
-        bcc @not_func
-        jmp rb_expr_return_result
-@not_func:
+        bcs rb_expr_return_result
         jmp rb_eval_fallback
 :       jsr CHRGET
         lda RB_DESC_BUF
@@ -2497,10 +2476,6 @@ rb_expr_return_string:
         jmp rb_runtime_error
 rb_expr_bad_type:
         jmp BASIC_SYNERR
-
-rb_eval_func_done:
-        clc
-        rts
 
 rb_eval_fallback:
         lda rb_eval_save_lo
@@ -2713,13 +2688,24 @@ rb_expr_exec_assignment:
         clc
         rts
 :       jsr CHRGET
+        jsr rb_fold_a
+        cmp #'A'
+        bcc @not_expr_assignment
+        cmp #'Z' + 1
+        bcc :+
+@not_expr_assignment:
+        pla
+        pla
+        clc
+        rts
+:       jsr CHRGOT
         pla
         sta rb_tmp_lo
         pla
         cmp #$FF
         beq @string
         jsr rb_expr_push_state
-        jsr BASIC_FRMNUM
+        jsr rb_eval_current
         jsr rb_expr_pop_state
         lda rb_tmp_lo
         cmp #$80
@@ -3192,8 +3178,7 @@ parse_expr_zecho1:
 
 parse_expr_zadd16:
         jsr rb_parse_num0
-        jsr rb_parse_num1
-        rts
+        jmp rb_parse_num1
 
 parse_expr_fadd:
         jsr rb_parse_float0
@@ -3212,13 +3197,11 @@ parse_expr_num0:
         jmp rb_parse_num0
 
 parse_expr_int_string:
-        jsr rb_parse_string_value
-        rts
+        jmp rb_parse_string_value
 
 parse_expr_zsumnumarray:
         jsr rb_parse_int_array_input
-        jsr rb_resolve_int_array_input_ptr
-        rts
+        jmp rb_resolve_int_array_input_ptr
 
 parse_expr_string_out:
         jsr rb_parse_string_value
@@ -3667,8 +3650,7 @@ rb_stash_call_frame:
         sta rb_reu_len_lo
         lda #0
         sta rb_reu_len_hi
-        jsr rb_reu_stash
-        rts
+        jmp rb_reu_stash
 
 rb_stash_result_frame:
         lda #<RB_RF
@@ -3685,8 +3667,7 @@ rb_stash_result_frame:
         sta rb_reu_len_lo
         lda #0
         sta rb_reu_len_hi
-        jsr rb_reu_stash
-        rts
+        jmp rb_reu_stash
 
         .segment "REGSEED"
 
@@ -4126,8 +4107,7 @@ rb_seed_plugin_reu_hidden:
         jsr rb_reu_stash
 
         jsr rb_clear_slot_residency
-        jsr rb_clear_handle_heap
-        rts
+        jmp rb_clear_handle_heap
 
 rb_clear_slot_residency:
         lda #0
@@ -4176,8 +4156,7 @@ rb_stash_zero_pagebuf:
         sta rb_reu_len_lo
         lda #1
         sta rb_reu_len_hi
-        jsr rb_reu_stash
-        rts
+        jmp rb_reu_stash
 
 save_basic_runtime_state:
         tsx
@@ -4293,8 +4272,7 @@ refresh_hidden_shadow:
         sta rb_entry_len
         lda #>__HIDDEN_SIZE__
         sta rb_entry_len+1
-        jsr entry_copy_block
-        rts
+        jmp entry_copy_block
 
 ; ---------------------------------------------------------------------------
 ; Bridge state only.  Code stays out of $C000 unless it must be resident there.
