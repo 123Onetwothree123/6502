@@ -1,17 +1,17 @@
-# ReadyShell Overlay Inventory Report (v0.2.4A)
+# ReadyShell Overlay Inventory Report (v0.2.4C)
 
-Artifact-backed report generated from the current local ReadyShell build, linker map, and D81 disk image.
+Artifact-backed report generated from the current local ReadyShell build, linker map, and D71 disk image.
 
 ## Executive Summary
 
-- Profile / disk source: `precog-d81` using `releases/0.2.4/precog-d81/readyos-v0.2.4z-d81.d81` (disk label `readyosd81`, `678` blocks free).
-- Resident ReadyShell PRG: `readyshell.prg` on disk as `readyshell`, `29505` bytes and `117` D71 blocks.
+- Profile / disk source: `precog-dual-d71` using `releases/0.2.4/precog-dual-d71/readyos-v0.2.4c-dual-d71_1.d71` (disk label `readyos`, `46` blocks free).
+- Resident ReadyShell PRG: `readyshell.prg` on disk as `readyshell`, `27556` bytes and `109` D71 blocks.
 - Overlay execution window: `$8E00-$C5FF` for `14336` bytes, with PRG load-address bytes at `$8DFE-$8DFF`.
-- Resident BSS / heap below overlays: BSS `$8340-$8536` (`503` bytes), heap `$8538-$8DFD` (`2246` bytes).
+- Resident BSS / heap below overlays: BSS `$7BA2-$7D1B` (`378` bytes), heap `$7D1C-$8DFD` (`4322` bytes).
 - High RAM runtime region outside the app window: `$CA00-$CFFF`.
 - REU policy split:
   - overlays 1-9 are boot-loaded during shell startup and cached into fixed full-window REU slots
-  - bank `0x40` holds overlays `1`, `2`, `3`, and `5`; bank `0x41` holds overlays `4`, `6`, `7`, and `8`; bank `0x42` holds overlay `9`
+  - bank `0x3A` holds overlays `1`, `2`, `3`, and `5`; bank `0x3B` holds overlays `4`, `6`, `7`, and `8`; bank `0x3C` holds overlay `9`
   - bank 0x48 is shared for the external-command registry, overlay metadata, pause state, command handoff scratch, and the REU-backed ReadyShell value arena
 
 ## Runtime Memory Map
@@ -21,29 +21,29 @@ Artifact-backed report generated from the current local ReadyShell build, linker
 | Resident app window | `$1000-$C5FF` | `46592` | ReadyOS app-owned RAM window for ReadyShell. |
 | Overlay load address bytes | `$8DFE-$8DFF` | `2` | PRG load address emitted ahead of each overlay sidecar file. |
 | Overlay execution window | `$8E00-$C5FF` | `14336` | Shared live area for whichever overlay is active. |
-| Resident BSS | `$8340-$8536` | `503` | Resident writable data below the overlay load address. |
-| Resident heap | `$8538-$8DFD` | `2246` | cc65 heap carved below the overlay load address. |
+| Resident BSS | `$7BA2-$7D1B` | `378` | Resident writable data below the overlay load address. |
+| Resident heap | `$7D1C-$8DFD` | `4322` | cc65 heap carved below the overlay load address. |
 | High-RAM runtime | `$CA00-$CFFF` | `1536` | Fixed ReadyShell runtime state outside the app snapshot window. |
 
 ## REU Layout And Loading Model
 
 | Use | REU range | Size | How it is used |
 | --- | --- | ---: | --- |
-| Shared cache bank 1 | `$400000-$40FFFF` | `65536` | Fixed ReadyShell cache bank holding overlays 1, 2, 3, and 5. |
-| Overlay 1 parse slot | `$400000-$4037FF` | `14336` | Full overlay-window snapshot for overlay 1. |
-| Overlay 2 exec slot | `$403800-$406FFF` | `14336` | Full overlay-window snapshot for overlay 2. |
-| Overlay 3 command slot | `$407000-$40A7FF` | `14336` | Full overlay-window snapshot for overlay 3. |
-| Overlay 5 command slot | `$40A800-$40DFFF` | `14336` | Full overlay-window snapshot for overlay 5. |
-| Cache bank 1 free tail | `$40E000-$40FFFF` | `8192` | Unused tail after the four fixed slots in bank 0x40. |
-| Shared cache bank 2 | `$410000-$41FFFF` | `65536` | Fixed ReadyShell cache bank holding overlays 4, 6, 7, and 8. |
-| Overlay 4 command slot | `$410000-$4137FF` | `14336` | Full overlay-window snapshot for overlay 4. |
-| Overlay 6 command slot | `$413800-$416FFF` | `14336` | Full overlay-window snapshot for overlay 6. |
-| Overlay 7 command slot | `$417000-$41A7FF` | `14336` | Full overlay-window snapshot for overlay 7. |
-| Overlay 8 command slot | `$41A800-$41DFFF` | `14336` | Full overlay-window snapshot for overlay 8. |
-| Cache bank 2 free tail | `$41E000-$41FFFF` | `8192` | Unused tail after the four fixed slots in bank 0x41. |
-| Shared cache bank 3 | `$420000-$42FFFF` | `65536` | Fixed ReadyShell cache bank holding overlay 9, the prompt editor. |
-| Overlay 9 editor slot | `$420000-$4237FF` | `14336` | Full overlay-window snapshot for overlay 9. |
-| Cache bank 3 free tail | `$423800-$42FFFF` | `51200` | Unused tail after the editor slot in bank 0x42. |
+| Shared cache bank 1 | `$3A0000-$3AFFFF` | `65536` | Loader-assigned ReadyShell resource bank holding overlays 1, 2, 3, and 5 (current generated EasyFlash assignment). |
+| Overlay 1 parse slot | `$3A0000-$3A37FF` | `14336` | Full overlay-window snapshot for overlay 1. |
+| Overlay 2 exec slot | `$3A3800-$3A6FFF` | `14336` | Full overlay-window snapshot for overlay 2. |
+| Overlay 3 command slot | `$3A7000-$3AA7FF` | `14336` | Full overlay-window snapshot for overlay 3. |
+| Overlay 5 command slot | `$3AA800-$3ADFFF` | `14336` | Full overlay-window snapshot for overlay 5. |
+| Cache bank 1 free tail | `$3AE000-$3AFFFF` | `8192` | Unused tail after the four cache slots in assigned bank 1. |
+| Shared cache bank 2 | `$3B0000-$3BFFFF` | `65536` | Loader-assigned ReadyShell resource bank holding overlays 4, 6, 7, and 8 (current generated EasyFlash assignment). |
+| Overlay 4 command slot | `$3B0000-$3B37FF` | `14336` | Full overlay-window snapshot for overlay 4. |
+| Overlay 6 command slot | `$3B3800-$3B6FFF` | `14336` | Full overlay-window snapshot for overlay 6. |
+| Overlay 7 command slot | `$3B7000-$3BA7FF` | `14336` | Full overlay-window snapshot for overlay 7. |
+| Overlay 8 command slot | `$3BA800-$3BDFFF` | `14336` | Full overlay-window snapshot for overlay 8. |
+| Cache bank 2 free tail | `$3BE000-$3BFFFF` | `8192` | Unused tail after the four cache slots in assigned bank 2. |
+| Shared cache bank 3 | `$3C0000-$3CFFFF` | `65536` | Loader-assigned ReadyShell resource bank holding overlay 9, the prompt editor (current generated EasyFlash assignment). |
+| Overlay 9 editor slot | `$3C0000-$3C37FF` | `14336` | Full overlay-window snapshot for overlay 9. |
+| Cache bank 3 free tail | `$3C3800-$3CFFFF` | `51200` | Unused tail after the editor slot in assigned bank 3. |
 | Debug trace ring | `$43F000-$43F20F` | `528` | Overlay debug markers and verification state. |
 | Command scratch | `$480000-$487FFF` | `32768` | Inter-overlay handoff area for command frames and streaming state. |
 | Command registry header | `$488010-$488017` | `8` | REU-backed external-command registry header. |
@@ -57,62 +57,62 @@ Artifact-backed report generated from the current local ReadyShell build, linker
 ## Shared Overlay Cache Visual
 
 ```text
-REU bank 0x40
+REU bank 0x3A
 
-+----------------------------------------+ $400000
++----------------------------------------+ $3A0000
 | overlay 1 parse slot                   |
 | full overlay-window image: 0x3800      |
 | active file: rsparser.prg              |
-+----------------------------------------+ $403800
++----------------------------------------+ $3A3800
 | overlay 2 exec slot                    |
 | full overlay-window image: 0x3800      |
 | active file: rsvm.prg                  |
-+----------------------------------------+ $407000
++----------------------------------------+ $3A7000
 | overlay 3 command slot                 |
 | full overlay-window image: 0x3800      |
 | active file: rsdrvilst.prg             |
-+----------------------------------------+ $40A800
++----------------------------------------+ $3AA800
 | overlay 5 command slot                 |
 | full overlay-window image: 0x3800      |
 | active file: rsstv.prg                 |
-+----------------------------------------+ $40E000
++----------------------------------------+ $3AE000
 | free tail                              |
 | 0x2000 bytes                           |
-+----------------------------------------+ $40FFFF
++----------------------------------------+ $3AFFFF
 
-REU bank 0x41
+REU bank 0x3B
 
-+----------------------------------------+ $410000
++----------------------------------------+ $3B0000
 | overlay 4 command slot                 |
 | full overlay-window image: 0x3800      |
 | active file: rsldv.prg                 |
-+----------------------------------------+ $413800
++----------------------------------------+ $3B3800
 | overlay 6 command slot                 |
 | full overlay-window image: 0x3800      |
 | active file: rsfops.prg                |
-+----------------------------------------+ $417000
++----------------------------------------+ $3B7000
 | overlay 7 command slot                 |
 | full overlay-window image: 0x3800      |
 | active file: rscat.prg                 |
-+----------------------------------------+ $41A800
++----------------------------------------+ $3BA800
 | overlay 8 command slot                 |
 | full overlay-window image: 0x3800      |
 | active file: rscopy.prg                |
-+----------------------------------------+ $41E000
++----------------------------------------+ $3BE000
 | free tail                              |
 | 0x2000 bytes                           |
-+----------------------------------------+ $41FFFF
++----------------------------------------+ $3BFFFF
 
-REU bank 0x42
+REU bank 0x3C
 
-+----------------------------------------+ $420000
++----------------------------------------+ $3C0000
 | overlay 9 prompt editor slot           |
 | full overlay-window image: 0x3800      |
 | active file: rsedit.prg                |
-+----------------------------------------+ $423800
++----------------------------------------+ $3C3800
 | free tail                              |
 | 0xc800 bytes                           |
-+----------------------------------------+ $42FFFF
++----------------------------------------+ $3CFFFF
 ```
 
 ## Command Scratch And Value Arena Usage
@@ -137,22 +137,22 @@ REU bank 0x42
 - Registry capacity check: `rs_cmd_registry.c` seeds `10` external command descriptors into `16` reserved descriptor slots and `6` overlay-state rows into `6` reserved state slots.
 - Metadata-page packing check: the full ReadyShell metadata block fits inside `$488000-$4880FF`. Header uses `$488010-$488017`, descriptor rows reserve `$488020-$48807F` with live rows ending at `$48805B`, state rows reserve `$488080-$4880EB` with live rows ending at `$4880EB`, shared metadata uses `$4880F0-$4880FB`, and the pause flag sits at `$4880FC`.
 - Non-overlap check: command scratch ends at `$487FFF` and REU heap metadata begins at `$488000`; the state table ends at `$4880EB` and shared metadata begins at `$4880F0`; shared metadata ends at `$4880FB` and the pause flag is `$4880FC`; the value arena begins at `$488100`.
-- Cache-slot audit: ReadyShell caches overlays 1-9. Bank `0x40` carries overlays `1`, `2`, `3`, and `5`; bank `0x41` carries overlays `4`, `6`, `7`, and `8`; bank `0x42` carries overlay `9`. Every slot is a full `14336`-byte overlay-window snapshot.
+- Cache-slot audit: ReadyShell caches overlays 1-9. Bank `0x3A` carries overlays `1`, `2`, `3`, and `5`; bank `0x3B` carries overlays `4`, `6`, `7`, and `8`; bank `0x3C` carries overlay `9`. Every slot is a full `14336`-byte overlay-window snapshot.
 - Command-source audit: `DRVI` builds output only in overlay-local RAM; `LST` writes 28-byte directory records into shared scratch; `LDV` streams RSV1 payloads into scratch and materializes persistent values into the REU heap arena; `STV` serializes into scratch and dereferences pointer-backed values from the arena; `DEL` and `REN` issue direct DOS commands without REU staging; `PUT` and `ADD` use scratch metadata plus a text spool; `CAT` uses a scratch record table plus line-data spool; `COPY` stays overlay-local with `g_copy_buf[128]`.
 
 ## Overlay Inventory
 
 | Ovl | Role | Build PRG | Disk name | PRG bytes | Disk blocks | Live bytes | Window use | REU cache | Commands |
 | ---: | --- | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
-| 1 | Parser / Lexer | `rsparser.prg` | `rsparser` | `13007` | `52` | `13005` | `90.7%` | bank `0x40` slot `$400000-$4037FF` | None directly; parse phase support. |
-| 2 | Execution Core | `rsvm.prg` | `rsvm` | `14035` | `56` | `14033` | `97.9%` | bank `0x40` slot `$403800-$406FFF` | PRT, MORE, TOP, SEL, GEN, TAP and the shared execution paths that command overlays return to. |
-| 3 | Drive Info + Directory Listing | `rsdrvilst.prg` | `rsdrvilst` | `11274` | `45` | `11272` | `78.6%` | bank `0x40` slot `$407000-$40A7FF` | DRVI, LST |
-| 4 | Load Value | `rsldv.prg` | `rsldv` | `11886` | `47` | `11884` | `82.9%` | bank `0x41` slot `$410000-$4137FF` | LDV |
-| 5 | Store Value | `rsstv.prg` | `rsstv` | `10207` | `41` | `10205` | `71.2%` | bank `0x40` slot `$40A800-$40DFFF` | STV |
-| 6 | File Delete / Rename / Write | `rsfops.prg` | `rsfops` | `14335` | `57` | `14333` | `100.0%` | bank `0x41` slot `$413800-$416FFF` | DEL, REN, PUT, ADD |
-| 7 | File Read | `rscat.prg` | `rscat` | `8080` | `32` | `8078` | `56.3%` | bank `0x41` slot `$417000-$41A7FF` | CAT |
-| 8 | File Copy | `rscopy.prg` | `rscopy` | `6601` | `26` | `6599` | `46.0%` | bank `0x41` slot `$41A800-$41DFFF` | COPY |
-| 9 | Prompt Editor | `rsedit.prg` | `rsedit` | `2004` | `8` | `2002` | `14.0%` | bank `0x42` slot `$420000-$4237FF` | None directly; prompt/input phase support. |
+| 1 | Parser / Lexer | `rsparser.prg` | `rsparser` | `13007` | `52` | `13005` | `90.7%` | bank `0x3A` slot `$3A0000-$3A37FF` | None directly; parse phase support. |
+| 2 | Execution Core | `rsvm.prg` | `rsvm` | `14035` | `56` | `14033` | `97.9%` | bank `0x3A` slot `$3A3800-$3A6FFF` | PRT, MORE, TOP, SEL, GEN, TAP and the shared execution paths that command overlays return to. |
+| 3 | Drive Info + Directory Listing | `rsdrvilst.prg` | `rsdrvilst` | `11274` | `45` | `11272` | `78.6%` | bank `0x3A` slot `$3A7000-$3AA7FF` | DRVI, LST |
+| 4 | Load Value | `rsldv.prg` | `rsldv` | `11886` | `47` | `11884` | `82.9%` | bank `0x3B` slot `$3B0000-$3B37FF` | LDV |
+| 5 | Store Value | `rsstv.prg` | `rsstv` | `10207` | `41` | `10205` | `71.2%` | bank `0x3A` slot `$3AA800-$3ADFFF` | STV |
+| 6 | File Delete / Rename / Write | `rsfops.prg` | `rsfops` | `14335` | `57` | `14333` | `100.0%` | bank `0x3B` slot `$3B3800-$3B6FFF` | DEL, REN, PUT, ADD |
+| 7 | File Read | `rscat.prg` | `rscat` | `8080` | `32` | `8078` | `56.3%` | bank `0x3B` slot `$3B7000-$3BA7FF` | CAT |
+| 8 | File Copy | `rscopy.prg` | `rscopy` | `6601` | `26` | `6599` | `46.0%` | bank `0x3B` slot `$3BA800-$3BDFFF` | COPY |
+| 9 | Prompt Editor | `rsedit.prg` | `rsedit` | `2004` | `8` | `2002` | `14.0%` | bank `0x3C` slot `$3C0000-$3C37FF` | None directly; prompt/input phase support. |
 
 ## Command Topology
 
@@ -196,12 +196,12 @@ Resident ReadyShell dispatcher
 - Resident asm/runtime support: `rs_runtime_c64.s`
 - Command role: Resident app shell loop plus vm/overlay runtime. Command tokens resolved here, then dispatched to overlay 2 or command overlays.
 - Current linker-visible resident footprint:
-  - `CODE` `0x6E64`
-  - `RODATA` `0x040D`
+  - `CODE` `0x66E8`
+  - `RODATA` `0x03EC`
   - `DATA` `0x0047`
   - `INIT` `0x001C`
   - `ONCE` `0x0038`
-  - `BSS` `0x01F7`
+  - `BSS` `0x017A`
 
 ## Per-Overlay Details
 
@@ -216,7 +216,7 @@ Resident ReadyShell dispatcher
 - Runtime bytes in overlay window: `13005` at `$8E00-$C0CC`
 - Window share: `90.7%` used, `1331` bytes free
 - Disk footprint: `13007` bytes, `52` D71 blocks
-- REU policy: Boot-loaded from disk during shell startup, then restored from bank `0x40` slot `$400000-$4037FF` as a full `0x3800`-byte overlay-window snapshot.
+- REU policy: Boot-loaded from disk during shell startup, then restored from bank `0x3A` slot `$3A0000-$3A37FF` as a full `0x3800`-byte overlay-window snapshot.
 - RAM notes: Lives entirely inside the shared overlay window while active.
 
 ### Overlay 2: Execution Core
@@ -230,7 +230,7 @@ Resident ReadyShell dispatcher
 - Runtime bytes in overlay window: `14033` at `$8E00-$C4D0`
 - Window share: `97.9%` used, `303` bytes free
 - Disk footprint: `14035` bytes, `56` D71 blocks
-- REU policy: Boot-loaded from disk during shell startup, then restored from bank `0x40` slot `$403800-$406FFF` as a full `0x3800`-byte overlay-window snapshot.
+- REU policy: Boot-loaded from disk during shell startup, then restored from bank `0x3A` slot `$3A3800-$3A6FFF` as a full `0x3800`-byte overlay-window snapshot.
 - RAM notes: Includes rs_vm_fmt_buf[128] and rs_vm_line_buf[384] inside the overlay image.
 
 ### Overlay 3: Drive Info + Directory Listing
@@ -244,7 +244,7 @@ Resident ReadyShell dispatcher
 - Runtime bytes in overlay window: `11272` at `$8E00-$BA07`
 - Window share: `78.6%` used, `3064` bytes free
 - Disk footprint: `11274` bytes, `45` D71 blocks
-- REU policy: Boot-loaded from disk during shell startup, then restored from bank `0x40` slot `$407000-$40A7FF` as a full `0x3800`-byte overlay-window snapshot.
+- REU policy: Boot-loaded from disk during shell startup, then restored from bank `0x3A` slot `$3A7000-$3AA7FF` as a full `0x3800`-byte overlay-window snapshot.
 - RAM notes: Shares the inter-command REU handoff area at 0x480000-0x487FFF.
 
 ### Overlay 4: Load Value
@@ -258,7 +258,7 @@ Resident ReadyShell dispatcher
 - Runtime bytes in overlay window: `11884` at `$8E00-$BC6B`
 - Window share: `82.9%` used, `2452` bytes free
 - Disk footprint: `11886` bytes, `47` D71 blocks
-- REU policy: Boot-loaded from disk during shell startup, then restored from bank `0x41` slot `$410000-$4137FF` as a full `0x3800`-byte overlay-window snapshot.
+- REU policy: Boot-loaded from disk during shell startup, then restored from bank `0x3B` slot `$3B0000-$3B37FF` as a full `0x3800`-byte overlay-window snapshot.
 - RAM notes: Uses the shared handoff region plus the REU-backed value arena in bank 0x48 when hydrating pointer-backed values.
 
 ### Overlay 5: Store Value
@@ -272,7 +272,7 @@ Resident ReadyShell dispatcher
 - Runtime bytes in overlay window: `10205` at `$8E00-$B5DC`
 - Window share: `71.2%` used, `4131` bytes free
 - Disk footprint: `10207` bytes, `41` D71 blocks
-- REU policy: Boot-loaded from disk during shell startup, then restored from bank `0x40` slot `$40A800-$40DFFF` as a full `0x3800`-byte overlay-window snapshot.
+- REU policy: Boot-loaded from disk during shell startup, then restored from bank `0x3A` slot `$3AA800-$3ADFFF` as a full `0x3800`-byte overlay-window snapshot.
 - RAM notes: Uses the shared handoff region plus the REU-backed value arena in bank 0x48 when serializing pointer-backed values.
 
 ### Overlay 6: File Delete / Rename / Write
@@ -286,7 +286,7 @@ Resident ReadyShell dispatcher
 - Runtime bytes in overlay window: `14333` at `$8E00-$C5FC`
 - Window share: `100.0%` used, `3` bytes free
 - Disk footprint: `14335` bytes, `57` D71 blocks
-- REU policy: Boot-loaded from disk during shell startup, then restored from bank `0x41` slot `$413800-$416FFF` as a full `0x3800`-byte overlay-window snapshot.
+- REU policy: Boot-loaded from disk during shell startup, then restored from bank `0x3B` slot `$3B3800-$3B6FFF` as a full `0x3800`-byte overlay-window snapshot.
 - RAM notes: Keeps file-operation staging and transient command state in overlay-local code plus the shared REU scratch region.
 
 ### Overlay 7: File Read
@@ -300,7 +300,7 @@ Resident ReadyShell dispatcher
 - Runtime bytes in overlay window: `8078` at `$8E00-$AD8D`
 - Window share: `56.3%` used, `6258` bytes free
 - Disk footprint: `8080` bytes, `32` D71 blocks
-- REU policy: Boot-loaded from disk during shell startup, then restored from bank `0x41` slot `$417000-$41A7FF` as a full `0x3800`-byte overlay-window snapshot.
+- REU policy: Boot-loaded from disk during shell startup, then restored from bank `0x3B` slot `$3B7000-$3BA7FF` as a full `0x3800`-byte overlay-window snapshot.
 - RAM notes: Uses overlay-local file I/O logic plus shared REU scratch when line staging is needed.
 
 ### Overlay 8: File Copy
@@ -314,7 +314,7 @@ Resident ReadyShell dispatcher
 - Runtime bytes in overlay window: `6599` at `$8E00-$A7C6`
 - Window share: `46.0%` used, `7737` bytes free
 - Disk footprint: `6601` bytes, `26` D71 blocks
-- REU policy: Boot-loaded from disk during shell startup, then restored from bank `0x41` slot `$41A800-$41DFFF` as a full `0x3800`-byte overlay-window snapshot.
+- REU policy: Boot-loaded from disk during shell startup, then restored from bank `0x3B` slot `$3BA800-$3BDFFF` as a full `0x3800`-byte overlay-window snapshot.
 - RAM notes: Uses an overlay-local 128-byte transfer buffer plus direct DOS copy or streamed file I/O. It does not use the shared REU scratch or value arena.
 
 ### Overlay 9: Prompt Editor
@@ -328,15 +328,15 @@ Resident ReadyShell dispatcher
 - Runtime bytes in overlay window: `2002` at `$8E00-$95D1`
 - Window share: `14.0%` used, `12334` bytes free
 - Disk footprint: `2004` bytes, `8` D71 blocks
-- REU policy: Boot-loaded from disk during shell startup, then restored from bank `0x42` slot `$420000-$4237FF` as a full `0x3800`-byte overlay-window snapshot.
+- REU policy: Boot-loaded from disk during shell startup, then restored from bank `0x3C` slot `$3C0000-$3C37FF` as a full `0x3800`-byte overlay-window snapshot.
 - RAM notes: Keeps the editable physical-line buffer overlay-local; the final logical command line remains resident in g_line.
 
 ## Observations
 
 - Overlay 2 is effectively full: `14033` of `14336` bytes (`97.9%`).
 - Overlay 1 is also large at `13005` bytes (`90.7%`).
-- The resident heap below the overlay load address is only `2246` bytes, so large transient work must lean on overlays and REU-backed storage.
-- ReadyShell now uses three fixed REU cache banks: `0x40` for overlays `1`, `2`, `3`, and `5`; `0x41` for overlays `4`, `6`, `7`, and `8`; and `0x42` for overlay `9`.
-- Bank `0x40` leaves `8192` bytes free; bank `0x41` leaves `8192` bytes free; bank `0x42` leaves `51200` bytes free.
-- External commands now pay a one-time boot preload cost instead of a repeated disk-load cost during each command call.
+- The resident heap below the overlay load address is only `4322` bytes, so large transient work must lean on overlays and REU-backed storage.
+- ReadyShell now uses three loader-assigned REU resource banks (current generated EasyFlash assignment): `0x3A` for overlays `1`, `2`, `3`, and `5`; `0x3B` for overlays `4`, `6`, `7`, and `8`; and `0x3C` for overlay `9` in this artifact.
+- Assigned bank 1 leaves `8192` bytes free; assigned bank 2 leaves `8192` bytes free; assigned bank 3 leaves `51200` bytes free.
+- External commands now pay a launcher/loader preload cost instead of a repeated disk-load cost during each command call.
 - Overlay 2 carries the shared formatting buffers, so its footprint reflects both command support code and the text-rendering scratch it owns.

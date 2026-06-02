@@ -58,7 +58,7 @@ def main() -> int:
 
     require("REU_READYOS_GLOBAL_PHYSICAL()" in src, "control mirror records ReadyOS global bank")
     require("REU_LAUNCHER_PHYSICAL()" in src, "control mirror records launcher bank")
-    require("REU_BANK_RS_CACHE3" in src, "control mirror records ReadyShell third cache bank")
+    require("REU_BANK_RS_CACHE" not in src, "control mirror no longer records fixed ReadyShell cache banks")
     require("REU_BANK_RS_SCRATCH" in src, "control mirror records ReadyShell scratch bank")
     require("REU_BANK_RB_CORE" in src and "REU_BANK_RB_CODE" in src,
             "control mirror records ReadyBASIC core/code banks")

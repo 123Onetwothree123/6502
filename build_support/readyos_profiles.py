@@ -699,7 +699,7 @@ def parse_catalog_entries(profile: Dict[str, object], catalog_override: str | No
     _system, _launcher, apps = apps_catalog.parse_source(str(source))
     entries = []
     for entry, desc in apps:
-        drive, prg, label, _slot = apps_catalog.parse_app_entry(entry, str(source), 1)
+        drive, prg, label, _slot, _resource = apps_catalog.parse_app_entry(entry, str(source), 1)
         entries.append({
             "drive": drive,
             "prg": prg,

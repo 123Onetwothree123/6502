@@ -34,12 +34,12 @@ static const unsigned char g_cmd_seed[RS_CMD_REG_DESC_COUNT][RS_REU_CMD_REG_DESC
 };
 
 static const unsigned char g_state_seed[RS_CMD_REG_STATE_COUNT][RS_REU_CMD_REG_STATE_LEN] = {
-  { RS_OVERLAY_PHASE_CMD3, (unsigned char)(RS_CMD_OVL_LOAD_F_DISK | RS_CMD_OVL_LOAD_F_REU_CACHE), 0u, RS_REU_OVL_CACHE_BANK,  (unsigned char)(RS_REU_OVL_CACHE_CMD3_REL & 0xFFu), (unsigned char)((RS_REU_OVL_CACHE_CMD3_REL >> 8u) & 0xFFu), 'r', 's', 'd', 'r', 'v', 'i', 'l', 's', 't', 0u, 0u, 0u },
-  { RS_OVERLAY_PHASE_CMD4, (unsigned char)(RS_CMD_OVL_LOAD_F_DISK | RS_CMD_OVL_LOAD_F_REU_CACHE), 0u, RS_REU_OVL_CACHE_BANK2, (unsigned char)(RS_REU_OVL_CACHE_CMD4_REL & 0xFFu), (unsigned char)((RS_REU_OVL_CACHE_CMD4_REL >> 8u) & 0xFFu), 'r', 's', 'l', 'd', 'v', 0u, 0u, 0u, 0u, 0u, 0u, 0u },
-  { RS_OVERLAY_PHASE_CMD5, (unsigned char)(RS_CMD_OVL_LOAD_F_DISK | RS_CMD_OVL_LOAD_F_REU_CACHE), 0u, RS_REU_OVL_CACHE_BANK,  (unsigned char)(RS_REU_OVL_CACHE_CMD5_REL & 0xFFu), (unsigned char)((RS_REU_OVL_CACHE_CMD5_REL >> 8u) & 0xFFu), 'r', 's', 's', 't', 'v', 0u, 0u, 0u, 0u, 0u, 0u, 0u },
-  { RS_OVERLAY_PHASE_CMD6, (unsigned char)(RS_CMD_OVL_LOAD_F_DISK | RS_CMD_OVL_LOAD_F_REU_CACHE), 0u, RS_REU_OVL_CACHE_BANK2, (unsigned char)(RS_REU_OVL_CACHE_CMD6_REL & 0xFFu), (unsigned char)((RS_REU_OVL_CACHE_CMD6_REL >> 8u) & 0xFFu), 'r', 's', 'f', 'o', 'p', 's', 0u, 0u, 0u, 0u, 0u, 0u },
-  { RS_OVERLAY_PHASE_CMD7, (unsigned char)(RS_CMD_OVL_LOAD_F_DISK | RS_CMD_OVL_LOAD_F_REU_CACHE), 0u, RS_REU_OVL_CACHE_BANK2, (unsigned char)(RS_REU_OVL_CACHE_CMD7_REL & 0xFFu), (unsigned char)((RS_REU_OVL_CACHE_CMD7_REL >> 8u) & 0xFFu), 'r', 's', 'c', 'a', 't', 0u, 0u, 0u, 0u, 0u, 0u, 0u },
-  { RS_OVERLAY_PHASE_CMD8, (unsigned char)(RS_CMD_OVL_LOAD_F_DISK | RS_CMD_OVL_LOAD_F_REU_CACHE), 0u, RS_REU_OVL_CACHE_BANK2, (unsigned char)(RS_REU_OVL_CACHE_CMD8_REL & 0xFFu), (unsigned char)((RS_REU_OVL_CACHE_CMD8_REL >> 8u) & 0xFFu), 'r', 's', 'c', 'o', 'p', 'y', 0u, 0u, 0u, 0u, 0u, 0u }
+  { RS_OVERLAY_PHASE_CMD3, (unsigned char)(RS_CMD_OVL_LOAD_F_DISK | RS_CMD_OVL_LOAD_F_REU_CACHE), 0u, 0u, (unsigned char)(RS_REU_OVL_CACHE_CMD3_REL & 0xFFu), (unsigned char)((RS_REU_OVL_CACHE_CMD3_REL >> 8u) & 0xFFu), 'r', 's', 'd', 'r', 'v', 'i', 'l', 's', 't', 0u, 0u, 0u },
+  { RS_OVERLAY_PHASE_CMD4, (unsigned char)(RS_CMD_OVL_LOAD_F_DISK | RS_CMD_OVL_LOAD_F_REU_CACHE), 0u, 0u, (unsigned char)(RS_REU_OVL_CACHE_CMD4_REL & 0xFFu), (unsigned char)((RS_REU_OVL_CACHE_CMD4_REL >> 8u) & 0xFFu), 'r', 's', 'l', 'd', 'v', 0u, 0u, 0u, 0u, 0u, 0u, 0u },
+  { RS_OVERLAY_PHASE_CMD5, (unsigned char)(RS_CMD_OVL_LOAD_F_DISK | RS_CMD_OVL_LOAD_F_REU_CACHE), 0u, 0u, (unsigned char)(RS_REU_OVL_CACHE_CMD5_REL & 0xFFu), (unsigned char)((RS_REU_OVL_CACHE_CMD5_REL >> 8u) & 0xFFu), 'r', 's', 's', 't', 'v', 0u, 0u, 0u, 0u, 0u, 0u, 0u },
+  { RS_OVERLAY_PHASE_CMD6, (unsigned char)(RS_CMD_OVL_LOAD_F_DISK | RS_CMD_OVL_LOAD_F_REU_CACHE), 0u, 0u, (unsigned char)(RS_REU_OVL_CACHE_CMD6_REL & 0xFFu), (unsigned char)((RS_REU_OVL_CACHE_CMD6_REL >> 8u) & 0xFFu), 'r', 's', 'f', 'o', 'p', 's', 0u, 0u, 0u, 0u, 0u, 0u },
+  { RS_OVERLAY_PHASE_CMD7, (unsigned char)(RS_CMD_OVL_LOAD_F_DISK | RS_CMD_OVL_LOAD_F_REU_CACHE), 0u, 0u, (unsigned char)(RS_REU_OVL_CACHE_CMD7_REL & 0xFFu), (unsigned char)((RS_REU_OVL_CACHE_CMD7_REL >> 8u) & 0xFFu), 'r', 's', 'c', 'a', 't', 0u, 0u, 0u, 0u, 0u, 0u, 0u },
+  { RS_OVERLAY_PHASE_CMD8, (unsigned char)(RS_CMD_OVL_LOAD_F_DISK | RS_CMD_OVL_LOAD_F_REU_CACHE), 0u, 0u, (unsigned char)(RS_REU_OVL_CACHE_CMD8_REL & 0xFFu), (unsigned char)((RS_REU_OVL_CACHE_CMD8_REL >> 8u) & 0xFFu), 'r', 's', 'c', 'o', 'p', 'y', 0u, 0u, 0u, 0u, 0u, 0u }
 };
 
 static unsigned long rs_cmd_reg_desc_abs(unsigned char index) {
@@ -169,4 +169,24 @@ int rs_cmd_registry_update_overlay_state(unsigned char index,
   }
   state = (unsigned char)((state & (unsigned char)(~clear_mask)) | set_mask);
   return rs_reu_write(off, &state, 1u);
+}
+
+int rs_cmd_registry_apply_overlay_banks(unsigned char bank1,
+                                        unsigned char bank2) {
+  unsigned char i;
+  unsigned char bank;
+  unsigned long off;
+
+  if (bank1 == 0u || bank2 == 0u || rs_cmd_registry_ensure_seeded() != 0) {
+    return -1;
+  }
+
+  for (i = 0u; i < RS_CMD_REG_STATE_COUNT; ++i) {
+    bank = (i == 0u || i == 2u) ? bank1 : bank2;
+    off = rs_cmd_reg_state_abs(i) + RS_CMD_REG_STATE_CACHE_BANK_OFF;
+    if (rs_reu_write(off, &bank, 1u) != 0) {
+      return -1;
+    }
+  }
+  return 0;
 }

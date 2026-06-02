@@ -243,7 +243,7 @@ def parse_apps_catalog(path):
         entry_no, entry_line = apps_section[i]
         i += 1
         parts = [p.strip() for p in entry_line.split(":")]
-        if len(parts) not in (3, 4):
+        if len(parts) not in (3, 4, 5):
             raise ValueError(f"{path}:{entry_no}: malformed catalog line: {entry_line!r}")
         drive_raw, prg, label = parts[:3]
         if not drive_raw.isdigit():
@@ -465,7 +465,7 @@ def parse_apps_catalog_bytes(raw):
         entry_line = apps_section[i]
         i += 1
         parts = [p.strip() for p in entry_line.split(":")]
-        if len(parts) not in (3, 4):
+        if len(parts) not in (3, 4, 5):
             raise ValueError(f"malformed disk catalog line: {entry_line!r}")
         drive_raw, prg, label = parts[:3]
         if not drive_raw.isdigit():

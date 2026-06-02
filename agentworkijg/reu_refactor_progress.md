@@ -6,23 +6,25 @@
 
 ## Current Focus
 
-- Dynamic app snapshot allocation milestone:
-  - keep the bank `0` mirror baseline intact;
-  - allow 64 app catalog entries;
-  - allocate app snapshot logical banks lazily at load time;
-  - keep the shim unchanged and keep `$C836-$C838` as the legacy low-bank
-    bitmap only;
-  - support cartridge-preloaded app state above the shim bitmap;
-  - add unload for disk launcher app snapshots.
+- ReadyShell `rsovl` resource milestone:
+  - keep the bank `0` mirror and dynamic app allocation baseline intact;
+  - remove ReadyShell overlay cache banks `$40/$41/$42` as fixed global
+    reservations;
+  - make the launcher/loader allocate or generate three ReadyShell cache banks;
+  - keep the shim unchanged;
+  - keep ReadyShell bank `$48` scratch/state/value storage fixed for this
+    phase;
+  - preserve ReadyShell's existing `0x3800` slot geometry inside each assigned
+    cache bank.
 
 ## Non-Goals For Current Focus
 
 - No runtime manifest parser.
-- No ReadyShell or ReadyBASIC dynamic bank consumption.
 - No service invocation implementation.
-- No arbitrary dependency/overlay loader yet. Existing app manifests can add a
-  single app entry, but generalized `requires`/overlay/module preload records
-  are not implemented in this milestone.
+- No ReadyBASIC dynamic bank consumption.
+- No arbitrary runtime dependency parser yet. ReadyShell `rsovl` is a generated
+  and catalog-token resource contract, not a general manifest `requires`
+  interpreter.
 
 ## Implemented In This Milestone
 
@@ -40,7 +42,7 @@
 - Fixed-resource records now describe:
   - ReadyOS global/control bank;
   - launcher snapshot and launcher overlay;
-  - ReadyShell cache `$40/$41/$42`, debug `$43`, scratch `$48`;
+  - ReadyShell debug `$43` and scratch/state/value bank `$48`;
   - ReadyBASIC core/code `$44/$45`.
 - Launcher now supports dynamic app snapshot allocation:
   - `APP_SLOT_CAPACITY` is `64`;
@@ -84,6 +86,43 @@
 - Added `build_support/report_app_headroom.py` and generated
   `agentworkijg/reu_refactor_headroom_current.json`.
 
+## ReadyShell `rsovl` Milestone
+
+- Config/catalog:
+  - ReadyShell catalog entries now carry the `rsovl` resource token;
+  - `build_support/build_apps_catalog_petscii.py` accepts optional resource
+    tokens after the app slot/hotkey field;
+  - app manifests can preserve the same resource token through generated app
+    entries.
+- Disk launcher:
+  - allocates three physical `REU_RS_CACHE` banks for ReadyShell on demand;
+  - streams `rsparser`, `rsvm`, `rsdrvilst`, `rsldv`, `rsstv`, `rsfops`,
+    `rscat`, `rscopy`, and `rsedit` PRGs directly into those REU slots;
+  - writes the assigned bank ids and preload bitmap into the shared ReadyShell
+    metadata block before app entry;
+  - frees those app-owned resource banks from launcher-owned unload paths.
+- EasyFlash:
+  - the builder allocates three ReadyShell cache banks from generated free
+    physical banks;
+  - `boot_easyflash_asm.s` still preloads overlays, but uses generated
+    `READYSHELL_CACHE_BANK*` symbols rather than hard-coded `$40/$41/$42`;
+  - `launcher_easyflash_catalog.h` carries generated resource-set metadata.
+- ReadyShell runtime:
+  - removed fixed cache-bank constants from `rs_ui_state.h`;
+  - reads assigned cache-bank ids from `$4880F0`;
+  - patches command-registry overlay-bank fields through
+    `rs_cmd_registry_apply_overlay_banks`;
+  - restores overlays through assigned bank globals plus the existing slot
+    offsets;
+  - removed the legacy disk-side overlay self-loader/cache-writer fallback, so
+    invalid `rsovl` metadata is now a loader failure rather than app-owned
+    recovery.
+- Resource/control mirror:
+  - removed fixed ReadyShell cache records from the compact resource table;
+  - the resident bank table now reflects dynamic `REU_RS_CACHE` ownership when
+    launcher/EasyFlash allocate the banks;
+  - shim remains unchanged.
+
 ## Verification Log
 
 - `make bin/launcher.prg bin/launcher_easyflash.prg`
@@ -107,6 +146,8 @@
 - `python3 build_support/report_app_headroom.py --output agentworkijg/reu_refactor_headroom_current.json`
   - passed;
   - current tightest app-window case is ReadyBASIC with 1031 bytes of headroom.
+  - ReadyShell now has 18660 bytes of headroom after removing the old overlay
+    self-loader/cache-writer code.
 - `python3 build_support/verify_memory_map.py`
   - passed.
 - `python3 build_support/verify_readyos_shim.py --check-easyflash-bin`
@@ -118,6 +159,27 @@
 - `make easyflash-verify`
   - passed;
   - VICE EasyFlash smoke reported preload bitmap `fe ff 3f`.
+- `python3 -m py_compile build_support/readyshell_overlay_report.py build_support/build_apps_catalog_petscii.py build_support/readyos_easyflash.py build_support/readyos_profiles.py build_support/verify_dynamic_launcher.py build_support/verify_memory_map.py build_support/verify_reu_control_bank.py build_support/vice_easyflash_smoke.py verify.py`
+  - passed after ReadyShell `rsovl` source/tooling changes.
+- `make readyshell-overlay-report`
+  - passed;
+  - regenerated the ReadyShell overlay inventory docs with loader-assigned bank
+    wording.
+- `make bin/readyshell.prg bin/readyshell_easyflash.prg`
+  - passed after removing ReadyShell's app-side overlay self-loader fallback.
+- `build_support/run_readyshell_cross_app_resume_probe.sh`
+  - passed;
+  - reached ReadyShell from Editor, ran `VER`, ran overlay-backed
+    `LST "RSHELP"`, then verified `VER` still worked after overlay execution;
+  - rerun after removing ReadyShell's app-side overlay self-loader also passed
+    in `logs/vice_auto_20260602_111230`.
+- `make readyshell-host-tests`
+  - passed;
+  - existing static-inline/header warnings remain but did not indicate a new
+    failure.
+- `make easyflash-verify`
+  - rerun after removing ReadyShell's app-side overlay self-loader passed;
+  - VICE EasyFlash smoke again reported preload bitmap `fe ff 3f`.
 - `make readybasic-demo-vice`
   - passed separately after fixing low-bank allocation;
   - previous Editor-return failure no longer reproduces.
@@ -142,8 +204,8 @@
   - browse/load an app manifest and then launch it.
 - Add cartridge VICE coverage for app counts above 23 once a synthetic
   EasyFlash catalog fixture is added.
-- Convert existing ReadyShell EasyFlash preload facts into generated dependency
-  metadata before changing ReadyShell runtime bank use.
+- Keep ReadyShell `rsovl` generated dependency metadata as the shared disk and
+  EasyFlash contract.
 - Design the dependency manifest record as a build-time generated resource
   contract first. Do not implement arbitrary runtime dependency loading until
   ReadyShell/ReadyBASIC can consume the same record format.

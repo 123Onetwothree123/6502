@@ -60,3 +60,22 @@
   bank `0` mirror code stayed out of shared app libraries. Keep that boundary.
 - Unload belongs to the launcher or future ReadyOS manager. The shim remains a
   direct-bank transfer primitive and must not grow owner/free-list policy.
+- ReadyShell overlay cache banks can be dynamic without making ReadyShell own
+  allocation. The launcher/loader should allocate the `rsovl` banks, write the
+  existing `$4880F0` metadata block, and let ReadyShell consume only the bank
+  ids it needs.
+- Preserve ReadyShell's slot geometry when changing ownership. Keeping
+  `+$0000`, `+$3800`, `+$7000`, `+$A800` avoided a broad ReadyShell rewrite and
+  confined app impact to metadata read/registry patching.
+- Do not use the shim app preload path for ReadyShell overlay sidecars. They
+  are PRGs for the `$8E00-$C5FF` overlay window, not normal app snapshots, so
+  the disk launcher needs a small streaming loader into the assigned REU slots.
+- Once a resource set is loader-owned, do not leave an app-side fallback that
+  silently recreates ownership. Removing ReadyShell's overlay self-loader made
+  metadata failure explicit and improved resident headroom.
+- Cartridge/EasyFlash dynamic banks must be generated, not guessed. The boot
+  assembly can still preload ReadyShell overlays, but its cache bank constants
+  now come from generated layout artifacts.
+- The ReadyShell `$48` scratch/state/value bank intentionally stayed fixed in
+  this phase. Moving overlay cache banks first kept the resource refactor small
+  enough to verify with host tests, disk VICE probes, and EasyFlash smoke.

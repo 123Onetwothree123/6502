@@ -441,9 +441,6 @@ def main():
     try:
         reu_total = parse_define(ROOT / "src" / "lib" / "reu_mgr.h", "REU_TOTAL_BANKS")
         reu_first = parse_define(ROOT / "src" / "lib" / "reu_mgr.h", "REU_FIRST_DYNAMIC")
-        reu_rs_cache = parse_define(ROOT / "src" / "lib" / "reu_mgr.h", "REU_BANK_RS_CACHE")
-        reu_rs_cache2 = parse_define(ROOT / "src" / "lib" / "reu_mgr.h", "REU_BANK_RS_CACHE2")
-        reu_rs_cache3 = parse_define(ROOT / "src" / "lib" / "reu_mgr.h", "REU_BANK_RS_CACHE3")
         reu_rs_debug = parse_define(ROOT / "src" / "lib" / "reu_mgr.h", "REU_BANK_RS_DEBUG")
         reu_rs_scratch = parse_define(ROOT / "src" / "lib" / "reu_mgr.h", "REU_BANK_RS_SCRATCH")
         reu_skip_addr = parse_pointer_define(ROOT / "src" / "lib" / "reu_mgr.h", "SHIM_REU_BANK_SKIP")
@@ -459,9 +456,9 @@ def main():
         ok &= check("SHIM_REU_BANK_SKIP address",
                     reu_skip_addr == parse_int(spec["reu_contract"]["shim_reu_bank_skip_addr"]),
                     hex(reu_skip_addr))
-        ok &= check("REU bank RS cache", reu_rs_cache == int(spec["reu_contract"]["bank_rs_cache"]), str(reu_rs_cache))
-        ok &= check("REU bank RS cache2", reu_rs_cache2 == int(spec["reu_contract"]["bank_rs_cache2"]), str(reu_rs_cache2))
-        ok &= check("REU bank RS cache3", reu_rs_cache3 == int(spec["reu_contract"]["bank_rs_cache3"]), str(reu_rs_cache3))
+        ok &= check("REU ReadyShell cache banks dynamic",
+                    "REU_BANK_RS_CACHE" not in reu_mgr_h,
+                    "cache bank constants must not be fixed")
         ok &= check("REU bank RS debug", reu_rs_debug == int(spec["reu_contract"]["bank_rs_debug"]), str(reu_rs_debug))
         ok &= check("REU bank RS scratch", reu_rs_scratch == int(spec["reu_contract"]["bank_rs_scratch"]), str(reu_rs_scratch))
     except ValueError as ex:

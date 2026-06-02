@@ -31,10 +31,8 @@
 /* Logical first dynamic bank; physical dynamic base is skip + 26. */
 #define REU_FIRST_DYNAMIC 24
 
-/* ReadyShell fixed REU ownership (absolute offsets in 0x40xxxx-0x43xxxx range) */
-#define REU_BANK_RS_CACHE 0x40
-#define REU_BANK_RS_CACHE2 0x41
-#define REU_BANK_RS_CACHE3 0x42
+/* Remaining fixed ReadyShell/ReadyBASIC support banks. Overlay cache banks are
+ * launcher-assigned REU_RS_CACHE banks, not fixed addresses. */
 #define REU_BANK_RS_DEBUG 0x43
 #define REU_BANK_RB_CORE 0x44
 #define REU_BANK_RB_CODE 0x45

@@ -371,7 +371,7 @@ def render(ctx: dict[str, object]) -> str:
     reu_overview_blocks = [
         Block("Launcher/system", 0x000000, 0x010000, "readyos", "Bank 0 logical launcher/system state."),
         Block("App snapshots", 0x020000, 24 * 0x10000, "entry", "Banks 2-25 logical app-slot snapshots."),
-        Block("ReadyShell cache/debug", 0x400000, 4 * 0x10000, "underrom", "Banks $40-$43 fixed shell cache/debug ownership."),
+        Block("ReadyShell debug/resource", 0x430000, 0x10000, "underrom", "ReadyShell debug bank; overlay cache banks are launcher/loader-assigned resources."),
         Block("ReadyBASIC $44", reu["REU_BANK_RB_CORE"] * 0x10000, 0x10000, "registry", "ReadyBASIC runtime/registry bank."),
         Block("ReadyBASIC $45", reu["REU_BANK_RB_CODE"] * 0x10000, 0x10000, "module-a", "ReadyBASIC command/module payload bank."),
         Block("Other fixed/global", 0x460000, 3 * 0x10000, "reserved", "Gaps plus ReadyShell shared state at $48."),

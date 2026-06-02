@@ -198,8 +198,9 @@ resident shell loop
                         +--&gt; run command
                         `--&gt; restore rsvm from REU</pre>
     <p class="note">
-      Disk loading is now the startup preload path and the safety fallback. The
-      normal runtime path restores overlays from REU.
+      Disk loading is now a launcher/loader preload responsibility. ReadyShell
+      expects valid assigned cache banks in shared metadata and restores
+      overlays from REU at runtime.
     </p>
   </section>
 
@@ -214,8 +215,8 @@ resident shell loop
           <tr><td>Resident app window</td><td><code>$1000-$C5FF</code></td><td>ReadyShell-owned app RAM</td></tr>
           <tr><td>Overlay load bytes</td><td><code>$8DFE-$8DFF</code></td><td>Overlay PRG load-address bytes</td></tr>
           <tr><td>Overlay execution window</td><td><code>$8E00-$C5FF</code></td><td>Shared live overlay window</td></tr>
-          <tr><td>Resident BSS</td><td><code>$8340-$8536</code></td><td>Resident writable state</td></tr>
-          <tr><td>Resident heap</td><td><code>$8538-$8DFD</code></td><td>cc65 heap below overlay load</td></tr>
+          <tr><td>Resident BSS</td><td><code>$7BA2-$7D1B</code></td><td>Resident writable state</td></tr>
+          <tr><td>Resident heap</td><td><code>$7D1C-$8DFD</code></td><td>cc65 heap below overlay load</td></tr>
           <tr><td>High runtime area</td><td><code>$CA00-$CFFF</code></td><td>Resident runtime state outside app snapshot</td></tr>
         </tbody>
       </table>
@@ -231,15 +232,15 @@ resident shell loop
           <tr><th>Overlay</th><th>File</th><th>Role</th><th>Loading</th></tr>
         </thead>
         <tbody>
-          <tr><td>1</td><td><code>rsparser.prg</code></td><td>lexer, parser, parse support</td><td>boot-preloaded, bank <code>0x40</code></td></tr>
-          <tr><td>2</td><td><code>rsvm.prg</code></td><td>values, vars, pipes, formatting, shared execution</td><td>boot-preloaded, bank <code>0x40</code></td></tr>
-          <tr><td>3</td><td><code>rsdrvilst.prg</code></td><td><code>DRVI</code>, <code>LST</code></td><td>boot-preloaded, bank <code>0x40</code></td></tr>
-          <tr><td>4</td><td><code>rsldv.prg</code></td><td><code>LDV</code></td><td>boot-preloaded, bank <code>0x41</code></td></tr>
-          <tr><td>5</td><td><code>rsstv.prg</code></td><td><code>STV</code></td><td>boot-preloaded, bank <code>0x40</code></td></tr>
-          <tr><td>6</td><td><code>rsfops.prg</code></td><td><code>DEL</code>, <code>REN</code>, <code>PUT</code>, <code>ADD</code></td><td>boot-preloaded, bank <code>0x41</code></td></tr>
-          <tr><td>7</td><td><code>rscat.prg</code></td><td><code>CAT</code></td><td>boot-preloaded, bank <code>0x41</code></td></tr>
-          <tr><td>8</td><td><code>rscopy.prg</code></td><td><code>COPY</code></td><td>boot-preloaded, bank <code>0x41</code></td></tr>
-          <tr><td>9</td><td><code>rsedit.prg</code></td><td>prompt editor, cursor/edit keys, continuation</td><td>boot-preloaded, bank <code>0x42</code></td></tr>
+          <tr><td>1</td><td><code>rsparser.prg</code></td><td>lexer, parser, parse support</td><td><code>rsovl</code> preload, assigned bank 1</td></tr>
+          <tr><td>2</td><td><code>rsvm.prg</code></td><td>values, vars, pipes, formatting, shared execution</td><td><code>rsovl</code> preload, assigned bank 1</td></tr>
+          <tr><td>3</td><td><code>rsdrvilst.prg</code></td><td><code>DRVI</code>, <code>LST</code></td><td><code>rsovl</code> preload, assigned bank 1</td></tr>
+          <tr><td>4</td><td><code>rsldv.prg</code></td><td><code>LDV</code></td><td><code>rsovl</code> preload, assigned bank 2</td></tr>
+          <tr><td>5</td><td><code>rsstv.prg</code></td><td><code>STV</code></td><td><code>rsovl</code> preload, assigned bank 1</td></tr>
+          <tr><td>6</td><td><code>rsfops.prg</code></td><td><code>DEL</code>, <code>REN</code>, <code>PUT</code>, <code>ADD</code></td><td><code>rsovl</code> preload, assigned bank 2</td></tr>
+          <tr><td>7</td><td><code>rscat.prg</code></td><td><code>CAT</code></td><td><code>rsovl</code> preload, assigned bank 2</td></tr>
+          <tr><td>8</td><td><code>rscopy.prg</code></td><td><code>COPY</code></td><td><code>rsovl</code> preload, assigned bank 2</td></tr>
+          <tr><td>9</td><td><code>rsedit.prg</code></td><td>prompt editor, cursor/edit keys, continuation</td><td><code>rsovl</code> preload, assigned bank 3</td></tr>
         </tbody>
       </table>
     </div>
@@ -358,8 +359,7 @@ lookup descriptor in REU registry
     v
 prepare external overlay from overlay-state record
     |
-    +--&gt; normal case: restore full slot from REU
-    `--&gt; fallback: load from disk and refresh cache slot
+    `--&gt; restore full slot from loader-filled REU cache
     |
     v
 call one overlay dispatcher with handler id
@@ -379,41 +379,41 @@ resident restores OVERLAY2 from REU</pre>
   <section class="grid">
     <div>
       <h2>REU Usage</h2>
-      <pre>bank 0x40
+      <pre>assigned cache bank 1
 
-+----------------------------------------+ $400000
++----------------------------------------+ +$0000
 | OVERLAY1 parse slot                    |
-+----------------------------------------+ $403800
++----------------------------------------+ +$3800
 | OVERLAY2 exec slot                     |
-+----------------------------------------+ $407000
++----------------------------------------+ +$7000
 | OVERLAY3 rsdrvilst slot                |
-+----------------------------------------+ $40A800
++----------------------------------------+ +$A800
 | OVERLAY5 rsstv slot                    |
-+----------------------------------------+ $40E000
++----------------------------------------+ +$E000
 | free tail (8192 bytes)                 |
-+----------------------------------------+ $40FFFF
++----------------------------------------+ +$FFFF
 
-bank 0x41
+assigned cache bank 2
 
-+----------------------------------------+ $410000
++----------------------------------------+ +$0000
 | OVERLAY4 rsldv slot                    |
-+----------------------------------------+ $413800
++----------------------------------------+ +$3800
 | OVERLAY6 rsfops slot                   |
-+----------------------------------------+ $417000
++----------------------------------------+ +$7000
 | OVERLAY7 rscat slot                    |
-+----------------------------------------+ $41A800
++----------------------------------------+ +$A800
 | OVERLAY8 rscopy slot                   |
-+----------------------------------------+ $41E000
++----------------------------------------+ +$E000
 | free tail (8192 bytes)                 |
-+----------------------------------------+ $41FFFF
++----------------------------------------+ +$FFFF
 
-bank 0x42
+assigned cache bank 3
 
-+----------------------------------------+ $420000
++----------------------------------------+ +$0000
 | OVERLAY9 rsedit slot                   |
-+----------------------------------------+ $423800
++----------------------------------------+ +$3800
 | free space after editor slot           |
-+----------------------------------------+ $42FFFF</pre>
++----------------------------------------+ +$FFFF</pre>
       <p class="note">
         These are full-window snapshots, not just file payloads, so writable
         overlay data survives switching.
@@ -448,10 +448,10 @@ bank 0x48
   <section>
     <h2>Current Constraints</h2>
     <ul>
-      <li>Resident heap below the overlay load address is <code>2246</code> bytes.</li>
+      <li>Resident heap below the overlay load address is <code>4322</code> bytes.</li>
       <li><code>OVERLAY6</code> is currently the tightest overlay, with only <code>3</code> bytes left in the <code>$3800</code> live window.</li>
-      <li>Cache banks <code>0x40</code> and <code>0x41</code> each leave <code>8192</code> bytes of free tail; bank <code>0x42</code> holds the small prompt editor overlay and remains mostly free.</li>
-      <li>External commands now pay a one-time startup preload cost instead of repeated disk loads during each command call.</li>
+      <li>ReadyShell overlay cache banks are launcher/loader-assigned <code>rsovl</code> resources; <code>$48</code> remains fixed for scratch/state/value storage in this phase.</li>
+      <li>External commands now consume loader-filled REU slots instead of performing disk loads during each command call.</li>
     </ul>
   </section>
 </main>

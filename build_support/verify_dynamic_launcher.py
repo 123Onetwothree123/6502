@@ -57,6 +57,12 @@ def main() -> int:
           "app_sizes[i] = APP_SAVE_SIZE;" in launcher)
     check("launcher has unload command",
           "unload_selected_from_reu" in launcher and "case TUI_KEY_F7" in launcher)
+    check("launcher owns ReadyShell overlay resource banks",
+          "APP_RESOURCE_READYSHELL_OVL" in launcher and
+          "launcher_load_readyshell_resources" in launcher and
+          "launcher_stream_prg_to_reu" in launcher)
+    check("ReadyShell resource config token is validated",
+          "RESOURCE_READYSHELL_OVL" in catalog and "rsovl" in catalog)
     check("host apps.cfg generator allows 64 apps",
           "len(apps) > 64" in catalog)
     check("global hotkeys allow dynamic logical banks",

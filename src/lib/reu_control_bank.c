@@ -52,9 +52,6 @@ static void reucb_sync_from_bitmap(void) {
         REU_ALLOC_TABLE[phys] = (bitmap_xhi & mask) ? REU_APP_STATE : REU_RESERVED;
     }
 
-    REU_ALLOC_TABLE[REU_BANK_RS_CACHE] = REU_RS_CACHE;
-    REU_ALLOC_TABLE[REU_BANK_RS_CACHE2] = REU_RS_CACHE;
-    REU_ALLOC_TABLE[REU_BANK_RS_CACHE3] = REU_RS_CACHE;
     REU_ALLOC_TABLE[REU_BANK_RS_DEBUG] = REU_RS_DEBUG;
     REU_ALLOC_TABLE[REU_BANK_RB_CORE] = REU_RB_CORE;
     REU_ALLOC_TABLE[REU_BANK_RB_CODE] = REU_RB_CODE;
@@ -120,12 +117,6 @@ static void reucb_write_resources(unsigned char control_bank) {
                          REU_LAUNCHER, REUCB_OWNER_LAUNCHER, REUCB_ROLE_SNAPSHOT);
     reucb_write_resource(control_bank, 2, REU_LAUNCHER_OVERLAY_PHYSICAL(),
                          REU_LAUNCHER, REUCB_OWNER_LAUNCHER, REUCB_ROLE_OVERLAY);
-    reucb_write_resource(control_bank, 3, REU_BANK_RS_CACHE,
-                         REU_RS_CACHE, REUCB_OWNER_READYSHELL, REUCB_ROLE_CACHE);
-    reucb_write_resource(control_bank, 4, REU_BANK_RS_CACHE2,
-                         REU_RS_CACHE, REUCB_OWNER_READYSHELL, REUCB_ROLE_CACHE);
-    reucb_write_resource(control_bank, 5, REU_BANK_RS_CACHE3,
-                         REU_RS_CACHE, REUCB_OWNER_READYSHELL, REUCB_ROLE_CACHE);
     reucb_write_resource(control_bank, 6, REU_BANK_RS_DEBUG,
                          REU_RS_DEBUG, REUCB_OWNER_READYSHELL, REUCB_ROLE_DEBUG);
     reucb_write_resource(control_bank, 7, REU_BANK_RB_CORE,

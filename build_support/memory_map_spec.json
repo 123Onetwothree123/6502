@@ -13,10 +13,12 @@
       "debug": "0x3B00"
     },
     "reu_offsets": {
-      "shared_cache_bank": "0x400000",
-      "overlay1": "0x400000",
-      "overlay2": "0x403800",
-      "overlay9": "0x420000",
+      "cache_bank1": "loader-assigned",
+      "cache_bank2": "loader-assigned",
+      "cache_bank3": "loader-assigned",
+      "overlay1_rel": "0x0000",
+      "overlay2_rel": "0x3800",
+      "overlay9_rel": "0x0000",
       "debug_head": "0x43F000",
       "debug_data": "0x43F010"
     }
@@ -38,9 +40,6 @@
     "bank_launcher_overlay": 2,
     "bank_app_base": 3,
     "bank_app_count": 23,
-    "bank_rs_cache": 64,
-    "bank_rs_cache2": 65,
-    "bank_rs_cache3": 66,
     "bank_rs_debug": 67,
     "bank_rs_scratch": 72
   },

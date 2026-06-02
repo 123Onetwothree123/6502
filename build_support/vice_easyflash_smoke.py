@@ -16,11 +16,22 @@ from typing import Dict
 ROOT = Path(__file__).resolve().parents[1]
 BIN_DIR = ROOT / "bin"
 
-EXPECTED_OVL_META = bytes([0x4F, 0x56, 0x03, 0xFF, 0x40, 0x41, 0x00, 0x38, 0x01, 0x42, 0x00, 0x00])
-
-
 def fail(message: str) -> None:
     raise ValueError(message)
+
+
+def expected_overlay_meta(layout: Dict[str, object]) -> bytes:
+    banks = list(layout.get("readyshell_cache_banks", [0, 0, 0]))
+    if len(banks) != 3:
+        fail("layout missing ReadyShell cache bank triplet")
+    return bytes([
+        0x4F, 0x56, 0x03, 0xFF,
+        int(banks[0]) & 0xFF,
+        int(banks[1]) & 0xFF,
+        0x00, 0x38, 0x01,
+        int(banks[2]) & 0xFF,
+        0x00, 0x00,
+    ])
 
 
 def payload_bytes_from_prg(path: Path) -> bytes:
@@ -323,7 +334,7 @@ def verify_preload_diagnostics(dumps: Dict[int, bytes], layout: Dict[str, object
     bitmap = expected_bitmap(layout)
     check_prefix(dumps[0xC700], bytes([0xA5]), "REU magic")
     check_prefix(dumps[0xC836], bitmap, "app preload bitmap/storage drive")
-    check_prefix(dumps[0xC7F0], EXPECTED_OVL_META, "overlay metadata")
+    check_prefix(dumps[0xC7F0], expected_overlay_meta(layout), "overlay metadata")
     ring = region_bytes(dumps, 0xC7A0, 0x50)
     for marker in (b"R", b"L", b"A", b"O", b"M", b"V"):
         if not marker_present(ring, marker):
@@ -383,7 +394,7 @@ def verify_log(output_dir: Path,
     check_prefix(region_bytes(dumps, 0x1000, len(launcher_prefix)), launcher_prefix, "launcher RAM prefix")
     check_prefix(dumps[0xC700], bytes([0xA5]), "REU magic")
     check_prefix(dumps[0xC836], bitmap, "app preload bitmap/storage drive")
-    check_prefix(dumps[0xC7F0], EXPECTED_OVL_META, "overlay metadata")
+    check_prefix(dumps[0xC7F0], expected_overlay_meta(layout), "overlay metadata")
     ring = region_bytes(dumps, 0xC7A0, 0x50)
     for marker in (b"R", b"L", b"A", b"O", b"M", b"V", b"T", b"J", b"K"):
         if not marker_present(ring, marker):

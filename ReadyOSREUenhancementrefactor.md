@@ -750,43 +750,50 @@ commit rule from the mirror-mode path.
 
 ## ReadyShell Plan
 
-ReadyShell currently uses fixed REU banks for overlay cache/debug/scratch/value
-arena behavior. The target is to move those to resource records.
+ReadyShell overlay cache banks are no longer architectural fixed banks. The
+current contract is:
 
-ReadyShell should not be the first subsystem converted. It is too central and
-has tight resident/overlay margins. Use it first as a reporting target: bank `0`
-should describe the existing ReadyShell fixed resources, and tests should prove
-that the description matches reality. Only later should ReadyShell consume
-dynamic bank values.
+- the launcher/loader owns the `rsovl` resource set;
+- disk launcher load streams the ReadyShell overlay sidecar PRGs into three
+  app-owned REU banks before entering ReadyShell;
+- EasyFlash generation allocates three physical cache banks from the generated
+  free-bank set and emits the assigned bank ids into generated artifacts;
+- ReadyShell reads those assigned bank ids from the existing shared metadata
+  block at `$4880F0`;
+- ReadyShell no longer self-loads overlay sidecar PRGs or writes its own cache
+  metadata. Missing or invalid `rsovl` metadata is a loader failure;
+- ReadyShell keeps the old slot geometry inside each assigned bank:
+  `+$0000`, `+$3800`, `+$7000`, `+$A800`, with `0x3800` bytes per full-window
+  overlay snapshot;
+- the shim remains unchanged and does not know about `rsovl`;
+- bank `$48` remains the fixed ReadyShell state/scratch/value-arena bank for
+  this phase. Moving `$48` should be a separate follow-up after overlay cache
+  allocation is proven stable.
 
-The EasyFlash ReadyShell path is the model to preserve and generalize. It
-already preloads ReadyShell overlays, including command overlays, before
-ReadyShell runs. The refactor should first express those existing preloaded
-overlays as generated dependency/resource records, then make disk preload and
-launcher load-all use the same dependency list.
+Implemented ReadyShell phases:
 
-Phases:
-
-1. Add generated dependency/resource records that describe the existing
-   EasyFlash-style ReadyShell preloaded overlays and fixed banks without
-   changing behavior.
-2. Verify cartridge preload, disk preload, and launcher load-all can report the
-   same ReadyShell dependency set.
-3. Teach ReadyShell to read bank values from a small runtime config block.
-4. Populate that config block from logical bank `0` before ReadyShell runs.
-5. Convert overlay fetch paths from fixed constants to config values.
-6. Convert debug/probe/scratch/value-arena locations after overlay fetches are
-   stable.
-7. Update host-side ReadyShell REU tests to validate dynamic resource records.
+1. Add generated dependency/resource records for ReadyShell overlays.
+2. Mark ReadyShell catalog entries with `rsovl` in disk profiles and EasyFlash
+   flavor config.
+3. Allocate/mark ReadyShell cache banks in launcher-owned resource state rather
+   than global fixed `REU_BANK_RS_CACHE*` reservations.
+4. Teach ReadyShell to read bank values from shared metadata and patch its
+   command registry cache-bank fields at startup.
+5. Convert overlay fetch paths from fixed cache-bank constants to assigned
+   bank globals.
+6. Update EasyFlash boot/generated layout to use generated `READYSHELL_CACHE`
+   bank ids instead of hard-coded `$40/$41/$42`.
+7. Update host and VICE coverage so disk and EasyFlash paths both prove the
+   assigned overlay-bank metadata.
 
 Guardrails:
 
 - do not reduce resident ReadyShell heap headroom materially;
 - do not increase overlay payloads beyond current overlay headroom limits;
 - keep overlay load address behavior unchanged unless separately proven;
-- keep a fixed-bank transition mode until generated dependency lookup passes
-  both host tests and VICE runtime tests. This is for staged validation of the
-  new contract, not for old binary compatibility.
+- keep the `rsovl` contract loader-owned. ReadyShell may consume the metadata
+  but should not allocate/free its own overlay cache banks;
+- do not grow the shim or move unload/resource-owner policy into the shim.
 
 ## ReadyBASIC And Micromodule Plan
 
@@ -1663,7 +1670,6 @@ Implemented:
   - ReadyOS global/control bank;
   - launcher snapshot;
   - launcher overlay;
-  - ReadyShell cache banks `$40`, `$41`, `$42`;
   - ReadyShell debug bank `$43`;
   - ReadyShell scratch bank `$48`;
   - ReadyBASIC core/code banks `$44`, `$45`;
@@ -1699,6 +1705,8 @@ Observed memory-contract result:
 - `verify_readyos_shim.py --check-easyflash-bin` still reports a `512` byte
   shim and EasyFlash shim binary byte-identical to `readyos_shim.inc`;
 - ReadyShell heap/overlay bounds still pass the existing memory-map checks.
+- ReadyShell overlay cache banks are now launcher/loader-assigned `rsovl`
+  resources instead of fixed `$40/$41/$42` global reservations.
 - the current generated report shows ReadyBASIC as the tightest app-window case
   with `1031` bytes of headroom, so broad library growth remains unacceptable.
 
@@ -1715,8 +1723,8 @@ Open work for the next branch or milestone:
   with a proven VICE I/O-address-space command sequence;
 - expand launcher resolver coverage beyond final shim-facing handoff sites
   before any dynamic bank assignment is introduced;
-- add generated dependency records for the existing EasyFlash ReadyShell
-  preload model before changing ReadyShell itself;
+- keep the generated ReadyShell `rsovl` dependency records as the source of
+  truth for disk and EasyFlash overlay preloads;
 - keep ReadyBASIC module/micromodule dynamic-bank work deferred until the C app
   and ReadyShell resource model has proven stable;
 - design unload/eviction and app-owned resource lists only after dynamic

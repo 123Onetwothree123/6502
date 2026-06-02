@@ -119,60 +119,71 @@ Current release build memory layout:
 - Resident app window: `$1000-$C5FF` (`46592` bytes)
 - Overlay load-address bytes: `$8DFE-$8DFF`
 - Overlay execution window: `$8E00-$C5FF` (`14336` bytes)
-- Resident BSS: `$8769-$895F` (`503` bytes)
-- Resident heap: `$8960-$8DFD` (`1182` bytes)
+- Resident BSS: `$7BA2-$7D1B` (`378` bytes)
+- Resident heap: `$7D1C-$8DFD` (`4322` bytes)
 - High RAM runtime outside the app snapshot: `$CA00-$CFFF`
 
 Overlay policy:
 
-- All eight overlays are boot-preloaded into fixed REU cache slots during shell startup
-- Bank `0x40` holds overlays `1`, `2`, `3`, and `5`
-- Bank `0x41` holds overlays `4`, `6`, `7`, and `8`
+- The launcher/loader owns the ReadyShell `rsovl` resource set
+- Three REU banks are allocated or generated for ReadyShell before entry
+- ReadyShell reads the assigned bank ids from shared metadata at `$4880F0`
+- Assigned bank 1 holds overlays `1`, `2`, `3`, and `5`
+- Assigned bank 2 holds overlays `4`, `6`, `7`, and `8`
+- Assigned bank 3 holds overlay `9`
 - Each cache slot stores the full overlay window size, not just file bytes
 - Shared REU metadata, command registry, pause state, command scratch, and the value arena live in bank `0x48`
 
-Shared REU cache layout:
+Shared REU cache slot layout:
 
 ```text
-bank 0x40
-+-------------------------------+ 0x400000
+assigned bank 1
++-------------------------------+ +$0000
 | overlay 1 parse slot          |
 | full window snapshot 0x3800   |
-+-------------------------------+ 0x403800
++-------------------------------+ +$3800
 | overlay 2 exec slot           |
 | full window snapshot 0x3800   |
-+-------------------------------+ 0x407000
++-------------------------------+ +$7000
 | overlay 3 rsdrvilst slot      |
-+-------------------------------+ 0x40A800
++-------------------------------+ +$A800
 | overlay 5 rsstv slot          |
-+-------------------------------+ 0x40E000
-| free tail in bank 0x40        |
-+-------------------------------+ 0x40FFFF
++-------------------------------+ +$E000
+| free tail                     |
++-------------------------------+ +$FFFF
 
-bank 0x41
-+-------------------------------+ 0x410000
+assigned bank 2
++-------------------------------+ +$0000
 | overlay 4 rsldv slot          |
-+-------------------------------+ 0x413800
++-------------------------------+ +$3800
 | overlay 6 rsfops slot         |
-+-------------------------------+ 0x417000
++-------------------------------+ +$7000
 | overlay 7 rscat slot          |
-+-------------------------------+ 0x41A800
++-------------------------------+ +$A800
 | overlay 8 rscopy slot         |
-+-------------------------------+ 0x41E000
-| free tail in bank 0x41        |
-+-------------------------------+ 0x41FFFF
++-------------------------------+ +$E000
+| free tail                     |
++-------------------------------+ +$FFFF
+
+assigned bank 3
++-------------------------------+ +$0000
+| overlay 9 rsedit slot         |
++-------------------------------+ +$3800
+| free tail                     |
++-------------------------------+ +$FFFF
 ```
 
 Current overlay set:
 
-- `OVERLAY1` `rsparser.prg`: parser / lexer, `13005` live bytes, cached in bank `0x40` parse slot
-- `OVERLAY2` `rsvm.prg`: execution core for `PRT`, `MORE`, `TOP`, `SEL`, `GEN`, `TAP`, `14033` live bytes, cached in bank `0x40` exec slot
-- `OVERLAY3` `rsdrvilst.prg`: `DRVI` + `LST`, cached in bank `0x40`
-- `OVERLAY4` `rsldv.prg`: `LDV`, cached in bank `0x41`
-- `OVERLAY5` `rsstv.prg`: `STV`, cached in bank `0x40`
-- `OVERLAY6` `rsfops.prg`: `DEL` + `REN` + `PUT` + `ADD`, cached in bank `0x41`
-- `OVERLAY7` `rscat.prg`: `CAT`, cached in bank `0x41`
-- `OVERLAY8` `rscopy.prg`: `COPY`, cached in bank `0x41`
+- `OVERLAY1` `rsparser.prg`: parser / lexer, assigned bank 1 parse slot
+- `OVERLAY2` `rsvm.prg`: execution core for `PRT`, `MORE`, `TOP`, `SEL`, `GEN`, `TAP`, assigned bank 1 exec slot
+- `OVERLAY3` `rsdrvilst.prg`: `DRVI` + `LST`, assigned bank 1 command slot
+- `OVERLAY4` `rsldv.prg`: `LDV`, assigned bank 2 command slot
+- `OVERLAY5` `rsstv.prg`: `STV`, assigned bank 1 command slot
+- `OVERLAY6` `rsfops.prg`: `DEL` + `REN` + `PUT` + `ADD`, assigned bank 2 command slot
+- `OVERLAY7` `rscat.prg`: `CAT`, assigned bank 2 command slot
+- `OVERLAY8` `rscopy.prg`: `COPY`, assigned bank 2 command slot
+- `OVERLAY9` `rsedit.prg`: prompt editor, assigned bank 3 editor slot
 
 ## 3. Statement Forms
 

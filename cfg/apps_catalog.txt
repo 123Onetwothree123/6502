@@ -4,7 +4,7 @@
 9:editor:editor:1
 text editor with clipboard
 
-8:readyshell:ready shell (demo)
+8:readyshell:ready shell (demo)::rsovl
 command shell poc scaffold
 
 9:simplefiles:simple files
@@ -48,9 +48,6 @@ fizzy inspired kanban app
 
 9:readme:read.me
 readyos, ultimate buddy, precog poc os
-
-8:readyshell:ready shell (demo)
-command shell poc scaffold
 
 8:deminer:deminer
 minesweeper-style puzzle

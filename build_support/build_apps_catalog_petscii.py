@@ -82,15 +82,35 @@ def normalize_hotkey_slot(raw: str, path: str, line_no: int) -> str:
     return slot
 
 
-def parse_app_entry(line: str, path: str, line_no: int) -> Tuple[int, str, str, str]:
+RESOURCE_NONE = ""
+RESOURCE_READYSHELL_OVL = "rsovl"
+VALID_RESOURCES = {RESOURCE_NONE, RESOURCE_READYSHELL_OVL}
+
+
+def normalize_resource_token(raw: str, path: str, line_no: int) -> str:
+    resource = raw.strip()
+    if resource not in VALID_RESOURCES:
+        fail(path, line_no, f"unknown resource set: {raw!r}")
+    return resource
+
+
+def parse_app_entry(line: str, path: str, line_no: int) -> Tuple[int, str, str, str, str]:
     parts = [p.strip() for p in line.split(":")]
-    if len(parts) not in (3, 4):
+    if len(parts) not in (3, 4, 5):
         fail(path, line_no, f"malformed app entry: {line!r}")
 
     drive_raw, prg_raw, label = parts[:3]
     slot = ""
+    resource = RESOURCE_NONE
     if len(parts) == 4:
-        slot = normalize_hotkey_slot(parts[3], path, line_no)
+        if parts[3].isdigit():
+            slot = normalize_hotkey_slot(parts[3], path, line_no)
+        else:
+            resource = normalize_resource_token(parts[3], path, line_no)
+    elif len(parts) == 5:
+        if parts[3]:
+            slot = normalize_hotkey_slot(parts[3], path, line_no)
+        resource = normalize_resource_token(parts[4], path, line_no)
 
     if not drive_raw.isdigit():
         fail(path, line_no, f"drive token must be numeric: {drive_raw!r}")
@@ -105,7 +125,7 @@ def parse_app_entry(line: str, path: str, line_no: int) -> Tuple[int, str, str, 
     if len(label) > 31:
         fail(path, line_no, f"display name too long ({len(label)} > 31)")
 
-    return drive, prg, label, slot
+    return drive, prg, label, slot, resource
 
 
 def validate_lower_text(text: str, path: str, line_no: int, label: str) -> None:
@@ -192,9 +212,11 @@ def parse_source(path: str) -> Tuple[Dict[str, str], Dict[str, str], List[Tuple[
 
         if section == SECTION_APPS:
             if pending_entry is None:
-                drive, prg, label, slot = parse_app_entry(line, path, idx)
+                drive, prg, label, slot, resource = parse_app_entry(line, path, idx)
                 entry = f"{drive}:{prg}:{label}"
-                if slot:
+                if resource:
+                    entry += f":{slot}:{resource}"
+                elif slot:
                     entry += f":{slot}"
                 pending_entry = entry
                 pending_entry_line = idx

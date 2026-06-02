@@ -25,8 +25,9 @@ At runtime, the resident app owns the shell loop, prompt state, REPL state,
 resume hooks, and overlay orchestration. Parsing and most execution logic still
 run through the shared overlay window. The prompt editor also lives in that
 window now: overlay 9 is active only while ReadyShell is waiting for input, then
-parser, VM, or command overlays replace it. The current implementation preloads
-all nine overlays into fixed REU cache slots during shell startup.
+parser, VM, or command overlays replace it. The launcher/loader preloads all
+nine overlays into the ReadyShell `rsovl` resource set before entering
+ReadyShell.
 
 ```text
 user types line
@@ -54,8 +55,8 @@ resident shell loop
 
 Normal command execution no longer reloads overlays `3-8` from disk on each
 call, and normal prompt entry no longer keeps the editor resident. Disk loading
-is now the boot preload path and the safety fallback if a cache slot or metadata
-record is invalid.
+is now a launcher/loader preload path. ReadyShell itself expects the shared
+metadata record to contain valid assigned cache banks.
 
 ## 2. Runtime Memory Model
 
@@ -66,8 +67,8 @@ Current release build layout:
 | Resident app window | `$1000-$C5FF` | ReadyShell-owned app RAM |
 | Overlay load bytes | `$8DFE-$8DFF` | PRG load-address bytes for overlay sidecars |
 | Overlay execution window | `$8E00-$C5FF` | Shared live window for whichever overlay is active |
-| Resident BSS | `$8340-$8536` | Resident writable state below overlays |
-| Resident heap | `$8538-$8DFD` | cc65 heap below overlay load address |
+| Resident BSS | `$7BA2-$7D1B` | Resident writable state below overlays |
+| Resident heap | `$7D1C-$8DFD` | cc65 heap below overlay load address |
 | High runtime area | `$CA00-$CFFF` | ReadyShell runtime state outside app snapshot |
 
 Important constraints:
@@ -84,36 +85,36 @@ Current overlays:
 
 | Overlay | File | Role | Current loading model |
 | --- | --- | --- | --- |
-| 1 | `rsparser.prg` | lexer, parser, parse support | boot-preloaded, cached in bank `0x40` |
-| 2 | `rsvm.prg` | values, vars, formatting, pipes, command lookup, shared execution paths | boot-preloaded, cached in bank `0x40` |
-| 3 | `rsdrvilst.prg` | `DRVI`, `LST` | boot-preloaded, cached in bank `0x40` |
-| 4 | `rsldv.prg` | `LDV` | boot-preloaded, cached in bank `0x41` |
-| 5 | `rsstv.prg` | `STV` | boot-preloaded, cached in bank `0x40` |
-| 6 | `rsfops.prg` | `DEL`, `REN`, `PUT`, `ADD` | boot-preloaded, cached in bank `0x41` |
-| 7 | `rscat.prg` | `CAT` | boot-preloaded, cached in bank `0x41` |
-| 8 | `rscopy.prg` | `COPY` | boot-preloaded, cached in bank `0x41` |
-| 9 | `rsedit.prg` | prompt drawing, cursor/edit keys, backtick continuation | boot-preloaded, cached in bank `0x42` |
+| 1 | `rsparser.prg` | lexer, parser, parse support | `rsovl` preload, assigned bank 1 |
+| 2 | `rsvm.prg` | values, vars, formatting, pipes, command lookup, shared execution paths | `rsovl` preload, assigned bank 1 |
+| 3 | `rsdrvilst.prg` | `DRVI`, `LST` | `rsovl` preload, assigned bank 1 |
+| 4 | `rsldv.prg` | `LDV` | `rsovl` preload, assigned bank 2 |
+| 5 | `rsstv.prg` | `STV` | `rsovl` preload, assigned bank 1 |
+| 6 | `rsfops.prg` | `DEL`, `REN`, `PUT`, `ADD` | `rsovl` preload, assigned bank 2 |
+| 7 | `rscat.prg` | `CAT` | `rsovl` preload, assigned bank 2 |
+| 8 | `rscopy.prg` | `COPY` | `rsovl` preload, assigned bank 2 |
+| 9 | `rsedit.prg` | prompt drawing, cursor/edit keys, backtick continuation | `rsovl` preload, assigned bank 3 |
 
-Fixed REU slot layout:
+REU slot layout:
 
 ```text
-bank 0x40
-  overlay 1  rsparser   $400000-$4037FF
-  overlay 2  rsvm       $403800-$406FFF
-  overlay 3  rsdrvilst  $407000-$40A7FF
-  overlay 5  rsstv      $40A800-$40DFFF
-  free tail             $40E000-$40FFFF
+assigned bank 1
+  overlay 1  rsparser   +$0000-+$37FF
+  overlay 2  rsvm       +$3800-+$6FFF
+  overlay 3  rsdrvilst  +$7000-+$A7FF
+  overlay 5  rsstv      +$A800-+$DFFF
+  free tail             +$E000-+$FFFF
 
-bank 0x41
-  overlay 4  rsldv      $410000-$4137FF
-  overlay 6  rsfops     $413800-$416FFF
-  overlay 7  rscat      $417000-$41A7FF
-  overlay 8  rscopy     $41A800-$41DFFF
-  free tail             $41E000-$41FFFF
+assigned bank 2
+  overlay 4  rsldv      +$0000-+$37FF
+  overlay 6  rsfops     +$3800-+$6FFF
+  overlay 7  rscat      +$7000-+$A7FF
+  overlay 8  rscopy     +$A800-+$DFFF
+  free tail             +$E000-+$FFFF
 
-bank 0x42
-  overlay 9  rsedit     $420000-$4237FF
-  free space            $423800-$42FFFF
+assigned bank 3
+  overlay 9  rsedit     +$0000-+$37FF
+  free space            +$3800-+$FFFF
 ```
 
 Each slot stores the full `0x3800` overlay window, not just the PRG payload
@@ -256,8 +257,7 @@ lookup descriptor in REU registry
     v
 prepare external overlay from overlay-state record
     |
-    +--> normal case: restore full slot from REU
-    `--> fallback: load from disk and refresh cache slot
+    `--> restore full slot from loader-filled REU cache
     |
     v
 call one overlay dispatcher with handler id
@@ -283,7 +283,7 @@ LST again
   restore rsvm from REU
 ```
 
-So the registry now describes both dispatch metadata and the fixed cache-slot
+So the registry now describes both dispatch metadata and the assigned cache-slot
 placement for overlays `3-8`.
 
 ## 8. REU Usage
@@ -293,15 +293,15 @@ Current ReadyShell REU usage is split by purpose.
 ### 8.1 Overlay cache banks
 
 ```text
-bank 0x40
+assigned bank 1
   overlays 1, 2, 3, 5
   free tail: 8192 bytes
 
-bank 0x41
+assigned bank 2
   overlays 4, 6, 7, 8
   free tail: 8192 bytes
 
-bank 0x42
+assigned bank 3
   overlay 9
   free space after slot: 51200 bytes
 ```
@@ -309,6 +309,8 @@ bank 0x42
 Important detail:
 
 - these are full-window snapshots, not just PRG payload bytes
+- the bank numbers are supplied by the launcher/loader through `$4880F0`
+  metadata, not by fixed ReadyShell constants
 - writable overlay data survives phase switching because the whole window image
   is cached
 
@@ -346,8 +348,8 @@ the REU-backed value arena all live there at fixed addresses.
 - Resident heap below the overlay load address is `2246` bytes.
 - `OVERLAY6` is currently the tightest overlay, with only `3` bytes left in the
   `$3800` live window.
-- The fixed cache layout leaves `8192` bytes free at the tail of bank `0x40`,
-  `8192` bytes free at the tail of bank `0x41`, and most of bank `0x42` free
-  after the small prompt-editor slot.
-- External commands now pay a one-time startup preload cost instead of repeated
+- The assigned cache layout leaves `8192` bytes free at the tail of assigned
+  bank 1, `8192` bytes free at the tail of assigned bank 2, and most of
+  assigned bank 3 free after the small prompt-editor slot.
+- External commands now pay a launcher/loader preload cost instead of repeated
   disk loads during each command call.
