@@ -23,8 +23,94 @@ The intended long-term end state is:
 - all changes are proven against before/after code size, BSS, heap/headroom,
   overlay, micromodule, suspend/resume, and launcher/shim behavior.
 
-This is an implementation plan only. It intentionally does not make the code
-changes.
+This document is now both the plan and the source-of-truth implementation
+tracker for the REU enhancement refactor. Completed implementation status is
+recorded explicitly; future design notes remain design notes until marked
+implemented here.
+
+## Implementation Status 2026-06-02
+
+Completed in branch `codex/reu-control-bank-refactor`:
+
+- committed baseline `e7b5487 Add REU control bank mirror baseline`;
+- logical REU bank `0` mirror schema `RCB0`, version `1`;
+- header at bank `0` offset `$0000`;
+- resident `$C600-$C6FF` bank table mirror at offset `$0100`;
+- fixed-resource records at offset `$0200`;
+- launcher and reuviewer mirror writers;
+- no shim growth and no `$C800-$C9FF` ABI expansion;
+- 64 app catalog capacity for disk-generated `apps.cfg`;
+- lazy app snapshot logical-bank allocation in the launcher;
+- no preallocated app banks in disk catalog entries;
+- disk launcher `F7` unload for selected loaded app snapshots;
+- load-all progress display wraps visible rows safely for 64-entry catalogs;
+- global hotkeys accept logical app banks through `223`;
+- cartridge launcher records embedded preloaded apps as loaded even above the
+  shim bitmap range;
+- launcher duplicate resident catalog resume cache removed; launcher now saves
+  catalog arrays as segmented REU resume payloads;
+- dynamic launcher static verifier added to `make verify`.
+
+Not implemented yet:
+
+- generic manifest dependency loading for overlays/modules/resources;
+- dynamic ReadyShell resource banks;
+- dynamic ReadyBASIC resource banks;
+- ownership records rich enough to unload every bank owned by an app;
+- headless/service/modal invocation records;
+- runtime VICE probe that reads and validates logical bank `0` contents.
+
+Important correction: the current implementation supports lazy app snapshot
+allocation and 64-entry catalogs. It does not yet implement the full dependency
+manifest/resource ownership architecture. That is intentional; implementing an
+arbitrary dependency loader before ReadyShell and ReadyBASIC share a generated
+resource contract would be unstable and likely to bloat the launcher.
+
+Current measured dynamic-allocation headroom impact against the committed bank
+`0` mirror baseline:
+
+- launcher: `11122` bytes to `8062` bytes, `-3060`;
+- normal apps: unchanged or `-1` byte from the broadened shared hotkey helper;
+- ReadyBASIC remains at `1031` bytes;
+- Dizzy remains at `1834` bytes;
+- ReadyShell remains at `16585` bytes measured by its main runtime/heap model.
+
+The launcher cost is the real cost of holding a 64-entry catalog in RAM. A
+larger hidden duplicate was removed before acceptance: the initial dynamic
+implementation dropped launcher headroom by `8583` bytes, and removing the
+duplicate resident resume cache recovered more than `5.5KB`.
+
+### Verification Matrix
+
+Static/build verification passed for this milestone:
+
+- `make verify`;
+- `make easyflash-verify`;
+- `python3 verify.py`;
+- `python3 build_support/verify_reu_control_bank.py`;
+- `python3 build_support/verify_dynamic_launcher.py`;
+- `python3 build_support/report_app_headroom.py --output agentworkijg/reu_refactor_headroom_current.json`.
+
+VICE verification passed for this milestone:
+
+- `make readybasic-vice-suites`;
+- `make readybasic-demo-vice`;
+- EasyFlash VICE smoke through `make easyflash-verify`.
+
+The aggregate `make readybasic-vice-suites` target includes demo, repeat-label,
+lifecycle, module-overlay, plugin-command, program, rbtest1, state, large-vars,
+cross-app resume, second-entry Editor, and full visual ReadyBASIC VICE suites.
+
+New VICE coverage still needed after this milestone:
+
+- disk launcher lazy-load selected app, return, and relaunch;
+- disk launcher load-all with a synthetic 64-entry catalog;
+- disk launcher unload selected app, verify bank table/free state, then reload;
+- disk launcher browse/load `app.*` manifest and launch the added app;
+- cartridge launcher synthetic catalog above 23 entries, proving high logical
+  app banks are marked loaded without shim bitmap bits;
+- runtime bank `0` content probe that validates header, `$C600` mirror, and at
+  least one dynamic app-bank allocation record after load/unload.
 
 ## Principal Engineering Corrections
 
@@ -1546,13 +1632,16 @@ nothing to normal apps.
 This gives ReadyOS a canonical future control bank without risking launcher,
 shim, ReadyShell, or ReadyBASIC behavior immediately.
 
-## Implementation Status: 2026-06-02
+## Historical Baseline Status: 2026-06-02
 
-This branch has implemented the conservative first milestone plus the first
-piece of Phase 2.5 resolver indirection. It intentionally does not implement
+At baseline commit `e7b5487 Add REU control bank mirror baseline`, this branch
+had implemented the conservative first milestone plus the first piece of Phase
+2.5 resolver indirection. At that point it intentionally did not implement
 dynamic app allocation, catalog expansion, manifest parsing, unload, headless
 invocation, modal services, or dynamic ReadyShell/ReadyBASIC resource
-assignment yet.
+assignment. The current milestone status at the top of this document supersedes
+that baseline for launcher dynamic allocation, 64-entry catalogs, cartridge
+preload tracking, and disk launcher unload.
 
 Implemented:
 

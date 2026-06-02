@@ -1075,6 +1075,7 @@ verify: profile
 	python3 $(BUILD_SUPPORT_DIR)/verify_readyos_shim.py
 	python3 $(BUILD_SUPPORT_DIR)/verify_memory_map.py
 	python3 $(BUILD_SUPPORT_DIR)/verify_reu_control_bank.py
+	python3 $(BUILD_SUPPORT_DIR)/verify_dynamic_launcher.py
 
 # Full rebuild + deep verification
 fullcheck: clean verify

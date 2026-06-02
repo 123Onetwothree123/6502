@@ -32,3 +32,29 @@
   report, with 1031 bytes of headroom. Any later shared-library change that
   links into normal apps needs a before/after report, not just a successful
   rebuild.
+- A 64-entry launcher catalog has a real RAM cost. The first dynamic
+  implementation accidentally doubled that cost with a resident
+  `LauncherCatalogCacheV1` resume copy and dropped launcher headroom by 8583
+  bytes. Saving the real arrays as segmented REU resume payloads recovered
+  more than 5.5KB and left the accepted launcher delta at 3060 bytes.
+- Low logical app banks cannot be treated as permanently unavailable just
+  because the bank table marks their physical slots `REU_RESERVED` at boot.
+  For the dynamic app allocator, low logical banks `1..23` remain valid app
+  snapshot candidates so the existing loaded-bank bitmap and switch behavior
+  stay useful for normal catalogs.
+- Do not implement manifest dependency loading by adding a broad runtime parser
+  to the launcher. The stable path is generated dependency/resource records
+  first, then ReadyShell and ReadyBASIC consumers, then runtime manifest syntax
+  only when the binary contract is boring.
+- The shim bitmap remains a three-byte low-bank compatibility field. Any
+  cartridge or dynamic path that uses logical banks above 23 must record loaded
+  state outside the shim bitmap and must not expect `set_bitmap` to represent
+  those banks.
+- Cartridge preload has its own correctness boundary. The booter can stash
+  logical banks above 23, but the launcher must explicitly mark embedded
+  preloads as loaded and mirror their physical banks into `$C600`/bank `0`.
+- Load-all UI code that was harmless with 23 app slots can become unsafe with
+  64. Progress/status displays must wrap or window visible rows rather than
+  writing unique rows for every catalog entry.
+- Normal app impact stayed at 0 or 1 byte only because dynamic allocator and
+  bank `0` mirror code stayed out of shared app libraries. Keep that boundary.

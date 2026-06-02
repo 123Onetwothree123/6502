@@ -2064,7 +2064,7 @@ static unsigned char handle_global_nav(unsigned char key) {
         tui_return_to_launcher();
         return 1u;
     }
-    if (nav_action >= 1u && nav_action <= 23u) {
+    if (nav_action >= TUI_APP_BANK_MIN && nav_action <= TUI_APP_BANK_MAX) {
         resume_save_state();
         tui_switch_to_app(nav_action);
         return 1u;
@@ -2093,7 +2093,7 @@ static void quicknotes_init(void) {
     find_buf[0] = 0;
 
     bank = SHIM_CURRENT_BANK;
-    if (bank >= 1u && bank <= 23u) {
+    if (bank >= TUI_APP_BANK_MIN && bank <= TUI_APP_BANK_MAX) {
         resume_init_for_app(bank, bank, RESUME_SCHEMA_V1);
         resume_ready = 1u;
     }

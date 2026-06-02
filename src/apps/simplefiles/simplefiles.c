@@ -1812,7 +1812,7 @@ int main(void) {
     init_state();
     resume_ready = 0;
     bank = SHIM_CURRENT_BANK;
-    if (bank >= 1u && bank <= 15u) {
+    if (bank >= TUI_APP_BANK_MIN && bank <= TUI_APP_BANK_MAX) {
         resume_init_for_app(bank, bank, RESUME_SCHEMA_V1);
         resume_ready = 1;
     }
@@ -1833,7 +1833,7 @@ int main(void) {
             resume_save_state();
             tui_return_to_launcher();
         }
-        if (nav_action >= 1u && nav_action <= 15u) {
+        if (nav_action >= TUI_APP_BANK_MIN && nav_action <= TUI_APP_BANK_MAX) {
             resume_save_state();
             tui_switch_to_app(nav_action);
             continue;

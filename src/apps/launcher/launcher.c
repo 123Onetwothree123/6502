@@ -81,12 +81,15 @@ void reu_control_bank_sync_and_mirror(unsigned char writer_id);
 #define VARIANT_MAX_LEN 31
 #define LAUNCHER_NOTICE_LEN 38
 #define MENU_NO_APP 0xFFu
+#define LOAD_ALL_LIST_Y 4
+#define LOAD_ALL_LIST_ROWS 19
 
 /* REU indicator character */
 #define REU_INDICATOR 0x2A  /* '*' in PETSCII screen code */
 
 /* App catalog limits */
-#define MAX_APPS 24          /* slot 0 + up to 23 app slots */
+#define APP_SLOT_CAPACITY 64
+#define MAX_APPS (APP_SLOT_CAPACITY + 1)  /* optional slot 0 + 64 app slots */
 #define MAX_FILE_LEN 12      /* shim filename buffer is 12 bytes */
 #define MAX_NAME_LEN 31
 #define MAX_DESC_LEN 38
@@ -95,6 +98,13 @@ void reu_control_bank_sync_and_mirror(unsigned char writer_id);
 #define APP_CFG_OPEN_SPEC "apps.cfg,s,r"
 #define APP_MANIFEST_LFN 13
 #define APP_MANIFEST_PREFIX "app."
+
+#define REU_ALLOC_TABLE  ((unsigned char*)0xC600)
+#define REU_FREE       0
+#define REU_APP_STATE  1
+#define REU_RESERVED   4
+#define REU_SNAPSHOT_LOGICAL_MIN 1
+#define REU_SNAPSHOT_LOGICAL_SCAN_MAX 223
 
 #ifndef LAUNCHER_CFG_VERBOSE
 #define LAUNCHER_CFG_VERBOSE 0
@@ -174,7 +184,7 @@ void reu_control_bank_sync_and_mirror(unsigned char writer_id);
 #define REU_LOGICAL_TO_PHYSICAL(bank) \
     ((unsigned char)(*SHIM_REU_BANK_SKIP + \
      (((unsigned char)(bank) == 0u) ? 1u : (2u + (unsigned char)(bank)))))
-#define LAUNCHER_RESUME_SCHEMA 5
+#define LAUNCHER_RESUME_SCHEMA 6
 
 /* App save size - must include code + data + BSS */
 #define APP_SAVE_SIZE 0xB600  /* $1000-$C5FF (46KB) */
@@ -205,25 +215,10 @@ typedef struct {
     unsigned char reserved;
 } LauncherResumeV1;
 
-typedef struct {
-    unsigned char app_count;
-    unsigned char app_banks[MAX_APPS];
-    unsigned char app_drives[MAX_APPS];
-    unsigned char app_default_slots[MAX_APPS];
-    char app_name_buf[MAX_APPS][MAX_NAME_LEN + 1];
-    char app_desc_buf[MAX_APPS][MAX_DESC_LEN + 1];
-    char app_file_buf[MAX_APPS][MAX_FILE_LEN + 1];
-    unsigned char launcher_cfg_load_all_to_reu;
-    char launcher_variant_name[VARIANT_MAX_LEN + 1];
-    char launcher_variant_boot_name[VARIANT_MAX_LEN + 1];
-    char launcher_runappfirst_prg[MAX_FILE_LEN + 1];
-} LauncherCatalogCacheV1;
-
 /* Track loaded apps */
 static unsigned char apps_loaded[MAX_APPS];
 static unsigned int app_sizes[MAX_APPS];
 static LauncherResumeV1 launcher_resume_blob;
-static LauncherCatalogCacheV1 launcher_catalog_cache;
 static unsigned char resume_ready;
 static unsigned char launcher_cfg_load_all_to_reu;
 static char launcher_variant_name[VARIANT_MAX_LEN + 1];
@@ -275,6 +270,11 @@ static unsigned char launcher_menu_count(void);
 static unsigned char launcher_menu_is_browse(unsigned char menu_index);
 static unsigned char launcher_menu_to_app_index(unsigned char menu_index);
 static unsigned char launcher_app_to_menu_index(unsigned char app_index);
+static void launcher_mirror_reu_control(void);
+static void launcher_bind_default_hotkey_for_index(unsigned char index);
+#if READYOS_LAUNCHER_VARIANT_EASYFLASH
+static void launcher_mark_embedded_preloads_loaded(void);
+#endif
 #if !READYOS_LAUNCHER_VARIANT_EASYFLASH
 static void browse_and_load_manifest(void);
 #endif
@@ -311,14 +311,65 @@ static unsigned char launcher_is_app_slot(unsigned char index) {
     if (launcher_has_load_all_slot() && index == 0u) {
         return 0;
     }
-    return (unsigned char)(app_banks[index] != 0u);
+    return (unsigned char)(app_files[index][0] != 0);
 }
 
-static unsigned char launcher_resolve_snapshot_bank(unsigned char index) {
+static unsigned char launcher_logical_to_physical(unsigned char logical_bank) {
+    unsigned int physical;
+
+    physical = (unsigned int)(*SHIM_REU_BANK_SKIP) + 2u + logical_bank;
+    if (physical > 255u) {
+        return 0xFFu;
+    }
+    return (unsigned char)physical;
+}
+
+static unsigned char launcher_catalog_uses_bank(unsigned char bank,
+                                                unsigned char except_index) {
+    unsigned char i;
+
+    for (i = launcher_first_app_index(); i < app_count; ++i) {
+        if (i != except_index && app_banks[i] == bank) {
+            return 1u;
+        }
+    }
+    return 0u;
+}
+
+static unsigned char launcher_alloc_snapshot_bank(unsigned char index) {
+    unsigned char bank;
+    unsigned char physical;
+
     if (!launcher_is_app_slot(index)) {
         return 0;
     }
-    return app_banks[index];
+    if (app_banks[index] != 0u) {
+        return app_banks[index];
+    }
+
+    for (bank = REU_SNAPSHOT_LOGICAL_MIN;
+         bank <= REU_SNAPSHOT_LOGICAL_SCAN_MAX;
+         ++bank) {
+        physical = launcher_logical_to_physical(bank);
+        if (physical == 0xFFu) {
+            break;
+        }
+        if (launcher_catalog_uses_bank(bank, index)) {
+            continue;
+        }
+        if (REU_ALLOC_TABLE[physical] == REU_FREE ||
+            (bank < 24u && REU_ALLOC_TABLE[physical] == REU_RESERVED)) {
+            app_banks[index] = bank;
+            REU_ALLOC_TABLE[physical] = REU_APP_STATE;
+            return bank;
+        }
+    }
+
+    return 0;
+}
+
+static unsigned char launcher_resolve_snapshot_bank(unsigned char index) {
+    return launcher_alloc_snapshot_bank(index);
 }
 
 static unsigned char launcher_menu_extra_count(void) {
@@ -383,6 +434,28 @@ static void shim_bitmap_clear_bank(unsigned char bank) {
     }
 }
 
+static void launcher_free_snapshot_bank(unsigned char index) {
+    unsigned char bank;
+    unsigned char physical;
+
+    if (index >= app_count) {
+        return;
+    }
+    bank = app_banks[index];
+    if (bank == 0u) {
+        return;
+    }
+    shim_bitmap_clear_bank(bank);
+    physical = launcher_logical_to_physical(bank);
+    if (physical != 0xFFu) {
+        REU_ALLOC_TABLE[physical] = REU_FREE;
+    }
+    app_banks[index] = 0u;
+    apps_loaded[index] = 0u;
+    app_sizes[index] = 0u;
+    launcher_mirror_reu_control();
+}
+
 /*---------------------------------------------------------------------------
  * Sync apps_loaded[] from shim's reu_bitmap ($C836-$C838)
  * The shim updates reu_bitmap whenever an app is stashed to REU,
@@ -409,10 +482,13 @@ static void sync_from_reu_bitmap(void) {
     for (i = launcher_first_app_index(); i < app_count; ++i) {
         bank = app_banks[i];
         if (bank != 0) {
-            if (shim_bitmap_has_bank(bank)) {
+            if (bank < 24u && shim_bitmap_has_bank(bank)) {
                 apps_loaded[i] = 1;
                 app_sizes[i] = APP_SAVE_SIZE;
-            } else {
+            } else if (bank >= 24u && last_saved == bank) {
+                apps_loaded[i] = 1;
+                app_sizes[i] = APP_SAVE_SIZE;
+            } else if (bank < 24u) {
                 apps_loaded[i] = 0;
                 app_sizes[i] = 0;
             }
@@ -437,6 +513,9 @@ static void compute_required_slot_bitmap(unsigned char *expected_lo,
 
     for (i = launcher_first_app_index(); i < app_count; ++i) {
         bank = app_banks[i];
+        if (bank == 0u) {
+            continue;
+        }
         if (bank < 8) {
             lo |= (unsigned char)(1U << bank);
         } else if (bank < 16) {
@@ -455,11 +534,22 @@ static unsigned char required_slots_loaded(void) {
     unsigned char expected_lo;
     unsigned char expected_hi;
     unsigned char expected_xhi;
+    unsigned char i;
 
     compute_required_slot_bitmap(&expected_lo, &expected_hi, &expected_xhi);
-    return (unsigned char)(((*SHIM_REU_BITMAP_LO & expected_lo) == expected_lo) &&
-                           ((*SHIM_REU_BITMAP_HI & expected_hi) == expected_hi) &&
-                           ((*SHIM_REU_BITMAP_XHI & expected_xhi) == expected_xhi));
+    if (((*SHIM_REU_BITMAP_LO & expected_lo) != expected_lo) ||
+        ((*SHIM_REU_BITMAP_HI & expected_hi) != expected_hi) ||
+        ((*SHIM_REU_BITMAP_XHI & expected_xhi) != expected_xhi)) {
+        return 0u;
+    }
+
+    for (i = launcher_first_app_index(); i < app_count; ++i) {
+        if (launcher_is_app_slot(i) &&
+            (app_banks[i] == 0u || !apps_loaded[i])) {
+            return 0u;
+        }
+    }
+    return 1u;
 }
 
 static unsigned char is_space_char(char ch) {
@@ -711,52 +801,10 @@ static void catalog_rebind_views(void) {
     }
 }
 
-static void launcher_snapshot_catalog_cache(void) {
-    memcpy(&launcher_catalog_cache.app_banks[0], &app_banks[0], sizeof(app_banks));
-    memcpy(&launcher_catalog_cache.app_drives[0], &app_drives[0], sizeof(app_drives));
-    memcpy(&launcher_catalog_cache.app_default_slots[0], &app_default_slots[0],
-           sizeof(app_default_slots));
-    memcpy(&launcher_catalog_cache.app_name_buf[0][0], &app_name_buf[0][0],
-           sizeof(app_name_buf));
-    memcpy(&launcher_catalog_cache.app_desc_buf[0][0], &app_desc_buf[0][0],
-           sizeof(app_desc_buf));
-    memcpy(&launcher_catalog_cache.app_file_buf[0][0], &app_file_buf[0][0],
-           sizeof(app_file_buf));
-    launcher_catalog_cache.app_count = app_count;
-    launcher_catalog_cache.launcher_cfg_load_all_to_reu = launcher_cfg_load_all_to_reu;
-    memcpy(&launcher_catalog_cache.launcher_variant_name[0], &launcher_variant_name[0],
-           sizeof(launcher_variant_name));
-    memcpy(&launcher_catalog_cache.launcher_variant_boot_name[0], &launcher_variant_boot_name[0],
-           sizeof(launcher_variant_boot_name));
-    memcpy(&launcher_catalog_cache.launcher_runappfirst_prg[0], &launcher_runappfirst_prg[0],
-           sizeof(launcher_runappfirst_prg));
-}
-
-static void launcher_restore_catalog_cache(void) {
-    memcpy(&app_banks[0], &launcher_catalog_cache.app_banks[0], sizeof(app_banks));
-    memcpy(&app_drives[0], &launcher_catalog_cache.app_drives[0], sizeof(app_drives));
-    memcpy(&app_default_slots[0], &launcher_catalog_cache.app_default_slots[0],
-           sizeof(app_default_slots));
-    memcpy(&app_name_buf[0][0], &launcher_catalog_cache.app_name_buf[0][0],
-           sizeof(app_name_buf));
-    memcpy(&app_desc_buf[0][0], &launcher_catalog_cache.app_desc_buf[0][0],
-           sizeof(app_desc_buf));
-    memcpy(&app_file_buf[0][0], &launcher_catalog_cache.app_file_buf[0][0],
-           sizeof(app_file_buf));
-    app_count = launcher_catalog_cache.app_count;
-    launcher_cfg_load_all_to_reu = launcher_catalog_cache.launcher_cfg_load_all_to_reu;
-    memcpy(&launcher_variant_name[0], &launcher_catalog_cache.launcher_variant_name[0],
-           sizeof(launcher_variant_name));
-    memcpy(&launcher_variant_boot_name[0], &launcher_catalog_cache.launcher_variant_boot_name[0],
-           sizeof(launcher_variant_boot_name));
-    memcpy(&launcher_runappfirst_prg[0], &launcher_catalog_cache.launcher_runappfirst_prg[0],
-           sizeof(launcher_runappfirst_prg));
-}
-
 static void launcher_resume_save(unsigned char selected,
                                  unsigned char scroll_offset,
                                  unsigned char suppress_startup_once) {
-    ResumeWriteSegment segs[2];
+    static ResumeWriteSegment segs[12];
 
     if (!resume_ready) {
         return;
@@ -766,35 +814,85 @@ static void launcher_resume_save(unsigned char selected,
     launcher_resume_blob.scroll_offset = scroll_offset;
     launcher_resume_blob.suppress_startup_once = suppress_startup_once;
     launcher_resume_blob.reserved = 0;
-    launcher_snapshot_catalog_cache();
 
     segs[0].ptr = &launcher_resume_blob;
     segs[0].len = sizeof(launcher_resume_blob);
-    segs[1].ptr = &launcher_catalog_cache;
-    segs[1].len = sizeof(launcher_catalog_cache);
-    (void)resume_save_segments(segs, 2);
+    segs[1].ptr = &app_banks[0];
+    segs[1].len = sizeof(app_banks);
+    segs[2].ptr = &app_drives[0];
+    segs[2].len = sizeof(app_drives);
+    segs[3].ptr = &app_default_slots[0];
+    segs[3].len = sizeof(app_default_slots);
+    segs[4].ptr = &app_name_buf[0][0];
+    segs[4].len = sizeof(app_name_buf);
+    segs[5].ptr = &app_desc_buf[0][0];
+    segs[5].len = sizeof(app_desc_buf);
+    segs[6].ptr = &app_file_buf[0][0];
+    segs[6].len = sizeof(app_file_buf);
+    segs[7].ptr = &app_count;
+    segs[7].len = sizeof(app_count);
+    segs[8].ptr = &launcher_cfg_load_all_to_reu;
+    segs[8].len = sizeof(launcher_cfg_load_all_to_reu);
+    segs[9].ptr = &launcher_variant_name[0];
+    segs[9].len = sizeof(launcher_variant_name);
+    segs[10].ptr = &launcher_variant_boot_name[0];
+    segs[10].len = sizeof(launcher_variant_boot_name);
+    segs[11].ptr = &launcher_runappfirst_prg[0];
+    segs[11].len = sizeof(launcher_runappfirst_prg);
+    (void)resume_save_segments(segs, 12);
 }
 
 static unsigned char launcher_resume_restore(unsigned char *out_selected,
                                              unsigned char *out_scroll_offset,
                                              unsigned char *out_suppress_startup_once) {
     unsigned int payload_len = 0;
-    ResumeReadSegment segs[2];
+    static ResumeReadSegment segs[12];
     if (!resume_ready) {
         return 0;
     }
     segs[0].ptr = &launcher_resume_blob;
     segs[0].len = sizeof(launcher_resume_blob);
-    segs[1].ptr = &launcher_catalog_cache;
-    segs[1].len = sizeof(launcher_catalog_cache);
-    if (!resume_load_segments(segs, 2, &payload_len)) {
+    segs[1].ptr = &app_banks[0];
+    segs[1].len = sizeof(app_banks);
+    segs[2].ptr = &app_drives[0];
+    segs[2].len = sizeof(app_drives);
+    segs[3].ptr = &app_default_slots[0];
+    segs[3].len = sizeof(app_default_slots);
+    segs[4].ptr = &app_name_buf[0][0];
+    segs[4].len = sizeof(app_name_buf);
+    segs[5].ptr = &app_desc_buf[0][0];
+    segs[5].len = sizeof(app_desc_buf);
+    segs[6].ptr = &app_file_buf[0][0];
+    segs[6].len = sizeof(app_file_buf);
+    segs[7].ptr = &app_count;
+    segs[7].len = sizeof(app_count);
+    segs[8].ptr = &launcher_cfg_load_all_to_reu;
+    segs[8].len = sizeof(launcher_cfg_load_all_to_reu);
+    segs[9].ptr = &launcher_variant_name[0];
+    segs[9].len = sizeof(launcher_variant_name);
+    segs[10].ptr = &launcher_variant_boot_name[0];
+    segs[10].len = sizeof(launcher_variant_boot_name);
+    segs[11].ptr = &launcher_runappfirst_prg[0];
+    segs[11].len = sizeof(launcher_runappfirst_prg);
+    if (!resume_load_segments(segs, 12, &payload_len)) {
         return 0;
     }
-    if (payload_len != (sizeof(launcher_resume_blob) + sizeof(launcher_catalog_cache))) {
+    if (payload_len != (sizeof(launcher_resume_blob) +
+                        sizeof(app_banks) +
+                        sizeof(app_drives) +
+                        sizeof(app_default_slots) +
+                        sizeof(app_name_buf) +
+                        sizeof(app_desc_buf) +
+                        sizeof(app_file_buf) +
+                        sizeof(app_count) +
+                        sizeof(launcher_cfg_load_all_to_reu) +
+                        sizeof(launcher_variant_name) +
+                        sizeof(launcher_variant_boot_name) +
+                        sizeof(launcher_runappfirst_prg))) {
         return 0;
     }
 
-    launcher_restore_catalog_cache();
+    catalog_rebind_views();
 
     if (out_selected != 0 && launcher_resume_blob.selected < launcher_menu_count()) {
         *out_selected = launcher_resume_blob.selected;
@@ -936,7 +1034,7 @@ static unsigned char add_catalog_entry(unsigned char drive,
     }
 
     idx = app_count;
-    app_banks[idx] = idx;
+    app_banks[idx] = 0u;
     app_drives[idx] = drive;
     app_default_slots[idx] = default_slot;
 
@@ -1171,17 +1269,9 @@ static unsigned char validate_slot_contract(unsigned char *detail_a,
     }
 
     for (i = launcher_first_app_index(); i < app_count; ++i) {
-        bank_i = app_banks[i];
-        if (bank_i == 0 || bank_i >= MAX_APPS) {
-            *detail_a = i;
-            *detail_b = bank_i;
-            *detail_c = 0;
-            set_cfg_reason(CFG_MSG_BANK_RANGE);
-            return CFG_ERR_FORMAT;
-        }
         if (app_files[i][0] == 0) {
             *detail_a = i;
-            *detail_b = bank_i;
+            *detail_b = app_banks[i];
             *detail_c = 0;
             set_cfg_reason(CFG_MSG_FILENAME_EMPTY);
             return CFG_ERR_MISSING_DESC;
@@ -1200,13 +1290,23 @@ static unsigned char validate_slot_contract(unsigned char *detail_a,
             set_cfg_reason(CFG_MSG_HOTKEY_RANGE);
             return CFG_ERR_HOTKEY;
         }
-        for (j = (unsigned char)(i + 1); j < app_count; ++j) {
-            if (app_banks[j] == bank_i) {
+        bank_i = app_banks[i];
+        if (bank_i != 0u) {
+            if (launcher_logical_to_physical(bank_i) == 0xFFu) {
                 *detail_a = i;
-                *detail_b = j;
-                *detail_c = bank_i;
-                set_cfg_reason(CFG_MSG_DUP_BANK);
-                return CFG_ERR_TOO_MANY;
+                *detail_b = bank_i;
+                *detail_c = 0;
+                set_cfg_reason(CFG_MSG_BANK_RANGE);
+                return CFG_ERR_FORMAT;
+            }
+            for (j = (unsigned char)(i + 1); j < app_count; ++j) {
+                if (app_banks[j] == bank_i) {
+                    *detail_a = i;
+                    *detail_b = j;
+                    *detail_c = bank_i;
+                    set_cfg_reason(CFG_MSG_DUP_BANK);
+                    return CFG_ERR_TOO_MANY;
+                }
             }
         }
     }
@@ -1371,13 +1471,14 @@ static unsigned int load_app_to_reu(unsigned char index) {
      * If this value is invalid, treat load as failure. */
     end_addr = ((unsigned int)(*(unsigned char*)0xC831) << 8)
              | (*(unsigned char*)0xC830);
-    loaded_in_bitmap = shim_bitmap_has_bank(bank);
+    loaded_in_bitmap = (bank < 24u) ? shim_bitmap_has_bank(bank) : 0u;
 
     if (end_addr <= APP_LOAD_START || end_addr > APP_LOAD_END_EXCL) {
         /* Some preload paths can leave end_addr invalid while still stashing app. */
         if (loaded_in_bitmap) {
             apps_loaded[index] = 1;
             app_sizes[index] = APP_SAVE_SIZE;
+            launcher_bind_default_hotkey_for_index(index);
             launcher_mirror_reu_control();
             return APP_SAVE_SIZE;
         }
@@ -1393,6 +1494,7 @@ static unsigned int load_app_to_reu(unsigned char index) {
         if (loaded_in_bitmap) {
             apps_loaded[index] = 1;
             app_sizes[index] = APP_SAVE_SIZE;
+            launcher_bind_default_hotkey_for_index(index);
             launcher_mirror_reu_control();
             return APP_SAVE_SIZE;
         }
@@ -1404,8 +1506,8 @@ static unsigned int load_app_to_reu(unsigned char index) {
     }
 
     /* Treat bitmap as authoritative: only mark loaded if target bit is set. */
-    loaded_in_bitmap = shim_bitmap_has_bank(bank);
-    if (!loaded_in_bitmap) {
+    loaded_in_bitmap = (bank < 24u) ? shim_bitmap_has_bank(bank) : 1u;
+    if (bank < 24u && !loaded_in_bitmap) {
         apps_loaded[index] = 0;
         app_sizes[index] = 0;
         launcher_mirror_reu_control();
@@ -1415,6 +1517,7 @@ static unsigned int load_app_to_reu(unsigned char index) {
     /* On return, launcher is back in memory and app is valid in REU. */
     apps_loaded[index] = 1;
     app_sizes[index] = file_size;
+    launcher_bind_default_hotkey_for_index(index);
     launcher_mirror_reu_control();
     return file_size;
 }
@@ -1505,7 +1608,7 @@ static unsigned char load_all_to_reu_internal(unsigned char interactive) {
                          TUI_COLOR_LIGHTBLUE, TUI_COLOR_YELLOW);
     }
 
-    /* Keep full app list visible: counter on row 23, bar on row 24 */
+    /* Keep progress fixed; reuse list rows for catalogs larger than the screen. */
     counter_y = 23;
     bar_y = 24;
 
@@ -1522,7 +1625,9 @@ static unsigned char load_all_to_reu_internal(unsigned char interactive) {
         if (!launcher_is_app_slot(i)) continue;
         if (apps_loaded[i]) continue;
 
-        y = (unsigned char)(4 + loaded_count);
+        y = (unsigned char)(LOAD_ALL_LIST_Y +
+                            (loaded_count % LOAD_ALL_LIST_ROWS));
+        tui_puts_n(0, y, "", TUI_SCREEN_WIDTH, TUI_COLOR_WHITE);
 
         /* Display app name with LOADING status */
         draw_drive_prefixed_name(4, y, i, TUI_COLOR_CYAN, 16);
@@ -1614,6 +1719,78 @@ static unsigned char load_all_to_reu_internal(unsigned char interactive) {
 static void load_all_to_reu(void) {
     (void)load_all_to_reu_internal(1);
 }
+
+static void launcher_clear_hotkey_bank(unsigned char bank) {
+    unsigned char slot;
+
+    if (bank == 0u) {
+        return;
+    }
+    for (slot = 0u; slot < TUI_HOTKEY_SLOT_COUNT; ++slot) {
+        if (TUI_HOTKEY_BINDINGS[slot] == bank) {
+            TUI_HOTKEY_BINDINGS[slot] = 0u;
+        }
+    }
+}
+
+static void launcher_bind_default_hotkey_for_index(unsigned char index) {
+    unsigned char slot;
+
+    if (index >= app_count || app_banks[index] == 0u) {
+        return;
+    }
+    slot = app_default_slots[index];
+    if (slot == 0u || slot > TUI_HOTKEY_SLOT_COUNT) {
+        return;
+    }
+    if (TUI_HOTKEY_BINDINGS[(unsigned char)(slot - 1u)] == 0u) {
+        TUI_HOTKEY_BINDINGS[(unsigned char)(slot - 1u)] = app_banks[index];
+    }
+}
+
+#if READYOS_LAUNCHER_VARIANT_EASYFLASH
+static void launcher_mark_embedded_preloads_loaded(void) {
+    unsigned char i;
+    unsigned char bank;
+    unsigned char physical;
+
+    for (i = launcher_first_app_index(); i < app_count; ++i) {
+        if (!launcher_is_app_slot(i)) {
+            continue;
+        }
+        bank = app_banks[i];
+        if (bank == 0u) {
+            continue;
+        }
+        physical = launcher_logical_to_physical(bank);
+        if (physical != 0xFFu) {
+            REU_ALLOC_TABLE[physical] = REU_APP_STATE;
+        }
+        apps_loaded[i] = 1u;
+        app_sizes[i] = APP_SAVE_SIZE;
+    }
+}
+#endif
+
+#if !READYOS_LAUNCHER_VARIANT_EASYFLASH
+static void unload_selected_from_reu(unsigned char index) {
+    unsigned char bank;
+
+    if (!launcher_is_app_slot(index)) {
+        return;
+    }
+    bank = app_banks[index];
+    if (bank == 0u || !apps_loaded[index]) {
+        launcher_set_notice("selected app not loaded", TUI_COLOR_GRAY3);
+        return;
+    }
+
+    launcher_clear_hotkey_bank(bank);
+    launcher_free_snapshot_bank(index);
+    launcher_set_notice("selected app unloaded from reu", TUI_COLOR_LIGHTGREEN);
+    launcher_resume_save(menu.selected, menu.scroll_offset, 0u);
+}
+#endif
 
 /*---------------------------------------------------------------------------
  * Load selected app to REU (F3)
@@ -1968,6 +2145,7 @@ static void launch_from_disk(unsigned char index) {
     if (app_files[index][0] == 0) return;
     bank = launcher_resolve_snapshot_bank(index);
     if (bank == 0) return;
+    launcher_bind_default_hotkey_for_index(index);
 
     filename = app_files[index];
 
@@ -2058,7 +2236,7 @@ static void draw_help(void) {
 #if READYOS_LAUNCHER_VARIANT_EASYFLASH
     tui_puts(1, HELP_Y, "RET:LAUNCH            F3:STATUS", TUI_COLOR_GRAY3);
 #else
-    tui_puts(1, HELP_Y, "RET F3:LOAD F5:BROWSE F1:ALL", TUI_COLOR_GRAY3);
+    tui_puts(1, HELP_Y, "F1:ALL F3:LOAD F5:BROWSE F7:UN", TUI_COLOR_GRAY3);
 #endif
     tui_puts(1, HELP_Y + 1, "F2:NEXT APP  F4:PREV  STOP:QUIT", TUI_COLOR_GRAY3);
 }
@@ -2502,6 +2680,9 @@ static void launcher_init(void) {
     }
     set_shim_drive(8);
     sync_from_reu_bitmap();
+#if READYOS_LAUNCHER_VARIANT_EASYFLASH
+    launcher_mark_embedded_preloads_loaded();
+#endif
     launcher_mirror_reu_control();
     launcher_seed_default_hotkeys();
 
@@ -2578,6 +2759,14 @@ static void launcher_loop(void) {
 #if !READYOS_LAUNCHER_VARIANT_EASYFLASH
             case TUI_KEY_F5:
                 browse_and_load_manifest();
+                launcher_draw();
+                break;
+
+            case TUI_KEY_F7:
+                result = launcher_menu_to_app_index(tui_menu_selected(&menu));
+                if (result != MENU_NO_APP) {
+                    unload_selected_from_reu(result);
+                }
                 launcher_draw();
                 break;
 #endif

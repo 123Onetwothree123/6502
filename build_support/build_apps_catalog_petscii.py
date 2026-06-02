@@ -209,8 +209,8 @@ def parse_source(path: str) -> Tuple[Dict[str, str], Dict[str, str], List[Tuple[
         fail(path, pending_entry_line, "missing description line")
     if not apps:
         raise ValueError(f"{path}: no app entries found")
-    if len(apps) > 23:
-        raise ValueError(f"{path}: too many entries ({len(apps)} > 23)")
+    if len(apps) > 64:
+        raise ValueError(f"{path}: too many entries ({len(apps)} > 64)")
     return system_cfg, launcher_cfg, apps
 
 

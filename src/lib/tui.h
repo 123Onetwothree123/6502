@@ -91,6 +91,8 @@
 #define TUI_HOTKEY_BIND_ONLY  0xFE
 #define TUI_HOTKEY_LAUNCHER   0xFF
 #define TUI_HOTKEY_BINDINGS   ((unsigned char*)0xC7E0)
+#define TUI_APP_BANK_MIN      1
+#define TUI_APP_BANK_MAX      223
 
 /* Keyboard auto-repeat policy */
 #define TUI_KEYREPEAT_CURSOR KBREPEAT_CURSOR

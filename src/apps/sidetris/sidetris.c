@@ -73,9 +73,6 @@
 #define RASTER_LINE (*(volatile unsigned char*)0xD012)
 #define JIFFY_LO    (*(volatile unsigned char*)0xA2)
 
-#define APP_BANK_MIN 1
-#define APP_BANK_MAX 23
-
 static unsigned char board_cells[CELL_COUNT];
 static unsigned char rebuild_cells[CELL_COUNT];
 static unsigned char rendered_cells[CELL_COUNT];
@@ -1232,7 +1229,7 @@ static unsigned char handle_app_switch(unsigned char key) {
         tui_return_to_launcher();
         return 1;
     }
-    if (nav_action >= APP_BANK_MIN && nav_action <= APP_BANK_MAX) {
+    if (nav_action >= TUI_APP_BANK_MIN && nav_action <= TUI_APP_BANK_MAX) {
         prepare_suspend_state();
         resume_save_state();
         tui_switch_to_app(nav_action);
@@ -1401,7 +1398,7 @@ int main(void) {
     tui_init();
 
     bank = SHIM_CURRENT_BANK;
-    if (bank >= APP_BANK_MIN && bank <= APP_BANK_MAX) {
+    if (bank >= TUI_APP_BANK_MIN && bank <= TUI_APP_BANK_MAX) {
         resume_init_for_app(bank, bank, RESUME_SCHEMA_V1);
         resume_ready = 1;
     }

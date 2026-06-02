@@ -2846,7 +2846,7 @@ int main(void) {
 
     init_defaults();
     bank = SHIM_CURRENT_BANK;
-    if (bank >= 1u && bank <= 15u) {
+    if (bank >= TUI_APP_BANK_MIN && bank <= TUI_APP_BANK_MAX) {
         resume_init_for_app(bank, bank, RESUME_SCHEMA_V1);
         resume_ready = 1u;
     }

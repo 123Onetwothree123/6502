@@ -1,0 +1,106 @@
+#!/usr/bin/env python3
+"""Static and host-side checks for dynamic launcher REU allocation."""
+
+from __future__ import annotations
+
+import subprocess
+import tempfile
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def fail(message: str) -> None:
+    raise SystemExit(f"dynamic launcher check failed: {message}")
+
+
+def check(name: str, condition: bool) -> None:
+    if not condition:
+        fail(name)
+    print(f"OK: {name}")
+
+
+def main() -> int:
+    launcher = (ROOT / "src/apps/launcher/launcher.c").read_text(
+        encoding="utf-8", errors="replace"
+    )
+    hotkeys = (ROOT / "src/lib/tui_hotkeys.c").read_text(
+        encoding="utf-8", errors="replace"
+    )
+    tui_header = (ROOT / "src/lib/tui.h").read_text(
+        encoding="utf-8", errors="replace"
+    )
+    catalog = (ROOT / "build_support/build_apps_catalog_petscii.py").read_text(
+        encoding="utf-8", errors="replace"
+    )
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8", errors="replace")
+
+    check("launcher exposes 64 app capacity",
+          "#define APP_SLOT_CAPACITY 64" in launcher)
+    check("catalog entries start without preallocated bank",
+          "app_banks[idx] = 0u;" in launcher)
+    check("launcher has lazy snapshot allocator",
+          "launcher_alloc_snapshot_bank" in launcher and
+          "REU_ALLOC_TABLE[physical] == REU_FREE" in launcher)
+    check("low shim-bitmap banks remain dynamic allocation candidates",
+          "bank < 24u && REU_ALLOC_TABLE[physical] == REU_RESERVED" in launcher)
+    check("launcher tracks banks above shim bitmap",
+          "bank >= 24u && last_saved == bank" in launcher)
+    check("launcher validates extended loaded state",
+          "app_banks[i] == 0u || !apps_loaded[i]" in launcher)
+    check("load-all progress rows wrap for 64-app catalogs",
+          "#define LOAD_ALL_LIST_ROWS 19" in launcher and
+          "loaded_count % LOAD_ALL_LIST_ROWS" in launcher)
+    check("cartridge preloads can be tracked above shim bitmap",
+          "launcher_mark_embedded_preloads_loaded" in launcher and
+          "app_sizes[i] = APP_SAVE_SIZE;" in launcher)
+    check("launcher has unload command",
+          "unload_selected_from_reu" in launcher and "case TUI_KEY_F7" in launcher)
+    check("host apps.cfg generator allows 64 apps",
+          "len(apps) > 64" in catalog)
+    check("global hotkeys allow dynamic logical banks",
+          "#define APP_BANK_MAX TUI_APP_BANK_MAX" in hotkeys and
+          "#define TUI_APP_BANK_MAX      223" in tui_header)
+    check("verify target includes dynamic launcher check",
+          "verify_dynamic_launcher.py" in makefile)
+
+    with tempfile.TemporaryDirectory() as td:
+        src = Path(td) / "apps64.ini"
+        out = Path(td) / "apps.cfg.seq"
+        lines = [
+            "[system]",
+            "variant_name=test",
+            "variant_boot_name=test",
+            "reu_bank_skip=32",
+            "[launcher]",
+            "load_all_to_reu=0",
+            "runappfirst=",
+            "[apps]",
+        ]
+        for i in range(64):
+            name = f"a{i:02d}"
+            lines.append(f"8:{name}:{name}")
+            lines.append("test app")
+        src.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        subprocess.run(
+            [
+                "python3",
+                str(ROOT / "build_support/build_apps_catalog_petscii.py"),
+                "--input",
+                str(src),
+                "--output",
+                str(out),
+            ],
+            check=True,
+            cwd=ROOT,
+            stdout=subprocess.DEVNULL,
+        )
+        check("host apps.cfg generator accepts 64 apps", out.exists())
+
+    print("dynamic launcher checks passed.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

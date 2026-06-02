@@ -564,7 +564,7 @@ int main(void) {
     g_line[0] = 0;
     resume_ready = 0;
     bank = SHIM_CURRENT_BANK;
-    if (bank >= 1 && bank <= 23) {
+    if (bank >= TUI_APP_BANK_MIN && bank <= TUI_APP_BANK_MAX) {
         resume_init_for_app(bank, bank, RESUME_SCHEMA_V1);
         resume_ready = 1;
         if (resume_try_load(&resume_blob, sizeof(resume_blob), &payload_len) &&

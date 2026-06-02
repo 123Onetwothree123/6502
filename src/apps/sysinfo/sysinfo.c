@@ -1158,7 +1158,7 @@ static void sysinfo_loop(void) {
         if (nav_action == TUI_HOTKEY_LAUNCHER) {
             tui_return_to_launcher();
         }
-        if (nav_action >= 1u && nav_action <= 23u) {
+        if (nav_action >= TUI_APP_BANK_MIN && nav_action <= TUI_APP_BANK_MAX) {
             tui_switch_to_app(nav_action);
             continue;
         }

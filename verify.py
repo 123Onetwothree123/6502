@@ -164,12 +164,20 @@ def parse_launcher_runtime_contract(path):
     with open(path, "r", encoding="utf-8", errors="replace") as f:
         src = f.read()
 
+    app_slot_capacity = int(
+        re.search(r"#define\s+APP_SLOT_CAPACITY\s+(\d+)", src).group(1)
+    )
+    max_apps_m = re.search(r"#define\s+MAX_APPS\s+\(APP_SLOT_CAPACITY\s*\+\s*1\)", src)
+
     return {
-        "max_apps": int(re.search(r"#define\s+MAX_APPS\s+(\d+)", src).group(1)),
+        "app_slot_capacity": app_slot_capacity,
+        "max_apps": app_slot_capacity + 1 if max_apps_m else 0,
         "max_file_len": int(re.search(r"#define\s+MAX_FILE_LEN\s+(\d+)", src).group(1)),
         "default_drive": int(re.search(r"#define\s+DEFAULT_DRIVE\s+(\d+)", src).group(1)),
         "supports_drive_prefix": 'draw_drive_field' in src and 'draw_drive_prefixed_name' in src,
         "uses_cfg_parser": 'load_catalog_from_disk' in src and 'parse_catalog_entry_line' in src,
+        "uses_lazy_banks": "app_banks[idx] = 0u;" in src and "launcher_alloc_snapshot_bank" in src,
+        "has_unload": "unload_selected_from_reu" in src and "case TUI_KEY_F7" in src,
         "cfg_open_spec": re.search(r'#define\s+APP_CFG_OPEN_SPEC\s+"([^"]+)"', src).group(1),
     }
 
@@ -290,23 +298,35 @@ def parse_reu_mgr_contract(path):
 
 
 def parse_tui_switch_contract(paths):
+    def resolve_bank_max_token(path, token):
+        if token.isdigit():
+            return int(token, 10)
+        if token == "TUI_APP_BANK_MAX":
+            header_path = os.path.join(os.path.dirname(path), "tui.h")
+            with open(header_path, "r", encoding="utf-8", errors="replace") as hf:
+                header_src = hf.read()
+            header_m = re.search(r"#define\s+TUI_APP_BANK_MAX\s+(\d+)", header_src)
+            if header_m:
+                return int(header_m.group(1), 10)
+        raise ValueError(f"unable to resolve APP_BANK_MAX token {token!r} in {path}")
+
     for path in paths:
         if not os.path.exists(path):
             continue
         with open(path, "r", encoding="utf-8", errors="replace") as f:
             src = f.read()
 
-        max_bank_m = re.search(r"#define\s+APP_BANK_MAX\s+(\d+)", src)
+        max_bank_m = re.search(r"#define\s+APP_BANK_MAX\s+([A-Za-z0-9_]+)", src)
         if not max_bank_m:
             continue
 
         return {
             "source_path": path,
-            "app_bank_max": int(max_bank_m.group(1), 10),
+            "app_bank_max": resolve_bank_max_token(path, max_bank_m.group(1)),
             "uses_bitmap_lo": "SHIM_REU_BITMAP_LO" in src,
             "uses_bitmap_hi": "SHIM_REU_BITMAP_HI" in src,
             "uses_bitmap_xhi": "SHIM_REU_BITMAP_XHI" in src,
-            "has_bank_loaded_helper": "tui_bank_loaded" in src,
+            "has_bank_loaded_helper": "hotkey_bank_loaded" in src or "tui_bank_loaded" in src,
         }
 
     raise ValueError("APP_BANK_MAX definition not found in tui_nav.c or tui.c")
@@ -750,8 +770,10 @@ def main():
     except (FileNotFoundError, ValueError, AttributeError) as ex:
         all_ok &= check("launcher runtime contract parse", False, str(ex))
     else:
-        all_ok &= check("MAX_APPS", slot_contract["max_apps"] == 24,
-                        f'{slot_contract["max_apps"]} (expect 24)')
+        all_ok &= check("APP_SLOT_CAPACITY", slot_contract["app_slot_capacity"] == 64,
+                        f'{slot_contract["app_slot_capacity"]} (expect 64)')
+        all_ok &= check("MAX_APPS", slot_contract["max_apps"] == 65,
+                        f'{slot_contract["max_apps"]} (expect 65)')
         all_ok &= check("MAX_FILE_LEN", slot_contract["max_file_len"] == 12,
                         f'{slot_contract["max_file_len"]} (expect 12)')
         all_ok &= check("DEFAULT_DRIVE", slot_contract["default_drive"] == 8,
@@ -760,6 +782,8 @@ def main():
                         repr(slot_contract["cfg_open_spec"]))
         all_ok &= check("launcher has catalog parser", slot_contract["uses_cfg_parser"])
         all_ok &= check("launcher renders drive prefix", slot_contract["supports_drive_prefix"])
+        all_ok &= check("launcher uses lazy snapshot banks", slot_contract["uses_lazy_banks"])
+        all_ok &= check("launcher has unload path", slot_contract["has_unload"])
         norm_1 = None
         reject_comma = False
         reject_upper = False
@@ -792,7 +816,7 @@ def main():
         labels = [e["label"] for e in catalog_entries]
         descs = [e["desc"] for e in catalog_entries]
         all_ok &= check("catalog entries > 0", len(catalog_entries) > 0, f"{len(catalog_entries)} entries")
-        all_ok &= check("catalog entries <= 23", len(catalog_entries) <= 23,
+        all_ok &= check("catalog entries <= 64", len(catalog_entries) <= 64,
                         f"{len(catalog_entries)} entries")
         all_ok &= check("catalog drives map to profile drives", all(d in drive_set for d in drives), f"{drives}")
         all_ok &= check("catalog prg names non-empty", all(0 < len(p) <= 12 for p in prgs), f"{prgs}")
@@ -891,6 +915,7 @@ def main():
     print("\n=== App Switch Contract (F2/F4) ===")
     try:
         tui_contract = parse_tui_switch_contract([
+            os.path.join("src", "lib", "tui_hotkeys.c"),
             os.path.join("src", "lib", "tui_nav.c"),
             os.path.join("src", "lib", "tui.c"),
         ])
@@ -899,8 +924,8 @@ def main():
     else:
         all_ok &= check("tui switch contract source exists", os.path.exists(tui_contract["source_path"]),
                         tui_contract["source_path"])
-        all_ok &= check("APP_BANK_MAX", tui_contract["app_bank_max"] == 23,
-                        f'{tui_contract["app_bank_max"]} (expect 23)')
+        all_ok &= check("APP_BANK_MAX", tui_contract["app_bank_max"] == 223,
+                        f'{tui_contract["app_bank_max"]} (expect 223)')
         all_ok &= check("tui checks bitmap low byte", tui_contract["uses_bitmap_lo"])
         all_ok &= check("tui checks bitmap high byte", tui_contract["uses_bitmap_hi"])
         all_ok &= check("tui checks bitmap xhi byte", tui_contract["uses_bitmap_xhi"])
@@ -937,16 +962,11 @@ def main():
         if catalog_entries is not None:
             highest_used = len(catalog_entries)
             reserved_count = reu_first_dynamic - (highest_used + 1)
-            all_ok &= check("apps fit before dynamic pool", highest_used < reu_first_dynamic,
-                            f"highest={highest_used}, dynamic_base={reu_first_dynamic}")
-            all_ok &= check("catalog stays within app-slot pool", reserved_count >= 0,
-                            f"{highest_used} catalog apps across slots 1-{reu_first_dynamic - 1}")
-            if reserved_count > 0:
-                all_ok &= check("reserved app-slot headroom", True,
-                                f"{reserved_count} reserved slots ({highest_used + 1}-{reu_first_dynamic - 1})")
-            elif reserved_count == 0:
-                warn("reserved app-slot headroom exhausted",
-                     f"catalog uses every app slot 1-{reu_first_dynamic - 1}")
+            all_ok &= check("catalog no longer preallocates app-slot pool", highest_used <= 64,
+                            f"{highest_used} catalog apps, dynamic snapshots assigned on load")
+            if reserved_count <= 0:
+                warn("catalog exceeds fixed shim bitmap pool",
+                     f"{highest_used} catalog apps share lazy snapshot banks; shim bitmap still tracks 1-{reu_first_dynamic - 1}")
 
     # --- Warm Resume Contract ---
     print("\n=== Warm Resume Contract ===")

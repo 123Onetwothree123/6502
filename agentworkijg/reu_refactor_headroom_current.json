@@ -4,41 +4,41 @@
   "maps": [
     {
       "app_window_end": "0xC5FF",
-      "app_window_headroom": 11122,
-      "main_segment_total": 35470,
+      "app_window_headroom": 8062,
+      "main_segment_total": 38530,
       "map": "obj/launcher.map",
       "name": "launcher",
-      "runtime_end": "0x9A8D",
+      "runtime_end": "0xA681",
       "segments": {
         "BSS": {
-          "end": "0x9A8D",
-          "size": 5278,
-          "start": "0x85F0"
+          "end": "0xA681",
+          "size": 7266,
+          "start": "0x8A20"
         },
         "CODE": {
-          "end": "0x80C3",
-          "size": 28817,
+          "end": "0x84BA",
+          "size": 29832,
           "start": "0x1033"
         },
         "DATA": {
-          "end": "0x85AD",
+          "end": "0x89DD",
           "size": 49,
-          "start": "0x857D"
+          "start": "0x89AD"
         },
         "INIT": {
-          "end": "0x85C9",
+          "end": "0x89F9",
           "size": 28,
-          "start": "0x85AE"
+          "start": "0x89DE"
         },
         "ONCE": {
-          "end": "0x85EF",
+          "end": "0x8A1F",
           "size": 38,
-          "start": "0x85CA"
+          "start": "0x89FA"
         },
         "RODATA": {
-          "end": "0x857C",
-          "size": 1209,
-          "start": "0x80C4"
+          "end": "0x89AC",
+          "size": 1266,
+          "start": "0x84BB"
         },
         "STARTUP": {
           "end": "0x1032",
@@ -49,41 +49,41 @@
     },
     {
       "app_window_end": "0xC5FF",
-      "app_window_headroom": 11665,
-      "main_segment_total": 34927,
+      "app_window_headroom": 11664,
+      "main_segment_total": 34928,
       "map": "obj/editor.map",
       "name": "editor",
-      "runtime_end": "0x986E",
+      "runtime_end": "0x986F",
       "segments": {
         "BSS": {
-          "end": "0x986E",
+          "end": "0x986F",
           "size": 9880,
-          "start": "0x71D7"
+          "start": "0x71D8"
         },
         "CODE": {
-          "end": "0x6DD0",
-          "size": 23966,
+          "end": "0x6DD1",
+          "size": 23967,
           "start": "0x1033"
         },
         "DATA": {
-          "end": "0x7194",
+          "end": "0x7195",
           "size": 134,
-          "start": "0x710F"
+          "start": "0x7110"
         },
         "INIT": {
-          "end": "0x71B0",
+          "end": "0x71B1",
           "size": 28,
-          "start": "0x7195"
+          "start": "0x7196"
         },
         "ONCE": {
-          "end": "0x71D6",
+          "end": "0x71D7",
           "size": 38,
-          "start": "0x71B1"
+          "start": "0x71B2"
         },
         "RODATA": {
-          "end": "0x710E",
+          "end": "0x710F",
           "size": 830,
-          "start": "0x6DD1"
+          "start": "0x6DD2"
         },
         "STARTUP": {
           "end": "0x1032",
@@ -94,41 +94,41 @@
     },
     {
       "app_window_end": "0xC5FF",
-      "app_window_headroom": 9471,
-      "main_segment_total": 37121,
+      "app_window_headroom": 9470,
+      "main_segment_total": 37122,
       "map": "obj/quicknotes.map",
       "name": "quicknotes",
-      "runtime_end": "0xA100",
+      "runtime_end": "0xA101",
       "segments": {
         "BSS": {
-          "end": "0xA100",
+          "end": "0xA101",
           "size": 6031,
-          "start": "0x8972"
+          "start": "0x8973"
         },
         "CODE": {
-          "end": "0x84A1",
-          "size": 29807,
+          "end": "0x84A2",
+          "size": 29808,
           "start": "0x1033"
         },
         "DATA": {
-          "end": "0x892F",
+          "end": "0x8930",
           "size": 222,
-          "start": "0x8852"
+          "start": "0x8853"
         },
         "INIT": {
-          "end": "0x894B",
+          "end": "0x894C",
           "size": 28,
-          "start": "0x8930"
+          "start": "0x8931"
         },
         "ONCE": {
-          "end": "0x8971",
+          "end": "0x8972",
           "size": 38,
-          "start": "0x894C"
+          "start": "0x894D"
         },
         "RODATA": {
-          "end": "0x8851",
+          "end": "0x8852",
           "size": 944,
-          "start": "0x84A2"
+          "start": "0x84A3"
         },
         "STARTUP": {
           "end": "0x1032",
@@ -319,41 +319,41 @@
     },
     {
       "app_window_end": "0xC5FF",
-      "app_window_headroom": 30022,
-      "main_segment_total": 16570,
+      "app_window_headroom": 30021,
+      "main_segment_total": 16571,
       "map": "obj/sysinfo.map",
       "name": "sysinfo",
-      "runtime_end": "0x50B9",
+      "runtime_end": "0x50BA",
       "segments": {
         "BSS": {
-          "end": "0x50B9",
+          "end": "0x50BA",
           "size": 277,
-          "start": "0x4FA5"
+          "start": "0x4FA6"
         },
         "CODE": {
-          "end": "0x4B0B",
-          "size": 15065,
+          "end": "0x4B0C",
+          "size": 15066,
           "start": "0x1033"
         },
         "DATA": {
-          "end": "0x4F62",
+          "end": "0x4F63",
           "size": 47,
-          "start": "0x4F34"
+          "start": "0x4F35"
         },
         "INIT": {
-          "end": "0x4F7E",
+          "end": "0x4F7F",
           "size": 28,
-          "start": "0x4F63"
+          "start": "0x4F64"
         },
         "ONCE": {
-          "end": "0x4FA4",
+          "end": "0x4FA5",
           "size": 38,
-          "start": "0x4F7F"
+          "start": "0x4F80"
         },
         "RODATA": {
-          "end": "0x4F33",
+          "end": "0x4F34",
           "size": 1064,
-          "start": "0x4B0C"
+          "start": "0x4B0D"
         },
         "STARTUP": {
           "end": "0x1032",
@@ -364,41 +364,41 @@
     },
     {
       "app_window_end": "0xC5FF",
-      "app_window_headroom": 6022,
-      "main_segment_total": 40570,
+      "app_window_headroom": 6021,
+      "main_segment_total": 40571,
       "map": "obj/tasklist.map",
       "name": "tasklist",
-      "runtime_end": "0xAE79",
+      "runtime_end": "0xAE7A",
       "segments": {
         "BSS": {
-          "end": "0xAE79",
+          "end": "0xAE7A",
           "size": 8927,
-          "start": "0x8B9B"
+          "start": "0x8B9C"
         },
         "CODE": {
-          "end": "0x878C",
-          "size": 30554,
+          "end": "0x878D",
+          "size": 30555,
           "start": "0x1033"
         },
         "DATA": {
-          "end": "0x8B58",
+          "end": "0x8B59",
           "size": 151,
-          "start": "0x8AC2"
+          "start": "0x8AC3"
         },
         "INIT": {
-          "end": "0x8B74",
+          "end": "0x8B75",
           "size": 28,
-          "start": "0x8B59"
+          "start": "0x8B5A"
         },
         "ONCE": {
-          "end": "0x8B9A",
+          "end": "0x8B9B",
           "size": 38,
-          "start": "0x8B75"
+          "start": "0x8B76"
         },
         "RODATA": {
-          "end": "0x8AC1",
+          "end": "0x8AC2",
           "size": 821,
-          "start": "0x878D"
+          "start": "0x878E"
         },
         "STARTUP": {
           "end": "0x1032",
@@ -409,41 +409,41 @@
     },
     {
       "app_window_end": "0xC5FF",
-      "app_window_headroom": 12637,
-      "main_segment_total": 33955,
+      "app_window_headroom": 12636,
+      "main_segment_total": 33956,
       "map": "obj/simplefiles.map",
       "name": "simplefiles",
-      "runtime_end": "0x94A2",
+      "runtime_end": "0x94A3",
       "segments": {
         "BSS": {
-          "end": "0x94A2",
+          "end": "0x94A3",
           "size": 4397,
-          "start": "0x8376"
+          "start": "0x8377"
         },
         "CODE": {
-          "end": "0x7E28",
-          "size": 28150,
+          "end": "0x7E29",
+          "size": 28151,
           "start": "0x1033"
         },
         "DATA": {
-          "end": "0x8333",
+          "end": "0x8334",
           "size": 62,
-          "start": "0x82F6"
+          "start": "0x82F7"
         },
         "INIT": {
-          "end": "0x834F",
+          "end": "0x8350",
           "size": 28,
-          "start": "0x8334"
+          "start": "0x8335"
         },
         "ONCE": {
-          "end": "0x8375",
+          "end": "0x8376",
           "size": 38,
-          "start": "0x8350"
+          "start": "0x8351"
         },
         "RODATA": {
-          "end": "0x82F5",
+          "end": "0x82F6",
           "size": 1229,
-          "start": "0x7E29"
+          "start": "0x7E2A"
         },
         "STARTUP": {
           "end": "0x1032",
@@ -544,41 +544,41 @@
     },
     {
       "app_window_end": "0xC5FF",
-      "app_window_headroom": 8704,
-      "main_segment_total": 37888,
+      "app_window_headroom": 8703,
+      "main_segment_total": 37889,
       "map": "obj/cal26.map",
       "name": "cal26",
-      "runtime_end": "0xA3FF",
+      "runtime_end": "0xA400",
       "segments": {
         "BSS": {
-          "end": "0xA3FF",
+          "end": "0xA400",
           "size": 4803,
-          "start": "0x913D"
+          "start": "0x913E"
         },
         "CODE": {
-          "end": "0x8869",
-          "size": 30775,
+          "end": "0x886A",
+          "size": 30776,
           "start": "0x1033"
         },
         "DATA": {
-          "end": "0x90FA",
+          "end": "0x90FB",
           "size": 324,
-          "start": "0x8FB7"
+          "start": "0x8FB8"
         },
         "INIT": {
-          "end": "0x9116",
+          "end": "0x9117",
           "size": 28,
-          "start": "0x90FB"
+          "start": "0x90FC"
         },
         "ONCE": {
-          "end": "0x913C",
+          "end": "0x913D",
           "size": 38,
-          "start": "0x9117"
+          "start": "0x9118"
         },
         "RODATA": {
-          "end": "0x8FB6",
+          "end": "0x8FB7",
           "size": 1869,
-          "start": "0x886A"
+          "start": "0x886B"
         },
         "STARTUP": {
           "end": "0x1032",
@@ -634,41 +634,41 @@
     },
     {
       "app_window_end": "0xC5FF",
-      "app_window_headroom": 28959,
-      "main_segment_total": 17633,
+      "app_window_headroom": 28958,
+      "main_segment_total": 17634,
       "map": "obj/readyirc.map",
       "name": "readyirc",
-      "runtime_end": "0x54E0",
+      "runtime_end": "0x54E1",
       "segments": {
         "BSS": {
-          "end": "0x54E0",
+          "end": "0x54E1",
           "size": 2571,
-          "start": "0x4AD6"
+          "start": "0x4AD7"
         },
         "CODE": {
-          "end": "0x48A5",
-          "size": 14451,
+          "end": "0x48A6",
+          "size": 14452,
           "start": "0x1033"
         },
         "DATA": {
-          "end": "0x4A93",
+          "end": "0x4A94",
           "size": 46,
-          "start": "0x4A66"
+          "start": "0x4A67"
         },
         "INIT": {
-          "end": "0x4AAF",
+          "end": "0x4AB0",
           "size": 28,
-          "start": "0x4A94"
+          "start": "0x4A95"
         },
         "ONCE": {
-          "end": "0x4AD5",
+          "end": "0x4AD6",
           "size": 38,
-          "start": "0x4AB0"
+          "start": "0x4AB1"
         },
         "RODATA": {
-          "end": "0x4A65",
+          "end": "0x4A66",
           "size": 448,
-          "start": "0x48A6"
+          "start": "0x48A7"
         },
         "STARTUP": {
           "end": "0x1032",
@@ -679,41 +679,41 @@
     },
     {
       "app_window_end": "0xC5FF",
-      "app_window_headroom": 18173,
-      "main_segment_total": 28419,
+      "app_window_headroom": 18172,
+      "main_segment_total": 28420,
       "map": "obj/rirc-rrnet.map",
       "name": "rirc-rrnet",
-      "runtime_end": "0x7F02",
+      "runtime_end": "0x7F03",
       "segments": {
         "BSS": {
-          "end": "0x7F02",
+          "end": "0x7F03",
           "size": 6893,
-          "start": "0x6416"
+          "start": "0x6417"
         },
         "CODE": {
-          "end": "0x6017",
-          "size": 20453,
+          "end": "0x6018",
+          "size": 20454,
           "start": "0x1033"
         },
         "DATA": {
-          "end": "0x63D3",
+          "end": "0x63D4",
           "size": 227,
-          "start": "0x62F1"
+          "start": "0x62F2"
         },
         "INIT": {
-          "end": "0x63EF",
+          "end": "0x63F0",
           "size": 28,
-          "start": "0x63D4"
+          "start": "0x63D5"
         },
         "ONCE": {
-          "end": "0x6415",
+          "end": "0x6416",
           "size": 38,
-          "start": "0x63F0"
+          "start": "0x63F1"
         },
         "RODATA": {
-          "end": "0x62F0",
+          "end": "0x62F1",
           "size": 729,
-          "start": "0x6018"
+          "start": "0x6019"
         },
         "STARTUP": {
           "end": "0x1032",

@@ -8,8 +8,8 @@
 #define SHIM_REU_BITMAP_LO ((unsigned char*)0xC836)
 #define SHIM_REU_BITMAP_HI ((unsigned char*)0xC837)
 #define SHIM_REU_BITMAP_XHI ((unsigned char*)0xC838)
-#define APP_BANK_EDITOR 1
-#define APP_BANK_MAX 23
+#define APP_BANK_EDITOR TUI_APP_BANK_MIN
+#define APP_BANK_MAX TUI_APP_BANK_MAX
 
 /* PETSCII/control bytes produced by Ctrl/C= digit chords on C64 keyboards. */
 #define HOTKEY_CTRL_1 144
@@ -94,7 +94,7 @@ static unsigned char hotkey_bank_loaded(unsigned char bank) {
     if (bank < 24) {
         return (unsigned char)((*SHIM_REU_BITMAP_XHI & (unsigned char)(1U << (bank - 16))) != 0);
     }
-    return 0;
+    return 1;
 }
 
 unsigned char tui_get_modifiers(void) {
