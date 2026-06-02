@@ -2688,24 +2688,13 @@ rb_expr_exec_assignment:
         clc
         rts
 :       jsr CHRGET
-        jsr rb_fold_a
-        cmp #'A'
-        bcc @not_expr_assignment
-        cmp #'Z' + 1
-        bcc :+
-@not_expr_assignment:
-        pla
-        pla
-        clc
-        rts
-:       jsr CHRGOT
         pla
         sta rb_tmp_lo
         pla
         cmp #$FF
         beq @string
         jsr rb_expr_push_state
-        jsr rb_eval_current
+        jsr BASIC_FRMNUM
         jsr rb_expr_pop_state
         lda rb_tmp_lo
         cmp #$80
