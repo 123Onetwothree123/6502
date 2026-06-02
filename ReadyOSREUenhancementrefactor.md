@@ -1545,3 +1545,82 @@ nothing to normal apps.
 
 This gives ReadyOS a canonical future control bank without risking launcher,
 shim, ReadyShell, or ReadyBASIC behavior immediately.
+
+## Implementation Status: 2026-06-02
+
+This branch has implemented the conservative first milestone plus the first
+piece of Phase 2.5 resolver indirection. It intentionally does not implement
+dynamic app allocation, catalog expansion, manifest parsing, unload, headless
+invocation, modal services, or dynamic ReadyShell/ReadyBASIC resource
+assignment yet.
+
+Implemented:
+
+- added `src/lib/reu_control_bank.h` and `src/lib/reu_control_bank.c`;
+- defined logical bank `0` schema version `1` with magic `RCB0`;
+- kept the shim at `512` bytes with no semantic change;
+- kept `$C600-$C7FF` as fast resident truth;
+- mirrored the resident `$C600` 256-byte bank-type table into logical bank `0`
+  at offset `$0100`;
+- wrote compact fixed-resource records at `$0200` for:
+  - ReadyOS global/control bank;
+  - launcher snapshot;
+  - launcher overlay;
+  - ReadyShell cache banks `$40`, `$41`, `$42`;
+  - ReadyShell debug bank `$43`;
+  - ReadyShell scratch bank `$48`;
+  - ReadyBASIC core/code banks `$44`, `$45`;
+- linked the control-bank writer only into launcher and reuviewer, not broad
+  normal-app REU libraries;
+- refreshed the bank `0` mirror from launcher after bitmap sync and app
+  preload state changes;
+- added a fixed-bank launcher snapshot resolver so shim-facing launcher paths
+  stop directly depending on `app_banks[index]` at the final handoff point;
+- added reuviewer control-bank header validation/status display;
+- added `build_support/verify_reu_control_bank.py`;
+- added `build_support/report_app_headroom.py`;
+- captured the current app-window report at
+  `agentworkijg/reu_refactor_headroom_current.json`;
+- wired the new static verifier into `make verify`.
+
+Verification passed after implementation:
+
+- `make bin/launcher.prg bin/launcher_easyflash.prg bin/reuviewer.prg`;
+- `python3 build_support/verify_reu_control_bank.py`;
+- `python3 build_support/report_app_headroom.py --output agentworkijg/reu_refactor_headroom_current.json`;
+- `python3 build_support/verify_memory_map.py`;
+- `python3 build_support/verify_readyos_shim.py --check-easyflash-bin`;
+- `make verify`;
+- `make easyflash-verify`.
+
+Observed memory-contract result:
+
+- normal apps do not link the new control-bank writer;
+- launcher and reuviewer grow because they deliberately own/debug the mirror;
+- `verify_memory_map.py` still passes the app-window, `$C600-$C7FF`, shim, and
+  I/O exclusion checks;
+- `verify_readyos_shim.py --check-easyflash-bin` still reports a `512` byte
+  shim and EasyFlash shim binary byte-identical to `readyos_shim.inc`;
+- ReadyShell heap/overlay bounds still pass the existing memory-map checks.
+- the current generated report shows ReadyBASIC as the tightest app-window case
+  with `1031` bytes of headroom, so broad library growth remains unacceptable.
+
+Open work for the next branch or milestone:
+
+- capture a clean pre-change/mainline report and compare it against
+  `agentworkijg/reu_refactor_headroom_current.json` before making authority or
+  allocator changes;
+- add a VICE probe that reads logical bank `0` and validates the `RCB0` header,
+  generation, bank-type mirror, and fixed-resource records at runtime;
+  an initial monitor-script attempt was deferred because monitor writes to the
+  REU I/O registers did not reliably affect the live REU transfer registers,
+  so the next probe should be implemented as a small C64-side test program or
+  with a proven VICE I/O-address-space command sequence;
+- expand launcher resolver coverage beyond final shim-facing handoff sites
+  before any dynamic bank assignment is introduced;
+- add generated dependency records for the existing EasyFlash ReadyShell
+  preload model before changing ReadyShell itself;
+- keep ReadyBASIC module/micromodule dynamic-bank work deferred until the C app
+  and ReadyShell resource model has proven stable;
+- design unload/eviction and app-owned resource lists only after dynamic
+  allocation exists and passes disk plus EasyFlash smoke paths.

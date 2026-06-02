@@ -1,0 +1,850 @@
+{
+  "app_window_end": "0xC5FF",
+  "app_window_start": "0x1000",
+  "maps": [
+    {
+      "app_window_end": "0xC5FF",
+      "app_window_headroom": 11122,
+      "main_segment_total": 35470,
+      "map": "obj/launcher.map",
+      "name": "launcher",
+      "runtime_end": "0x9A8D",
+      "segments": {
+        "BSS": {
+          "end": "0x9A8D",
+          "size": 5278,
+          "start": "0x85F0"
+        },
+        "CODE": {
+          "end": "0x80C3",
+          "size": 28817,
+          "start": "0x1033"
+        },
+        "DATA": {
+          "end": "0x85AD",
+          "size": 49,
+          "start": "0x857D"
+        },
+        "INIT": {
+          "end": "0x85C9",
+          "size": 28,
+          "start": "0x85AE"
+        },
+        "ONCE": {
+          "end": "0x85EF",
+          "size": 38,
+          "start": "0x85CA"
+        },
+        "RODATA": {
+          "end": "0x857C",
+          "size": 1209,
+          "start": "0x80C4"
+        },
+        "STARTUP": {
+          "end": "0x1032",
+          "size": 51,
+          "start": "0x1000"
+        }
+      }
+    },
+    {
+      "app_window_end": "0xC5FF",
+      "app_window_headroom": 11665,
+      "main_segment_total": 34927,
+      "map": "obj/editor.map",
+      "name": "editor",
+      "runtime_end": "0x986E",
+      "segments": {
+        "BSS": {
+          "end": "0x986E",
+          "size": 9880,
+          "start": "0x71D7"
+        },
+        "CODE": {
+          "end": "0x6DD0",
+          "size": 23966,
+          "start": "0x1033"
+        },
+        "DATA": {
+          "end": "0x7194",
+          "size": 134,
+          "start": "0x710F"
+        },
+        "INIT": {
+          "end": "0x71B0",
+          "size": 28,
+          "start": "0x7195"
+        },
+        "ONCE": {
+          "end": "0x71D6",
+          "size": 38,
+          "start": "0x71B1"
+        },
+        "RODATA": {
+          "end": "0x710E",
+          "size": 830,
+          "start": "0x6DD1"
+        },
+        "STARTUP": {
+          "end": "0x1032",
+          "size": 51,
+          "start": "0x1000"
+        }
+      }
+    },
+    {
+      "app_window_end": "0xC5FF",
+      "app_window_headroom": 9471,
+      "main_segment_total": 37121,
+      "map": "obj/quicknotes.map",
+      "name": "quicknotes",
+      "runtime_end": "0xA100",
+      "segments": {
+        "BSS": {
+          "end": "0xA100",
+          "size": 6031,
+          "start": "0x8972"
+        },
+        "CODE": {
+          "end": "0x84A1",
+          "size": 29807,
+          "start": "0x1033"
+        },
+        "DATA": {
+          "end": "0x892F",
+          "size": 222,
+          "start": "0x8852"
+        },
+        "INIT": {
+          "end": "0x894B",
+          "size": 28,
+          "start": "0x8930"
+        },
+        "ONCE": {
+          "end": "0x8971",
+          "size": 38,
+          "start": "0x894C"
+        },
+        "RODATA": {
+          "end": "0x8851",
+          "size": 944,
+          "start": "0x84A2"
+        },
+        "STARTUP": {
+          "end": "0x1032",
+          "size": 51,
+          "start": "0x1000"
+        }
+      }
+    },
+    {
+      "app_window_end": "0xC5FF",
+      "app_window_headroom": 6593,
+      "main_segment_total": 39999,
+      "map": "obj/calcplus.map",
+      "name": "calcplus",
+      "runtime_end": "0xAC3E",
+      "segments": {
+        "BSS": {
+          "end": "0xAC3E",
+          "size": 1321,
+          "start": "0xA716"
+        },
+        "CODE": {
+          "end": "0xA1A0",
+          "size": 37230,
+          "start": "0x1033"
+        },
+        "DATA": {
+          "end": "0xA6D3",
+          "size": 158,
+          "start": "0xA636"
+        },
+        "INIT": {
+          "end": "0xA6EF",
+          "size": 28,
+          "start": "0xA6D4"
+        },
+        "ONCE": {
+          "end": "0xA715",
+          "size": 38,
+          "start": "0xA6F0"
+        },
+        "RODATA": {
+          "end": "0xA635",
+          "size": 1173,
+          "start": "0xA1A1"
+        },
+        "STARTUP": {
+          "end": "0x1032",
+          "size": 51,
+          "start": "0x1000"
+        }
+      }
+    },
+    {
+      "app_window_end": "0xC5FF",
+      "app_window_headroom": 32277,
+      "main_segment_total": 14315,
+      "map": "obj/hexview.map",
+      "name": "hexview",
+      "runtime_end": "0x47EA",
+      "segments": {
+        "BSS": {
+          "end": "0x47EA",
+          "size": 101,
+          "start": "0x4786"
+        },
+        "CODE": {
+          "end": "0x4523",
+          "size": 13553,
+          "start": "0x1033"
+        },
+        "DATA": {
+          "end": "0x4743",
+          "size": 46,
+          "start": "0x4716"
+        },
+        "INIT": {
+          "end": "0x475F",
+          "size": 28,
+          "start": "0x4744"
+        },
+        "ONCE": {
+          "end": "0x4785",
+          "size": 38,
+          "start": "0x4760"
+        },
+        "RODATA": {
+          "end": "0x4715",
+          "size": 498,
+          "start": "0x4524"
+        },
+        "STARTUP": {
+          "end": "0x1032",
+          "size": 51,
+          "start": "0x1000"
+        }
+      }
+    },
+    {
+      "app_window_end": "0xC5FF",
+      "app_window_headroom": 13439,
+      "main_segment_total": 33153,
+      "map": "obj/clipmgr.map",
+      "name": "clipmgr",
+      "runtime_end": "0x9180",
+      "segments": {
+        "BSS": {
+          "end": "0x9180",
+          "size": 1062,
+          "start": "0x8D5B"
+        },
+        "CODE": {
+          "end": "0x89A0",
+          "size": 31086,
+          "start": "0x1033"
+        },
+        "DATA": {
+          "end": "0x8D18",
+          "size": 46,
+          "start": "0x8CEB"
+        },
+        "INIT": {
+          "end": "0x8D34",
+          "size": 28,
+          "start": "0x8D19"
+        },
+        "ONCE": {
+          "end": "0x8D5A",
+          "size": 38,
+          "start": "0x8D35"
+        },
+        "RODATA": {
+          "end": "0x8CEA",
+          "size": 842,
+          "start": "0x89A1"
+        },
+        "STARTUP": {
+          "end": "0x1032",
+          "size": 51,
+          "start": "0x1000"
+        }
+      }
+    },
+    {
+      "app_window_end": "0xC5FF",
+      "app_window_headroom": 29372,
+      "main_segment_total": 17220,
+      "map": "obj/reuviewer.map",
+      "name": "reuviewer",
+      "runtime_end": "0x5343",
+      "segments": {
+        "BSS": {
+          "end": "0x5343",
+          "size": 201,
+          "start": "0x527B"
+        },
+        "CODE": {
+          "end": "0x5083",
+          "size": 16465,
+          "start": "0x1033"
+        },
+        "DATA": {
+          "end": "0x5238",
+          "size": 46,
+          "start": "0x520B"
+        },
+        "INIT": {
+          "end": "0x5254",
+          "size": 28,
+          "start": "0x5239"
+        },
+        "ONCE": {
+          "end": "0x527A",
+          "size": 38,
+          "start": "0x5255"
+        },
+        "RODATA": {
+          "end": "0x520A",
+          "size": 391,
+          "start": "0x5084"
+        },
+        "STARTUP": {
+          "end": "0x1032",
+          "size": 51,
+          "start": "0x1000"
+        }
+      }
+    },
+    {
+      "app_window_end": "0xC5FF",
+      "app_window_headroom": 30022,
+      "main_segment_total": 16570,
+      "map": "obj/sysinfo.map",
+      "name": "sysinfo",
+      "runtime_end": "0x50B9",
+      "segments": {
+        "BSS": {
+          "end": "0x50B9",
+          "size": 277,
+          "start": "0x4FA5"
+        },
+        "CODE": {
+          "end": "0x4B0B",
+          "size": 15065,
+          "start": "0x1033"
+        },
+        "DATA": {
+          "end": "0x4F62",
+          "size": 47,
+          "start": "0x4F34"
+        },
+        "INIT": {
+          "end": "0x4F7E",
+          "size": 28,
+          "start": "0x4F63"
+        },
+        "ONCE": {
+          "end": "0x4FA4",
+          "size": 38,
+          "start": "0x4F7F"
+        },
+        "RODATA": {
+          "end": "0x4F33",
+          "size": 1064,
+          "start": "0x4B0C"
+        },
+        "STARTUP": {
+          "end": "0x1032",
+          "size": 51,
+          "start": "0x1000"
+        }
+      }
+    },
+    {
+      "app_window_end": "0xC5FF",
+      "app_window_headroom": 6022,
+      "main_segment_total": 40570,
+      "map": "obj/tasklist.map",
+      "name": "tasklist",
+      "runtime_end": "0xAE79",
+      "segments": {
+        "BSS": {
+          "end": "0xAE79",
+          "size": 8927,
+          "start": "0x8B9B"
+        },
+        "CODE": {
+          "end": "0x878C",
+          "size": 30554,
+          "start": "0x1033"
+        },
+        "DATA": {
+          "end": "0x8B58",
+          "size": 151,
+          "start": "0x8AC2"
+        },
+        "INIT": {
+          "end": "0x8B74",
+          "size": 28,
+          "start": "0x8B59"
+        },
+        "ONCE": {
+          "end": "0x8B9A",
+          "size": 38,
+          "start": "0x8B75"
+        },
+        "RODATA": {
+          "end": "0x8AC1",
+          "size": 821,
+          "start": "0x878D"
+        },
+        "STARTUP": {
+          "end": "0x1032",
+          "size": 51,
+          "start": "0x1000"
+        }
+      }
+    },
+    {
+      "app_window_end": "0xC5FF",
+      "app_window_headroom": 12637,
+      "main_segment_total": 33955,
+      "map": "obj/simplefiles.map",
+      "name": "simplefiles",
+      "runtime_end": "0x94A2",
+      "segments": {
+        "BSS": {
+          "end": "0x94A2",
+          "size": 4397,
+          "start": "0x8376"
+        },
+        "CODE": {
+          "end": "0x7E28",
+          "size": 28150,
+          "start": "0x1033"
+        },
+        "DATA": {
+          "end": "0x8333",
+          "size": 62,
+          "start": "0x82F6"
+        },
+        "INIT": {
+          "end": "0x834F",
+          "size": 28,
+          "start": "0x8334"
+        },
+        "ONCE": {
+          "end": "0x8375",
+          "size": 38,
+          "start": "0x8350"
+        },
+        "RODATA": {
+          "end": "0x82F5",
+          "size": 1229,
+          "start": "0x7E29"
+        },
+        "STARTUP": {
+          "end": "0x1032",
+          "size": 51,
+          "start": "0x1000"
+        }
+      }
+    },
+    {
+      "app_window_end": "0xC5FF",
+      "app_window_headroom": 28580,
+      "main_segment_total": 18012,
+      "map": "obj/game2048.map",
+      "name": "game2048",
+      "runtime_end": "0x565B",
+      "segments": {
+        "BSS": {
+          "end": "0x565B",
+          "size": 1203,
+          "start": "0x51A9"
+        },
+        "CODE": {
+          "end": "0x5008",
+          "size": 16342,
+          "start": "0x1033"
+        },
+        "DATA": {
+          "end": "0x5166",
+          "size": 46,
+          "start": "0x5139"
+        },
+        "INIT": {
+          "end": "0x5182",
+          "size": 28,
+          "start": "0x5167"
+        },
+        "ONCE": {
+          "end": "0x51A8",
+          "size": 38,
+          "start": "0x5183"
+        },
+        "RODATA": {
+          "end": "0x5138",
+          "size": 304,
+          "start": "0x5009"
+        },
+        "STARTUP": {
+          "end": "0x1032",
+          "size": 51,
+          "start": "0x1000"
+        }
+      }
+    },
+    {
+      "app_window_end": "0xC5FF",
+      "app_window_headroom": 22167,
+      "main_segment_total": 24425,
+      "map": "obj/deminer.map",
+      "name": "deminer",
+      "runtime_end": "0x6F68",
+      "segments": {
+        "BSS": {
+          "end": "0x6F68",
+          "size": 4276,
+          "start": "0x5EB5"
+        },
+        "CODE": {
+          "end": "0x5B59",
+          "size": 19239,
+          "start": "0x1033"
+        },
+        "DATA": {
+          "end": "0x5E72",
+          "size": 46,
+          "start": "0x5E45"
+        },
+        "INIT": {
+          "end": "0x5E8E",
+          "size": 28,
+          "start": "0x5E73"
+        },
+        "ONCE": {
+          "end": "0x5EB4",
+          "size": 38,
+          "start": "0x5E8F"
+        },
+        "RODATA": {
+          "end": "0x5E44",
+          "size": 747,
+          "start": "0x5B5A"
+        },
+        "STARTUP": {
+          "end": "0x1032",
+          "size": 51,
+          "start": "0x1000"
+        }
+      }
+    },
+    {
+      "app_window_end": "0xC5FF",
+      "app_window_headroom": 8704,
+      "main_segment_total": 37888,
+      "map": "obj/cal26.map",
+      "name": "cal26",
+      "runtime_end": "0xA3FF",
+      "segments": {
+        "BSS": {
+          "end": "0xA3FF",
+          "size": 4803,
+          "start": "0x913D"
+        },
+        "CODE": {
+          "end": "0x8869",
+          "size": 30775,
+          "start": "0x1033"
+        },
+        "DATA": {
+          "end": "0x90FA",
+          "size": 324,
+          "start": "0x8FB7"
+        },
+        "INIT": {
+          "end": "0x9116",
+          "size": 28,
+          "start": "0x90FB"
+        },
+        "ONCE": {
+          "end": "0x913C",
+          "size": 38,
+          "start": "0x9117"
+        },
+        "RODATA": {
+          "end": "0x8FB6",
+          "size": 1869,
+          "start": "0x886A"
+        },
+        "STARTUP": {
+          "end": "0x1032",
+          "size": 51,
+          "start": "0x1000"
+        }
+      }
+    },
+    {
+      "app_window_end": "0xC5FF",
+      "app_window_headroom": 1834,
+      "main_segment_total": 44758,
+      "map": "obj/dizzy.map",
+      "name": "dizzy",
+      "runtime_end": "0xBED5",
+      "segments": {
+        "BSS": {
+          "end": "0xBED5",
+          "size": 6327,
+          "start": "0xA61F"
+        },
+        "CODE": {
+          "end": "0xA08F",
+          "size": 36957,
+          "start": "0x1033"
+        },
+        "DATA": {
+          "end": "0xA5DC",
+          "size": 132,
+          "start": "0xA559"
+        },
+        "INIT": {
+          "end": "0xA5F8",
+          "size": 28,
+          "start": "0xA5DD"
+        },
+        "ONCE": {
+          "end": "0xA61E",
+          "size": 38,
+          "start": "0xA5F9"
+        },
+        "RODATA": {
+          "end": "0xA558",
+          "size": 1225,
+          "start": "0xA090"
+        },
+        "STARTUP": {
+          "end": "0x1032",
+          "size": 51,
+          "start": "0x1000"
+        }
+      }
+    },
+    {
+      "app_window_end": "0xC5FF",
+      "app_window_headroom": 28959,
+      "main_segment_total": 17633,
+      "map": "obj/readyirc.map",
+      "name": "readyirc",
+      "runtime_end": "0x54E0",
+      "segments": {
+        "BSS": {
+          "end": "0x54E0",
+          "size": 2571,
+          "start": "0x4AD6"
+        },
+        "CODE": {
+          "end": "0x48A5",
+          "size": 14451,
+          "start": "0x1033"
+        },
+        "DATA": {
+          "end": "0x4A93",
+          "size": 46,
+          "start": "0x4A66"
+        },
+        "INIT": {
+          "end": "0x4AAF",
+          "size": 28,
+          "start": "0x4A94"
+        },
+        "ONCE": {
+          "end": "0x4AD5",
+          "size": 38,
+          "start": "0x4AB0"
+        },
+        "RODATA": {
+          "end": "0x4A65",
+          "size": 448,
+          "start": "0x48A6"
+        },
+        "STARTUP": {
+          "end": "0x1032",
+          "size": 51,
+          "start": "0x1000"
+        }
+      }
+    },
+    {
+      "app_window_end": "0xC5FF",
+      "app_window_headroom": 18173,
+      "main_segment_total": 28419,
+      "map": "obj/rirc-rrnet.map",
+      "name": "rirc-rrnet",
+      "runtime_end": "0x7F02",
+      "segments": {
+        "BSS": {
+          "end": "0x7F02",
+          "size": 6893,
+          "start": "0x6416"
+        },
+        "CODE": {
+          "end": "0x6017",
+          "size": 20453,
+          "start": "0x1033"
+        },
+        "DATA": {
+          "end": "0x63D3",
+          "size": 227,
+          "start": "0x62F1"
+        },
+        "INIT": {
+          "end": "0x63EF",
+          "size": 28,
+          "start": "0x63D4"
+        },
+        "ONCE": {
+          "end": "0x6415",
+          "size": 38,
+          "start": "0x63F0"
+        },
+        "RODATA": {
+          "end": "0x62F0",
+          "size": 729,
+          "start": "0x6018"
+        },
+        "STARTUP": {
+          "end": "0x1032",
+          "size": 51,
+          "start": "0x1000"
+        }
+      }
+    },
+    {
+      "app_window_end": "0xC5FF",
+      "app_window_headroom": 1031,
+      "main_segment_total": 1630,
+      "map": "obj/readybasic.map",
+      "name": "readybasic",
+      "runtime_end": "0xC1F8",
+      "segments": {
+        "BRIDGE": {
+          "end": "0xC1F8",
+          "size": 505,
+          "start": "0xC000"
+        },
+        "ENTRY": {
+          "end": "0x1102",
+          "size": 259,
+          "start": "0x1000"
+        },
+        "HIDDEN": {
+          "end": "0xA361",
+          "size": 866,
+          "start": "0xA000"
+        }
+      }
+    },
+    {
+      "app_window_end": "0xC5FF",
+      "app_window_headroom": 22748,
+      "main_segment_total": 23844,
+      "map": "obj/readme.map",
+      "name": "readme",
+      "runtime_end": "0x6D23",
+      "segments": {
+        "BSS": {
+          "end": "0x6D23",
+          "size": 48,
+          "start": "0x6CF4"
+        },
+        "CODE": {
+          "end": "0x38E3",
+          "size": 10417,
+          "start": "0x1033"
+        },
+        "DATA": {
+          "end": "0x6CB1",
+          "size": 46,
+          "start": "0x6C84"
+        },
+        "INIT": {
+          "end": "0x6CCD",
+          "size": 28,
+          "start": "0x6CB2"
+        },
+        "ONCE": {
+          "end": "0x6CF3",
+          "size": 38,
+          "start": "0x6CCE"
+        },
+        "RODATA": {
+          "end": "0x6C83",
+          "size": 13216,
+          "start": "0x38E4"
+        },
+        "STARTUP": {
+          "end": "0x1032",
+          "size": 51,
+          "start": "0x1000"
+        }
+      }
+    },
+    {
+      "app_window_end": "0xC5FF",
+      "app_window_headroom": 16585,
+      "main_segment_total": 30007,
+      "map": "obj/readyshell.map",
+      "name": "readyshell",
+      "readyshell": {
+        "heap_end": "0x8DFD",
+        "heap_size": 2246,
+        "heap_start": "0x8538",
+        "himem": "0xC600",
+        "overlay_loadaddr": "0x8DFE",
+        "overlay_start": "0x8E00",
+        "overlay_window": 14336
+      },
+      "runtime_end": "0x8536",
+      "segments": {
+        "BSS": {
+          "end": "0x8536",
+          "size": 503,
+          "start": "0x8340"
+        },
+        "CODE": {
+          "end": "0x7E97",
+          "size": 28261,
+          "start": "0x1033"
+        },
+        "DATA": {
+          "end": "0x82EB",
+          "size": 71,
+          "start": "0x82A5"
+        },
+        "INIT": {
+          "end": "0x8307",
+          "size": 28,
+          "start": "0x82EC"
+        },
+        "ONCE": {
+          "end": "0x833F",
+          "size": 56,
+          "start": "0x8308"
+        },
+        "RODATA": {
+          "end": "0x82A4",
+          "size": 1037,
+          "start": "0x7E98"
+        },
+        "STARTUP": {
+          "end": "0x1032",
+          "size": 51,
+          "start": "0x1000"
+        }
+      }
+    }
+  ]
+}

@@ -63,6 +63,9 @@
 #define REU_CMD_STASH 0x90
 #define REU_CMD_FETCH 0x91
 
+void reu_control_bank_sync_and_mirror(unsigned char writer_id);
+#define REUCB_WRITER_LAUNCHER 1u
+
 /*---------------------------------------------------------------------------
  * Constants
  *---------------------------------------------------------------------------*/
@@ -309,6 +312,13 @@ static unsigned char launcher_is_app_slot(unsigned char index) {
         return 0;
     }
     return (unsigned char)(app_banks[index] != 0u);
+}
+
+static unsigned char launcher_resolve_snapshot_bank(unsigned char index) {
+    if (!launcher_is_app_slot(index)) {
+        return 0;
+    }
+    return app_banks[index];
 }
 
 static unsigned char launcher_menu_extra_count(void) {
@@ -1300,6 +1310,10 @@ static void set_shim_drive(unsigned char drive) {
     *SHIM_PRELOAD_DEV_IMM = drive;
 }
 
+static void launcher_mirror_reu_control(void) {
+    reu_control_bank_sync_and_mirror(REUCB_WRITER_LAUNCHER);
+}
+
 
 /*---------------------------------------------------------------------------
  * Save launcher state to REU bank 0
@@ -1336,7 +1350,10 @@ static unsigned int load_app_to_reu(unsigned char index) {
     }
 
     filename = app_files[index];
-    bank = app_banks[index];
+    bank = launcher_resolve_snapshot_bank(index);
+    if (bank == 0) {
+        return 0;
+    }
 
     /* Set target bank in shim data area */
     *SHIM_APP_BANK = bank;
@@ -1361,11 +1378,13 @@ static unsigned int load_app_to_reu(unsigned char index) {
         if (loaded_in_bitmap) {
             apps_loaded[index] = 1;
             app_sizes[index] = APP_SAVE_SIZE;
+            launcher_mirror_reu_control();
             return APP_SAVE_SIZE;
         }
         apps_loaded[index] = 0;
         app_sizes[index] = 0;
         shim_bitmap_clear_bank(bank);
+        launcher_mirror_reu_control();
         return 0;
     }
 
@@ -1374,11 +1393,13 @@ static unsigned int load_app_to_reu(unsigned char index) {
         if (loaded_in_bitmap) {
             apps_loaded[index] = 1;
             app_sizes[index] = APP_SAVE_SIZE;
+            launcher_mirror_reu_control();
             return APP_SAVE_SIZE;
         }
         apps_loaded[index] = 0;
         app_sizes[index] = 0;
         shim_bitmap_clear_bank(bank);
+        launcher_mirror_reu_control();
         return 0;
     }
 
@@ -1387,12 +1408,14 @@ static unsigned int load_app_to_reu(unsigned char index) {
     if (!loaded_in_bitmap) {
         apps_loaded[index] = 0;
         app_sizes[index] = 0;
+        launcher_mirror_reu_control();
         return 0;
     }
 
     /* On return, launcher is back in memory and app is valid in REU. */
     apps_loaded[index] = 1;
     app_sizes[index] = file_size;
+    launcher_mirror_reu_control();
     return file_size;
 }
 
@@ -1915,7 +1938,8 @@ static void launch_from_reu(unsigned char index) {
 
     if (!apps_loaded[index]) return;
 
-    bank = app_banks[index];
+    bank = launcher_resolve_snapshot_bank(index);
+    if (bank == 0) return;
     size = app_sizes[index];
 
     launcher_resume_save(launcher_app_to_menu_index(index), menu.scroll_offset, 1);
@@ -1939,8 +1963,11 @@ static void launch_from_reu(unsigned char index) {
  *---------------------------------------------------------------------------*/
 static void launch_from_disk(unsigned char index) {
     const char *filename;
+    unsigned char bank;
 
     if (app_files[index][0] == 0) return;
+    bank = launcher_resolve_snapshot_bank(index);
+    if (bank == 0) return;
 
     filename = app_files[index];
 
@@ -1959,7 +1986,7 @@ static void launch_from_disk(unsigned char index) {
     save_launcher_to_reu();
 
     /* Set current app bank so apps can return to launcher */
-    *SHIM_CURRENT_BANK = app_banks[index];
+    *SHIM_CURRENT_BANK = bank;
 
     /* Call shim to load and run - use jump table entry at $C800 */
     __asm__("jmp $C800");
@@ -2475,6 +2502,7 @@ static void launcher_init(void) {
     }
     set_shim_drive(8);
     sync_from_reu_bitmap();
+    launcher_mirror_reu_control();
     launcher_seed_default_hotkeys();
 
     running = 1;

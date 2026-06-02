@@ -7,6 +7,7 @@
 
 #include "../../lib/tui.h"
 #include "../../lib/reu_mgr.h"
+#include "../../lib/reu_control_bank.h"
 #include "../../lib/resume_state.h"
 #include <c64.h>
 #include <conio.h>
@@ -47,6 +48,9 @@ static unsigned char running;
 static unsigned char cursor_x;  /* 0-15 in grid */
 static unsigned char cursor_y_pos;  /* 0-15 in grid */
 static unsigned int reu_physical_banks;
+static unsigned char control_header[8];
+static unsigned char control_bank_ok;
+static unsigned char control_bank_generation;
 
 typedef struct {
     unsigned char cursor_x;
@@ -129,6 +133,18 @@ static unsigned char bank_is_unavailable(unsigned char bank) {
                            (unsigned int)bank >= reu_physical_banks);
 }
 
+static void reuviewer_read_control_bank_header(void) {
+    reu_dma_fetch((unsigned int)control_header, REU_READYOS_GLOBAL_PHYSICAL(),
+                  REUCB_HEADER_OFF, 8u);
+    control_bank_ok = (unsigned char)(
+        control_header[0] == REUCB_MAGIC0 &&
+        control_header[1] == REUCB_MAGIC1 &&
+        control_header[2] == REUCB_MAGIC2 &&
+        control_header[3] == REUCB_MAGIC3 &&
+        control_header[4] == REUCB_SCHEMA_VERSION);
+    control_bank_generation = control_header[6];
+}
+
 /*---------------------------------------------------------------------------
  * Drawing
  *---------------------------------------------------------------------------*/
@@ -184,6 +200,9 @@ static void draw_summary(void) {
     tui_print_uint(24, TITLE_Y + 2, rsc_count, TUI_COLOR_LIGHTBLUE);
     tui_puts(29, TITLE_Y + 2, "D:", TUI_COLOR_ORANGE);
     tui_print_uint(31, TITLE_Y + 2, rsd_count, TUI_COLOR_ORANGE);
+    tui_puts(34, TITLE_Y + 2, "CB:", TUI_COLOR_LIGHTGREEN);
+    tui_puts(37, TITLE_Y + 2, control_bank_ok ? "OK" : "--",
+             control_bank_ok ? TUI_COLOR_LIGHTGREEN : TUI_COLOR_LIGHTRED);
 }
 
 static void draw_legend(void) {
@@ -351,6 +370,8 @@ static void draw_status(void) {
     tui_print_uint(6, STATUS_Y, free_count, TUI_COLOR_WHITE);
     tui_puts(10, STATUS_Y, "/ PHYS ", TUI_COLOR_GRAY3);
     tui_print_uint(17, STATUS_Y, reu_physical_banks, TUI_COLOR_GRAY3);
+    tui_puts(25, STATUS_Y, "CBGEN:", TUI_COLOR_GRAY3);
+    tui_print_uint(31, STATUS_Y, control_bank_generation, TUI_COLOR_WHITE);
 }
 
 static void reuviewer_draw(void) {
@@ -441,6 +462,8 @@ int main(void) {
 
     tui_init();
     reu_mgr_init();
+    reu_control_bank_sync_and_mirror(REUCB_WRITER_REUVIEWER);
+    reuviewer_read_control_bank_header();
     reu_physical_banks = reu_detect_physical_banks();
 
     resume_ready = 0;
