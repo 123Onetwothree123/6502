@@ -19,9 +19,9 @@ global_defaults:
     capture_state: true
     capture_dump: false
   vice:
-    disk8: "Releases/0.2.4/precog-d81/readyos-v0.2.4t-d81.d81"
-    disk9: "Releases/0.2.4/precog-d81/readyos-v0.2.4t-d81.d81"
-    autostart_prg: "Releases/0.2.4/precog-d81/readyos-v0.2.4t-d81-preboot.prg"
+    disk8: "Releases/0.2.4/precog-d81/readyos-v0.2.4l-d81.d81"
+    disk9: "Releases/0.2.4/precog-d81/readyos-v0.2.4l-d81.d81"
+    autostart_prg: "Releases/0.2.4/precog-d81/readyos-v0.2.4l-d81-preboot.prg"
     drive8_type: 1581
     drive9_type: 1581
     true_drive: false
@@ -90,6 +90,7 @@ steps:
     type: input.sequence
     params:
       keys: [145,145,145,145,13]
+      pre_delay_s: 0
       inter_key_delay_s: 0.10
       post_delay_s: 1.0
   - id: wait_editor_before_setup
@@ -107,6 +108,7 @@ steps:
     type: input.sequence
     params:
       keys: [2]
+      pre_delay_s: 0
       inter_key_delay_s: 0.03
       post_delay_s: 1.0
   - id: wait_launcher_after_editor_before_setup
@@ -114,66 +116,11 @@ steps:
     params:
       text: "READY OS"
       wait_timeout_s: 30
-  - id: move_editor_to_readyshell_before_setup
+  - id: move_editor_to_readybasic_before_setup
     type: input.sequence
     params:
-      keys: [17,13]
-      inter_key_delay_s: 0.10
-      post_delay_s: 1.0
-  - id: wait_readyshell_before_setup
-    type: screen.wait_contains
-    params:
-      text: "readyshell"
-      wait_timeout_s: 60
-  - id: readyshell_lst_before_setup
-    type: input.sequence
-    params:
-      keys: [76,83,84,13]
-      inter_key_delay_s: 0.035
-      post_delay_s: 3.0
-  - id: ctrl_b_readyshell_before_setup
-    type: input.sequence
-    params:
-      keys: [2]
-      inter_key_delay_s: 0.03
-      post_delay_s: 1.0
-  - id: wait_launcher_after_readyshell_before_setup
-    type: screen.wait_contains
-    params:
-      text: "READY OS"
-      wait_timeout_s: 30
-  - id: move_readyshell_to_calcplus_before_setup
-    type: input.sequence
-    params:
-      keys: [17,17,17,17,17,17,17,17,17,13]
-      inter_key_delay_s: 0.10
-      post_delay_s: 1.0
-  - id: wait_calcplus_before_setup
-    type: screen.wait_contains
-    params:
-      text: "calc plus"
-      wait_timeout_s: 60
-  - id: calcplus_expr_before_setup
-    type: input.sequence
-    params:
-      keys: [49,43,50,13]
-      inter_key_delay_s: 0.035
-      post_delay_s: 0.6
-  - id: ctrl_b_calcplus_before_setup
-    type: input.sequence
-    params:
-      keys: [2]
-      inter_key_delay_s: 0.03
-      post_delay_s: 1.0
-  - id: wait_launcher_after_calcplus_before_setup
-    type: screen.wait_contains
-    params:
-      text: "READY OS"
-      wait_timeout_s: 30
-  - id: move_calcplus_to_readybasic_before_setup
-    type: input.sequence
-    params:
-      keys: [145,145,145,145,145,145,13]
+      keys: [17,17,17,17,13]
+      pre_delay_s: 0
       inter_key_delay_s: 0.10
       post_delay_s: 1.0
   - id: wait_readybasic_after_tour_before_setup
@@ -342,6 +289,7 @@ steps:
     type: input.sequence
     params:
       keys: [145,145,145,145,13]
+      pre_delay_s: 0
       inter_key_delay_s: 0.10
       post_delay_s: 1.0
   - id: wait_editor_verify_1
@@ -359,6 +307,7 @@ steps:
     type: input.sequence
     params:
       keys: [2]
+      pre_delay_s: 0
       inter_key_delay_s: 0.03
       post_delay_s: 1.0
   - id: wait_launcher_after_editor_verify_1
@@ -366,66 +315,11 @@ steps:
     params:
       text: "READY OS"
       wait_timeout_s: 30
-  - id: move_editor_to_readyshell_verify_1
+  - id: move_editor_to_readybasic_verify_1
     type: input.sequence
     params:
-      keys: [17,13]
-      inter_key_delay_s: 0.10
-      post_delay_s: 1.0
-  - id: wait_readyshell_verify_1
-    type: screen.wait_contains
-    params:
-      text: "readyshell"
-      wait_timeout_s: 60
-  - id: readyshell_lst_verify_1
-    type: input.sequence
-    params:
-      keys: [76,83,84,13]
-      inter_key_delay_s: 0.035
-      post_delay_s: 3.0
-  - id: ctrl_b_readyshell_verify_1
-    type: input.sequence
-    params:
-      keys: [2]
-      inter_key_delay_s: 0.03
-      post_delay_s: 1.0
-  - id: wait_launcher_after_readyshell_verify_1
-    type: screen.wait_contains
-    params:
-      text: "READY OS"
-      wait_timeout_s: 30
-  - id: move_readyshell_to_calcplus_verify_1
-    type: input.sequence
-    params:
-      keys: [17,17,17,17,17,17,17,17,17,13]
-      inter_key_delay_s: 0.10
-      post_delay_s: 1.0
-  - id: wait_calcplus_verify_1
-    type: screen.wait_contains
-    params:
-      text: "calc plus"
-      wait_timeout_s: 60
-  - id: calcplus_expr_verify_1
-    type: input.sequence
-    params:
-      keys: [49,43,50,13]
-      inter_key_delay_s: 0.035
-      post_delay_s: 0.6
-  - id: ctrl_b_calcplus_verify_1
-    type: input.sequence
-    params:
-      keys: [2]
-      inter_key_delay_s: 0.03
-      post_delay_s: 1.0
-  - id: wait_launcher_after_calcplus_verify_1
-    type: screen.wait_contains
-    params:
-      text: "READY OS"
-      wait_timeout_s: 30
-  - id: move_calcplus_to_readybasic_verify_1
-    type: input.sequence
-    params:
-      keys: [145,145,145,145,145,145,13]
+      keys: [17,17,17,17,13]
+      pre_delay_s: 0
       inter_key_delay_s: 0.10
       post_delay_s: 1.0
   - id: wait_readybasic_after_tour_verify_1
@@ -509,6 +403,7 @@ steps:
     type: input.sequence
     params:
       keys: [145,145,145,145,13]
+      pre_delay_s: 0
       inter_key_delay_s: 0.10
       post_delay_s: 1.0
   - id: wait_editor_verify_2
@@ -526,6 +421,7 @@ steps:
     type: input.sequence
     params:
       keys: [2]
+      pre_delay_s: 0
       inter_key_delay_s: 0.03
       post_delay_s: 1.0
   - id: wait_launcher_after_editor_verify_2
@@ -533,66 +429,11 @@ steps:
     params:
       text: "READY OS"
       wait_timeout_s: 30
-  - id: move_editor_to_readyshell_verify_2
+  - id: move_editor_to_readybasic_verify_2
     type: input.sequence
     params:
-      keys: [17,13]
-      inter_key_delay_s: 0.10
-      post_delay_s: 1.0
-  - id: wait_readyshell_verify_2
-    type: screen.wait_contains
-    params:
-      text: "readyshell"
-      wait_timeout_s: 60
-  - id: readyshell_lst_verify_2
-    type: input.sequence
-    params:
-      keys: [76,83,84,13]
-      inter_key_delay_s: 0.035
-      post_delay_s: 3.0
-  - id: ctrl_b_readyshell_verify_2
-    type: input.sequence
-    params:
-      keys: [2]
-      inter_key_delay_s: 0.03
-      post_delay_s: 1.0
-  - id: wait_launcher_after_readyshell_verify_2
-    type: screen.wait_contains
-    params:
-      text: "READY OS"
-      wait_timeout_s: 30
-  - id: move_readyshell_to_calcplus_verify_2
-    type: input.sequence
-    params:
-      keys: [17,17,17,17,17,17,17,17,17,13]
-      inter_key_delay_s: 0.10
-      post_delay_s: 1.0
-  - id: wait_calcplus_verify_2
-    type: screen.wait_contains
-    params:
-      text: "calc plus"
-      wait_timeout_s: 60
-  - id: calcplus_expr_verify_2
-    type: input.sequence
-    params:
-      keys: [49,43,50,13]
-      inter_key_delay_s: 0.035
-      post_delay_s: 0.6
-  - id: ctrl_b_calcplus_verify_2
-    type: input.sequence
-    params:
-      keys: [2]
-      inter_key_delay_s: 0.03
-      post_delay_s: 1.0
-  - id: wait_launcher_after_calcplus_verify_2
-    type: screen.wait_contains
-    params:
-      text: "READY OS"
-      wait_timeout_s: 30
-  - id: move_calcplus_to_readybasic_verify_2
-    type: input.sequence
-    params:
-      keys: [145,145,145,145,145,145,13]
+      keys: [17,17,17,17,13]
+      pre_delay_s: 0
       inter_key_delay_s: 0.10
       post_delay_s: 1.0
   - id: wait_readybasic_after_tour_verify_2
@@ -676,6 +517,7 @@ steps:
     type: input.sequence
     params:
       keys: [145,145,145,145,13]
+      pre_delay_s: 0
       inter_key_delay_s: 0.10
       post_delay_s: 1.0
   - id: wait_editor_verify_3
@@ -693,6 +535,7 @@ steps:
     type: input.sequence
     params:
       keys: [2]
+      pre_delay_s: 0
       inter_key_delay_s: 0.03
       post_delay_s: 1.0
   - id: wait_launcher_after_editor_verify_3
@@ -700,66 +543,11 @@ steps:
     params:
       text: "READY OS"
       wait_timeout_s: 30
-  - id: move_editor_to_readyshell_verify_3
+  - id: move_editor_to_readybasic_verify_3
     type: input.sequence
     params:
-      keys: [17,13]
-      inter_key_delay_s: 0.10
-      post_delay_s: 1.0
-  - id: wait_readyshell_verify_3
-    type: screen.wait_contains
-    params:
-      text: "readyshell"
-      wait_timeout_s: 60
-  - id: readyshell_lst_verify_3
-    type: input.sequence
-    params:
-      keys: [76,83,84,13]
-      inter_key_delay_s: 0.035
-      post_delay_s: 3.0
-  - id: ctrl_b_readyshell_verify_3
-    type: input.sequence
-    params:
-      keys: [2]
-      inter_key_delay_s: 0.03
-      post_delay_s: 1.0
-  - id: wait_launcher_after_readyshell_verify_3
-    type: screen.wait_contains
-    params:
-      text: "READY OS"
-      wait_timeout_s: 30
-  - id: move_readyshell_to_calcplus_verify_3
-    type: input.sequence
-    params:
-      keys: [17,17,17,17,17,17,17,17,17,13]
-      inter_key_delay_s: 0.10
-      post_delay_s: 1.0
-  - id: wait_calcplus_verify_3
-    type: screen.wait_contains
-    params:
-      text: "calc plus"
-      wait_timeout_s: 60
-  - id: calcplus_expr_verify_3
-    type: input.sequence
-    params:
-      keys: [49,43,50,13]
-      inter_key_delay_s: 0.035
-      post_delay_s: 0.6
-  - id: ctrl_b_calcplus_verify_3
-    type: input.sequence
-    params:
-      keys: [2]
-      inter_key_delay_s: 0.03
-      post_delay_s: 1.0
-  - id: wait_launcher_after_calcplus_verify_3
-    type: screen.wait_contains
-    params:
-      text: "READY OS"
-      wait_timeout_s: 30
-  - id: move_calcplus_to_readybasic_verify_3
-    type: input.sequence
-    params:
-      keys: [145,145,145,145,145,145,13]
+      keys: [17,17,17,17,13]
+      pre_delay_s: 0
       inter_key_delay_s: 0.10
       post_delay_s: 1.0
   - id: wait_readybasic_after_tour_verify_3
@@ -843,6 +631,7 @@ steps:
     type: input.sequence
     params:
       keys: [145,145,145,145,13]
+      pre_delay_s: 0
       inter_key_delay_s: 0.10
       post_delay_s: 1.0
   - id: wait_editor_verify_4
@@ -860,6 +649,7 @@ steps:
     type: input.sequence
     params:
       keys: [2]
+      pre_delay_s: 0
       inter_key_delay_s: 0.03
       post_delay_s: 1.0
   - id: wait_launcher_after_editor_verify_4
@@ -867,66 +657,11 @@ steps:
     params:
       text: "READY OS"
       wait_timeout_s: 30
-  - id: move_editor_to_readyshell_verify_4
+  - id: move_editor_to_readybasic_verify_4
     type: input.sequence
     params:
-      keys: [17,13]
-      inter_key_delay_s: 0.10
-      post_delay_s: 1.0
-  - id: wait_readyshell_verify_4
-    type: screen.wait_contains
-    params:
-      text: "readyshell"
-      wait_timeout_s: 60
-  - id: readyshell_lst_verify_4
-    type: input.sequence
-    params:
-      keys: [76,83,84,13]
-      inter_key_delay_s: 0.035
-      post_delay_s: 3.0
-  - id: ctrl_b_readyshell_verify_4
-    type: input.sequence
-    params:
-      keys: [2]
-      inter_key_delay_s: 0.03
-      post_delay_s: 1.0
-  - id: wait_launcher_after_readyshell_verify_4
-    type: screen.wait_contains
-    params:
-      text: "READY OS"
-      wait_timeout_s: 30
-  - id: move_readyshell_to_calcplus_verify_4
-    type: input.sequence
-    params:
-      keys: [17,17,17,17,17,17,17,17,17,13]
-      inter_key_delay_s: 0.10
-      post_delay_s: 1.0
-  - id: wait_calcplus_verify_4
-    type: screen.wait_contains
-    params:
-      text: "calc plus"
-      wait_timeout_s: 60
-  - id: calcplus_expr_verify_4
-    type: input.sequence
-    params:
-      keys: [49,43,50,13]
-      inter_key_delay_s: 0.035
-      post_delay_s: 0.6
-  - id: ctrl_b_calcplus_verify_4
-    type: input.sequence
-    params:
-      keys: [2]
-      inter_key_delay_s: 0.03
-      post_delay_s: 1.0
-  - id: wait_launcher_after_calcplus_verify_4
-    type: screen.wait_contains
-    params:
-      text: "READY OS"
-      wait_timeout_s: 30
-  - id: move_calcplus_to_readybasic_verify_4
-    type: input.sequence
-    params:
-      keys: [145,145,145,145,145,145,13]
+      keys: [17,17,17,17,13]
+      pre_delay_s: 0
       inter_key_delay_s: 0.10
       post_delay_s: 1.0
   - id: wait_readybasic_after_tour_verify_4
@@ -1010,6 +745,7 @@ steps:
     type: input.sequence
     params:
       keys: [145,145,145,145,13]
+      pre_delay_s: 0
       inter_key_delay_s: 0.10
       post_delay_s: 1.0
   - id: wait_editor_verify_5
@@ -1027,6 +763,7 @@ steps:
     type: input.sequence
     params:
       keys: [2]
+      pre_delay_s: 0
       inter_key_delay_s: 0.03
       post_delay_s: 1.0
   - id: wait_launcher_after_editor_verify_5
@@ -1034,66 +771,11 @@ steps:
     params:
       text: "READY OS"
       wait_timeout_s: 30
-  - id: move_editor_to_readyshell_verify_5
+  - id: move_editor_to_readybasic_verify_5
     type: input.sequence
     params:
-      keys: [17,13]
-      inter_key_delay_s: 0.10
-      post_delay_s: 1.0
-  - id: wait_readyshell_verify_5
-    type: screen.wait_contains
-    params:
-      text: "readyshell"
-      wait_timeout_s: 60
-  - id: readyshell_lst_verify_5
-    type: input.sequence
-    params:
-      keys: [76,83,84,13]
-      inter_key_delay_s: 0.035
-      post_delay_s: 3.0
-  - id: ctrl_b_readyshell_verify_5
-    type: input.sequence
-    params:
-      keys: [2]
-      inter_key_delay_s: 0.03
-      post_delay_s: 1.0
-  - id: wait_launcher_after_readyshell_verify_5
-    type: screen.wait_contains
-    params:
-      text: "READY OS"
-      wait_timeout_s: 30
-  - id: move_readyshell_to_calcplus_verify_5
-    type: input.sequence
-    params:
-      keys: [17,17,17,17,17,17,17,17,17,13]
-      inter_key_delay_s: 0.10
-      post_delay_s: 1.0
-  - id: wait_calcplus_verify_5
-    type: screen.wait_contains
-    params:
-      text: "calc plus"
-      wait_timeout_s: 60
-  - id: calcplus_expr_verify_5
-    type: input.sequence
-    params:
-      keys: [49,43,50,13]
-      inter_key_delay_s: 0.035
-      post_delay_s: 0.6
-  - id: ctrl_b_calcplus_verify_5
-    type: input.sequence
-    params:
-      keys: [2]
-      inter_key_delay_s: 0.03
-      post_delay_s: 1.0
-  - id: wait_launcher_after_calcplus_verify_5
-    type: screen.wait_contains
-    params:
-      text: "READY OS"
-      wait_timeout_s: 30
-  - id: move_calcplus_to_readybasic_verify_5
-    type: input.sequence
-    params:
-      keys: [145,145,145,145,145,145,13]
+      keys: [17,17,17,17,13]
+      pre_delay_s: 0
       inter_key_delay_s: 0.10
       post_delay_s: 1.0
   - id: wait_readybasic_after_tour_verify_5

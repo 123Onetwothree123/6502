@@ -61,11 +61,13 @@ emit_key_step() {
   local key_list="$2"
   local delay="${3:-0.10}"
   local post="${4:-1.0}"
+  local pre="${5:-0}"
   cat >>"$PLAN" <<YAML
   - id: $id
     type: input.sequence
     params:
       keys: [$key_list]
+      pre_delay_s: $pre
       inter_key_delay_s: $delay
       post_delay_s: $post
 YAML
@@ -95,24 +97,10 @@ emit_readybasic_other_apps_tour() {
   emit_key_step "ctrl_b_editor_$label" "2" "0.03" "1.0"
   emit_wait_step "wait_launcher_after_editor_$label" "READY OS" "30"
 
-  # Selection is now Editor (index 0). Visit ReadyShell (index 1) and
-  # run LIST before returning.
-  emit_key_step "move_editor_to_readyshell_$label" "17,13"
-  emit_wait_step "wait_readyshell_$label" "readyshell"
-  emit_type_step "readyshell_lst_$label" $'lst\r' "3.0"
-  emit_key_step "ctrl_b_readyshell_$label" "2" "0.03" "1.0"
-  emit_wait_step "wait_launcher_after_readyshell_$label" "READY OS" "30"
-
-  # Selection is now ReadyShell (index 1). Visit Calc Plus (index 10),
-  # poke a tiny expression, then return.
-  emit_key_step "move_readyshell_to_calcplus_$label" "17,17,17,17,17,17,17,17,17,13"
-  emit_wait_step "wait_calcplus_$label" "calc plus"
-  emit_type_step "calcplus_expr_$label" $'1+2\r'
-  emit_key_step "ctrl_b_calcplus_$label" "2" "0.03" "1.0"
-  emit_wait_step "wait_launcher_after_calcplus_$label" "READY OS" "30"
-
-  # Selection is now Calc Plus (index 10). Return to ReadyBASIC (index 4).
-  emit_key_step "move_calcplus_to_readybasic_$label" "145,145,145,145,145,145,13"
+  # Selection is now Editor (index 0). Return to ReadyBASIC (index 4).
+  # Other REU-overlay apps have their own focused probes; this one validates
+  # ReadyBASIC state after an editor app round-trip.
+  emit_key_step "move_editor_to_readybasic_$label" "17,17,17,17,13"
   cat >>"$PLAN" <<YAML
   - id: wait_readybasic_after_tour_$label
     type: screen.wait_contains

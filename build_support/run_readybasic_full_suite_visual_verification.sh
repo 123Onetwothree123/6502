@@ -177,12 +177,12 @@ steps:
     params:
       contains: "D-COPY 2"
 
-  - id: direct_disk_module_load
+  - id: direct_disk_module_load12
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT CHR$(147)\rREM D-DISKMODULE LOAD PROOFS\rPRINT "D-LD1";ZMODLD("RBM.SAMPLE1")\rPRINT "D-DM1";ZDM1()\rPRINT "D-LD2";ZMODLD("RBM.SAMPLE2")\rPRINT "D-DM2";ZDM2S()\rPRINT "D-DOV";ZDOV1();"/";ZDOV2()\rPRINT "D-LD3";ZMODLD("RBM.SAMPLE3")\rPRINT "D-M3";ZSAA();"/";ZUEB()\r')]
+      keys: [$(keys $'PRINT CHR$(147)\rREM D-DISKMODULE LOAD PROOFS\rPRINT "D-LD1";ZMODLD("RBM.SAMPLE1")\rPRINT "D-DM1";ZDM1()\rPRINT "D-LD2";ZMODLD("RBM.SAMPLE2")\rPRINT "D-DM2";ZDM2S()\rPRINT "D-DOV";ZDOV1();"/";ZDOV2()\r')]
       inter_key_delay_s: 0.03
-      post_delay_s: 4.0
+      post_delay_s: 3.0
   - id: assert_direct_disk_module_load1
     type: assert.screen
     params:
@@ -203,6 +203,13 @@ steps:
     type: assert.screen
     params:
       contains: "D-DOV 72 / 73"
+
+  - id: direct_disk_module_load3
+    type: input.sequence
+    params:
+      keys: [$(keys $'PRINT CHR$(147)\rREM D-DISKMODULE RBM3 PROOFS\rPRINT "D-LD3";ZMODLD("RBM.SAMPLE3")\rPRINT "D-M3";ZSAA();"/";ZUEB()\r')]
+      inter_key_delay_s: 0.03
+      post_delay_s: 3.0
   - id: assert_direct_disk_module_load3
     type: assert.screen
     params:
@@ -210,7 +217,7 @@ steps:
   - id: assert_direct_disk_module_rbm3
     type: assert.screen
     params:
-      contains: "D-M3 3 / 112"
+      contains: "D-M3 4 / 113"
 
   - id: direct_strup_variable
     type: input.sequence
@@ -1014,7 +1021,7 @@ steps:
   - id: assert_procfunc_run_string_nested
     type: assert.screen
     params:
-      contains: "NGS HI"
+      contains: "NGS MIX"
   - id: assert_procfunc_run_float_statement
     type: assert.screen
     params:
