@@ -58,3 +58,5 @@
   writing unique rows for every catalog entry.
 - Normal app impact stayed at 0 or 1 byte only because dynamic allocator and
   bank `0` mirror code stayed out of shared app libraries. Keep that boundary.
+- Unload belongs to the launcher or future ReadyOS manager. The shim remains a
+  direct-bank transfer primitive and must not grow owner/free-list policy.

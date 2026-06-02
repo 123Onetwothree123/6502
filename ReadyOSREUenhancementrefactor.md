@@ -42,7 +42,8 @@ Completed in branch `codex/reu-control-bank-refactor`:
 - 64 app catalog capacity for disk-generated `apps.cfg`;
 - lazy app snapshot logical-bank allocation in the launcher;
 - no preallocated app banks in disk catalog entries;
-- disk launcher `F7` unload for selected loaded app snapshots;
+- disk launcher `F7` unload for selected loaded app snapshots; unload is a
+  launcher-owned operation, not a shim operation;
 - load-all progress display wraps visible rows safely for 64-entry catalogs;
 - global hotkeys accept logical app banks through `223`;
 - cartridge launcher records embedded preloaded apps as loaded even above the
@@ -198,7 +199,10 @@ The shim remains a small execution primitive:
 - use the existing compact shim data bytes for immediate bank/run state.
 
 The shim must not become a full allocator, app registry, manifest parser,
-overlay registry, or service dispatcher.
+overlay registry, service dispatcher, or unload engine. Unload is implemented
+by the launcher or future ReadyOS manager code by updating metadata, clearing
+launcher-owned bindings/caches, and then using existing direct-bank shim
+primitives only when a fetch/stash/run transfer is required.
 
 ### Shim-Adjacent 1KB Clarification
 
@@ -658,6 +662,10 @@ The shim does not need to know about:
 - service invocation records;
 - dynamic overlay lookup;
 - unload logic.
+
+Unload is specifically launcher/manager policy. The shim should never decide
+which banks are free, which banks belong to an app, or whether an app can be
+evicted.
 
 ### Resident Cache Design
 
