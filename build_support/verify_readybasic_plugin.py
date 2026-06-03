@@ -45,8 +45,18 @@ def main() -> None:
 
     require(r"^BASIC_START\s*=\s*\$2AC1\b", asm, "BASIC_START must be $2AC1")
     require(r"^BASIC_LIMIT\s*=\s*\$A000\b", asm, "BASIC_LIMIT must be $A000")
-    require(r"^RB_REU_CORE_BANK\s*=\s*\$44\b", asm, "ReadyBASIC core bank must be $44")
-    require(r"^RB_REU_CODE_BANK\s*=\s*\$45\b", asm, "ReadyBASIC code bank must be $45")
+    require(r"^rb_resolve_reu_banks_hidden:", asm,
+            "ReadyBASIC must resolve loader-assigned REU banks at runtime")
+    require(r"^rb_reu_core_bank:\s*\.byte\s+0\b", asm,
+            "ReadyBASIC core bank must be runtime state")
+    require(r"^rb_reu_code_bank:\s*\.byte\s+0\b", asm,
+            "ReadyBASIC code bank must be runtime state")
+    require(r"lda\s+rb_reu_core_bank", asm,
+            "ReadyBASIC must use resolved core bank for REU DMA")
+    require(r"lda\s+rb_reu_code_bank", asm,
+            "ReadyBASIC must use resolved code bank for REU DMA")
+    if re.search(r"RB_REU_(CORE|CODE)_BANK\s*=", asm):
+        fail("ReadyBASIC must not define fixed REU core/code banks")
     require(r"^RB_REU_DESC_OFF\s*=\s*\$1000\b", asm, "descriptor table must live at REU offset $1000")
     require(r"^RB_REU_HANDLE_OFF\s*=\s*\$0800\b", asm, "handle directory must live at REU offset $0800")
     require(r"^RB_REU_HEAP_OFF\s*=\s*\$0C00\b", asm, "heap bitmap must live at REU offset $0C00")
@@ -71,8 +81,8 @@ def main() -> None:
         fail("ZMODLD must not PRG-load ReadyBASIC modules")
     require(r"#define\s+REU_RB_CORE\s+14\b", reu_hdr, "REU_RB_CORE type must stay in sync")
     require(r"#define\s+REU_RB_CODE\s+15\b", reu_hdr, "REU_RB_CODE type must stay in sync")
-    require(r"#define\s+REU_BANK_RB_CORE\s+0x44\b", reu_hdr, "REU_BANK_RB_CORE must be 0x44")
-    require(r"#define\s+REU_BANK_RB_CODE\s+0x45\b", reu_hdr, "REU_BANK_RB_CODE must be 0x45")
+    if "REU_BANK_RB_CORE" in reu_hdr or "REU_BANK_RB_CODE" in reu_hdr:
+        fail("ReadyBASIC core/code banks must not be fixed in reu_mgr.h")
 
     for name in ("ENTRY", "RESIDENT", "LOWPACK", "SLOTPACK1", "SLOTPACK2", "SPANPACK", "OVL1PACK", "OVL2PACK", "HIDDEN", "BRIDGE", "REGSEED"):
         if name not in segments:
@@ -95,12 +105,12 @@ def main() -> None:
         fail(f"RESIDENT grew past command-module slot budget $18C0, got ${resident[2]:04X}")
     if lowpack[0] != 0xA800 or lowpack[1] > 0xAFFF:
         fail(f"command slot 0 must fit under BASIC ROM at $A800-$AFFF, got ${lowpack[0]:04X}-${lowpack[1]:04X}")
-    if lowpack[2] != 0x06C7:
-        fail(f"command slot 0 size changed from measured $06C7, got ${lowpack[2]:04X}")
+    if lowpack[2] != 0x06D1:
+        fail(f"command slot 0 size changed from measured $06D1, got ${lowpack[2]:04X}")
     if slotpack1[0] != 0xB000 or slotpack1[1] > 0xB7FF:
         fail(f"command slot 1 must fit under BASIC ROM at $B000-$B7FF, got ${slotpack1[0]:04X}-${slotpack1[1]:04X}")
-    if slotpack1[2] != 0x0239:
-        fail(f"command slot 1 size changed from measured $0239, got ${slotpack1[2]:04X}")
+    if slotpack1[2] != 0x023B:
+        fail(f"command slot 1 size changed from measured $023B, got ${slotpack1[2]:04X}")
     if slotpack2[0] != 0xB800 or slotpack2[1] > 0xBFFF:
         fail(f"command slot 2 must fit under BASIC ROM at $B800-$BFFF, got ${slotpack2[0]:04X}-${slotpack2[1]:04X}")
     if slotpack2[2] != 0x0015:
@@ -113,8 +123,8 @@ def main() -> None:
         fail(f"overlay 2 proof payload must fit in slot 2 with measured size $0015, got ${ovl2pack[0]:04X}-${ovl2pack[1]:04X} size ${ovl2pack[2]:04X}")
     if hidden[0] != 0xA000 or hidden[1] > 0xA7FF:
         fail(f"HIDDEN helper/common area must fit in $A000-$A7FF, got ${hidden[0]:04X}-${hidden[1]:04X}")
-    if hidden[2] > 0x0368:
-        fail(f"HIDDEN helper/common area grew past measured $0368, got ${hidden[2]:04X}")
+    if hidden[2] > 0x0400:
+        fail(f"HIDDEN helper/common area grew past dynamic-bank budget $0400, got ${hidden[2]:04X}")
     if bridge[0] != 0xC000 or bridge[1] >= 0xC200:
         fail(f"BRIDGE must stay below relocated shared frames at $C200, got ${bridge[0]:04X}-${bridge[1]:04X}")
     if bridge[2] > 0x01FF:

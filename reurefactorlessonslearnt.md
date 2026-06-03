@@ -79,3 +79,21 @@
 - The ReadyShell `$48` scratch/state/value bank intentionally stayed fixed in
   this phase. Moving overlay cache banks first kept the resource refactor small
   enough to verify with host tests, disk VICE probes, and EasyFlash smoke.
+- ReadyBASIC core/code banks can be made dynamic without adding shim ABI bytes:
+  the launcher marks two assigned physical banks as `REU_RB_CORE` and
+  `REU_RB_CODE` in `$C600`, and ReadyBASIC resolves those types at startup.
+  Keep this as a small micromodule contract, not a broad app-side allocator.
+- Do not let the shared REU sync code repopulate retired fixed banks. Removing
+  fixed `$44/$45` writes from `reu_mgr_init.c` and the bank-0 mirror is what
+  makes the ReadyBASIC change real rather than cosmetic.
+- ReadyBASIC resource unload belongs to the launcher. Free the app snapshot and
+  its `rbcore` banks together; do not grow the shim into an owner/free-list
+  engine.
+- The ReadyBASIC resolver must tolerate visible metadata timing. Resolving
+  `REU_RB_CORE`/`REU_RB_CODE` from `$C600` is the fast path, but the logical
+  bank `0` bank-type mirror fallback is what made the launcher/shim handoff
+  robust without adding shim bytes.
+- The accepted ReadyBASIC dynamic-bank delta is intentionally tiny: ReadyBASIC
+  app-window headroom moved from `1031` to `1029` bytes, while launcher
+  headroom moved from `5075` to `4637` bytes because the launcher owns the
+  `rbcore` load/unload path.

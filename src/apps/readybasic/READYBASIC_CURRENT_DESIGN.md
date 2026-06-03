@@ -558,17 +558,18 @@ workers do not directly mutate the BASIC string heap.
 
 ## REU Layout
 
-ReadyBASIC reserves two fixed REU banks:
+ReadyBASIC uses two launcher-assigned REU resource banks:
 
-| Bank | ReadyOS type | Purpose |
+| Resource | ReadyOS type | Purpose |
 |---:|---:|---|
-| `$44` | `14` | ReadyBASIC core/system storage. |
-| `$45` | `15` | Packed ReadyBASIC command-code storage. |
+| core bank | `14` | ReadyBASIC core/system storage. |
+| code bank | `15` | Packed ReadyBASIC command-code storage. |
 
-ReadyBASIC marks the ReadyOS REU allocation table at `$C600+$44` and
-`$C600+$45`. It does not use `$C600-$C7FF` as private scratch.
+The launcher marks the assigned physical banks in the ReadyOS REU allocation
+table at `$C600-$C6FF`. ReadyBASIC scans that table at startup and does not use
+`$C600-$C7FF` as private scratch.
 
-### Bank `$44`: Core/System Storage
+### Assigned Core Bank: Core/System Storage
 
 | Offset | Region |
 |---:|---|

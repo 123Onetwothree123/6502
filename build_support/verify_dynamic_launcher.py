@@ -63,6 +63,12 @@ def main() -> int:
           "launcher_stream_prg_to_reu" in launcher)
     check("ReadyShell resource config token is validated",
           "RESOURCE_READYSHELL_OVL" in catalog and "rsovl" in catalog)
+    check("launcher owns ReadyBASIC resource banks",
+          "APP_RESOURCE_READYBASIC_CORE" in launcher and
+          "launcher_load_readybasic_resources" in launcher and
+          "REU_RB_CORE" in launcher and "REU_RB_CODE" in launcher)
+    check("ReadyBASIC resource config token is validated",
+          "RESOURCE_READYBASIC_CORE" in catalog and "rbcore" in catalog)
     check("host apps.cfg generator allows 64 apps",
           "len(apps) > 64" in catalog)
     check("global hotkeys allow dynamic logical banks",

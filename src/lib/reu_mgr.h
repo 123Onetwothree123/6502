@@ -31,11 +31,9 @@
 /* Logical first dynamic bank; physical dynamic base is skip + 26. */
 #define REU_FIRST_DYNAMIC 24
 
-/* Remaining fixed ReadyShell/ReadyBASIC support banks. Overlay cache banks are
- * launcher-assigned REU_RS_CACHE banks, not fixed addresses. */
+/* Remaining fixed support banks. ReadyShell overlay cache and ReadyBASIC core
+ * banks are launcher-assigned app resources, not fixed addresses. */
 #define REU_BANK_RS_DEBUG 0x43
-#define REU_BANK_RB_CORE 0x44
-#define REU_BANK_RB_CODE 0x45
 #define REU_BANK_RS_SCRATCH 0x48
 
 /* Shim bitmap at $C836-$C838 (tracks which app banks are loaded) */

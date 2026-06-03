@@ -98,6 +98,7 @@ VIC_BORDER      = $D020
 VIC_BG          = $D021
 
 SHIM_RETURN     = $C80C
+SHIM_REU_BANK_SKIP = $C83B
 
 ; Scratch pointers outside cc65's reserved zero-page runtime.
 rb_ptr_lo       = $FB
@@ -194,12 +195,11 @@ RB_SLOT_PROOF_12 = RB_SLOT_PROOF_1 | RB_SLOT_PROOF_2
 RB_SLOT_COMMON = $80
 RB_SLOT_INVALID = $FF
 
-RB_REU_CORE_BANK= $44
-RB_REU_CODE_BANK= $45
 RB_REU_TYPE_CORE= 14
 RB_REU_TYPE_CODE= 15
 RB_REU_ALLOC_TABLE = $C600
 RB_REU_HEADER_OFF  = $0000
+RB_REUCB_BANK_TYPE_OFF = $0100
 RB_REU_DESC_OFF    = $1000
 RB_REU_SLOT_STATE_OFF = $2000
 RB_REU_CALL_OFF    = $0400
@@ -1883,7 +1883,7 @@ rb_lookup_command:
         sta rb_reu_c64_lo
         lda #>RB_PAGEBUF
         sta rb_reu_c64_hi
-        lda #RB_REU_CORE_BANK
+        lda rb_reu_core_bank
         sta rb_reu_bank
         lda #0
         sta rb_reu_len_lo
@@ -3312,7 +3312,7 @@ rb_load_and_call_command:
         lda rb_ptr_hi
         adc RB_DESC_BUF+11
         sta rb_reu_c64_hi
-        lda #RB_REU_CODE_BANK
+        lda rb_reu_code_bank
         sta rb_reu_bank
         inc rb_copy_count
         jsr rb_fetch_underrom_payload
@@ -3633,7 +3633,7 @@ rb_stash_call_frame:
         sta rb_reu_off_lo
         lda #>RB_REU_CALL_OFF
         sta rb_reu_off_hi
-        lda #RB_REU_CORE_BANK
+        lda rb_reu_core_bank
         sta rb_reu_bank
         lda #$80
         sta rb_reu_len_lo
@@ -3650,7 +3650,7 @@ rb_stash_result_frame:
         sta rb_reu_off_lo
         lda #>RB_REU_RESULT_OFF
         sta rb_reu_off_hi
-        lda #RB_REU_CORE_BANK
+        lda rb_reu_core_bank
         sta rb_reu_bank
         lda #$80
         sta rb_reu_len_lo
@@ -3853,7 +3853,7 @@ hidden_restore_basic_runtime_state:
         sta rb_reu_off_lo
         lda #>RB_REU_RUNTIME_STACK_OFF
         sta rb_reu_off_hi
-        lda #RB_REU_CORE_BANK
+        lda rb_reu_core_bank
         sta rb_reu_bank
         lda #0
         sta rb_reu_len_lo
@@ -3869,7 +3869,7 @@ hidden_restore_basic_runtime_state:
         sta rb_reu_off_lo
         lda #>RB_REU_RUNTIME_ZP_OFF
         sta rb_reu_off_hi
-        lda #RB_REU_CORE_BANK
+        lda rb_reu_core_bank
         sta rb_reu_bank
         lda #0
         sta rb_reu_len_lo
@@ -4045,6 +4045,7 @@ default_free_suffix_screen:
         .byte 32,2,1,19,9,3,32,2,25,20,5,19,0
 
 rb_seed_plugin_reu_hidden:
+        jsr rb_resolve_reu_banks_hidden
         jsr rb_mark_reu_banks_hidden
         lda rb_seed_cold
         bne :+
@@ -4058,7 +4059,7 @@ rb_seed_plugin_reu_hidden:
         sta rb_reu_off_lo
         lda #>RB_REU_HEADER_OFF
         sta rb_reu_off_hi
-        lda #RB_REU_CORE_BANK
+        lda rb_reu_core_bank
         sta rb_reu_bank
         lda #rb_reu_header_end-rb_reu_header
         sta rb_reu_len_lo
@@ -4087,7 +4088,7 @@ rb_seed_plugin_reu_hidden:
         lda #0
         sta rb_reu_off_lo
         sta rb_reu_off_hi
-        lda #RB_REU_CODE_BANK
+        lda rb_reu_code_bank
         sta rb_reu_bank
         lda #<((__OVL2PACK_LOAD__ - __LOWPACK_LOAD__) + __OVL2PACK_SIZE__)
         sta rb_reu_len_lo
@@ -4106,10 +4107,79 @@ rb_clear_slot_residency:
         rts
 
 rb_mark_reu_banks_hidden:
+        ldx rb_reu_core_bank
+        beq :+
         lda #RB_REU_TYPE_CORE
-        sta RB_REU_ALLOC_TABLE + RB_REU_CORE_BANK
+        sta RB_REU_ALLOC_TABLE,x
+:
+        ldx rb_reu_code_bank
+        beq :+
         lda #RB_REU_TYPE_CODE
-        sta RB_REU_ALLOC_TABLE + RB_REU_CODE_BANK
+        sta RB_REU_ALLOC_TABLE,x
+:
+        rts
+
+rb_resolve_reu_banks_hidden:
+        lda #0
+        sta rb_reu_core_bank
+        sta rb_reu_code_bank
+        tax
+@scan:
+        lda RB_REU_ALLOC_TABLE,x
+        cmp #RB_REU_TYPE_CORE
+        bne @check_code
+        lda rb_reu_core_bank
+        bne @next
+        stx rb_reu_core_bank
+        jmp @next
+@check_code:
+        cmp #RB_REU_TYPE_CODE
+        bne @next
+        lda rb_reu_code_bank
+        bne @next
+        stx rb_reu_code_bank
+@next:
+        inx
+        bne @scan
+        lda rb_reu_core_bank
+        beq @fetch_mirror
+        lda rb_reu_code_bank
+        beq @fetch_mirror
+        rts
+@fetch_mirror:
+        lda #<RB_PAGEBUF
+        sta rb_reu_c64_lo
+        lda #>RB_PAGEBUF
+        sta rb_reu_c64_hi
+        lda #<RB_REUCB_BANK_TYPE_OFF
+        sta rb_reu_off_lo
+        lda #>RB_REUCB_BANK_TYPE_OFF
+        sta rb_reu_off_hi
+        lda SHIM_REU_BANK_SKIP
+        sta rb_reu_bank
+        lda #0
+        sta rb_reu_len_lo
+        lda #1
+        sta rb_reu_len_hi
+        jsr rb_reu_fetch
+        ldx #0
+@mirror_scan:
+        lda RB_PAGEBUF,x
+        cmp #RB_REU_TYPE_CORE
+        bne @mirror_check_code
+        lda rb_reu_core_bank
+        bne @mirror_next
+        stx rb_reu_core_bank
+        jmp @mirror_next
+@mirror_check_code:
+        cmp #RB_REU_TYPE_CODE
+        bne @mirror_next
+        lda rb_reu_code_bank
+        bne @mirror_next
+        stx rb_reu_code_bank
+@mirror_next:
+        inx
+        bne @mirror_scan
         rts
 
 rb_clear_handle_heap:
@@ -4139,7 +4209,7 @@ rb_stash_zero_pagebuf:
         sta rb_reu_c64_lo
         lda #>RB_PAGEBUF
         sta rb_reu_c64_hi
-        lda #RB_REU_CORE_BANK
+        lda rb_reu_core_bank
         sta rb_reu_bank
         lda #0
         sta rb_reu_len_lo
@@ -4161,7 +4231,7 @@ save_basic_runtime_state:
         sta rb_reu_off_lo
         lda #>RB_REU_RUNTIME_ZP_OFF
         sta rb_reu_off_hi
-        lda #RB_REU_CORE_BANK
+        lda rb_reu_core_bank
         sta rb_reu_bank
         lda #0
         sta rb_reu_len_lo
@@ -4177,7 +4247,7 @@ save_basic_runtime_state:
         sta rb_reu_off_lo
         lda #>RB_REU_RUNTIME_STACK_OFF
         sta rb_reu_off_hi
-        lda #RB_REU_CORE_BANK
+        lda rb_reu_core_bank
         sta rb_reu_bank
         lda #0
         sta rb_reu_len_lo
@@ -4588,6 +4658,8 @@ rb_reu_off_hi:  .byte 0
 rb_reu_bank:    .byte 0
 rb_reu_len_lo:  .byte 0
 rb_reu_len_hi:  .byte 0
+rb_reu_core_bank:.byte 0
+rb_reu_code_bank:.byte 0
 
 rb_handle_bank: .byte 0
 rb_handle_page: .byte 0
@@ -4939,7 +5011,7 @@ rb_handle_alloc_with_pages:
 @got_handle:
         jsr rb_find_pages
         bcs @no_pages
-        lda #RB_REU_CORE_BANK
+        lda rb_reu_core_bank
         sta rb_handle_bank
         lda rb_found_page
         clc
@@ -5028,7 +5100,7 @@ rb_handle_desc_fetch_page:
         sta rb_reu_c64_lo
         lda #>RB_PAGEBUF
         sta rb_reu_c64_hi
-        lda #RB_REU_CORE_BANK
+        lda rb_reu_core_bank
         sta rb_reu_bank
         lda #0
         sta rb_reu_len_lo
@@ -5071,7 +5143,7 @@ rb_handle_store:
         sta rb_reu_c64_lo
         lda #>RB_PAGEBUF
         sta rb_reu_c64_hi
-        lda #RB_REU_CORE_BANK
+        lda rb_reu_core_bank
         sta rb_reu_bank
         lda #0
         sta rb_reu_len_lo
@@ -5143,7 +5215,7 @@ rb_fetch_heap_bitmap:
         sta rb_reu_off_lo
         lda #>RB_REU_HEAP_OFF
         sta rb_reu_off_hi
-        lda #RB_REU_CORE_BANK
+        lda rb_reu_core_bank
         sta rb_reu_bank
         lda #0
         sta rb_reu_len_lo
@@ -5161,7 +5233,7 @@ rb_store_heap_bitmap:
         sta rb_reu_off_lo
         lda #>RB_REU_HEAP_OFF
         sta rb_reu_off_hi
-        lda #RB_REU_CORE_BANK
+        lda rb_reu_core_bank
         sta rb_reu_bank
         lda #0
         sta rb_reu_len_lo
@@ -5278,7 +5350,7 @@ rb_handle_fill:
         sta rb_reu_off_lo
         lda rb_fill_page
         sta rb_reu_off_hi
-        lda #RB_REU_CORE_BANK
+        lda rb_reu_core_bank
         sta rb_reu_bank
         lda #0
         sta rb_reu_len_lo
@@ -5328,7 +5400,7 @@ rb_screen_save_text:
         sta rb_reu_off_lo
         lda rb_handle_page
         sta rb_reu_off_hi
-        lda #RB_REU_CORE_BANK
+        lda rb_reu_core_bank
         sta rb_reu_bank
         lda #<RB_SCREEN_BYTES
         sta rb_reu_len_lo
@@ -5346,7 +5418,7 @@ rb_screen_load_text:
         sta rb_reu_off_lo
         lda rb_handle_page
         sta rb_reu_off_hi
-        lda #RB_REU_CORE_BANK
+        lda rb_reu_core_bank
         sta rb_reu_bank
         lda #<RB_SCREEN_BYTES
         sta rb_reu_len_lo
@@ -5466,7 +5538,7 @@ rb_stash_pagebuf_to_copy_page:
         sta rb_reu_off_lo
         lda rb_copy_page
         sta rb_reu_off_hi
-        lda #RB_REU_CORE_BANK
+        lda rb_reu_core_bank
         sta rb_reu_bank
         lda rb_copy_len_lo
         sta rb_reu_len_lo
@@ -5484,7 +5556,7 @@ rb_fetch_pagebuf_from_copy_page:
         sta rb_reu_off_lo
         lda rb_copy_page
         sta rb_reu_off_hi
-        lda #RB_REU_CORE_BANK
+        lda rb_reu_core_bank
         sta rb_reu_bank
         lda rb_copy_len_lo
         sta rb_reu_len_lo
@@ -5669,7 +5741,7 @@ rb_zmodload_stash_descriptors:
         txa
         bne @bad
 @stream:
-        lda #RB_REU_CORE_BANK
+        lda rb_reu_core_bank
         sta rb_reu_bank
         jmp rb_zmodload_stream_to_reu
 @bad:
@@ -5701,7 +5773,7 @@ rb_zmodload_stash_payloads:
         lda rb_reu_off_hi
         adc rb_copy_len_hi
         bcs @bad
-        lda #RB_REU_CODE_BANK
+        lda rb_reu_code_bank
         sta rb_reu_bank
         jsr rb_zmodload_stream_to_reu
         bcs @bad

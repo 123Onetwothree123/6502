@@ -20,7 +20,8 @@ under-ROM command layout:
 | Shared frames | `$C200-$C5FF` |
 
 Descriptor byte 1 is now module id, not a `LOW`/`HIDDEN` flag. Descriptor bytes
-2-13 identify payload offset/size in REU bank `$45`, submodule id, overlay id,
+2-13 identify payload offset/size in the assigned ReadyBASIC code bank,
+submodule id, overlay id,
 slot mask, generation/check byte, runtime destination offset from `$A000`, and
 entry offset. Byte 14 remains the signature id, and bytes 15-31 remain the
 uppercase name field.
@@ -40,18 +41,20 @@ uppercase name field.
   - `$90`: C64 to REU stash.
   - `$91`: REU to C64 fetch.
 
-## Fixed ReadyBASIC REU Banks
+## Loader-Assigned ReadyBASIC REU Banks
 
 - ReadyBASIC assembler:
-  - `RB_REU_CORE_BANK = $44`
-  - `RB_REU_CODE_BANK = $45`
+  - `rb_reu_core_bank` is resolved at startup by scanning `$C600-$C6FF` for
+    bank type `REU_RB_CORE`.
+  - `rb_reu_code_bank` is resolved at startup by scanning `$C600-$C6FF` for
+    bank type `REU_RB_CODE`.
   - `RB_REU_DESC_OFF = $1000`
   - `RB_CMD_DESC_COUNT = 128`
   - `RB_REU_TYPE_CORE = 14`
   - `RB_REU_TYPE_CODE = 15`
 - ReadyOS C mirrors:
-  - `src/lib/reu_mgr.h`
-  - `src/lib/reu_mgr_init.c`
+  - `src/apps/launcher/launcher.c` owns `rbcore` resource allocation/free.
+  - `src/lib/reu_mgr.h` keeps only the type constants, not fixed bank numbers.
   - `src/apps/reuviewer/reuviewer.c`
 - Static checker:
   - `build_support/verify_readybasic_plugin.py`
@@ -62,7 +65,8 @@ uppercase name field.
   - `SHIM_RETURN = $C80C`
   - bridge state at `$C000-$C1F3`
   - shared frames and visible helper shadow at `$C200-$C5FF`
-  - app runtime zero-page/stack save in REU bank `$44` offsets `$0A00/$0B00`
+  - app runtime zero-page/stack save in the assigned core bank offsets
+    `$0A00/$0B00`
 - Do not place ReadyBasic state in `$C800-$C9FF`; that remains shim ABI territory.
 - Do not use `$C600-$C7FF` as ReadyBASIC scratch; it remains ReadyOS REU metadata.
 
@@ -71,7 +75,8 @@ uppercase name field.
 - `BASIC_START = $2AC1`; BASIC owns `$2AC1-$9FFF`, with `30013` formula empty free bytes.
 - `ENTRY` lives at `$1000-$1102`.
 - `RESIDENT` lives at `$1200-$2ABB` (`$18BC`, 6332B) and must stay below `$2AC0`.
-- `CMDPACK` load-only seed space is `$2B00-$3FFF`; it is copied to REU bank `$45` on cold entry.
+- `CMDPACK` load-only seed space is `$2B00-$3FFF`; it is copied to the assigned
+  ReadyBASIC code bank on cold entry.
 - `HIDLOAD` load-only helper seed starts at `$4000`.
 - `BRLOAD` load-only bridge seed starts at `$4800`.
 - `REGSEED` load-only registry seed is `$5000-$600F`, size `$1010`.
@@ -82,7 +87,7 @@ uppercase name field.
 - Runtime `BRIDGE` is `$C000-$C1F8`, size `$01F9` / 505B; the native `PROC`/`FUNC`
   return stack and flow-control scratch live here and must stay below shared frames at `$C200`.
 
-## Bank `$44` ReadyBASIC Core Layout
+## Assigned Core Bank ReadyBASIC Layout
 
 - `$0000`: registry header.
 - `$0400`: current call-frame snapshot.

@@ -84,7 +84,8 @@ def normalize_hotkey_slot(raw: str, path: str, line_no: int) -> str:
 
 RESOURCE_NONE = ""
 RESOURCE_READYSHELL_OVL = "rsovl"
-VALID_RESOURCES = {RESOURCE_NONE, RESOURCE_READYSHELL_OVL}
+RESOURCE_READYBASIC_CORE = "rbcore"
+VALID_RESOURCES = {RESOURCE_NONE, RESOURCE_READYSHELL_OVL, RESOURCE_READYBASIC_CORE}
 
 
 def normalize_resource_token(raw: str, path: str, line_no: int) -> str:

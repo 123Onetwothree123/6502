@@ -68,14 +68,17 @@ REU. Warm resume must not reread seed tables from BASIC-owned memory.
 
 ## REU Contracts
 
-ReadyBASIC currently uses fixed REU areas:
+ReadyBASIC uses launcher-assigned REU resource banks. The launcher marks those
+physical banks in `$C600-$C6FF` with `REU_RB_CORE` and `REU_RB_CODE`;
+ReadyBASIC resolves the bank ids at startup and must not assume fixed `$44/$45`
+addresses.
 
 | REU bank/area | Contract |
 | --- | --- |
-| Bank `$44` | Runtime metadata: command descriptors, registry data, handles, snapshots, state tables, and small persistent proof state. |
-| Bank `$45` | Payload bytes for built-in and disk-loaded command modules. |
-| Bank `$44:$0A00-$0BFF` | Zero-page and hardware stack snapshots. |
-| Bank `$44:$2000-$3FFF` | Reserved for richer module/submodule residency catalog work. |
+| Assigned core bank | Runtime metadata: command descriptors, registry data, handles, snapshots, state tables, and small persistent proof state. |
+| Assigned code bank | Payload bytes for built-in and disk-loaded command modules. |
+| Core bank `$0A00-$0BFF` | Zero-page and hardware stack snapshots. |
+| Core bank `$2000-$3FFF` | Reserved for richer module/submodule residency catalog work. |
 
 Keep REU writes typed and bounded. Any loader change must reject bad magic,
 version mismatch, short reads, invalid counts, descriptor overflow, and payload

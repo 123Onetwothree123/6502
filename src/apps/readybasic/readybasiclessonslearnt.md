@@ -50,12 +50,12 @@ actual C64/ReadyOS evidence trail rather than a pile of confident guesses.
 ### Distinguish App RAM From Shared ReadyOS Metadata
 
 ReadyOS app snapshots own `$1000-$C5FF`. `$C600-$C7FF` is not app-private RAM,
-but it is also not unused; ReadyOS uses it for shared REU metadata. ReadyBasic
-may mark its fixed REU banks by writing the canonical allocation table bytes at
-`$C600+$44` and `$C600+$45`, matching `src/lib/reu_mgr.c`, but must never treat
-that page as a general ReadyBasic buffer. If a future probe sees boot or app-load
-instability, check whether ReadyBasic is writing more than those ownership tags
-before blaming the launcher or VICE.
+but it is also not unused; ReadyOS uses it for shared REU metadata. The launcher
+marks ReadyBASIC's assigned `rbcore` banks as `REU_RB_CORE` and `REU_RB_CODE`,
+and ReadyBASIC may refresh those exact ownership tags after resolving them. It
+must never treat that page as a general ReadyBasic buffer. If a future probe
+sees boot or app-load instability, check whether ReadyBasic is writing more
+than those ownership tags before blaming the launcher or VICE.
 
 ### Interrupted VICE Runs Still Need A Ledger Entry
 

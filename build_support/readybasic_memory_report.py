@@ -131,7 +131,7 @@ def parse_reu_constants(path: Path) -> dict[str, int]:
     out: dict[str, int] = {}
     for name, value in re.findall(r"#define\s+(REU_BANK_[A-Z0-9_]+|REU_[A-Z0-9_]+)\s+(0x[0-9A-Fa-f]+|\d+)\b", src):
         out[name] = int(value, 0)
-    for name in ("REU_BANK_RB_CORE", "REU_BANK_RB_CODE", "REU_TOTAL_BANKS"):
+    for name in ("REU_TOTAL_BANKS",):
         if name not in out:
             raise SystemExit(f"{path}: missing {name}")
     return out
@@ -371,11 +371,8 @@ def render(ctx: dict[str, object]) -> str:
     reu_overview_blocks = [
         Block("Launcher/system", 0x000000, 0x010000, "readyos", "Bank 0 logical launcher/system state."),
         Block("App snapshots", 0x020000, 24 * 0x10000, "entry", "Banks 2-25 logical app-slot snapshots."),
-        Block("ReadyShell debug/resource", 0x430000, 0x10000, "underrom", "ReadyShell debug bank; overlay cache banks are launcher/loader-assigned resources."),
-        Block("ReadyBASIC $44", reu["REU_BANK_RB_CORE"] * 0x10000, 0x10000, "registry", "ReadyBASIC runtime/registry bank."),
-        Block("ReadyBASIC $45", reu["REU_BANK_RB_CODE"] * 0x10000, 0x10000, "module-a", "ReadyBASIC command/module payload bank."),
-        Block("Other fixed/global", 0x460000, 3 * 0x10000, "reserved", "Gaps plus ReadyShell shared state at $48."),
-        Block("Dynamic pool / free", 0x490000, (reu["REU_TOTAL_BANKS"] - 0x49) * 0x10000, "free", "Remaining 16MB REU space after fixed high banks."),
+        Block("Fixed support", 0x430000, 0x60000, "underrom", "ReadyShell debug/scratch and legacy high-bank gap; ReadyBASIC banks are no longer fixed here."),
+        Block("Dynamic resources / free", 0x490000, (reu["REU_TOTAL_BANKS"] - 0x49) * 0x10000, "free", "Remaining 16MB REU space, including launcher-assigned ReadyBASIC core/code resource banks."),
     ]
 
     example_blocks = [
@@ -513,8 +510,8 @@ def render(ctx: dict[str, object]) -> str:
     <div class="metrics">
       <div class="metric"><b>{fmt_hex(basic_start)}</b><span>BASIC start; {basic_free} formula free bytes.</span></div>
       <div class="metric"><b>3 x 2K</b><span>Command submodule slots at $A800, $B000, and $B800.</span></div>
-      <div class="metric"><b>REU ${reu['REU_BANK_RB_CORE']:02X}/${reu['REU_BANK_RB_CODE']:02X}</b><span>Runtime registry bank plus payload bank.</span></div>
-      <div class="metric"><b>{fmt_size(built_in_payload_size)}</b><span>Current built-in command payload bytes in REU $45.</span></div>
+      <div class="metric"><b>loader-assigned</b><span>Runtime registry bank plus payload bank.</span></div>
+      <div class="metric"><b>{fmt_size(built_in_payload_size)}</b><span>Current built-in command payload bytes in the assigned payload bank.</span></div>
     </div>
   </div>
 </header>
@@ -529,7 +526,7 @@ def render(ctx: dict[str, object]) -> str:
 <main class="page">
   <section id="whole">
     <h2>Whole C64 RAM: ReadyOS Contract And ReadyBASIC Runtime</h2>
-    <p>ReadyOS snapshots app RAM from <code>$1000-$C5FF</code>. ReadyBASIC stays inside that contract, while using RAM behind BASIC ROM for command payloads and fixed REU banks for durable runtime state.</p>
+    <p>ReadyOS snapshots app RAM from <code>$1000-$C5FF</code>. ReadyBASIC stays inside that contract, while using RAM behind BASIC ROM for command payloads and loader-assigned REU resource banks for durable runtime state.</p>
     {stacked_map(ram_blocks, 0x10000)}
   </section>
 
@@ -548,7 +545,7 @@ def render(ctx: dict[str, object]) -> str:
       </div>
     </div>
     <h3>Inside The Cold CMDPACK Seed Window</h3>
-    <p>This is the built-in command/module payload portion that is prestashed contiguously into REU bank <code>${reu['REU_BANK_RB_CODE']:02X}</code>.</p>
+    <p>This is the built-in command/module payload portion that is prestashed contiguously into the loader-assigned ReadyBASIC payload bank.</p>
     {stacked_map(cmdpack_blocks, cmdpack_size, cls="short")}
   </section>
 
@@ -566,11 +563,11 @@ def render(ctx: dict[str, object]) -> str:
         {stacked_map(reu_overview_blocks, reu['REU_TOTAL_BANKS'] * 0x10000, cls="reu-overview", show_range=False)}
       </div>
       <div>
-        <h3>Bank ${reu['REU_BANK_RB_CORE']:02X}: ReadyBASIC Registry/Runtime</h3>
+        <h3>ReadyBASIC Core Resource Bank: Registry/Runtime</h3>
         {stacked_map(reu44_blocks, 0x10000, cls="bank")}
       </div>
     </div>
-    <h3>Bank ${reu['REU_BANK_RB_CODE']:02X}: Built-In And Disk-Loaded Payloads</h3>
+    <h3>ReadyBASIC Code Resource Bank: Built-In And Disk-Loaded Payloads</h3>
     {stacked_map(reu45_blocks, 0x10000, cls="bank")}
   </section>
 

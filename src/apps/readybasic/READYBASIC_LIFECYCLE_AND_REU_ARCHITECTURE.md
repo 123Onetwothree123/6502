@@ -38,10 +38,10 @@ The design is deliberately lean:
 
 - All ReadyBASIC-specific code is assembler.
 - The visible resident core is the only code that calls BASIC ROM helpers.
-- Command implementations are packed in REU bank `$45` and copied into a small
-  overlay slot only when needed.
+- Command implementations are packed in the assigned ReadyBASIC code bank and
+  copied into a small overlay slot only when needed.
 - Registry, call-frame, result-frame, handle metadata, and persistent sample
-  heap state live in fixed REU bank `$44`.
+  heap state live in the assigned ReadyBASIC core bank.
 - BASIC string heap mutation happens only in visible resident code after a
   command succeeds.
 - Hidden `$A000` code is used only when the CPU banking contract is explicit and
@@ -237,10 +237,10 @@ payload `$3415-$3429` (`$0015`, 21B), overlay 1 `$342A-$343E`
 
 ## REU Layout
 
-ReadyBASIC reserves two fixed REU banks:
+ReadyBASIC uses two launcher-assigned REU resource banks:
 
-- Bank `$44`: ReadyBASIC common/system storage.
-- Bank `$45`: packed command-code storage.
+- Core bank: ReadyBASIC common/system storage.
+- Code bank: packed command-code storage.
 
 The mirrored ReadyOS type constants are:
 
