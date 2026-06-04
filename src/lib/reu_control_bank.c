@@ -81,6 +81,20 @@ static void reucb_write_header(unsigned char control_bank, unsigned char writer_
     reucb_header[19] = (unsigned char)(REUCB_RESOURCE_OFF >> 8);
     reucb_header[20] = REUCB_RESOURCE_COUNT;
     reucb_header[21] = REUCB_RESOURCE_SIZE;
+    reucb_header[22] = (unsigned char)(REUCB_APP_REG_OFF & 0xFFu);
+    reucb_header[23] = (unsigned char)(REUCB_APP_REG_OFF >> 8);
+    reucb_header[24] = REUCB_APP_REG_COUNT;
+    reucb_header[25] = REUCB_APP_REG_SIZE;
+    reucb_header[26] = (unsigned char)(REUCB_APP_META_OFF & 0xFFu);
+    reucb_header[27] = (unsigned char)(REUCB_APP_META_OFF >> 8);
+    reucb_header[28] = REUCB_APP_META_COUNT;
+    reucb_header[29] = REUCB_APP_META_SIZE;
+    reucb_header[30] = (unsigned char)(REUCB_DEP_OFF & 0xFFu);
+    reucb_header[31] = (unsigned char)(REUCB_DEP_OFF >> 8);
+    reucb_header[32] = REUCB_DEP_COUNT;
+    reucb_header[33] = REUCB_DEP_SIZE;
+    reucb_header[34] = (unsigned char)(REUCB_AUDIT_OFF & 0xFFu);
+    reucb_header[35] = (unsigned char)(REUCB_AUDIT_OFF >> 8);
 
     reu_dma_stash((unsigned int)reucb_header, control_bank,
                   REUCB_HEADER_OFF, REUCB_HEADER_SIZE);

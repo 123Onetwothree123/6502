@@ -86,13 +86,39 @@ RESOURCE_NONE = ""
 RESOURCE_READYSHELL_OVL = "rsovl"
 RESOURCE_READYBASIC_CORE = "rbcore"
 VALID_RESOURCES = {RESOURCE_NONE, RESOURCE_READYSHELL_OVL, RESOURCE_READYBASIC_CORE}
+RESOURCE_DEP_SUFFIX = "+"
 
 
 def normalize_resource_token(raw: str, path: str, line_no: int) -> str:
     resource = raw.strip()
-    if resource not in VALID_RESOURCES:
+    dep_suffix = ""
+    if resource.endswith(RESOURCE_DEP_SUFFIX):
+        dep_suffix = RESOURCE_DEP_SUFFIX
+        resource = resource[:-1].strip()
+    if resource not in VALID_RESOURCES or resource == RESOURCE_NONE and dep_suffix:
         fail(path, line_no, f"unknown resource set: {raw!r}")
-    return resource
+    return resource + dep_suffix
+
+
+def validate_dependency_list(raw: str, path: str, line_no: int) -> None:
+    saw_item = False
+    for part in raw.split(","):
+        item = part.strip()
+        if not item:
+            continue
+        if ":" in item:
+            drive_raw, name_raw = [p.strip() for p in item.split(":", 1)]
+            if not drive_raw.isdigit():
+                fail(path, line_no, f"dependency drive must be numeric: {drive_raw!r}")
+            drive = int(drive_raw, 10)
+            if drive < 8 or drive > 11:
+                fail(path, line_no, f"dependency drive must be 8..11: {drive}")
+            normalize_prg_token(name_raw, path, line_no)
+        else:
+            normalize_prg_token(item, path, line_no)
+        saw_item = True
+    if not saw_item:
+        fail(path, line_no, "empty dependency list")
 
 
 def parse_app_entry(line: str, path: str, line_no: int) -> Tuple[int, str, str, str, str]:
@@ -154,7 +180,7 @@ def normalize_reu_bank_skip(raw: str, path: str, line_no: int) -> str:
     return str(skip)
 
 
-def parse_source(path: str) -> Tuple[Dict[str, str], Dict[str, str], List[Tuple[str, str]]]:
+def parse_source(path: str) -> Tuple[Dict[str, str], Dict[str, str], List[Tuple[str, str, str]]]:
     with open(path, "r", encoding="utf-8", errors="strict") as f:
         raw_lines = f.read().splitlines()
 
@@ -167,11 +193,13 @@ def parse_source(path: str) -> Tuple[Dict[str, str], Dict[str, str], List[Tuple[
         "load_all_to_reu": "0",
         "runappfirst": "",
     }
-    apps: List[Tuple[str, str]] = []
+    apps: List[Tuple[str, str, str]] = []
 
     section: Optional[str] = None
     pending_entry: Optional[str] = None
     pending_entry_line = 0
+    pending_desc: Optional[str] = None
+    pending_dep_required = False
 
     for idx, raw in enumerate(raw_lines, start=1):
         line = raw.strip()
@@ -180,6 +208,8 @@ def parse_source(path: str) -> Tuple[Dict[str, str], Dict[str, str], List[Tuple[
         validate_lower_text(line, path, idx, "source text")
 
         if line.startswith("[") and line.endswith("]"):
+            if pending_desc is not None:
+                fail(path, pending_entry_line, "missing dependency list before next section")
             if pending_entry is not None:
                 fail(path, pending_entry_line, "missing description line before next section")
             section = line[1:-1].strip()
@@ -212,7 +242,13 @@ def parse_source(path: str) -> Tuple[Dict[str, str], Dict[str, str], List[Tuple[
             continue
 
         if section == SECTION_APPS:
-            if pending_entry is None:
+            if pending_desc is not None:
+                validate_dependency_list(line, path, idx)
+                apps.append((pending_entry or "", pending_desc, line))
+                pending_entry = None
+                pending_desc = None
+                pending_dep_required = False
+            elif pending_entry is None:
                 drive, prg, label, slot, resource = parse_app_entry(line, path, idx)
                 entry = f"{drive}:{prg}:{label}"
                 if resource:
@@ -221,13 +257,19 @@ def parse_source(path: str) -> Tuple[Dict[str, str], Dict[str, str], List[Tuple[
                     entry += f":{slot}"
                 pending_entry = entry
                 pending_entry_line = idx
+                pending_dep_required = resource.endswith(RESOURCE_DEP_SUFFIX)
             else:
                 if len(line) > 38:
                     fail(path, idx, f"description too long ({len(line)} > 38)")
-                apps.append((pending_entry, line))
-                pending_entry = None
-                pending_entry_line = 0
+                if pending_dep_required:
+                    pending_desc = line
+                else:
+                    apps.append((pending_entry, line, ""))
+                    pending_entry = None
+                    pending_entry_line = 0
 
+    if pending_desc is not None:
+        fail(path, pending_entry_line, "missing dependency list")
     if pending_entry is not None:
         fail(path, pending_entry_line, "missing description line")
     if not apps:
@@ -239,7 +281,7 @@ def parse_source(path: str) -> Tuple[Dict[str, str], Dict[str, str], List[Tuple[
 
 def render_lines(system_cfg: Dict[str, str],
                  launcher_cfg: Dict[str, str],
-                 apps: List[Tuple[str, str]]) -> List[str]:
+                 apps: List[Tuple[str, str, str]]) -> List[str]:
     lines = [
         "[system]",
         f"variant_name={system_cfg['variant_name']}",
@@ -250,9 +292,11 @@ def render_lines(system_cfg: Dict[str, str],
         f"runappfirst={launcher_cfg['runappfirst']}",
         "[apps]",
     ]
-    for entry, desc in apps:
+    for entry, desc, deps in apps:
         lines.append(entry)
         lines.append(desc)
+        if deps:
+            lines.append(deps)
     return lines
 
 

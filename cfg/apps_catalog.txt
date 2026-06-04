@@ -4,8 +4,9 @@
 9:editor:editor:1
 text editor with clipboard
 
-8:readyshell:ready shell (demo)::rsovl
+8:readyshell:ready shell (demo)::rsovl+
 command shell poc scaffold
+rsparser,rsvm,rsdrvilst,rsldv,rsstv,rsfops,rscat,rscopy,rsedit
 
 9:simplefiles:simple files
 dual pane file manager and seq viewer

@@ -34,6 +34,9 @@ Completed in branch `codex/reu-control-bank-refactor`:
 
 - committed baseline `e7b5487 Add REU control bank mirror baseline`;
 - logical REU bank `0` mirror schema `RCB0`, version `1`;
+- logical REU bank `0` mirror schema advanced to `RCB0`, version `2`, with
+  offsets reserved/published for a 64-app registry, app metadata, and
+  dependency/resource-bank metadata;
 - header at bank `0` offset `$0000`;
 - resident `$C600-$C6FF` bank table mirror at offset `$0100`;
 - fixed-resource records at offset `$0200`;
@@ -59,11 +62,41 @@ Completed in branch `codex/reu-control-bank-refactor`:
   snapshot because resource ownership remains launcher-owned, not shim-owned;
 - EasyFlash catalog generation assigns non-overlapping ReadyShell and
   ReadyBASIC resource banks from the same dynamic resource pool.
+- bank `0` now receives a launcher-written 64-app registry snapshot in
+  separated blocks:
+  - `$0100`: 256-byte resident bank-type mirror, still cheap to copy into the
+    resident `$C600` table if needed;
+  - `$0300`: compact app-state arrays for logical bank, loaded flag, resource
+    set, resource-loaded flag, drive, and default hotkey slot;
+  - `$0500`: larger app metadata block, currently the normalized PRG/file token
+    table copied from the launcher catalog arrays;
+  - `$0900`: loader-owned dependency/resource bank arrays, currently the three
+    per-app resource-bank slots used by ReadyShell `rsovl` and ReadyBASIC
+    `rbcore`;
+- the initial linked-list dependency writer was rejected before acceptance
+  because it cost roughly `2.3KB` of launcher/reuviewer app-window headroom.
+  The accepted v2 shape is less elegant but much cheaper: it copies normalized
+  launcher arrays to REU in coarse blocks and keeps REU Viewer from linking the
+  launcher-only writer;
+- disk `apps.cfg` and `app.*` manifests now accept a `+` suffix on a known
+  resource token, for example `rsovl+` or `rbcore+`. When present, the
+  description line is followed by one comma-separated dependency line. The
+  host catalog generator validates the dependency item syntax; the C64 launcher
+  consumes a non-empty line only, by design, so the runtime parser stays small;
+- shipped catalogs now mark ReadyShell and ReadyBASIC resource entries with the
+  `+` dependency-list form. The actual loader authority is still the compact
+  resource token (`rsovl`/`rbcore`) plus assigned resource banks, not arbitrary
+  runtime filename loading.
 
 Not implemented yet:
 
-- generic manifest dependency loading for overlays/modules/resources;
-- ownership records rich enough to unload every bank owned by an app;
+- generic arbitrary dependency loading for unknown app-specific overlays or
+  modules;
+- name-rich linked-list dependency records. This remains reserved design space,
+  but the first implementation uses array blocks because the linked-list writer
+  was too expensive in app-window code size;
+- ownership records for app-requested banks created after app launch. Current
+  unload frees the launcher-owned snapshot and launcher-owned resource banks;
 - headless/service/modal invocation records;
 - runtime VICE probe that reads and validates logical bank `0` contents.
 
@@ -109,6 +142,20 @@ The launcher cost is the real cost of holding a 64-entry catalog in RAM. A
 larger hidden duplicate was removed before acceptance: the initial dynamic
 implementation dropped launcher headroom by `8583` bytes, and removing the
 duplicate resident resume cache recovered more than `5.5KB`.
+
+Current measured bank-0 registry v2 impact against commit
+`48a483e Make ReadyBASIC REU banks loader-assigned`:
+
+| App | Before | After array registry/parser trim | Delta |
+| --- | ---: | ---: | ---: |
+| launcher | 4637 | 3583 | -1054 |
+| reuviewer | 29670 | 29572 | -98 |
+
+No normal app links the new registry writer. The launcher delta is the combined
+cost of the launcher-only registry mirror plus the optional `+` dependency-line
+state in the disk/manifest parser. This is intentionally documented as a cost
+to watch: the rejected linked-list implementation was more than twice as
+expensive and was removed before this checkpoint.
 
 ### Verification Matrix
 

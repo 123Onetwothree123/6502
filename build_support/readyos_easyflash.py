@@ -97,8 +97,9 @@ def parse_catalog(path: Path) -> Dict[str, object]:
     system_cfg, launcher_cfg, apps = apps_catalog.parse_source(str(path))
     entries: List[Dict[str, object]] = []
     for index, pair in enumerate(apps, start=1):
-        entry_line, desc = pair
+        entry_line, desc = pair[0], pair[1]
         _drive, prg, label, slot, resource = apps_catalog.parse_app_entry(entry_line, str(path), index)
+        resource = resource.rstrip(apps_catalog.RESOURCE_DEP_SUFFIX)
         if resource == apps_catalog.RESOURCE_NONE and prg == "readyshell":
             resource = apps_catalog.RESOURCE_READYSHELL_OVL
         elif resource == apps_catalog.RESOURCE_NONE and prg == "readybasic":

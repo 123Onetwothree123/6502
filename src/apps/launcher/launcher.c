@@ -64,6 +64,20 @@
 #define REU_CMD_FETCH 0x91
 
 void reu_control_bank_sync_and_mirror(unsigned char writer_id);
+void reu_control_bank_write_launcher_registry(
+    unsigned char first_app_index,
+    unsigned char app_count,
+    const unsigned char *app_banks,
+    const unsigned char *app_drives,
+    const unsigned char *app_default_slots,
+    const unsigned char *app_resource_sets,
+    const unsigned char *app_resource_loaded,
+    const unsigned char *app_rs_bank1,
+    const unsigned char *app_rs_bank2,
+    const unsigned char *app_rs_bank3,
+    const char *app_file_buf,
+    unsigned char app_file_stride,
+    const unsigned char *apps_loaded);
 void reu_dma_stash(unsigned int c64_addr, unsigned char bank,
                    unsigned int reu_offset, unsigned int length);
 #define REUCB_WRITER_LAUNCHER 1u
@@ -823,8 +837,18 @@ static unsigned char normalize_prg_field(char *field_prg,
 }
 
 static unsigned char parse_resource_field(char *field_resource,
-                                          unsigned char *out_resource_set) {
+                                          unsigned char *out_resource_set,
+                                          unsigned char *out_dep_line_required) {
+    unsigned char len;
+
     trim_in_place(field_resource);
+    *out_dep_line_required = 0u;
+    len = (unsigned char)strlen(field_resource);
+    if (len > 0u && field_resource[(unsigned char)(len - 1u)] == '+') {
+        field_resource[(unsigned char)(len - 1u)] = 0;
+        trim_in_place(field_resource);
+        *out_dep_line_required = 1u;
+    }
     if (field_resource[0] == 0) {
         *out_resource_set = APP_RESOURCE_NONE;
         return 0;
@@ -839,6 +863,19 @@ static unsigned char parse_resource_field(char *field_resource,
     }
     set_cfg_reason(CFG_MSG_RESOURCE);
     return CFG_ERR_RESOURCE;
+}
+
+static unsigned char parse_dependency_list_line(char *line,
+                                                unsigned char default_drive,
+                                                unsigned char *out_detail) {
+    (void)default_drive;
+    *out_detail = 0u;
+    trim_in_place(line);
+    if (line[0] == 0) {
+        set_cfg_reason(CFG_MSG_RESOURCE);
+        return CFG_ERR_RESOURCE;
+    }
+    return 0u;
 }
 #endif
 
@@ -1035,6 +1072,7 @@ static unsigned char parse_catalog_entry_line(char *line,
                                               char *out_label,
                                               unsigned char *out_default_slot,
                                               unsigned char *out_resource_set,
+                                              unsigned char *out_dep_line_required,
                                               unsigned char *out_detail) {
     char *first_colon;
     char *second_colon;
@@ -1128,10 +1166,12 @@ static unsigned char parse_catalog_entry_line(char *line,
     out_label[MAX_NAME_LEN] = 0;
     *out_default_slot = 0;
     *out_resource_set = APP_RESOURCE_NONE;
+    *out_dep_line_required = 0u;
 
     if (field_slot != 0) {
         if ((field_slot[0] < '0' || field_slot[0] > '9') && field_resource == 0) {
-            return parse_resource_field(field_slot, out_resource_set);
+            return parse_resource_field(field_slot, out_resource_set,
+                                        out_dep_line_required);
         }
         if (field_slot[0] == 0) {
             if (field_resource == 0) {
@@ -1160,7 +1200,8 @@ static unsigned char parse_catalog_entry_line(char *line,
     }
 
     if (field_resource != 0) {
-        return parse_resource_field(field_resource, out_resource_set);
+        return parse_resource_field(field_resource, out_resource_set,
+                                    out_dep_line_required);
     }
 
     return 0;
@@ -1257,14 +1298,16 @@ static unsigned char load_catalog_from_disk(unsigned char *detail_a,
     char *value;
     char pending_prg[MAX_FILE_LEN + 1];
     char pending_label[MAX_NAME_LEN + 1];
+    char pending_desc_text[MAX_DESC_LEN + 1];
     unsigned char pending_drive = 0;
     unsigned char pending_slot = 0;
     unsigned char pending_resource_set = APP_RESOURCE_NONE;
+    unsigned char pending_dep_line_required = 0u;
     unsigned char entry_index = 1;
     unsigned char err;
     unsigned char parse_detail;
     unsigned char section = 0;
-    unsigned char pending_desc = 0;
+    unsigned char pending_state = 0;
 
     cfg_err_phase = CFG_ERR_PHASE_PARSE;
     if (cbm_open(APP_CFG_LFN, DEFAULT_DRIVE, 2, APP_CFG_OPEN_SPEC) != 0) {
@@ -1287,13 +1330,15 @@ static unsigned char load_catalog_from_disk(unsigned char *detail_a,
 #endif
 
         if (line[0] == '[') {
-            if (pending_desc) {
+            if (pending_state != 0u) {
                 cbm_close(APP_CFG_LFN);
                 *detail_a = entry_index;
                 *detail_b = pending_drive;
                 *detail_c = 0;
-                set_cfg_reason(CFG_MSG_DESC_MISSING);
-                return CFG_ERR_MISSING_DESC;
+                set_cfg_reason((pending_state == 1u) ? CFG_MSG_DESC_MISSING
+                                                      : CFG_MSG_RESOURCE);
+                return (pending_state == 1u) ? CFG_ERR_MISSING_DESC
+                                             : CFG_ERR_RESOURCE;
             }
 
             if (strcmp(line, "[system]") == 0) {
@@ -1347,13 +1392,15 @@ static unsigned char load_catalog_from_disk(unsigned char *detail_a,
             continue;
         }
 
-        if (!pending_desc) {
+        if (pending_state == 0u) {
             parse_detail = 0;
             pending_slot = 0;
             pending_resource_set = APP_RESOURCE_NONE;
+            pending_dep_line_required = 0u;
             err = parse_catalog_entry_line(line, &pending_drive, pending_prg,
                                            pending_label, &pending_slot,
                                            &pending_resource_set,
+                                           &pending_dep_line_required,
                                            &parse_detail);
             if (err != 0) {
                 cbm_close(APP_CFG_LFN);
@@ -1362,11 +1409,29 @@ static unsigned char load_catalog_from_disk(unsigned char *detail_a,
                 *detail_c = parse_detail;
                 return err;
             }
-            pending_desc = 1;
+            pending_state = 1u;
             continue;
         }
 
-        err = add_catalog_entry(pending_drive, pending_prg, pending_label, line,
+        if (pending_state == 1u) {
+            copy_text_limit(pending_desc_text, sizeof(pending_desc_text), line);
+            if (pending_dep_line_required) {
+                pending_state = 2u;
+                continue;
+            }
+        } else {
+            parse_detail = 0u;
+            err = parse_dependency_list_line(line, pending_drive, &parse_detail);
+            if (err != 0u) {
+                cbm_close(APP_CFG_LFN);
+                *detail_a = err;
+                *detail_b = entry_index;
+                *detail_c = parse_detail;
+                return err;
+            }
+        }
+
+        err = add_catalog_entry(pending_drive, pending_prg, pending_label, pending_desc_text,
                                 pending_slot, pending_resource_set);
         if (err != 0) {
             cbm_close(APP_CFG_LFN);
@@ -1376,18 +1441,20 @@ static unsigned char load_catalog_from_disk(unsigned char *detail_a,
             return err;
         }
 
-        pending_desc = 0;
+        pending_state = 0u;
         ++entry_index;
     }
 
     cbm_close(APP_CFG_LFN);
 
-    if (pending_desc) {
+    if (pending_state != 0u) {
         *detail_a = entry_index;
         *detail_b = pending_drive;
         *detail_c = 0;
-        set_cfg_reason(CFG_MSG_DESC_MISSING);
-        return CFG_ERR_MISSING_DESC;
+        set_cfg_reason((pending_state == 1u) ? CFG_MSG_DESC_MISSING
+                                              : CFG_MSG_RESOURCE);
+        return (pending_state == 1u) ? CFG_ERR_MISSING_DESC
+                                     : CFG_ERR_RESOURCE;
     }
 
     if (launcher_variant_name[0] == 0) {
@@ -1583,6 +1650,20 @@ static void set_shim_drive(unsigned char drive) {
 
 static void launcher_mirror_reu_control(void) {
     reu_control_bank_sync_and_mirror(REUCB_WRITER_LAUNCHER);
+    reu_control_bank_write_launcher_registry(
+        launcher_first_app_index(),
+        app_count,
+        app_banks,
+        app_drives,
+        app_default_slots,
+        app_resource_sets,
+        app_resource_loaded,
+        app_rs_bank1,
+        app_rs_bank2,
+        app_rs_bank3,
+        &app_file_buf[0][0],
+        (unsigned char)sizeof(app_file_buf[0]),
+        apps_loaded);
 }
 
 static void launcher_write_readyshell_meta(unsigned char index) {
@@ -2399,6 +2480,7 @@ static unsigned char parse_manifest_from_disk(unsigned char manifest_drive,
     unsigned char pending_drive = 0u;
     unsigned char pending_slot = 0u;
     unsigned char pending_resource_set = APP_RESOURCE_NONE;
+    unsigned char pending_dep_line_required = 0u;
     unsigned char state = 0u;
     unsigned char err;
     unsigned char parse_detail = 0u;
@@ -2426,10 +2508,12 @@ static unsigned char parse_manifest_from_disk(unsigned char manifest_drive,
         if (state == 0u) {
             pending_slot = 0u;
             pending_resource_set = APP_RESOURCE_NONE;
+            pending_dep_line_required = 0u;
             parse_detail = 0u;
             err = parse_catalog_entry_line(line, &pending_drive, pending_prg,
                                            pending_label, &pending_slot,
                                            &pending_resource_set,
+                                           &pending_dep_line_required,
                                            &parse_detail);
             if (err != 0u) {
                 cbm_close(APP_MANIFEST_LFN);
@@ -2441,7 +2525,18 @@ static unsigned char parse_manifest_from_disk(unsigned char manifest_drive,
 
         if (state == 1u) {
             copy_text_limit(pending_desc, sizeof(pending_desc), line);
-            state = 2u;
+            state = pending_dep_line_required ? 2u : 3u;
+            continue;
+        }
+
+        if (state == 2u) {
+            parse_detail = 0u;
+            err = parse_dependency_list_line(line, pending_drive, &parse_detail);
+            if (err != 0u) {
+                cbm_close(APP_MANIFEST_LFN);
+                return err;
+            }
+            state = 3u;
             continue;
         }
 
@@ -2456,6 +2551,9 @@ static unsigned char parse_manifest_from_disk(unsigned char manifest_drive,
     }
     if (state == 1u) {
         return CFG_ERR_MISSING_DESC;
+    }
+    if (state == 2u) {
+        return CFG_ERR_RESOURCE;
     }
 
     existing = launcher_find_app_by_prg(pending_prg);

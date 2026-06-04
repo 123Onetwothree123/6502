@@ -698,7 +698,7 @@ def parse_catalog_entries(profile: Dict[str, object], catalog_override: str | No
     source = Path(catalog_override) if catalog_override else profile_catalog_source(profile)
     _system, _launcher, apps = apps_catalog.parse_source(str(source))
     entries = []
-    for entry, desc in apps:
+    for entry, desc, _deps in apps:
         drive, prg, label, _slot, _resource = apps_catalog.parse_app_entry(entry, str(source), 1)
         entries.append({
             "drive": drive,

@@ -69,6 +69,10 @@ def main() -> int:
           "REU_RB_CORE" in launcher and "REU_RB_CODE" in launcher)
     check("ReadyBASIC resource config token is validated",
           "RESOURCE_READYBASIC_CORE" in catalog and "rbcore" in catalog)
+    check("dependency-list marker is validated in disk and manifest parser",
+          "pending_dep_line_required" in launcher and
+          "parse_dependency_list_line" in launcher and
+          "RESOURCE_DEP_SUFFIX" in catalog)
     check("host apps.cfg generator allows 64 apps",
           "len(apps) > 64" in catalog)
     check("global hotkeys allow dynamic logical banks",

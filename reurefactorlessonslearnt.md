@@ -97,3 +97,9 @@
   app-window headroom moved from `1031` to `1029` bytes, while launcher
   headroom moved from `5075` to `4637` bytes because the launcher owns the
   `rbcore` load/unload path.
+- For bank `0` registry metadata, array-copy beats formatted records in the
+  launcher. A linked-list/record serializer was attractive but cost about
+  `2.3KB` of launcher headroom and pulled almost `2KB` into reuviewer before
+  splitting. The accepted shape copies existing normalized launcher arrays into
+  separated REU blocks and leaves richer name-linked records as reserved design
+  space until there is a concrete consumer.

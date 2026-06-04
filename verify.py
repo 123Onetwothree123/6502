@@ -246,6 +246,14 @@ def parse_apps_catalog(path):
         if len(parts) not in (3, 4, 5):
             raise ValueError(f"{path}:{entry_no}: malformed catalog line: {entry_line!r}")
         drive_raw, prg, label = parts[:3]
+        dep_line_required = False
+        if len(parts) >= 4:
+            resource = parts[-1]
+            if resource.endswith("+"):
+                dep_line_required = True
+                resource = resource[:-1]
+            if resource and not resource.isdigit() and resource not in ("rsovl", "rbcore"):
+                raise ValueError(f"{path}:{entry_no}: invalid resource token: {parts[-1]!r}")
         if not drive_raw.isdigit():
             raise ValueError(f"{path}:{entry_no}: invalid drive token: {drive_raw!r}")
         drive = int(drive_raw, 10)
@@ -264,6 +272,13 @@ def parse_apps_catalog(path):
             raise ValueError(f"{path}:{desc_no}: empty description")
         if len(desc) > 38:
             raise ValueError(f"{path}:{desc_no}: description too long ({len(desc)} > 38)")
+        if dep_line_required:
+            if i >= len(apps_section):
+                raise ValueError(f"{path}:{entry_no}: missing dependency list for entry: {entry_line!r}")
+            deps_no, deps = apps_section[i]
+            i += 1
+            if len(deps) == 0:
+                raise ValueError(f"{path}:{deps_no}: empty dependency list")
         entries.append(
             {
                 "drive": drive,
@@ -468,6 +483,14 @@ def parse_apps_catalog_bytes(raw):
         if len(parts) not in (3, 4, 5):
             raise ValueError(f"malformed disk catalog line: {entry_line!r}")
         drive_raw, prg, label = parts[:3]
+        dep_line_required = False
+        if len(parts) >= 4:
+            resource = parts[-1]
+            if resource.endswith("+"):
+                dep_line_required = True
+                resource = resource[:-1]
+            if resource and not resource.isdigit() and resource not in ("rsovl", "rbcore"):
+                raise ValueError(f"invalid resource token in disk catalog: {parts[-1]!r}")
         if not drive_raw.isdigit():
             raise ValueError(f"invalid drive token in disk catalog: {drive_raw!r}")
         drive = int(drive_raw, 10)
@@ -476,6 +499,13 @@ def parse_apps_catalog_bytes(raw):
             raise ValueError(f"missing description in disk catalog for: {entry_line!r}")
         desc = apps_section[i]
         i += 1
+        if dep_line_required:
+            if i >= len(apps_section):
+                raise ValueError(f"missing dependency list in disk catalog for: {entry_line!r}")
+            deps = apps_section[i]
+            i += 1
+            if not deps:
+                raise ValueError(f"empty dependency list in disk catalog for: {entry_line!r}")
         entries.append({"drive": drive, "prg": prg_norm, "label": label, "desc": desc})
 
     return entries

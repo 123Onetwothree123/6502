@@ -10,7 +10,7 @@
 
 #include "reu_mgr.h"
 
-#define REUCB_SCHEMA_VERSION 1
+#define REUCB_SCHEMA_VERSION 2
 
 #define REUCB_MAGIC0 'R'
 #define REUCB_MAGIC1 'C'
@@ -25,7 +25,25 @@
 #define REUCB_RESOURCE_OFF      0x0200u
 #define REUCB_RESOURCE_SIZE     8u
 #define REUCB_RESOURCE_COUNT    10u
-#define REUCB_AUDIT_OFF         0x0280u
+#define REUCB_APP_REG_OFF       0x0300u
+#define REUCB_APP_REG_SIZE      8u
+#define REUCB_APP_REG_COUNT     64u
+#define REUCB_APP_META_OFF      0x0500u
+#define REUCB_APP_META_SIZE     16u
+#define REUCB_APP_META_COUNT    64u
+#define REUCB_DEP_OFF           0x0900u
+#define REUCB_DEP_SIZE          24u
+#define REUCB_DEP_COUNT         128u
+#define REUCB_AUDIT_OFF         0x1500u
+
+#define REUCB_NULL_DEP          0xFFu
+
+#define REUCB_APP_FLAG_LOADED   0x01u
+#define REUCB_APP_FLAG_HAS_DEPS 0x02u
+
+#define REUCB_DEP_KIND_RS_CACHE 1u
+#define REUCB_DEP_KIND_RB_CORE  2u
+#define REUCB_DEP_KIND_RB_CODE  3u
 
 #define REUCB_WRITER_LAUNCHER   1u
 #define REUCB_WRITER_REUVIEWER  2u
@@ -45,5 +63,20 @@
 #define REUCB_ROLE_CODE         8u
 
 void reu_control_bank_sync_and_mirror(unsigned char writer_id);
+
+void reu_control_bank_write_launcher_registry(
+    unsigned char first_app_index,
+    unsigned char app_count,
+    const unsigned char *app_banks,
+    const unsigned char *app_drives,
+    const unsigned char *app_default_slots,
+    const unsigned char *app_resource_sets,
+    const unsigned char *app_resource_loaded,
+    const unsigned char *app_rs_bank1,
+    const unsigned char *app_rs_bank2,
+    const unsigned char *app_rs_bank3,
+    const char *app_file_buf,
+    unsigned char app_file_stride,
+    const unsigned char *apps_loaded);
 
 #endif /* REU_CONTROL_BANK_H */
