@@ -1,0 +1,3000 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>ReadyOS REU Enhancement Refactor Plan</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
+    html { -webkit-text-size-adjust: 100%; }
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">ReadyOS REU Enhancement Refactor Plan</h1>
+</header>
+<h1 id="readyos-reu-enhancement-refactor-plan">ReadyOS REU Enhancement
+Refactor Plan</h1>
+<h2 id="purpose">Purpose</h2>
+<p>This plan describes a future refactor that turns logical REU bank
+<code>0</code> into a ReadyOS control bank while preserving the current
+ReadyOS memory contracts, especially the resident shim and shim-adjacent
+metadata area.</p>
+<p>The intended long-term end state is:</p>
+<ul>
+<li>logical REU bank <code>0</code> is the canonical ReadyOS REU control
+bank;</li>
+<li>the resident <code>$C600-$C9FF</code> area remains small, fixed, and
+ABI-stable;</li>
+<li>the shim itself does not grow;</li>
+<li>app snapshots, overlays, modules, clipboard payloads, ReadyShell
+resources, ReadyBASIC resources, and app-requested banks are tracked by
+owner;</li>
+<li>apps can be loaded/preloaded dynamically instead of being tied to
+fixed app banks;</li>
+<li>ReadyOS can eventually support more app catalog entries, with an
+initial target of up to <code>64</code>;</li>
+<li>future app/service invocation has reserved design space for
+REU-backed request/result data, including headless calls and modal UI
+service calls such as shared file open/save dialogs;</li>
+<li>all changes are proven against before/after code size, BSS,
+heap/headroom, overlay, micromodule, suspend/resume, and launcher/shim
+behavior.</li>
+</ul>
+<p>This document is now both the plan and the source-of-truth
+implementation tracker for the REU enhancement refactor. Completed
+implementation status is recorded explicitly; future design notes remain
+design notes until marked implemented here.</p>
+<h2 id="implementation-status-2026-06-04">Implementation Status
+2026-06-04</h2>
+<p>Completed in branch <code>codex/reu-control-bank-refactor</code>
+after the v2 registry checkpoint:</p>
+<ul>
+<li>logical REU bank <code>0</code> mirror schema advanced to
+<code>RCB0</code>, version <code>3</code>;</li>
+<li>the hot app registry remains array-shaped and cheap to copy:
+<ul>
+<li><code>$0300</code>: 64-entry app-state arrays;</li>
+<li><code>$0500</code>: compact app filename/token records;</li>
+<li><code>$0900</code>: per-app resource-bank arrays;</li>
+</ul></li>
+<li>richer loader-owned relationship metadata now lives outside the hot
+copy path:
+<ul>
+<li><code>$0A00</code>: 64 compact 16-byte resource/file records
+containing app owner, resource set, resource kind, physical bank,
+offset, length, flags, next index, overlay slot, source drive, and a
+short name tag;</li>
+<li><code>$0E00</code>: 64 fixed 128-byte dependency/source lines copied
+from disk <code>apps.cfg</code> or <code>app.*</code> manifests;</li>
+</ul></li>
+<li>the disk launcher no longer hard-codes the ReadyShell overlay file
+table, bank ordinal table, or slot offsets. ReadyShell
+<code>rsovl+</code> placement is read from the dependency line using
+<code>name@resourceBankOrdinal:offset</code>;</li>
+<li>shipped disk catalogs and manifests now carry the explicit
+ReadyShell packing line:</li>
+</ul>
+<pre class="text"><code>rsparser@0:0000,rsvm@0:3800,rsdrvilst@0:7000,rsldv@1:0000,rsstv@0:a800,rsfops@1:3800,rscat@1:7000,rscopy@1:a800,rsedit@2:0000</code></pre>
+<ul>
+<li>the launcher still owns allocation/unload policy. On load it writes
+rich resource records for ReadyShell overlays and ReadyBASIC module
+banks; on unload it clears records for the app before freeing those
+banks;</li>
+<li>ReadyShell consumes only the small v4 <code>OV</code> metadata block
+with nine <code>(bank, offset)</code> records. That keeps ReadyShell
+from linking the larger registry machinery;</li>
+<li>EasyFlash remains generated/static at build time, but now writes the
+same v4 ReadyShell metadata shape and mirrors equivalent rich resource
+records into bank <code>0</code>;</li>
+<li>REU Viewer now uses the bank <code>0</code> metadata to show whether
+the selected bank is an app snapshot, which app slot/name owns it, or
+which overlay/module record is stored in it;</li>
+<li>static verifiers now reject:
+<ul>
+<li>a launcher-side return to hard-coded ReadyShell overlay
+placement;</li>
+<li>dependency writers that erase the source line when the source is the
+launcher dependency buffer;</li>
+<li>schema regressions in the v3 bank <code>0</code> rich-record
+layout;</li>
+<li>EasyFlash v4 ReadyShell metadata verifier drift.</li>
+</ul></li>
+</ul>
+<p>Final measured v3 rich-registry impact against the accepted v2 bank-0
+registry baseline:</p>
+<table>
+<thead>
+<tr>
+<th>App</th>
+<th style="text-align: right;">Before</th>
+<th style="text-align: right;">Final</th>
+<th style="text-align: right;">Delta</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>launcher</td>
+<td style="text-align: right;">3583</td>
+<td style="text-align: right;">1009</td>
+<td style="text-align: right;">-2574</td>
+</tr>
+<tr>
+<td>editor</td>
+<td style="text-align: right;">11712</td>
+<td style="text-align: right;">11712</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>quicknotes</td>
+<td style="text-align: right;">9518</td>
+<td style="text-align: right;">9518</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>calcplus</td>
+<td style="text-align: right;">6715</td>
+<td style="text-align: right;">6715</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>hexview</td>
+<td style="text-align: right;">32399</td>
+<td style="text-align: right;">32399</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>clipmgr</td>
+<td style="text-align: right;">13561</td>
+<td style="text-align: right;">13561</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>reuviewer</td>
+<td style="text-align: right;">29572</td>
+<td style="text-align: right;">28781</td>
+<td style="text-align: right;">-791</td>
+</tr>
+<tr>
+<td>sysinfo</td>
+<td style="text-align: right;">30021</td>
+<td style="text-align: right;">30021</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>tasklist</td>
+<td style="text-align: right;">6069</td>
+<td style="text-align: right;">6069</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>simplefiles</td>
+<td style="text-align: right;">12636</td>
+<td style="text-align: right;">12636</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>game2048</td>
+<td style="text-align: right;">28580</td>
+<td style="text-align: right;">28580</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>deminer</td>
+<td style="text-align: right;">22167</td>
+<td style="text-align: right;">22167</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>cal26</td>
+<td style="text-align: right;">8751</td>
+<td style="text-align: right;">8751</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>dizzy</td>
+<td style="text-align: right;">1834</td>
+<td style="text-align: right;">1834</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>readyirc</td>
+<td style="text-align: right;">29006</td>
+<td style="text-align: right;">29006</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>rirc-rrnet</td>
+<td style="text-align: right;">18220</td>
+<td style="text-align: right;">18220</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>readybasic</td>
+<td style="text-align: right;">1029</td>
+<td style="text-align: right;">1029</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>readme</td>
+<td style="text-align: right;">22748</td>
+<td style="text-align: right;">22748</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>readyshell</td>
+<td style="text-align: right;">18660</td>
+<td style="text-align: right;">18327</td>
+<td style="text-align: right;">-333</td>
+</tr>
+</tbody>
+</table>
+<p>Interpretation: normal apps and ReadyBASIC do not pay for the rich
+bank <code>0</code> registry. The cost is concentrated in the launcher,
+which owns parse/load/unload policy, and REU Viewer, which displays the
+relationship data. ReadyShell pays 333 bytes for consuming dynamic
+bank/offset overlay metadata while still avoiding the large registry
+writer.</p>
+<p>Verification completed for this v3 checkpoint:</p>
+<ul>
+<li><code>python3 -m py_compile build_support/build_apps_catalog_petscii.py build_support/readyos_easyflash.py build_support/verify_reu_control_bank.py build_support/verify_dynamic_launcher.py build_support/vice_easyflash_smoke.py verify.py</code>;</li>
+<li><code>python3 build_support/verify_reu_control_bank.py</code>;</li>
+<li><code>python3 build_support/verify_dynamic_launcher.py</code>;</li>
+<li><code>make verify</code>;</li>
+<li><code>make readyshell-host-tests</code>;</li>
+<li><code>READYSHELL_VISIBLE=0 build_support/run_readyshell_cross_app_resume_probe.sh</code>;</li>
+<li><code>make easyflash-verify</code>.</li>
+</ul>
+<p>The EasyFlash smoke now verifies the full 36-byte v4 overlay metadata
+region at <code>$C760-$C783</code>, including multi-line VICE monitor
+dumps. Earlier verifier logic only compared the first 16-byte monitor
+row and was corrected.</p>
+<p>ReadyBASIC headless VICE suite status for this checkpoint is tracked
+in <code>agentworking/reu_rich_registry_working_notes.md</code> and
+should be kept current with the final command result before the branch
+is merged.</p>
+<h2 id="current-v3-architecture-detail">Current v3 Architecture
+Detail</h2>
+<p>This section is the current implemented contract for logical REU bank
+<code>0</code>. Older sections in this document preserve the design
+history and earlier milestone thinking. When there is a conflict, this
+section and the latest implementation status above describe the current
+branch behavior.</p>
+<h3 id="shim-change-status">Shim Change Status</h3>
+<p>The final v3 rich-registry commit did not change
+<code>src/shim/*</code>. Across the full
+<code>codex/reu-control-bank-refactor</code> branch, however, the
+resident shim contract did change in a small and deliberate way:</p>
+<ul>
+<li><code>src/boot/readyos_shim.inc</code> now stores
+<code>READYOS_REU_BANK_SKIP</code> at <code>$C83B</code>;</li>
+<li><code>stash_to_bank</code> and <code>fetch_bank</code> now call
+<code>reu_setup_logical</code> at <code>$C960</code>;</li>
+<li><code>reu_setup_logical</code> maps the logical launcher/app bank
+byte passed in <code>A</code> to the physical REU bank by adding the
+configured bank skip and the ReadyOS reserved-bank offset;</li>
+<li>the <code>$C800-$C9FF</code> shim remains exactly <code>512</code>
+bytes;</li>
+<li>the shim still does not parse app ids, manifests, dependency
+records, resource ownership records, unload policy, or service
+invocation records.</li>
+</ul>
+<p>The source-level shim support files also had small constant
+corrections so the older preallocation model says “23 app banks starting
+at logical bank 3” instead of “24 app banks starting at bank 2”:</p>
+<ul>
+<li><code>src/shim/registry.c</code>;</li>
+<li><code>src/shim/reu.h</code>;</li>
+<li><code>src/shim/switcher.c</code>.</li>
+</ul>
+<p>Those support files are not the new REU bank <code>0</code> manager.
+The bank <code>0</code> manager continues to live in
+launcher/REU-viewer/control-bank code, not in the resident shim.</p>
+<h3 id="full-commented-resident-shim-source">Full Commented Resident
+Shim Source</h3>
+<p>The canonical resident shim image is still
+<code>src/boot/readyos_shim.inc</code>. The copy below is included
+because this branch changed the resident shim mapping contract while
+keeping the final image at <code>512</code> bytes.</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode asm"><code class="sourceCode fasm"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co">;-----------------------------------------------------------------------------</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="co">; Shared ReadyOS shim image ($C800-$C9FF, 512 bytes)</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co">; This file is the canonical shim byte layout used by both the disk boot path</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co">; and the EasyFlash cartridge flavor. Keep it identical across all variants.</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="co">;-----------------------------------------------------------------------------</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="co">;-----------------------------------------------------------------------------</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="co">; Page 1: $C800-$C8FF - Jump table, data, and helper routines</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="co">;-----------------------------------------------------------------------------</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="co">; $C800-$C817: Jump Table (24 bytes, 8 entries)</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>jt_load_disk    <span class="op">=</span> <span class="op">$</span>C800     <span class="co">; Load from disk, run</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>jt_load_reu     <span class="op">=</span> <span class="op">$</span>C803     <span class="co">; Fetch from REU, run</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>jt_run_app      <span class="op">=</span> <span class="op">$</span>C806     <span class="co">; Just run app</span></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>jt_preload      <span class="op">=</span> <span class="op">$</span>C809     <span class="co">; Preload to REU, return</span></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>jt_return       <span class="op">=</span> <span class="op">$</span>C80C     <span class="co">; Return to launcher</span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>jt_switch       <span class="op">=</span> <span class="op">$</span>C80F     <span class="co">; Switch to another app</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>jt_stash_cur    <span class="op">=</span> <span class="op">$</span>C812     <span class="co">; Helper: stash current app</span></span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>jt_fetch_bank   <span class="op">=</span> <span class="op">$</span>C815     <span class="co">; Helper: fetch from bank in A</span></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">4C</span><span class="op">,</span> <span class="op">$</span><span class="bn">40</span><span class="op">,</span> <span class="op">$</span>C8         <span class="co">; $C800: JMP load_disk ($C840)</span></span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">4C</span><span class="op">,</span> <span class="op">$</span><span class="bn">60</span><span class="op">,</span> <span class="op">$</span>C8         <span class="co">; $C803: JMP load_reu ($C860)</span></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">4C</span><span class="op">,</span> <span class="op">$</span><span class="bn">00</span><span class="op">,</span> <span class="op">$</span><span class="bn">10</span>         <span class="co">; $C806: JMP $1000 (run app)</span></span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">4C</span><span class="op">,</span> <span class="op">$</span><span class="bn">80</span><span class="op">,</span> <span class="op">$</span>C8         <span class="co">; $C809: JMP preload ($C880)</span></span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">4C</span><span class="op">,</span> <span class="op">$</span><span class="bn">00</span><span class="op">,</span> <span class="op">$</span>C9         <span class="co">; $C80C: JMP return_to_launcher ($C900)</span></span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">4C</span><span class="op">,</span> <span class="op">$</span><span class="bn">40</span><span class="op">,</span> <span class="op">$</span>C9         <span class="co">; $C80F: JMP switch_app ($C940)</span></span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">4C</span><span class="op">,</span> <span class="op">$</span>C0<span class="op">,</span> <span class="op">$</span>C8         <span class="co">; $C812: JMP stash_current ($C8C0) - placeholder</span></span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">4C</span><span class="op">,</span> <span class="op">$</span>F0<span class="op">,</span> <span class="op">$</span>C8         <span class="co">; $C815: JMP fetch_bank ($C8F0)</span></span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a><span class="co">; $C818: JMP log_byte ($C9E0)</span></span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">4C</span><span class="op">,</span> <span class="op">$</span>E0<span class="op">,</span> <span class="op">$</span>C9         <span class="co">; $C818: JMP log_byte</span></span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span>   <span class="co">; $C81B-$C81F: Padding</span></span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a><span class="co">; $C820-$C83F: Data Area (32 bytes)</span></span>
+<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a><span class="co">; $C820: target_bank - bank to load/switch to</span></span>
+<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a><span class="co">; $C821: filename_len</span></span>
+<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a><span class="co">; $C822-$C823: unused</span></span>
+<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a><span class="co">; $C824-$C82F: filename (12 bytes)</span></span>
+<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a><span class="co">; $C830: load_end_lo (KERNAL LOAD end addr low byte, saved by preload)</span></span>
+<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a><span class="co">; $C831: load_end_hi (KERNAL LOAD end addr high byte, saved by preload)</span></span>
+<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a><span class="co">; $C832-$C833: unused</span></span>
+<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a><span class="co">; $C834: current_bank - currently running app</span></span>
+<span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a><span class="co">; $C835: last_saved</span></span>
+<span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a><span class="co">; $C836: reu_bitmap_lo (banks 0-7)</span></span>
+<span id="cb2-45"><a href="#cb2-45" aria-hidden="true" tabindex="-1"></a><span class="co">; $C837: reu_bitmap_hi (banks 8-15)</span></span>
+<span id="cb2-46"><a href="#cb2-46" aria-hidden="true" tabindex="-1"></a><span class="co">; $C838: reu_bitmap_xhi (banks 16-23)</span></span>
+<span id="cb2-47"><a href="#cb2-47" aria-hidden="true" tabindex="-1"></a><span class="co">; $C839: storage_drive - shim-global default storage drive for D8/D9 app dialogs</span></span>
+<span id="cb2-48"><a href="#cb2-48" aria-hidden="true" tabindex="-1"></a><span class="co">;        This persists across app switches and is shared by apps that use the</span></span>
+<span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a><span class="co">;        common file-dialog default-drive contract.</span></span>
+<span id="cb2-50"><a href="#cb2-50" aria-hidden="true" tabindex="-1"></a><span class="co">; $C83A: log_index - debug byte ring head</span></span>
+<span id="cb2-51"><a href="#cb2-51" aria-hidden="true" tabindex="-1"></a><span class="co">; $C83B: reu_bank_skip - physical 64K banks reserved before ReadyOS bank start</span></span>
+<span id="cb2-52"><a href="#cb2-52" aria-hidden="true" tabindex="-1"></a><span class="co">; $C83C-$C83F: reserved</span></span>
+<span id="cb2-53"><a href="#cb2-53" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-54"><a href="#cb2-54" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">00</span>                   <span class="co">; $C820: target_bank</span></span>
+<span id="cb2-55"><a href="#cb2-55" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">08</span>                   <span class="co">; $C821: filename_len</span></span>
+<span id="cb2-56"><a href="#cb2-56" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">00</span><span class="op">,</span> <span class="op">$</span><span class="bn">00</span>              <span class="co">; $C822-$C823: unused</span></span>
+<span id="cb2-57"><a href="#cb2-57" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="st">&quot;LAUNCHER    &quot;</span>        <span class="co">; $C824-$C82F: filename (12 bytes)</span></span>
+<span id="cb2-58"><a href="#cb2-58" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span>               <span class="co">; $C830-$C831: load_end_lo, load_end_hi</span></span>
+<span id="cb2-59"><a href="#cb2-59" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span>               <span class="co">; $C832-$C833: unused</span></span>
+<span id="cb2-60"><a href="#cb2-60" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">00</span>                   <span class="co">; $C834: current_bank</span></span>
+<span id="cb2-61"><a href="#cb2-61" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>FF                   <span class="co">; $C835: last_saved</span></span>
+<span id="cb2-62"><a href="#cb2-62" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">00</span>                   <span class="co">; $C836: reu_bitmap_lo</span></span>
+<span id="cb2-63"><a href="#cb2-63" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">00</span>                   <span class="co">; $C837: reu_bitmap_hi</span></span>
+<span id="cb2-64"><a href="#cb2-64" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">00</span>                   <span class="co">; $C838: reu_bitmap_xhi</span></span>
+<span id="cb2-65"><a href="#cb2-65" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">08</span>                   <span class="co">; $C839: storage_drive (default drive 8)</span></span>
+<span id="cb2-66"><a href="#cb2-66" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">00</span>                   <span class="co">; $C83A: log_index (for debug buffer)</span></span>
+<span id="cb2-67"><a href="#cb2-67" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> READYOS_REU_BANK_SKIP <span class="co">; $C83B: reu_bank_skip (compiled into boot image)</span></span>
+<span id="cb2-68"><a href="#cb2-68" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span>       <span class="co">; $C83C-$C83F: reserved</span></span>
+<span id="cb2-69"><a href="#cb2-69" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-70"><a href="#cb2-70" aria-hidden="true" tabindex="-1"></a><span class="co">;-----------------------------------------------------------------------------</span></span>
+<span id="cb2-71"><a href="#cb2-71" aria-hidden="true" tabindex="-1"></a><span class="co">; $C840: load_disk - Load app from disk and run (32 bytes)</span></span>
+<span id="cb2-72"><a href="#cb2-72" aria-hidden="true" tabindex="-1"></a><span class="co">;-----------------------------------------------------------------------------</span></span>
+<span id="cb2-73"><a href="#cb2-73" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>AD<span class="op">,</span> <span class="op">$</span><span class="bn">21</span><span class="op">,</span> <span class="op">$</span>C8         <span class="co">; LDA $C821 (filename len)</span></span>
+<span id="cb2-74"><a href="#cb2-74" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>A2<span class="op">,</span> <span class="op">$</span><span class="bn">24</span>              <span class="co">; LDX #$24</span></span>
+<span id="cb2-75"><a href="#cb2-75" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>A0<span class="op">,</span> <span class="op">$</span>C8              <span class="co">; LDY #$C8 (filename at $C824)</span></span>
+<span id="cb2-76"><a href="#cb2-76" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">20</span><span class="op">,</span> <span class="op">$</span>BD<span class="op">,</span> <span class="op">$</span>FF         <span class="co">; JSR $FFBD (SETNAM)</span></span>
+<span id="cb2-77"><a href="#cb2-77" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>A9<span class="op">,</span> <span class="op">$</span><span class="bn">00</span>              <span class="co">; LDA #0</span></span>
+<span id="cb2-78"><a href="#cb2-78" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>A2<span class="op">,</span> <span class="op">$</span><span class="bn">08</span>              <span class="co">; LDX #8</span></span>
+<span id="cb2-79"><a href="#cb2-79" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>A0<span class="op">,</span> <span class="op">$</span><span class="bn">01</span>              <span class="co">; LDY #1</span></span>
+<span id="cb2-80"><a href="#cb2-80" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">20</span><span class="op">,</span> <span class="op">$</span>BA<span class="op">,</span> <span class="op">$</span>FF         <span class="co">; JSR $FFBA (SETLFS)</span></span>
+<span id="cb2-81"><a href="#cb2-81" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>A9<span class="op">,</span> <span class="op">$</span><span class="bn">00</span>              <span class="co">; LDA #0</span></span>
+<span id="cb2-82"><a href="#cb2-82" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">20</span><span class="op">,</span> <span class="op">$</span>D5<span class="op">,</span> <span class="op">$</span>FF         <span class="co">; JSR $FFD5 (LOAD)</span></span>
+<span id="cb2-83"><a href="#cb2-83" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">4C</span><span class="op">,</span> <span class="op">$</span><span class="bn">00</span><span class="op">,</span> <span class="op">$</span><span class="bn">10</span>         <span class="co">; JMP $1000</span></span>
+<span id="cb2-84"><a href="#cb2-84" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span>   <span class="co">; Padding to $C860</span></span>
+<span id="cb2-85"><a href="#cb2-85" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-86"><a href="#cb2-86" aria-hidden="true" tabindex="-1"></a><span class="co">;-----------------------------------------------------------------------------</span></span>
+<span id="cb2-87"><a href="#cb2-87" aria-hidden="true" tabindex="-1"></a><span class="co">; $C860: load_reu - Fetch app from REU and run (32 bytes)</span></span>
+<span id="cb2-88"><a href="#cb2-88" aria-hidden="true" tabindex="-1"></a><span class="co">;-----------------------------------------------------------------------------</span></span>
+<span id="cb2-89"><a href="#cb2-89" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>AD<span class="op">,</span> <span class="op">$</span><span class="bn">20</span><span class="op">,</span> <span class="op">$</span>C8         <span class="co">; LDA $C820 (target bank)</span></span>
+<span id="cb2-90"><a href="#cb2-90" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">20</span><span class="op">,</span> <span class="op">$</span>F0<span class="op">,</span> <span class="op">$</span>C8         <span class="co">; JSR fetch_bank ($C8F0)</span></span>
+<span id="cb2-91"><a href="#cb2-91" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">4C</span><span class="op">,</span> <span class="op">$</span><span class="bn">00</span><span class="op">,</span> <span class="op">$</span><span class="bn">10</span>         <span class="co">; JMP $1000</span></span>
+<span id="cb2-92"><a href="#cb2-92" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span></span>
+<span id="cb2-93"><a href="#cb2-93" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span></span>
+<span id="cb2-94"><a href="#cb2-94" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span></span>
+<span id="cb2-95"><a href="#cb2-95" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-96"><a href="#cb2-96" aria-hidden="true" tabindex="-1"></a><span class="co">;-----------------------------------------------------------------------------</span></span>
+<span id="cb2-97"><a href="#cb2-97" aria-hidden="true" tabindex="-1"></a><span class="co">; $C880: preload - Load to REU, return to launcher</span></span>
+<span id="cb2-98"><a href="#cb2-98" aria-hidden="true" tabindex="-1"></a><span class="co">; Called via JSR $C809</span></span>
+<span id="cb2-99"><a href="#cb2-99" aria-hidden="true" tabindex="-1"></a><span class="co">; DEBUG: writes markers to $C007-$C00C</span></span>
+<span id="cb2-100"><a href="#cb2-100" aria-hidden="true" tabindex="-1"></a><span class="co">;-----------------------------------------------------------------------------</span></span>
+<span id="cb2-101"><a href="#cb2-101" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>A9<span class="op">,</span> <span class="op">$</span>AA              <span class="co">; LDA #$AA (170 = &quot;preload entered&quot;)</span></span>
+<span id="cb2-102"><a href="#cb2-102" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">8D</span><span class="op">,</span> <span class="op">$</span><span class="bn">07</span><span class="op">,</span> <span class="op">$</span>C0         <span class="co">; STA $C007</span></span>
+<span id="cb2-103"><a href="#cb2-103" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-104"><a href="#cb2-104" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>A9<span class="op">,</span> <span class="op">$</span><span class="bn">00</span>              <span class="co">; LDA #0 (bank 0)</span></span>
+<span id="cb2-105"><a href="#cb2-105" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">20</span><span class="op">,</span> <span class="op">$</span>E0<span class="op">,</span> <span class="op">$</span>C8         <span class="co">; JSR stash_to_bank ($C8E0)</span></span>
+<span id="cb2-106"><a href="#cb2-106" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-107"><a href="#cb2-107" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>A9<span class="op">,</span> <span class="op">$</span>BB              <span class="co">; LDA #$BB (187 = &quot;launcher stashed&quot;)</span></span>
+<span id="cb2-108"><a href="#cb2-108" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">8D</span><span class="op">,</span> <span class="op">$</span><span class="bn">08</span><span class="op">,</span> <span class="op">$</span>C0         <span class="co">; STA $C008</span></span>
+<span id="cb2-109"><a href="#cb2-109" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-110"><a href="#cb2-110" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>AD<span class="op">,</span> <span class="op">$</span><span class="bn">21</span><span class="op">,</span> <span class="op">$</span>C8         <span class="co">; LDA $C821 (len)</span></span>
+<span id="cb2-111"><a href="#cb2-111" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>A2<span class="op">,</span> <span class="op">$</span><span class="bn">24</span>              <span class="co">; LDX #$24</span></span>
+<span id="cb2-112"><a href="#cb2-112" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>A0<span class="op">,</span> <span class="op">$</span>C8              <span class="co">; LDY #$C8 (filename at $C824)</span></span>
+<span id="cb2-113"><a href="#cb2-113" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">20</span><span class="op">,</span> <span class="op">$</span>BD<span class="op">,</span> <span class="op">$</span>FF         <span class="co">; JSR SETNAM</span></span>
+<span id="cb2-114"><a href="#cb2-114" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-115"><a href="#cb2-115" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>A9<span class="op">,</span> <span class="op">$</span><span class="bn">00</span>              <span class="co">; LDA #0</span></span>
+<span id="cb2-116"><a href="#cb2-116" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>A2<span class="op">,</span> <span class="op">$</span><span class="bn">08</span>              <span class="co">; LDX #8</span></span>
+<span id="cb2-117"><a href="#cb2-117" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>A0<span class="op">,</span> <span class="op">$</span><span class="bn">01</span>              <span class="co">; LDY #1</span></span>
+<span id="cb2-118"><a href="#cb2-118" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">20</span><span class="op">,</span> <span class="op">$</span>BA<span class="op">,</span> <span class="op">$</span>FF         <span class="co">; JSR SETLFS</span></span>
+<span id="cb2-119"><a href="#cb2-119" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-120"><a href="#cb2-120" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>A9<span class="op">,</span> <span class="op">$</span>CC              <span class="co">; LDA #$CC (204 = &quot;about to LOAD&quot;)</span></span>
+<span id="cb2-121"><a href="#cb2-121" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">8D</span><span class="op">,</span> <span class="op">$</span><span class="bn">09</span><span class="op">,</span> <span class="op">$</span>C0         <span class="co">; STA $C009</span></span>
+<span id="cb2-122"><a href="#cb2-122" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-123"><a href="#cb2-123" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>A9<span class="op">,</span> <span class="op">$</span><span class="bn">00</span>              <span class="co">; LDA #0</span></span>
+<span id="cb2-124"><a href="#cb2-124" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">20</span><span class="op">,</span> <span class="op">$</span>D5<span class="op">,</span> <span class="op">$</span>FF         <span class="co">; JSR LOAD</span></span>
+<span id="cb2-125"><a href="#cb2-125" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-126"><a href="#cb2-126" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">8E</span><span class="op">,</span> <span class="op">$</span><span class="bn">30</span><span class="op">,</span> <span class="op">$</span>C8         <span class="co">; STX $C830 (end addr lo)</span></span>
+<span id="cb2-127"><a href="#cb2-127" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">8C</span><span class="op">,</span> <span class="op">$</span><span class="bn">31</span><span class="op">,</span> <span class="op">$</span>C8         <span class="co">; STY $C831 (end addr hi)</span></span>
+<span id="cb2-128"><a href="#cb2-128" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-129"><a href="#cb2-129" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>AD<span class="op">,</span> <span class="op">$</span><span class="bn">20</span><span class="op">,</span> <span class="op">$</span>C8         <span class="co">; LDA $C820 (target bank)</span></span>
+<span id="cb2-130"><a href="#cb2-130" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">20</span><span class="op">,</span> <span class="op">$</span>E0<span class="op">,</span> <span class="op">$</span>C8         <span class="co">; JSR stash_to_bank ($C8E0)</span></span>
+<span id="cb2-131"><a href="#cb2-131" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-132"><a href="#cb2-132" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>A9<span class="op">,</span> <span class="op">$</span>EE              <span class="co">; LDA #$EE (238 = &quot;app stashed&quot;)</span></span>
+<span id="cb2-133"><a href="#cb2-133" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">8D</span><span class="op">,</span> <span class="op">$</span><span class="bn">0B</span><span class="op">,</span> <span class="op">$</span>C0         <span class="co">; STA $C00B</span></span>
+<span id="cb2-134"><a href="#cb2-134" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-135"><a href="#cb2-135" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>AD<span class="op">,</span> <span class="op">$</span><span class="bn">20</span><span class="op">,</span> <span class="op">$</span>C8         <span class="co">; LDA $C820 (target bank)</span></span>
+<span id="cb2-136"><a href="#cb2-136" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">20</span><span class="op">,</span> <span class="op">$</span>C0<span class="op">,</span> <span class="op">$</span>C9         <span class="co">; JSR set_bitmap ($C9C0)</span></span>
+<span id="cb2-137"><a href="#cb2-137" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-138"><a href="#cb2-138" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>A9<span class="op">,</span> <span class="op">$</span><span class="bn">00</span>              <span class="co">; LDA #0</span></span>
+<span id="cb2-139"><a href="#cb2-139" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">20</span><span class="op">,</span> <span class="op">$</span>F0<span class="op">,</span> <span class="op">$</span>C8         <span class="co">; JSR fetch_bank ($C8F0)</span></span>
+<span id="cb2-140"><a href="#cb2-140" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-141"><a href="#cb2-141" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>A9<span class="op">,</span> <span class="op">$</span>FF              <span class="co">; LDA #$FF (255 = &quot;launcher restored&quot;)</span></span>
+<span id="cb2-142"><a href="#cb2-142" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">8D</span><span class="op">,</span> <span class="op">$</span><span class="bn">0C</span><span class="op">,</span> <span class="op">$</span>C0         <span class="co">; STA $C00C</span></span>
+<span id="cb2-143"><a href="#cb2-143" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-144"><a href="#cb2-144" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">60</span>                   <span class="co">; RTS</span></span>
+<span id="cb2-145"><a href="#cb2-145" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-146"><a href="#cb2-146" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span></span>
+<span id="cb2-147"><a href="#cb2-147" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span></span>
+<span id="cb2-148"><a href="#cb2-148" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-149"><a href="#cb2-149" aria-hidden="true" tabindex="-1"></a><span class="co">;-----------------------------------------------------------------------------</span></span>
+<span id="cb2-150"><a href="#cb2-150" aria-hidden="true" tabindex="-1"></a><span class="co">; $C8E0: stash_to_bank - Stash $1000-$C5FF to REU bank in A (16 bytes)</span></span>
+<span id="cb2-151"><a href="#cb2-151" aria-hidden="true" tabindex="-1"></a><span class="co">;-----------------------------------------------------------------------------</span></span>
+<span id="cb2-152"><a href="#cb2-152" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">20</span><span class="op">,</span> <span class="op">$</span><span class="bn">60</span><span class="op">,</span> <span class="op">$</span>C9         <span class="co">; JSR reu_setup_logical ($C960)</span></span>
+<span id="cb2-153"><a href="#cb2-153" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>A9<span class="op">,</span> <span class="op">$</span><span class="bn">90</span>              <span class="co">; LDA #$90 (STASH command)</span></span>
+<span id="cb2-154"><a href="#cb2-154" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">8D</span><span class="op">,</span> <span class="op">$</span><span class="bn">01</span><span class="op">,</span> <span class="op">$</span>DF         <span class="co">; STA $DF01 - execute transfer</span></span>
+<span id="cb2-155"><a href="#cb2-155" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">60</span>                   <span class="co">; RTS</span></span>
+<span id="cb2-156"><a href="#cb2-156" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span></span>
+<span id="cb2-157"><a href="#cb2-157" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-158"><a href="#cb2-158" aria-hidden="true" tabindex="-1"></a><span class="co">;-----------------------------------------------------------------------------</span></span>
+<span id="cb2-159"><a href="#cb2-159" aria-hidden="true" tabindex="-1"></a><span class="co">; $C8F0: fetch_bank - Fetch from REU bank in A to $1000-$C5FF (16 bytes)</span></span>
+<span id="cb2-160"><a href="#cb2-160" aria-hidden="true" tabindex="-1"></a><span class="co">;-----------------------------------------------------------------------------</span></span>
+<span id="cb2-161"><a href="#cb2-161" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">20</span><span class="op">,</span> <span class="op">$</span><span class="bn">60</span><span class="op">,</span> <span class="op">$</span>C9         <span class="co">; JSR reu_setup_logical ($C960)</span></span>
+<span id="cb2-162"><a href="#cb2-162" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>A9<span class="op">,</span> <span class="op">$</span><span class="bn">91</span>              <span class="co">; LDA #$91 (FETCH command)</span></span>
+<span id="cb2-163"><a href="#cb2-163" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">8D</span><span class="op">,</span> <span class="op">$</span><span class="bn">01</span><span class="op">,</span> <span class="op">$</span>DF         <span class="co">; STA $DF01 - execute transfer</span></span>
+<span id="cb2-164"><a href="#cb2-164" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">60</span>                   <span class="co">; RTS</span></span>
+<span id="cb2-165"><a href="#cb2-165" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span></span>
+<span id="cb2-166"><a href="#cb2-166" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-167"><a href="#cb2-167" aria-hidden="true" tabindex="-1"></a><span class="co">;-----------------------------------------------------------------------------</span></span>
+<span id="cb2-168"><a href="#cb2-168" aria-hidden="true" tabindex="-1"></a><span class="co">; Page 2: $C900-$C9FF - Main routines</span></span>
+<span id="cb2-169"><a href="#cb2-169" aria-hidden="true" tabindex="-1"></a><span class="co">;-----------------------------------------------------------------------------</span></span>
+<span id="cb2-170"><a href="#cb2-170" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-171"><a href="#cb2-171" aria-hidden="true" tabindex="-1"></a><span class="co">;-----------------------------------------------------------------------------</span></span>
+<span id="cb2-172"><a href="#cb2-172" aria-hidden="true" tabindex="-1"></a><span class="co">; $C900: return_to_launcher (64 bytes)</span></span>
+<span id="cb2-173"><a href="#cb2-173" aria-hidden="true" tabindex="-1"></a><span class="co">;-----------------------------------------------------------------------------</span></span>
+<span id="cb2-174"><a href="#cb2-174" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>AD<span class="op">,</span> <span class="op">$</span><span class="bn">34</span><span class="op">,</span> <span class="op">$</span>C8         <span class="co">; LDA $C834 (current bank)</span></span>
+<span id="cb2-175"><a href="#cb2-175" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">20</span><span class="op">,</span> <span class="op">$</span>E0<span class="op">,</span> <span class="op">$</span>C8         <span class="co">; JSR stash_to_bank ($C8E0)</span></span>
+<span id="cb2-176"><a href="#cb2-176" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>AD<span class="op">,</span> <span class="op">$</span><span class="bn">34</span><span class="op">,</span> <span class="op">$</span>C8         <span class="co">; LDA $C834 (current bank)</span></span>
+<span id="cb2-177"><a href="#cb2-177" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">20</span><span class="op">,</span> <span class="op">$</span>C0<span class="op">,</span> <span class="op">$</span>C9         <span class="co">; JSR set_bitmap ($C9C0)</span></span>
+<span id="cb2-178"><a href="#cb2-178" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>AD<span class="op">,</span> <span class="op">$</span><span class="bn">34</span><span class="op">,</span> <span class="op">$</span>C8         <span class="co">; LDA $C834</span></span>
+<span id="cb2-179"><a href="#cb2-179" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">8D</span><span class="op">,</span> <span class="op">$</span><span class="bn">35</span><span class="op">,</span> <span class="op">$</span>C8         <span class="co">; STA $C835</span></span>
+<span id="cb2-180"><a href="#cb2-180" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>A9<span class="op">,</span> <span class="op">$</span><span class="bn">00</span>              <span class="co">; LDA #0</span></span>
+<span id="cb2-181"><a href="#cb2-181" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">20</span><span class="op">,</span> <span class="op">$</span>F0<span class="op">,</span> <span class="op">$</span>C8         <span class="co">; JSR fetch_bank ($C8F0)</span></span>
+<span id="cb2-182"><a href="#cb2-182" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>A9<span class="op">,</span> <span class="op">$</span><span class="bn">00</span>              <span class="co">; LDA #0</span></span>
+<span id="cb2-183"><a href="#cb2-183" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">8D</span><span class="op">,</span> <span class="op">$</span><span class="bn">34</span><span class="op">,</span> <span class="op">$</span>C8         <span class="co">; STA $C834</span></span>
+<span id="cb2-184"><a href="#cb2-184" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">4C</span><span class="op">,</span> <span class="op">$</span><span class="bn">00</span><span class="op">,</span> <span class="op">$</span><span class="bn">10</span>         <span class="co">; JMP $1000</span></span>
+<span id="cb2-185"><a href="#cb2-185" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span></span>
+<span id="cb2-186"><a href="#cb2-186" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span></span>
+<span id="cb2-187"><a href="#cb2-187" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span></span>
+<span id="cb2-188"><a href="#cb2-188" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span></span>
+<span id="cb2-189"><a href="#cb2-189" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">00</span></span>
+<span id="cb2-190"><a href="#cb2-190" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-191"><a href="#cb2-191" aria-hidden="true" tabindex="-1"></a><span class="co">;-----------------------------------------------------------------------------</span></span>
+<span id="cb2-192"><a href="#cb2-192" aria-hidden="true" tabindex="-1"></a><span class="co">; $C940: switch_app (64 bytes)</span></span>
+<span id="cb2-193"><a href="#cb2-193" aria-hidden="true" tabindex="-1"></a><span class="co">;-----------------------------------------------------------------------------</span></span>
+<span id="cb2-194"><a href="#cb2-194" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>AD<span class="op">,</span> <span class="op">$</span><span class="bn">34</span><span class="op">,</span> <span class="op">$</span>C8         <span class="co">; LDA $C834 (current bank)</span></span>
+<span id="cb2-195"><a href="#cb2-195" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">20</span><span class="op">,</span> <span class="op">$</span>E0<span class="op">,</span> <span class="op">$</span>C8         <span class="co">; JSR stash_to_bank ($C8E0)</span></span>
+<span id="cb2-196"><a href="#cb2-196" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>AD<span class="op">,</span> <span class="op">$</span><span class="bn">34</span><span class="op">,</span> <span class="op">$</span>C8         <span class="co">; LDA $C834 (current bank)</span></span>
+<span id="cb2-197"><a href="#cb2-197" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">20</span><span class="op">,</span> <span class="op">$</span>C0<span class="op">,</span> <span class="op">$</span>C9         <span class="co">; JSR set_bitmap ($C9C0)</span></span>
+<span id="cb2-198"><a href="#cb2-198" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>AD<span class="op">,</span> <span class="op">$</span><span class="bn">20</span><span class="op">,</span> <span class="op">$</span>C8         <span class="co">; LDA $C820 (target bank)</span></span>
+<span id="cb2-199"><a href="#cb2-199" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">20</span><span class="op">,</span> <span class="op">$</span>F0<span class="op">,</span> <span class="op">$</span>C8         <span class="co">; JSR fetch_bank ($C8F0)</span></span>
+<span id="cb2-200"><a href="#cb2-200" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>AD<span class="op">,</span> <span class="op">$</span><span class="bn">20</span><span class="op">,</span> <span class="op">$</span>C8         <span class="co">; LDA $C820</span></span>
+<span id="cb2-201"><a href="#cb2-201" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">8D</span><span class="op">,</span> <span class="op">$</span><span class="bn">34</span><span class="op">,</span> <span class="op">$</span>C8         <span class="co">; STA $C834</span></span>
+<span id="cb2-202"><a href="#cb2-202" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">4C</span><span class="op">,</span> <span class="op">$</span><span class="bn">00</span><span class="op">,</span> <span class="op">$</span><span class="bn">10</span>         <span class="co">; JMP $1000</span></span>
+<span id="cb2-203"><a href="#cb2-203" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span></span>
+<span id="cb2-204"><a href="#cb2-204" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-205"><a href="#cb2-205" aria-hidden="true" tabindex="-1"></a><span class="co">;-----------------------------------------------------------------------------</span></span>
+<span id="cb2-206"><a href="#cb2-206" aria-hidden="true" tabindex="-1"></a><span class="co">; $C960: reu_setup_logical - Map logical bank to physical, then setup REU regs</span></span>
+<span id="cb2-207"><a href="#cb2-207" aria-hidden="true" tabindex="-1"></a><span class="co">;-----------------------------------------------------------------------------</span></span>
+<span id="cb2-208"><a href="#cb2-208" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>C9<span class="op">,</span> <span class="op">$</span><span class="bn">00</span>              <span class="co">; CMP #0 (logical launcher bank?)</span></span>
+<span id="cb2-209"><a href="#cb2-209" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>D0<span class="op">,</span> <span class="op">$</span><span class="bn">09</span>              <span class="co">; BNE app_bank</span></span>
+<span id="cb2-210"><a href="#cb2-210" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>AD<span class="op">,</span> <span class="op">$</span><span class="bn">3B</span><span class="op">,</span> <span class="op">$</span>C8         <span class="co">; LDA $C83B (reu_bank_skip)</span></span>
+<span id="cb2-211"><a href="#cb2-211" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">18</span>                   <span class="co">; CLC</span></span>
+<span id="cb2-212"><a href="#cb2-212" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">69</span><span class="op">,</span> <span class="op">$</span><span class="bn">01</span>              <span class="co">; ADC #$01 (launcher is Start+1)</span></span>
+<span id="cb2-213"><a href="#cb2-213" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">4C</span><span class="op">,</span> <span class="op">$</span><span class="bn">74</span><span class="op">,</span> <span class="op">$</span>C9         <span class="co">; JMP store_physical_bank</span></span>
+<span id="cb2-214"><a href="#cb2-214" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">18</span>                   <span class="co">; app_bank: CLC</span></span>
+<span id="cb2-215"><a href="#cb2-215" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">6D</span><span class="op">,</span> <span class="op">$</span><span class="bn">3B</span><span class="op">,</span> <span class="op">$</span>C8         <span class="co">; ADC $C83B (logical app bank + skip)</span></span>
+<span id="cb2-216"><a href="#cb2-216" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">18</span>                   <span class="co">; CLC</span></span>
+<span id="cb2-217"><a href="#cb2-217" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">69</span><span class="op">,</span> <span class="op">$</span><span class="bn">02</span>              <span class="co">; ADC #$02 (global + launcher overlay reserve)</span></span>
+<span id="cb2-218"><a href="#cb2-218" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">8D</span><span class="op">,</span> <span class="op">$</span><span class="bn">06</span><span class="op">,</span> <span class="op">$</span>DF         <span class="co">; STA $DF06 (physical bank)</span></span>
+<span id="cb2-219"><a href="#cb2-219" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>A9<span class="op">,</span> <span class="op">$</span><span class="bn">00</span>              <span class="co">; LDA #$00</span></span>
+<span id="cb2-220"><a href="#cb2-220" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">8D</span><span class="op">,</span> <span class="op">$</span><span class="bn">02</span><span class="op">,</span> <span class="op">$</span>DF         <span class="co">; STA $DF02 (C64 addr lo = $00)</span></span>
+<span id="cb2-221"><a href="#cb2-221" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>A9<span class="op">,</span> <span class="op">$</span><span class="bn">10</span>              <span class="co">; LDA #$10</span></span>
+<span id="cb2-222"><a href="#cb2-222" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">8D</span><span class="op">,</span> <span class="op">$</span><span class="bn">03</span><span class="op">,</span> <span class="op">$</span>DF         <span class="co">; STA $DF03 (C64 addr hi = $10, so $1000)</span></span>
+<span id="cb2-223"><a href="#cb2-223" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>A9<span class="op">,</span> <span class="op">$</span><span class="bn">00</span>              <span class="co">; LDA #$00</span></span>
+<span id="cb2-224"><a href="#cb2-224" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">8D</span><span class="op">,</span> <span class="op">$</span><span class="bn">04</span><span class="op">,</span> <span class="op">$</span>DF         <span class="co">; STA $DF04 (REU addr lo)</span></span>
+<span id="cb2-225"><a href="#cb2-225" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">8D</span><span class="op">,</span> <span class="op">$</span><span class="bn">05</span><span class="op">,</span> <span class="op">$</span>DF         <span class="co">; STA $DF05 (REU addr hi)</span></span>
+<span id="cb2-226"><a href="#cb2-226" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">8D</span><span class="op">,</span> <span class="op">$</span><span class="bn">07</span><span class="op">,</span> <span class="op">$</span>DF         <span class="co">; STA $DF07 (len lo = $00)</span></span>
+<span id="cb2-227"><a href="#cb2-227" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>A9<span class="op">,</span> <span class="op">$</span>B6              <span class="co">; LDA #$B6</span></span>
+<span id="cb2-228"><a href="#cb2-228" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">8D</span><span class="op">,</span> <span class="op">$</span><span class="bn">08</span><span class="op">,</span> <span class="op">$</span>DF         <span class="co">; STA $DF08 (len hi = $B6, so $B600 bytes)</span></span>
+<span id="cb2-229"><a href="#cb2-229" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">60</span>                   <span class="co">; RTS</span></span>
+<span id="cb2-230"><a href="#cb2-230" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-231"><a href="#cb2-231" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span></span>
+<span id="cb2-232"><a href="#cb2-232" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-233"><a href="#cb2-233" aria-hidden="true" tabindex="-1"></a><span class="co">;-----------------------------------------------------------------------------</span></span>
+<span id="cb2-234"><a href="#cb2-234" aria-hidden="true" tabindex="-1"></a><span class="co">; $C9A0: reu_setup - Set up REU registers for $B600 transfer at $1000</span></span>
+<span id="cb2-235"><a href="#cb2-235" aria-hidden="true" tabindex="-1"></a><span class="co">;-----------------------------------------------------------------------------</span></span>
+<span id="cb2-236"><a href="#cb2-236" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">8D</span><span class="op">,</span> <span class="op">$</span><span class="bn">06</span><span class="op">,</span> <span class="op">$</span>DF         <span class="co">; STA $DF06 (bank)</span></span>
+<span id="cb2-237"><a href="#cb2-237" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>A9<span class="op">,</span> <span class="op">$</span><span class="bn">00</span>              <span class="co">; LDA #$00</span></span>
+<span id="cb2-238"><a href="#cb2-238" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">8D</span><span class="op">,</span> <span class="op">$</span><span class="bn">02</span><span class="op">,</span> <span class="op">$</span>DF         <span class="co">; STA $DF02 (C64 addr lo = $00)</span></span>
+<span id="cb2-239"><a href="#cb2-239" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>A9<span class="op">,</span> <span class="op">$</span><span class="bn">10</span>              <span class="co">; LDA #$10</span></span>
+<span id="cb2-240"><a href="#cb2-240" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">8D</span><span class="op">,</span> <span class="op">$</span><span class="bn">03</span><span class="op">,</span> <span class="op">$</span>DF         <span class="co">; STA $DF03 (C64 addr hi = $10, so $1000)</span></span>
+<span id="cb2-241"><a href="#cb2-241" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>A9<span class="op">,</span> <span class="op">$</span><span class="bn">00</span>              <span class="co">; LDA #$00</span></span>
+<span id="cb2-242"><a href="#cb2-242" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">8D</span><span class="op">,</span> <span class="op">$</span><span class="bn">04</span><span class="op">,</span> <span class="op">$</span>DF         <span class="co">; STA $DF04 (REU addr lo)</span></span>
+<span id="cb2-243"><a href="#cb2-243" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">8D</span><span class="op">,</span> <span class="op">$</span><span class="bn">05</span><span class="op">,</span> <span class="op">$</span>DF         <span class="co">; STA $DF05 (REU addr hi)</span></span>
+<span id="cb2-244"><a href="#cb2-244" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">8D</span><span class="op">,</span> <span class="op">$</span><span class="bn">07</span><span class="op">,</span> <span class="op">$</span>DF         <span class="co">; STA $DF07 (len lo = $00)</span></span>
+<span id="cb2-245"><a href="#cb2-245" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>A9<span class="op">,</span> <span class="op">$</span>B6              <span class="co">; LDA #$B6</span></span>
+<span id="cb2-246"><a href="#cb2-246" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">8D</span><span class="op">,</span> <span class="op">$</span><span class="bn">08</span><span class="op">,</span> <span class="op">$</span>DF         <span class="co">; STA $DF08 (len hi = $B6, so $B600 bytes)</span></span>
+<span id="cb2-247"><a href="#cb2-247" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">60</span>                   <span class="co">; RTS</span></span>
+<span id="cb2-248"><a href="#cb2-248" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span></span>
+<span id="cb2-249"><a href="#cb2-249" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-250"><a href="#cb2-250" aria-hidden="true" tabindex="-1"></a><span class="co">;-----------------------------------------------------------------------------</span></span>
+<span id="cb2-251"><a href="#cb2-251" aria-hidden="true" tabindex="-1"></a><span class="co">; $C9C0: set_bitmap - Set bit for bank in A in reu_bitmap ($C836-$C838)</span></span>
+<span id="cb2-252"><a href="#cb2-252" aria-hidden="true" tabindex="-1"></a><span class="co">;-----------------------------------------------------------------------------</span></span>
+<span id="cb2-253"><a href="#cb2-253" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>C9<span class="op">,</span> <span class="op">$</span><span class="bn">18</span>              <span class="co">; CMP #$18 (only banks 0-23 are tracked)</span></span>
+<span id="cb2-254"><a href="#cb2-254" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>B0<span class="op">,</span> <span class="op">$</span><span class="bn">17</span>              <span class="co">; BCS done</span></span>
+<span id="cb2-255"><a href="#cb2-255" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>AA                   <span class="co">; TAX - preserve full bank</span></span>
+<span id="cb2-256"><a href="#cb2-256" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">29</span><span class="op">,</span> <span class="op">$</span><span class="bn">07</span>              <span class="co">; AND #$07 - bit index within byte</span></span>
+<span id="cb2-257"><a href="#cb2-257" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>A8                   <span class="co">; TAY - Y = bit index</span></span>
+<span id="cb2-258"><a href="#cb2-258" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">8A</span>                   <span class="co">; TXA - restore full bank</span></span>
+<span id="cb2-259"><a href="#cb2-259" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">4A</span>                   <span class="co">; LSR A</span></span>
+<span id="cb2-260"><a href="#cb2-260" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">4A</span>                   <span class="co">; LSR A</span></span>
+<span id="cb2-261"><a href="#cb2-261" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">4A</span>                   <span class="co">; LSR A</span></span>
+<span id="cb2-262"><a href="#cb2-262" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>AA                   <span class="co">; TAX - X = byte offset 0..2</span></span>
+<span id="cb2-263"><a href="#cb2-263" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>A9<span class="op">,</span> <span class="op">$</span><span class="bn">01</span>              <span class="co">; LDA #$01</span></span>
+<span id="cb2-264"><a href="#cb2-264" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">88</span>                   <span class="co">; DEY</span></span>
+<span id="cb2-265"><a href="#cb2-265" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">30</span><span class="op">,</span> <span class="op">$</span><span class="bn">03</span>              <span class="co">; BMI store_bit</span></span>
+<span id="cb2-266"><a href="#cb2-266" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">0A</span>                   <span class="co">; ASL A</span></span>
+<span id="cb2-267"><a href="#cb2-267" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">10</span><span class="op">,</span> <span class="op">$</span>FA              <span class="co">; BPL shift_loop</span></span>
+<span id="cb2-268"><a href="#cb2-268" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">1D</span><span class="op">,</span> <span class="op">$</span><span class="bn">36</span><span class="op">,</span> <span class="op">$</span>C8         <span class="co">; ORA $C836,X</span></span>
+<span id="cb2-269"><a href="#cb2-269" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">9D</span><span class="op">,</span> <span class="op">$</span><span class="bn">36</span><span class="op">,</span> <span class="op">$</span>C8         <span class="co">; STA $C836,X</span></span>
+<span id="cb2-270"><a href="#cb2-270" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">60</span>                   <span class="co">; RTS</span></span>
+<span id="cb2-271"><a href="#cb2-271" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span></span>
+<span id="cb2-272"><a href="#cb2-272" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-273"><a href="#cb2-273" aria-hidden="true" tabindex="-1"></a><span class="co">;-----------------------------------------------------------------------------</span></span>
+<span id="cb2-274"><a href="#cb2-274" aria-hidden="true" tabindex="-1"></a><span class="co">; $C9E0: log_byte - Write debug marker to buffer at $C980</span></span>
+<span id="cb2-275"><a href="#cb2-275" aria-hidden="true" tabindex="-1"></a><span class="co">;-----------------------------------------------------------------------------</span></span>
+<span id="cb2-276"><a href="#cb2-276" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">48</span>                   <span class="co">; PHA - save the byte to log</span></span>
+<span id="cb2-277"><a href="#cb2-277" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">8E</span><span class="op">,</span> <span class="op">$</span>FC<span class="op">,</span> <span class="op">$</span><span class="bn">00</span>         <span class="co">; STX $00FC - save X to ZP temp</span></span>
+<span id="cb2-278"><a href="#cb2-278" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>AE<span class="op">,</span> <span class="op">$</span><span class="bn">3A</span><span class="op">,</span> <span class="op">$</span>C8         <span class="co">; LDX $C83A - get log_index</span></span>
+<span id="cb2-279"><a href="#cb2-279" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">68</span>                   <span class="co">; PLA - get byte back</span></span>
+<span id="cb2-280"><a href="#cb2-280" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">9D</span><span class="op">,</span> <span class="op">$</span><span class="bn">80</span><span class="op">,</span> <span class="op">$</span>C9         <span class="co">; STA $C980,X - write to buffer</span></span>
+<span id="cb2-281"><a href="#cb2-281" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>E8                   <span class="co">; INX - increment index</span></span>
+<span id="cb2-282"><a href="#cb2-282" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>E0<span class="op">,</span> <span class="op">$</span><span class="bn">20</span>              <span class="co">; CPX #$20 - wrap at 32</span></span>
+<span id="cb2-283"><a href="#cb2-283" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>D0<span class="op">,</span> <span class="op">$</span><span class="bn">02</span>              <span class="co">; BNE +2 (skip reset)</span></span>
+<span id="cb2-284"><a href="#cb2-284" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>A2<span class="op">,</span> <span class="op">$</span><span class="bn">00</span>              <span class="co">; LDX #$00 - reset to 0</span></span>
+<span id="cb2-285"><a href="#cb2-285" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">8E</span><span class="op">,</span> <span class="op">$</span><span class="bn">3A</span><span class="op">,</span> <span class="op">$</span>C8         <span class="co">; STX $C83A - store new index</span></span>
+<span id="cb2-286"><a href="#cb2-286" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span>AE<span class="op">,</span> <span class="op">$</span>FC<span class="op">,</span> <span class="op">$</span><span class="bn">00</span>         <span class="co">; LDX $00FC - restore X</span></span>
+<span id="cb2-287"><a href="#cb2-287" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">60</span>                   <span class="co">; RTS</span></span>
+<span id="cb2-288"><a href="#cb2-288" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span></span></code></pre></div>
+<h3 id="implemented-logical-bank-0-layout">Implemented Logical Bank 0
+Layout</h3>
+<p>The implemented v3 layout deliberately separates “hot, cheap to copy”
+state from richer loader-owned relationship metadata.</p>
+<pre class="text"><code>$0000-$003F  RCB0 header
+             magic/version, generation, writer id, skip, section offsets
+
+$0040-$00FF  reserved zero-filled header extension area
+
+$0100-$01FF  bank-type table mirror
+             256 bytes copied from resident $C600-style REU allocation state
+
+$0200-$024F  compact fixed-resource records
+             10 records * 8 bytes for system/launcher/fixed subsystem roots
+
+$0300-$04FF  hot 64-app registry arrays
+             64 records * 8 bytes, app snapshot bank/flags/resource state
+
+$0500-$083F  app metadata
+             64 records * 13 bytes, compact PRG/file token metadata
+
+$0900-$0BFF  hot per-app resource-bank arrays
+             128 records * 24 bytes reserved by v2/v3; current launcher uses
+             this as cheap resource bank state for app-owned loader resources
+
+$0A00-$0DFF  rich resource/file records
+             64 records * 16 bytes; owner app, resource set, kind, physical
+             bank, offset, length, flags, next index, slot id, drive, name tag
+
+$0E00-$2DFF  dependency/source lines
+             64 records * 128 bytes copied from apps.cfg or app.* manifests
+
+$2E00+       audit/reserved future expansion</code></pre>
+<p>The overlap between the older <code>$0900</code> reserved dependency
+area and the v3 <code>$0A00</code> rich record area is historical debt
+from the v2 reservation. The v3 code treats <code>$0A00</code> and
+<code>$0E00</code> as the rich-resource authority and keeps the hot copy
+paths bounded. A future schema cleanup may retire or repack the v2
+reserved range, but this branch does not need that churn to satisfy the
+current behavior.</p>
+<h3 id="annotated-bank-0-diagram">Annotated Bank 0 Diagram</h3>
+<pre class="mermaid"><code>flowchart TB
+    subgraph B0[&quot;Logical REU bank 0 / physical READYOS_REU_BANK_SKIP + 0&quot;]
+        H[&quot;$0000 header\nRCB0 v3, generation, writer, skip, section offsets&quot;]
+        R[&quot;$0100 bank type mirror\nfast 256-byte image of live REU use&quot;]
+        F[&quot;$0200 fixed roots\nsystem, launcher snapshot, launcher overlay,\nReadyShell debug/scratch roots&quot;]
+        A[&quot;$0300 hot app registry\n64 app ids, snapshot banks, flags,\nresource set, resource-loaded flag, drive/hotkey&quot;]
+        M[&quot;$0500 app metadata\nshort file/app token table&quot;]
+        D[&quot;$0900 hot resource-bank arrays\nsmall per-app bank slots for loader use&quot;]
+        Q[&quot;$0A00 rich resource records\nowner app -&gt; overlay/module/core/code\nbank + offset + length + slot&quot;]
+        L[&quot;$0E00 dependency lines\nbounded source text from apps.cfg/app.*&quot;]
+        X[&quot;$2E00 audit/future\nreserved for validation and later service records&quot;]
+    end
+
+    C600[&quot;$C600-$C7FF resident hot state&quot;] --&gt;|&quot;mirrored by launcher/control-bank writer&quot;| R
+    CFG[&quot;apps.cfg / app.* manifest&quot;] --&gt;|&quot;bounded dependency line&quot;| L
+    LAUNCH[&quot;launcher loader&quot;] --&gt;|&quot;allocates banks and writes&quot;| A
+    LAUNCH --&gt;|&quot;writes owner/resource records&quot;| Q
+    VIEW[&quot;REU Viewer&quot;] --&gt;|&quot;reads owner/app/resource details&quot;| A
+    VIEW --&gt; Q
+    SHIM[&quot;resident shim $C800-$C9FF&quot;] --&gt;|&quot;does not read rich records&quot;| C600</code></pre>
+<h3 id="load-and-ownership-flow">Load And Ownership Flow</h3>
+<pre class="mermaid"><code>sequenceDiagram
+    participant CFG as apps.cfg/app.* manifest
+    participant L as launcher
+    participant B0 as REU bank 0
+    participant REU as allocated REU banks
+    participant SH as shim
+    participant APP as app/runtime
+
+    CFG-&gt;&gt;L: app line, description, optional dependency line
+    L-&gt;&gt;B0: copy dependency/source line to $0E00 + app_id*128
+    L-&gt;&gt;REU: allocate snapshot bank on demand
+    L-&gt;&gt;B0: write hot app registry snapshot at $0300/$0500
+    alt app has rsovl+ or rbcore+
+        L-&gt;&gt;REU: allocate resource banks
+        L-&gt;&gt;REU: stream overlay/module PRGs to bank+offset
+        L-&gt;&gt;B0: write rich resource records at $0A00
+        L-&gt;&gt;APP: write tiny runtime metadata only when needed
+    end
+    L-&gt;&gt;SH: pass already-resolved logical bank byte
+    SH-&gt;&gt;SH: map logical bank through $C83B skip
+    SH-&gt;&gt;REU: stash/fetch $1000-$C5FF
+    APP-&gt;&gt;APP: runs without linking bank 0 manager</code></pre>
+<h3 id="reu-viewer-flow">REU Viewer Flow</h3>
+<pre class="mermaid"><code>flowchart LR
+    SEL[&quot;selected physical bank&quot;] --&gt; TYPE[&quot;read resident/bank-type mirror&quot;]
+    TYPE --&gt; APP{&quot;matches hot app registry?&quot;}
+    APP --&gt;|&quot;yes&quot;| AS[&quot;show app slot/name/snapshot owner&quot;]
+    APP --&gt;|&quot;no&quot;| RSRC{&quot;matches rich resource record?&quot;}
+    RSRC --&gt;|&quot;yes&quot;| OS[&quot;show OWNER:&lt;app&gt; SLOT:&lt;n&gt; OFF:&lt;hex&gt;&quot;]
+    RSRC --&gt;|&quot;no&quot;| RAW[&quot;show normal type/free/reserved detail&quot;]</code></pre>
+<h2 id="app-config-and-manifest-resource-syntax">App Config And Manifest
+Resource Syntax</h2>
+<p>The disk launcher uses the same compact line model for generated
+<code>apps.cfg</code> and user-selected <code>app.*</code> SEQ
+manifests. This is deliberately not a broad manifest language. The C64
+parser stays small by recognizing a fixed app line, one description
+line, and one optional bounded dependency line.</p>
+<p>Main app line shape:</p>
+<pre class="text"><code>drive:prg_name:display_name[:default_slot][:resource_token]
+description line
+[dependency line only when resource_token ends with +]</code></pre>
+<p>Rules:</p>
+<ul>
+<li><code>drive</code> is the device number used to load the
+app/resource PRGs.</li>
+<li><code>prg_name</code> is the loadable app PRG token.</li>
+<li><code>display_name</code> is launcher UI text.</li>
+<li><code>default_slot</code> is optional and keeps existing launcher
+hotkey/default-slot behavior.</li>
+<li><code>resource_token</code> is optional. Current accepted resource
+tokens are <code>rsovl</code> and <code>rbcore</code>.</li>
+<li>A <code>+</code> suffix means “the next non-empty line is a
+dependency/source line for this app.” Without <code>+</code>, no
+dependency line is consumed.</li>
+<li>The dependency line is copied into REU bank <code>0</code> at
+<code>$0E00 + app_id*128</code>.</li>
+<li>The launcher consumes the dependency line only for known
+loader-owned contracts. Generic arbitrary dependency loading remains
+future work.</li>
+</ul>
+<p>ReadyShell example using three loader-assigned 64K resource
+banks:</p>
+<pre class="text"><code>8:readyshell:ready shell (demo)::rsovl+
+command shell poc scaffold
+rsparser@0:0000,rsvm@0:3800,rsdrvilst@0:7000,rsldv@1:0000,rsstv@0:a800,rsfops@1:3800,rscat@1:7000,rscopy@1:a800,rsedit@2:0000</code></pre>
+<p>ReadyShell dependency entries use:</p>
+<pre class="text"><code>filename@resource_bank_ordinal:offset</code></pre>
+<p>Current ReadyShell loader rules:</p>
+<ul>
+<li><code>resource_bank_ordinal</code> is <code>0</code>,
+<code>1</code>, or <code>2</code>;</li>
+<li>those ordinals map to the three physical banks assigned by the
+launcher for that app instance;</li>
+<li><code>offset</code> is a four-digit hexadecimal offset inside that
+64K bank;</li>
+<li>current valid overlay slot offsets are <code>$0000</code>,
+<code>$3800</code>, <code>$7000</code>, and <code>$A800</code>;</li>
+<li>the loaded PRG’s C64 load address must still be the ReadyShell
+overlay load address; the REU offset is where the overlay image is
+cached.</li>
+</ul>
+<p>The example above therefore packs the nine ReadyShell overlay PRGs
+like this:</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th style="text-align: right;">Resource ordinal</th>
+<th style="text-align: right;">Offset</th>
+<th>Runtime meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>rsparser</code></td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;"><code>$0000</code></td>
+<td>parser/lexer overlay</td>
+</tr>
+<tr>
+<td><code>rsvm</code></td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;"><code>$3800</code></td>
+<td>VM/value/format overlay</td>
+</tr>
+<tr>
+<td><code>rsdrvilst</code></td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;"><code>$7000</code></td>
+<td>drive/listing overlay</td>
+</tr>
+<tr>
+<td><code>rsstv</code></td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;"><code>$A800</code></td>
+<td>store-value overlay</td>
+</tr>
+<tr>
+<td><code>rsldv</code></td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;"><code>$0000</code></td>
+<td>load-value overlay</td>
+</tr>
+<tr>
+<td><code>rsfops</code></td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;"><code>$3800</code></td>
+<td>file operations overlay</td>
+</tr>
+<tr>
+<td><code>rscat</code></td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;"><code>$7000</code></td>
+<td>CAT overlay</td>
+</tr>
+<tr>
+<td><code>rscopy</code></td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;"><code>$A800</code></td>
+<td>COPY overlay</td>
+</tr>
+<tr>
+<td><code>rsedit</code></td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;"><code>$0000</code></td>
+<td>prompt editor overlay</td>
+</tr>
+</tbody>
+</table>
+<p>After loading those files, the launcher writes one rich 16-byte
+resource record per overlay at <code>$0A00</code>, and writes a tiny
+ReadyShell v4 <code>OV</code> runtime metadata block containing nine
+<code>(bank, offset)</code> records. ReadyShell reads only that tiny
+metadata block; it does not link the full bank <code>0</code> registry
+manager.</p>
+<p>ReadyBASIC example:</p>
+<pre class="text"><code>9:readybasic:ready basic (alpha):3:rbcore+
+scoped basic v2 bridge poc
+rbcore,rbcode</code></pre>
+<p>Current ReadyBASIC loader rules:</p>
+<ul>
+<li><code>rbcore+</code> marks a loader-owned two-bank ReadyBASIC
+resource set;</li>
+<li>the dependency line documents the two logical resource names;</li>
+<li>the launcher allocates physical banks for <code>rbcore</code> and
+<code>rbcode</code>;</li>
+<li>rich records at <code>$0A00</code> identify the owner app, kind,
+physical bank, and short name tag;</li>
+<li>ReadyBASIC resolves the active bank ids through the small existing
+ReadyOS metadata path, not by parsing dependency lines itself.</li>
+</ul>
+<p>Minimal <code>app.*</code> manifest example with ReadyShell
+overlays:</p>
+<pre class="text"><code>8:readyshell:ready shell external::rsovl+
+external shell with packed overlays
+rsparser@0:0000,rsvm@0:3800,rsdrvilst@0:7000,rsldv@1:0000,rsstv@0:a800,rsfops@1:3800,rscat@1:7000,rscopy@1:a800,rsedit@2:0000</code></pre>
+<p>Minimal <code>app.*</code> manifest example without resources:</p>
+<pre class="text"><code>9:quicknotes:quicknotes
+reu-backed note editor</code></pre>
+<p>EasyFlash/cartridge builds do not parse human-authored manifest text
+at runtime. The build/generator path hard-codes the same effective
+representation into generated cartridge metadata, assigns
+non-overlapping resource banks, and emits the same ReadyShell v4 overlay
+metadata shape.</p>
+<h3 id="rich-resource-record-format">Rich Resource Record Format</h3>
+<p>Each v3 rich resource record is 16 bytes:</p>
+<pre class="text"><code>byte 0      app_id owner, or $FF for unused
+byte 1      resource set token id, such as rsovl or rbcore
+byte 2      resource kind, such as ReadyShell overlay, rbcore, rbcode
+byte 3      physical REU bank
+byte 4-5    offset inside the 64K REU bank, little endian
+byte 6-7    length or reserved length, little endian
+byte 8      flags
+byte 9      next record index, currently $FF
+byte 10     slot id, such as overlay number or module slot
+byte 11     source drive
+byte 12-15  four-byte short name tag</code></pre>
+<p>The <code>next record index</code> byte is present so a later schema
+can chain related records cheaply. The current loader scans fixed
+64-entry arrays instead of depending on linked-list traversal, because
+that kept launcher code smaller and more predictable.</p>
+<p>Still not implemented:</p>
+<ul>
+<li>a generic arbitrary dependency loader for unknown app-specific
+overlays;</li>
+<li>app-requested bank ownership records after app launch;</li>
+<li>headless/service/modal invocation records;</li>
+<li>a dedicated disk-launcher VICE navigation test for REU Viewer
+selection details. Static schema checks and full app memory-map
+verification cover the current REU Viewer implementation; a future VICE
+plan should navigate the viewer after loading ReadyShell and assert
+visible owner/detail text.</li>
+</ul>
+<h2 id="implementation-status-2026-06-03">Implementation Status
+2026-06-03</h2>
+<p>Completed in branch <code>codex/reu-control-bank-refactor</code>:</p>
+<ul>
+<li>committed baseline
+<code>e7b5487 Add REU control bank mirror baseline</code>;</li>
+<li>logical REU bank <code>0</code> mirror schema <code>RCB0</code>,
+version <code>1</code>;</li>
+<li>logical REU bank <code>0</code> mirror schema advanced to
+<code>RCB0</code>, version <code>2</code>, with offsets
+reserved/published for a 64-app registry, app metadata, and
+dependency/resource-bank metadata;</li>
+<li>header at bank <code>0</code> offset <code>$0000</code>;</li>
+<li>resident <code>$C600-$C6FF</code> bank table mirror at offset
+<code>$0100</code>;</li>
+<li>fixed-resource records at offset <code>$0200</code>;</li>
+<li>launcher and reuviewer mirror writers;</li>
+<li>no shim growth and no <code>$C800-$C9FF</code> ABI expansion;</li>
+<li>64 app catalog capacity for disk-generated
+<code>apps.cfg</code>;</li>
+<li>lazy app snapshot logical-bank allocation in the launcher;</li>
+<li>no preallocated app banks in disk catalog entries;</li>
+<li>disk launcher <code>F7</code> unload for selected loaded app
+snapshots; unload is a launcher-owned operation, not a shim
+operation;</li>
+<li>load-all progress display wraps visible rows safely for 64-entry
+catalogs;</li>
+<li>global hotkeys accept logical app banks through
+<code>223</code>;</li>
+<li>cartridge launcher records embedded preloaded apps as loaded even
+above the shim bitmap range;</li>
+<li>launcher duplicate resident catalog resume cache removed; launcher
+now saves catalog arrays as segmented REU resume payloads;</li>
+<li>dynamic launcher static verifier added to
+<code>make verify</code>.</li>
+<li>ReadyShell overlay cache banks are loader-assigned via the
+<code>rsovl</code> resource set instead of fixed cache banks;</li>
+<li>ReadyBASIC core/runtime and command-code banks are loader-assigned
+via the <code>rbcore</code> resource set instead of fixed
+<code>$44/$45</code> banks;</li>
+<li>disk launcher unload frees ReadyBASIC <code>rbcore</code> resource
+banks with the app snapshot because resource ownership remains
+launcher-owned, not shim-owned;</li>
+<li>EasyFlash catalog generation assigns non-overlapping ReadyShell and
+ReadyBASIC resource banks from the same dynamic resource pool.</li>
+<li>bank <code>0</code> now receives a launcher-written 64-app registry
+snapshot in separated blocks:
+<ul>
+<li><code>$0100</code>: 256-byte resident bank-type mirror, still cheap
+to copy into the resident <code>$C600</code> table if needed;</li>
+<li><code>$0300</code>: compact app-state arrays for logical bank,
+loaded flag, resource set, resource-loaded flag, drive, and default
+hotkey slot;</li>
+<li><code>$0500</code>: larger app metadata block, currently the
+normalized PRG/file token table copied from the launcher catalog
+arrays;</li>
+<li><code>$0900</code>: loader-owned dependency/resource bank arrays,
+currently the three per-app resource-bank slots used by ReadyShell
+<code>rsovl</code> and ReadyBASIC <code>rbcore</code>;</li>
+</ul></li>
+<li>the initial linked-list dependency writer was rejected before
+acceptance because it cost roughly <code>2.3KB</code> of
+launcher/reuviewer app-window headroom. The accepted v2 shape is less
+elegant but much cheaper: it copies normalized launcher arrays to REU in
+coarse blocks and keeps REU Viewer from linking the launcher-only
+writer;</li>
+<li>disk <code>apps.cfg</code> and <code>app.*</code> manifests now
+accept a <code>+</code> suffix on a known resource token, for example
+<code>rsovl+</code> or <code>rbcore+</code>. When present, the
+description line is followed by one comma-separated dependency line. The
+host catalog generator validates the dependency item syntax; the C64
+launcher consumes a non-empty line only, by design, so the runtime
+parser stays small;</li>
+<li>shipped catalogs now mark ReadyShell and ReadyBASIC resource entries
+with the <code>+</code> dependency-list form. The actual loader
+authority is still the compact resource token
+(<code>rsovl</code>/<code>rbcore</code>) plus assigned resource banks,
+not arbitrary runtime filename loading.</li>
+</ul>
+<p>Not implemented yet:</p>
+<ul>
+<li>generic arbitrary dependency loading for unknown app-specific
+overlays or modules;</li>
+<li>name-rich linked-list dependency records. This remains reserved
+design space, but the first implementation uses array blocks because the
+linked-list writer was too expensive in app-window code size;</li>
+<li>ownership records for app-requested banks created after app launch.
+Current unload frees the launcher-owned snapshot and launcher-owned
+resource banks;</li>
+<li>headless/service/modal invocation records;</li>
+<li>runtime VICE probe that reads and validates logical bank
+<code>0</code> contents.</li>
+</ul>
+<p>Important correction: the current implementation supports lazy app
+snapshot allocation, 64-entry catalogs, launcher-owned unload,
+ReadyShell <code>rsovl</code> resources, and ReadyBASIC
+<code>rbcore</code> resources. It does not yet implement the full
+dependency manifest/resource ownership architecture. That is
+intentional; the stable path is concrete resource contracts first, then
+generic dependency records only after the launcher size and VICE
+behavior are boring.</p>
+<p>Current measured ReadyBASIC dynamic-bank impact against the committed
+ReadyShell dynamic-resource baseline:</p>
+<table>
+<thead>
+<tr>
+<th>App</th>
+<th style="text-align: right;">Before</th>
+<th style="text-align: right;">After</th>
+<th style="text-align: right;">Delta</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>launcher</td>
+<td style="text-align: right;">5075</td>
+<td style="text-align: right;">4637</td>
+<td style="text-align: right;">-438</td>
+</tr>
+<tr>
+<td>editor</td>
+<td style="text-align: right;">11702</td>
+<td style="text-align: right;">11712</td>
+<td style="text-align: right;">+10</td>
+</tr>
+<tr>
+<td>quicknotes</td>
+<td style="text-align: right;">9508</td>
+<td style="text-align: right;">9518</td>
+<td style="text-align: right;">+10</td>
+</tr>
+<tr>
+<td>calcplus</td>
+<td style="text-align: right;">6683</td>
+<td style="text-align: right;">6715</td>
+<td style="text-align: right;">+32</td>
+</tr>
+<tr>
+<td>hexview</td>
+<td style="text-align: right;">32367</td>
+<td style="text-align: right;">32399</td>
+<td style="text-align: right;">+32</td>
+</tr>
+<tr>
+<td>clipmgr</td>
+<td style="text-align: right;">13529</td>
+<td style="text-align: right;">13561</td>
+<td style="text-align: right;">+32</td>
+</tr>
+<tr>
+<td>reuviewer</td>
+<td style="text-align: right;">29606</td>
+<td style="text-align: right;">29670</td>
+<td style="text-align: right;">+64</td>
+</tr>
+<tr>
+<td>sysinfo</td>
+<td style="text-align: right;">30021</td>
+<td style="text-align: right;">30021</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>tasklist</td>
+<td style="text-align: right;">6059</td>
+<td style="text-align: right;">6069</td>
+<td style="text-align: right;">+10</td>
+</tr>
+<tr>
+<td>simplefiles</td>
+<td style="text-align: right;">12636</td>
+<td style="text-align: right;">12636</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>game2048</td>
+<td style="text-align: right;">28580</td>
+<td style="text-align: right;">28580</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>deminer</td>
+<td style="text-align: right;">22167</td>
+<td style="text-align: right;">22167</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>cal26</td>
+<td style="text-align: right;">8741</td>
+<td style="text-align: right;">8751</td>
+<td style="text-align: right;">+10</td>
+</tr>
+<tr>
+<td>dizzy</td>
+<td style="text-align: right;">1834</td>
+<td style="text-align: right;">1834</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>readyirc</td>
+<td style="text-align: right;">28996</td>
+<td style="text-align: right;">29006</td>
+<td style="text-align: right;">+10</td>
+</tr>
+<tr>
+<td>rirc-rrnet</td>
+<td style="text-align: right;">18210</td>
+<td style="text-align: right;">18220</td>
+<td style="text-align: right;">+10</td>
+</tr>
+<tr>
+<td>readybasic</td>
+<td style="text-align: right;">1031</td>
+<td style="text-align: right;">1029</td>
+<td style="text-align: right;">-2</td>
+</tr>
+<tr>
+<td>readme</td>
+<td style="text-align: right;">22748</td>
+<td style="text-align: right;">22748</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>readyshell</td>
+<td style="text-align: right;">18660</td>
+<td style="text-align: right;">18660</td>
+<td style="text-align: right;">0</td>
+</tr>
+</tbody>
+</table>
+<p>The launcher cost is the expected owner-side cost of adding the
+<code>rbcore</code> resource loader/unload path. ReadyBASIC pays only
+two bytes in the app window for the runtime bank bytes; the resolver
+lives in the hidden bridge path and does not expand shim ABI. Normal
+apps are unchanged or slightly improved because the old fixed
+<code>$44/$45</code> sync records were removed from shared REU code.</p>
+<p>The launcher cost is the real cost of holding a 64-entry catalog in
+RAM. A larger hidden duplicate was removed before acceptance: the
+initial dynamic implementation dropped launcher headroom by
+<code>8583</code> bytes, and removing the duplicate resident resume
+cache recovered more than <code>5.5KB</code>.</p>
+<p>Current measured bank-0 registry v2 impact against commit
+<code>48a483e Make ReadyBASIC REU banks loader-assigned</code>:</p>
+<table>
+<thead>
+<tr>
+<th>App</th>
+<th style="text-align: right;">Before</th>
+<th style="text-align: right;">After array registry/parser trim</th>
+<th style="text-align: right;">Delta</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>launcher</td>
+<td style="text-align: right;">4637</td>
+<td style="text-align: right;">3583</td>
+<td style="text-align: right;">-1054</td>
+</tr>
+<tr>
+<td>reuviewer</td>
+<td style="text-align: right;">29670</td>
+<td style="text-align: right;">29572</td>
+<td style="text-align: right;">-98</td>
+</tr>
+</tbody>
+</table>
+<p>No normal app links the new registry writer. The launcher delta is
+the combined cost of the launcher-only registry mirror plus the optional
+<code>+</code> dependency-line state in the disk/manifest parser. This
+is intentionally documented as a cost to watch: the rejected linked-list
+implementation was more than twice as expensive and was removed before
+this checkpoint.</p>
+<h3 id="verification-matrix">Verification Matrix</h3>
+<p>Static/build verification passed for this milestone:</p>
+<ul>
+<li><code>make verify</code>;</li>
+<li><code>make easyflash-verify</code>;</li>
+<li><code>make readybasic-plugin-static-check</code>;</li>
+<li><code>python3 verify.py</code>;</li>
+<li><code>python3 build_support/verify_reu_control_bank.py</code>;</li>
+<li><code>python3 build_support/verify_dynamic_launcher.py</code>;</li>
+<li><code>python3 build_support/verify_memory_map.py</code>;</li>
+<li><code>python3 build_support/report_app_headroom.py --output agentworkijg/reu_refactor_headroom_after_readybasic_dynamic.json</code>.</li>
+</ul>
+<p>VICE verification passed for this milestone:</p>
+<ul>
+<li><code>make readybasic-vice-suites</code>;</li>
+<li><code>make readybasic-demo-vice</code>;</li>
+<li>EasyFlash VICE smoke through
+<code>make easyflash-verify</code>.</li>
+</ul>
+<p>The aggregate <code>make readybasic-vice-suites</code> target
+includes demo, repeat-label, lifecycle, module-overlay, plugin-command,
+program, rbtest1, state, large-vars, cross-app resume, second-entry
+Editor, and full visual ReadyBASIC VICE suites.</p>
+<p>New VICE coverage still needed after this milestone:</p>
+<ul>
+<li>disk launcher lazy-load selected app, return, and relaunch;</li>
+<li>disk launcher load-all with a synthetic 64-entry catalog;</li>
+<li>disk launcher unload selected app, verify bank table/free state,
+then reload;</li>
+<li>disk launcher browse/load <code>app.*</code> manifest and launch the
+added app;</li>
+<li>cartridge launcher synthetic catalog above 23 entries, proving high
+logical app banks are marked loaded without shim bitmap bits;</li>
+<li>runtime bank <code>0</code> content probe that validates header,
+<code>$C600</code> mirror, and at least one dynamic app-bank allocation
+record after load/unload.</li>
+</ul>
+<h2 id="principal-engineering-corrections">Principal Engineering
+Corrections</h2>
+<p>The broad goal is sound, but the implementation must be narrower than
+a full “dynamic OS registry” rewrite. The safest path is to make logical
+REU bank <code>0</code> useful as an auditable control record first,
+then promote pieces of it to runtime authority only after the old path
+and the new path can be compared.</p>
+<p>Corrected principles:</p>
+<ul>
+<li>Do not start by replacing the <code>$C600-$C7FF</code> table. Start
+by mirroring and validating it.</li>
+<li>Do not make every app link a new manager library. Keep manager code
+in the launcher, boot/cartridge loader, reuviewer, and dedicated test
+utilities.</li>
+<li>Do not invent a rich manifest language early. Start with fixed-width
+records generated by the build, then add manifest syntax only when one
+real app needs it.</li>
+<li>Do not make app id lookup part of suspend/resume hot paths until the
+resolved physical bank path is proven.</li>
+<li>Do not move ReadyShell or ReadyBASIC fixed banks until generic app
+snapshots and clipboard ownership are stable. This is a sequencing rule,
+not a backward-compatibility requirement.</li>
+<li>Do not implement unload, eviction, headless services, or modal
+services in the first tranche. Reserve schema space and validate the
+direction, but keep them non-goals until the core allocator is
+boring.</li>
+<li>Do not allow the refactor to reduce app headroom through shared
+helper bloat. Any helper pulled into normal apps must have a measured
+size budget.</li>
+</ul>
+<p>The first valuable result should be observability and correctness:
+ReadyOS can describe who owns REU banks, prove that this description
+matches the live shim and <code>$C600</code> state, and do so without
+changing app behavior.</p>
+<h2 id="non-negotiable-contracts">Non-Negotiable Contracts</h2>
+<h3 id="whole-system-rebuild-assumption">Whole-System Rebuild
+Assumption</h3>
+<p>ReadyOS does not need binary compatibility with older app builds,
+older shim images, older EasyFlash loader images, or older ReadyBASIC
+micromodule layouts. All apps, micromodules, overlays, launcher
+variants, boot paths, and cartridge artifacts may be rebuilt together
+against one new contract.</p>
+<p>This removes the need for compatibility shims for old binaries. It
+does not remove the need for discipline:</p>
+<ul>
+<li>every generated artifact must be rebuilt from one coherent
+contract;</li>
+<li>every app must still fit the <code>$1000-$C5FF</code> runtime
+window;</li>
+<li>every app must still avoid <code>$C600-$C9FF</code> as private
+memory;</li>
+<li>every app must pass memory/headroom comparison after contract
+changes;</li>
+<li>disk and EasyFlash paths must agree on the same generated REU
+contract;</li>
+<li>ReadyShell overlay metadata and ReadyBASIC micromodule/submodule
+metadata must be updated in the same change as their code;</li>
+<li>stale generated artifacts must be treated as invalid, not
+supported.</li>
+</ul>
+<p>Prefer a clean versioned contract over compatibility glue. If an ABI
+changes, update all producers and consumers together, then verify the
+complete rebuilt system.</p>
+<h3 id="c64-ram-layout">C64 RAM Layout</h3>
+<p>The existing ReadyOS runtime memory map remains the baseline
+contract:</p>
+<ul>
+<li>app runtime window: <code>$1000-$C5FF</code></li>
+<li>ReadyOS REU metadata/system table: <code>$C600-$C7FF</code></li>
+<li>resident shim ABI: <code>$C800-$C9FF</code></li>
+<li>hardware I/O region: <code>$D000-$DFFF</code></li>
+</ul>
+<p>The active app owns <code>$1000-$C5FF</code>. The app snapshot saved
+to REU is still <code>$B600</code> bytes unless a later, explicitly
+validated change says otherwise.</p>
+<p>The resident <code>$C600-$C9FF</code> range is not app scratch.
+ReadyBASIC, ReadyShell, normal C apps, overlays, and micromodules must
+continue to treat it as ReadyOS resident state.</p>
+<h3 id="shim-constraint">Shim Constraint</h3>
+<p>The shim at <code>$C800-$C9FF</code> must not grow.</p>
+<p>The shim remains a small execution primitive:</p>
+<ul>
+<li>load from disk and run;</li>
+<li>fetch from REU and run;</li>
+<li>preload/stash/fetch the app window;</li>
+<li>return to launcher;</li>
+<li>switch apps;</li>
+<li>use the existing compact shim data bytes for immediate bank/run
+state.</li>
+</ul>
+<p>The shim must not become a full allocator, app registry, manifest
+parser, overlay registry, service dispatcher, or unload engine. Unload
+is implemented by the launcher or future ReadyOS manager code by
+updating metadata, clearing launcher-owned bindings/caches, and then
+using existing direct-bank shim primitives only when a fetch/stash/run
+transfer is required.</p>
+<h3 id="shim-adjacent-1kb-clarification">Shim-Adjacent 1KB
+Clarification</h3>
+<p>For this plan, “shim-adjacent 1KB” means the full resident ReadyOS
+control area:</p>
+<ul>
+<li><code>$C600-$C7FF</code>: current REU allocation table and system
+metadata;</li>
+<li><code>$C800-$C9FF</code>: resident shim jump table, data bytes, and
+helper routines.</li>
+</ul>
+<p>This 1KB is precious and resident. It should hold only hot state and
+ABI fields needed for fast switching and compatibility. The full REU
+registry eventually moves to logical REU bank <code>0</code>, after
+mirror/audit phases prove the model.</p>
+<p>The new model is:</p>
+<ul>
+<li>logical REU bank <code>0</code> becomes the long-form control
+record;</li>
+<li><code>$C600-$C7FF</code> remains the fast resident state during the
+early phases;</li>
+<li><code>$C800-$C9FF</code> is still the shim ABI and remains
+size-fixed;</li>
+<li>duplicate state is allowed when it keeps the shim simple.</li>
+</ul>
+<p>Do not make bank <code>0</code> canonical on day one. During the
+first phases, the canonical runtime truth remains the existing resident
+path and bank <code>0</code> is a mirror plus audit record. Promote bank
+<code>0</code> to canonical authority only after the mirror has survived
+boot, preload, app switching, cartridge preload, and
+ReadyShell/ReadyBASIC runs without divergence.</p>
+<h3 id="boot-and-verification-rules">Boot And Verification Rules</h3>
+<p>ReadyOS must continue to be built and verified through the normal
+full system flow. Do not validate this refactor by launching individual
+apps directly.</p>
+<p>Use normal ReadyOS boot paths, including disk and EasyFlash/cartridge
+paths as appropriate. Preserve the project rule that normal verification
+goes through plain <code>run.sh</code> / <code>run.ps1</code>, not
+single-app load modes.</p>
+<h3 id="cc65-and-c64-constraints">cc65 And C64 Constraints</h3>
+<p>Implementation should prefer <code>unsigned char</code> and
+<code>unsigned int</code>. Avoid <code>long</code> and large stack
+locals in hot paths. Inline asm should stay conservative and explicit.
+Do not stomp cc65 runtime zero page, especially
+<code>$02-$1B</code>.</p>
+<p>Any change crossing C/asm boundaries must keep the calling convention
+explicit and small.</p>
+<h2 id="historical-pre-refactor-baseline-summary">Historical
+Pre-Refactor Baseline Summary</h2>
+<p>This section preserves the baseline understanding from the start of
+the refactor. It is historical context, not the current v3 contract. The
+implemented v3 contract is described in “Implementation Status
+2026-06-04” and “Current v3 Architecture Detail” above.</p>
+<p>Pre-refactor effective REU model:</p>
+<ul>
+<li>physical bank base is controlled by
+<code>READYOS_REU_BANK_SKIP</code>;</li>
+<li>current generated config uses a skip value of <code>32</code>;</li>
+<li><code>REU_READYOS_GLOBAL_PHYSICAL()</code> maps to
+<code>skip + 0</code>;</li>
+<li>launcher snapshot maps to <code>skip + 1</code>;</li>
+<li>launcher overlay reserve maps to <code>skip + 2</code>;</li>
+<li>current app slots map through fixed logical-to-physical
+assumptions;</li>
+<li><code>$C600-$C7FF</code> contains a 256-byte bank type table and
+system metadata;</li>
+<li><code>$C836-$C838</code> contains the shim loaded-bank bitmap for
+current app-slot assumptions;</li>
+<li>ReadyShell uses fixed banks such as <code>$40</code>,
+<code>$41</code>, <code>$42</code>, <code>$43</code>, and
+<code>$48</code>;</li>
+<li>ReadyBASIC uses fixed banks <code>$44</code> and
+<code>$45</code>;</li>
+<li>some comments and docs still carry older “launcher bank 0”
+wording.</li>
+</ul>
+<p>Long term, this plan changes bank <code>0</code> from a mostly
+reserved marker into the canonical ReadyOS control bank. Early phases
+only mirror and audit the existing resident runtime facts.</p>
+<h2 id="target-architecture">Target Architecture</h2>
+<h3 id="logical-reu-bank-0-as-readyos-control-bank">Logical REU Bank 0
+As ReadyOS Control Bank</h3>
+<p>Logical REU bank <code>0</code> should become a versioned control
+bank. It stores the eventual canonical registry and ownership state that
+is too large or too structured for the resident 1KB area. It should not
+become runtime authority all at once.</p>
+<p>Suggested long-term bank <code>0</code> layout:</p>
+<pre class="text"><code>$0000-$00FF  control header, schema, flags, bank skip, totals, checksums
+$0100-$01FF  resident export/mirror image for $C600-$C7FF hot state
+$0200-$05FF  app registry, target initial capacity 64 entries
+$0600-$0DFF  resource registry for app overlays, modules, data, heaps
+$0E00-$11FF  256-bank ownership table
+$1200-$17FF  invocation records for headless/modal/full service calls
+$1800-$1FFF  result/status records, diagnostics, service return state
+$2000-$FFFF  parameter/result payload arena and future variable records</code></pre>
+<p>This is a map of possible future regions, not permission to build all
+regions immediately. The first implemented schema should be much
+smaller:</p>
+<pre class="text"><code>$0000-$003F  header: magic, schema, flags, generation, bank skip, table sizes
+$0040-$00FF  reserved, zero-filled
+$0100-$01FF  mirror of current $C600-$C6FF bank type table
+$0200-$027F  compact fixed-resource records for current launcher/ReadyShell/
+             ReadyBASIC/clipboard assumptions
+$0280-$02FF  audit/status records and divergence counters</code></pre>
+<p>Everything beyond that should remain reserved until a phase needs it.
+Reserved bytes must be zero-filled and verified so later schema
+expansion has a known starting point.</p>
+<p>The exact offsets should be finalized in a dedicated C header. Add
+assembler includes only for fields that assembler actually reads. Avoid
+spreading bank <code>0</code> offset constants into many assembler
+files.</p>
+<h3 id="canonical-versus-hot-state">Canonical Versus Hot State</h3>
+<p>State should be split deliberately:</p>
+<ul>
+<li>long-form registry/audit record: logical REU bank
+<code>0</code>;</li>
+<li>hot resident runtime state: <code>$C600-$C7FF</code>;</li>
+<li>shim immediate fields: existing bytes in
+<code>$C800-$C9FF</code>;</li>
+<li>app-local state: optional temporary copies while an app runs.</li>
+</ul>
+<p>The resident path remains authoritative until a later explicit phase
+promotes bank <code>0</code> to authority for a specific subset of
+state. The promotion must be piecemeal: for example, bank ownership may
+become canonical before app launch resolution, and app launch resolution
+may become canonical before subsystem resources.</p>
+<p>Any duplicated field needs a documented owner:</p>
+<ul>
+<li>allocator changes update the resident table and then mirror to bank
+<code>0</code> in early phases;</li>
+<li>after promotion, allocator changes update bank <code>0</code> and
+then export selected hot fields to <code>$C600-$C7FF</code>;</li>
+<li>shim fields are written immediately before shim calls;</li>
+<li>app return/suspend paths update only the minimal records needed for
+the next dispatch.</li>
+</ul>
+<p>Avoid read-modify-write cycles against all of bank <code>0</code>.
+Every API should update small fixed ranges and maintain a generation
+byte/counter for debugging.</p>
+<h3 id="bank-ownership-model">Bank Ownership Model</h3>
+<p>Every allocated REU bank needs an ownership record. A one-byte type
+table is no longer enough for unload and dynamic resource
+management.</p>
+<p>Suggested long-term bank ownership fields:</p>
+<pre class="text"><code>state        free, used, reserved, pinned, unavailable
+owner_kind   system, launcher, app, service, readyshell, readybasic, clipboard
+owner_id     app id, service id, subsystem id, or 0
+role         snapshot, overlay, module, heap, clipboard, scratch, parameter
+resource_id  resource registry index or 0xff
+flags        dirty, evictable, preload, cartridge-backed, shared, volatile</code></pre>
+<p>For the first implementation, prefer a smaller fixed record to avoid
+parsing and code-size bloat:</p>
+<pre class="text"><code>bank         physical bank number
+type         existing REU_* type id
+owner_kind   compact owner enum
+owner_id     compact owner/app/subsystem id
+role         compact role enum
+flags        compact flags byte</code></pre>
+<p>Do not store strings in per-bank records. Names belong in build-time
+catalogs, launcher-local catalog text, or optional later resource
+records. Bank ownership must be cheap to scan and cheap to validate.</p>
+<p>This enables future unload behavior:</p>
+<pre class="text"><code>free every bank where owner_kind == app and owner_id == selected app id</code></pre>
+<p>It also allows partial cleanup:</p>
+<ul>
+<li>unload only app overlays;</li>
+<li>free only temporary service banks;</li>
+<li>preserve app snapshot but drop evictable resources;</li>
+<li>release clipboard payload chains;</li>
+<li>free ReadyShell or ReadyBASIC resources through subsystem
+ownership.</li>
+</ul>
+<h3 id="app-identity-versus-bank-location">App Identity Versus Bank
+Location</h3>
+<p>The refactor must separate:</p>
+<ul>
+<li>app identity;</li>
+<li>app catalog position;</li>
+<li>runtime instance/suspended state;</li>
+<li>physical REU snapshot bank;</li>
+<li>overlay/resource banks;</li>
+<li>hotkey slot.</li>
+</ul>
+<p>Current bank numbers do too much. The target model uses:</p>
+<ul>
+<li>stable app token, such as <code>readyshell</code>;</li>
+<li>compact runtime <code>app_id</code>, target range
+<code>0..63</code>;</li>
+<li>snapshot bank assigned dynamically;</li>
+<li>resource entries assigned dynamically;</li>
+<li>hotkeys point to app ids, not banks.</li>
+</ul>
+<p>The shim should receive already-resolved bank numbers. It should not
+resolve app ids.</p>
+<p>Important correction: <code>64</code> is a catalog capacity target,
+not an immediate loaded/suspended app target. Runtime REU can hold many
+snapshots, but the C64 resident UI and launcher state should not grow
+just because the catalog can describe more apps. The first target is
+“more than fixed slots can be described and loaded on demand,” not “64
+apps are all preloaded and hot at once.”</p>
+<h2 id="dynamic-loading-and-preloading">Dynamic Loading And
+Preloading</h2>
+<h3 id="app-load-policies">App Load Policies</h3>
+<p>Catalog or manifest data should describe load policy independently of
+fixed bank placement.</p>
+<p>Long-term load policies:</p>
+<pre class="text"><code>on_demand
+preload_snapshot
+preload_required_resources
+preload_all_resources
+cartridge_preloaded</code></pre>
+<p>The same allocator/register path should be used by:</p>
+<ul>
+<li>EasyFlash/cartridge preload;</li>
+<li>launcher load-all-to-REU;</li>
+<li>one-by-one launcher preload;</li>
+<li>on-demand app selection;</li>
+<li>future app manifest resource loading.</li>
+</ul>
+<p>The goal is that all paths produce the same logical bank
+<code>0</code> registry shape.</p>
+<p>Early implementation should support only the current behavior
+expressed through the new records:</p>
+<ul>
+<li>normal launcher preload;</li>
+<li>launcher load-all-to-REU;</li>
+<li>cartridge preload;</li>
+<li>on-demand app load if already supported by the existing path.</li>
+</ul>
+<p>Do not add new load policy behavior until these existing paths
+produce matching audit records.</p>
+<h3 id="app-kinds">App Kinds</h3>
+<p>Long-term app kinds:</p>
+<pre class="text"><code>regular
+resource_preload
+headless_capable
+service
+service_headless_only
+service_modal_ui</code></pre>
+<p>App kind is a capability and dispatch hint. It must not replace the
+normal resource ownership model.</p>
+<p>Do not implement these kinds early. Existing apps remain existing
+apps. The only near-term app metadata should be enough to identify the
+app, its current snapshot bank, and whether its currently known
+resources are fixed or dynamic.</p>
+<h3 id="manifest-resources">Manifest Resources</h3>
+<p>Apps should be able to declare resources such as overlays and
+modules.</p>
+<p>Suggested resource fields:</p>
+<pre class="text"><code>app token / app id
+resource id
+resource name
+resource type: overlay, module, data, heap, help, dialog, service-temp
+required flag
+preload group: minimal, normal, full, debug
+source kind: disk, cartridge, generated, runtime
+source file or cartridge descriptor
+load address or target C64 address
+REU bank and offset after allocation
+size
+flags: pinned, evictable, shared, dirty, compressed</code></pre>
+<p>ReadyShell overlays should eventually move from hard-coded banks to
+resource registry lookups. ReadyBASIC command/module banks should
+eventually do the same, but only after the lower-risk C paths are
+proven.</p>
+<p>The important near-term concept is dependency preloading, not a large
+manifest language. An app may have a compact dependency list that the
+loader satisfies before entering the app:</p>
+<pre class="text"><code>app snapshot
+required overlays
+required command modules
+required data/help resources
+optional preload groups</code></pre>
+<p>This already exists in spirit in the EasyFlash ReadyShell path: the
+cartridge version preloads ReadyShell overlays, including command
+overlays, before ReadyShell runs. The future disk/load-all/on-demand
+paths should converge on that same principle. The difference is that the
+dependency list should become data generated by the build instead of
+hard-coded bank constants.</p>
+<p>ReadyBASIC should use the same dependency model for modules and
+micromodule payloads: core/runtime resources plus required
+command/module resources are declared as dependencies and loaded or
+confirmed before entering ReadyBASIC.</p>
+<p>Avoid a general-purpose manifest parser in the C64 runtime. Prefer
+build-time generation of compact resource records. If human-authored
+manifests are added, parse them on the host and emit a PETASCII/binary
+record format that the C64 can consume with small, bounded code.</p>
+<h2 id="service-invocation">Service Invocation</h2>
+<h3 id="unified-invocation-model">Unified Invocation Model</h3>
+<p>Headless app calls and modal UI calls should share one invocation
+mechanism.</p>
+<p>Suggested invocation modes:</p>
+<pre class="text"><code>headless
+modal_ui
+full_ui_handoff
+background_later</code></pre>
+<p>Suggested capability flags:</p>
+<pre class="text"><code>service
+headless
+modal_ui
+reu_params
+returns_result
+no_screen_touch
+caller_redraw_required
+os_screen_save_supported</code></pre>
+<h3 id="future-proofing-status">Future-Proofing Status</h3>
+<p>Headless and modal UI service invocation are included here as
+future-proofing. They should shape the bank <code>0</code> schema so the
+later service model is not boxed out, but they are not part of the first
+implementation milestone.</p>
+<p>Do not let the headless/service design delay the first practical REU
+ownership work. The early phases should reserve schema space and define
+stable concepts; actual service apps can come later after bank ownership
+and dynamic snapshot allocation are proven.</p>
+<p>Principal correction: service invocation should not affect the
+initial bank <code>0</code> schema beyond a reserved region and a schema
+version note. It should not add resident fields, app code, or launcher
+dispatch code in the core REU ownership tranche.</p>
+<h3 id="headless-flow">Headless Flow</h3>
+<p>Headless calls allow one app to invoke another app/service without
+visible user interaction.</p>
+<p>Flow:</p>
+<ol type="1">
+<li>Caller allocates or selects a request buffer in REU.</li>
+<li>Caller writes request metadata and payload.</li>
+<li>Caller asks ReadyOS to invoke a target app/service headlessly.</li>
+<li>ReadyOS stashes caller state.</li>
+<li>ReadyOS loads or fetches target app/service.</li>
+<li>Target reads invocation block and request payload.</li>
+<li>Target does its work without touching screen/keyboard unless
+explicitly allowed.</li>
+<li>Target writes result/status to REU.</li>
+<li>Target returns through ReadyOS.</li>
+<li>ReadyOS restores the caller.</li>
+<li>Caller reads the result.</li>
+</ol>
+<p>Headless apps must be opt-in. Arbitrary existing apps should not be
+treated as headless-safe.</p>
+<h3 id="modal-ui-service-flow">Modal UI Service Flow</h3>
+<p>Modal UI service calls use the same request/result mechanism but
+allow the callee to present UI.</p>
+<p>Example services:</p>
+<ul>
+<li>file open dialog;</li>
+<li>file save dialog;</li>
+<li>drive/path picker;</li>
+<li>confirmation dialog;</li>
+<li>text input dialog;</li>
+<li>clipboard picker;</li>
+<li>help viewer;</li>
+<li>search dialog.</li>
+</ul>
+<p>Initial file save request example:</p>
+<pre class="text"><code>operation: save
+suggested filename
+default drive/path
+file type: SEQ, PRG, REL, USR
+filters
+payload bank/offset
+payload size
+format id
+overwrite policy</code></pre>
+<p>Initial result example:</p>
+<pre class="text"><code>status: saved, cancelled, error
+chosen filename
+chosen drive/path
+bytes written
+DOS status code
+error token or short error text</code></pre>
+<p>For the first modal implementation, use the simplest screen
+contract:</p>
+<ul>
+<li>service may draw;</li>
+<li>caller redraws after return.</li>
+</ul>
+<p>Later, optional OS save/restore of screen RAM and color RAM can be
+added for services that need invisible UI preservation. Because the app
+snapshot window does not include normal screen RAM or color RAM, this
+must be explicit.</p>
+<h2 id="shim-and-shim-adjacent-implementation-strategy">Shim And
+Shim-Adjacent Implementation Strategy</h2>
+<h3 id="keep-shim-unchanged-in-size">Keep Shim Unchanged In Size</h3>
+<p>The shim should continue to operate on direct bank values.</p>
+<p>The launcher or ReadyOS manager resolves:</p>
+<pre class="text"><code>app id -&gt; snapshot bank -&gt; write existing shim target bank -&gt; call shim</code></pre>
+<p>The shim does not need to know about:</p>
+<ul>
+<li>app count;</li>
+<li>app manifests;</li>
+<li>resource names;</li>
+<li>bank ownership records;</li>
+<li>service invocation records;</li>
+<li>dynamic overlay lookup;</li>
+<li>unload logic.</li>
+</ul>
+<p>Unload is specifically launcher/manager policy. The shim should never
+decide which banks are free, which banks belong to an app, or whether an
+app can be evicted.</p>
+<h3 id="resident-cache-design">Resident Cache Design</h3>
+<p>Long term, the <code>$C600-$C7FF</code> resident area can become a
+cache/export area rather than the full canonical database. Early on, it
+remains the runtime truth and is mirrored into bank <code>0</code>.</p>
+<p>It should keep only hot fields such as:</p>
+<ul>
+<li>magic/schema/cache version;</li>
+<li>dirty flags;</li>
+<li>current app id;</li>
+<li>current app snapshot physical bank;</li>
+<li>launcher snapshot physical bank;</li>
+<li>selected target physical bank;</li>
+<li>compact loaded-state cache for currently visible app range;</li>
+<li>bank skip;</li>
+<li>service invocation active flag;</li>
+<li>current request/result index;</li>
+<li>small subsystem root indexes.</li>
+</ul>
+<p>This list is intentionally aspirational. Before adding any field to
+<code>$C600-$C7FF</code>, prove that a current field can be reused or
+that the new field is strictly necessary for a hot path. The resident
+area is harder to recover than bank <code>0</code> and must not become a
+dumping ground.</p>
+<p>The existing shim bitmap can either remain as a compatibility cache
+or become a windowed loaded-state cache. It does not need to represent
+every future app if the launcher/manager writes the exact target bank
+before calling the shim.</p>
+<h3 id="limited-copy-from-bank-0">Limited Copy From Bank 0</h3>
+<p>When the launcher needs a range of app registry state, it should DMA
+a limited range from logical bank <code>0</code> into resident or
+app-local buffers.</p>
+<p>Examples:</p>
+<ul>
+<li>copy visible menu page app entries;</li>
+<li>copy app id to snapshot bank table for current page;</li>
+<li>copy one app’s resource descriptors before preloading;</li>
+<li>copy invocation block before dispatch;</li>
+<li>copy ownership records for one app during unload.</li>
+</ul>
+<p>This accepts a small performance tax for keeping the shim fixed.</p>
+<p>The copy code must be bounded and explicit. Avoid generic
+copy-by-record-name interpreters on the C64. Prefer helper functions
+such as “copy one app record”, “copy bank table page”, or “copy resource
+records for app id”.</p>
+<h3 id="consistency-and-recovery">Consistency And Recovery</h3>
+<p>Duplicated state creates a new failure class: <code>$C600</code>,
+shim fields, and bank <code>0</code> can disagree. The design must make
+disagreement detectable and recoverable.</p>
+<p>Minimum consistency fields:</p>
+<ul>
+<li>schema version;</li>
+<li>generation counter;</li>
+<li>last writer id, such as boot, launcher, easyflash loader, reuviewer,
+test;</li>
+<li>dirty/in-progress flag;</li>
+<li>small divergence counter or last divergence code.</li>
+</ul>
+<p>Early implementation should avoid expensive checksums in hot C64
+paths. A simple magic/version/generation check is enough for runtime.
+Host tools and debug builds can compute deeper checksums over the bank
+<code>0</code> records.</p>
+<p>Update sequence for early mirror mode:</p>
+<ol type="1">
+<li>update existing resident state;</li>
+<li>mark bank <code>0</code> mirror update in progress;</li>
+<li>copy the changed fixed range to bank <code>0</code>;</li>
+<li>increment generation;</li>
+<li>clear in-progress flag.</li>
+</ol>
+<p>If bank <code>0</code> is missing, stale, or marked in-progress after
+a reset, ReadyOS should rebuild it from the resident/runtime facts where
+possible. This is why bank <code>0</code> should not become canonical
+until the mirror path is proven.</p>
+<p>When bank <code>0</code> eventually becomes canonical for a subset of
+state, define a separate commit sequence for that subset before
+implementation. Do not infer the commit rule from the mirror-mode
+path.</p>
+<h2 id="readyshell-plan">ReadyShell Plan</h2>
+<p>ReadyShell overlay cache banks are no longer architectural fixed
+banks. The current contract is:</p>
+<ul>
+<li>the launcher/loader owns the <code>rsovl</code> resource set;</li>
+<li>disk launcher load streams the ReadyShell overlay sidecar PRGs into
+three app-owned REU banks before entering ReadyShell;</li>
+<li>EasyFlash generation allocates three physical cache banks from the
+generated free-bank set and emits the assigned bank ids into generated
+artifacts;</li>
+<li>ReadyShell reads those assigned bank ids from the existing shared
+metadata block at <code>$4880F0</code>;</li>
+<li>ReadyShell no longer self-loads overlay sidecar PRGs or writes its
+own cache metadata. Missing or invalid <code>rsovl</code> metadata is a
+loader failure;</li>
+<li>ReadyShell keeps the old slot geometry inside each assigned bank:
+<code>+$0000</code>, <code>+$3800</code>, <code>+$7000</code>,
+<code>+$A800</code>, with <code>0x3800</code> bytes per full-window
+overlay snapshot;</li>
+<li>the shim remains unchanged and does not know about
+<code>rsovl</code>;</li>
+<li>bank <code>$48</code> remains the fixed ReadyShell
+state/scratch/value-arena bank for this phase. Moving <code>$48</code>
+should be a separate follow-up after overlay cache allocation is proven
+stable.</li>
+</ul>
+<p>Implemented ReadyShell phases:</p>
+<ol type="1">
+<li>Add generated dependency/resource records for ReadyShell
+overlays.</li>
+<li>Mark ReadyShell catalog entries with <code>rsovl</code> in disk
+profiles and EasyFlash flavor config.</li>
+<li>Allocate/mark ReadyShell cache banks in launcher-owned resource
+state rather than global fixed <code>REU_BANK_RS_CACHE*</code>
+reservations.</li>
+<li>Teach ReadyShell to read bank values from shared metadata and patch
+its command registry cache-bank fields at startup.</li>
+<li>Convert overlay fetch paths from fixed cache-bank constants to
+assigned bank globals.</li>
+<li>Update EasyFlash boot/generated layout to use generated
+<code>READYSHELL_CACHE</code> bank ids instead of hard-coded
+<code>$40/$41/$42</code>.</li>
+<li>Update host and VICE coverage so disk and EasyFlash paths both prove
+the assigned overlay-bank metadata.</li>
+</ol>
+<p>Guardrails:</p>
+<ul>
+<li>do not reduce resident ReadyShell heap headroom materially;</li>
+<li>do not increase overlay payloads beyond current overlay headroom
+limits;</li>
+<li>keep overlay load address behavior unchanged unless separately
+proven;</li>
+<li>keep the <code>rsovl</code> contract loader-owned. ReadyShell may
+consume the metadata but should not allocate/free its own overlay cache
+banks;</li>
+<li>do not grow the shim or move unload/resource-owner policy into the
+shim.</li>
+</ul>
+<h2 id="readybasic-and-micromodule-plan">ReadyBASIC And Micromodule
+Plan</h2>
+<p>ReadyBASIC is higher risk because it duplicates ReadyOS REU/shim
+knowledge in assembler and uses command micromodules/submodules.</p>
+<p>Current documents that must stay in sync include:</p>
+<ul>
+<li><code>src/apps/readybasic/READYBASIC_MICROMODULE_SYNC.md</code>;</li>
+<li><code>src/apps/readybasic/READYBASIC_CURRENT_DESIGN.md</code>;</li>
+<li><code>src/apps/readybasic/READYBASIC_LIFECYCLE_AND_REU_ARCHITECTURE.md</code>;</li>
+<li><code>src/apps/readybasic/REadyBASICCommandModuleAndSubmodulePlan.MD</code>;</li>
+<li><code>docs/readybasic_memory_diagrams.html</code> generated by the
+memory report.</li>
+</ul>
+<p>ReadyBASIC dynamic <code>rbcore</code> migration is now implemented
+for the two historical core/code banks. The accepted shape is
+intentionally smaller than a generic dependency manager:</p>
+<ol type="1">
+<li>Disk and EasyFlash catalog generation mark ReadyBASIC with
+<code>rbcore</code>.</li>
+<li>The launcher/loader assigns two physical banks from the dynamic
+resource pool and marks them <code>REU_RB_CORE</code> and
+<code>REU_RB_CODE</code>.</li>
+<li>ReadyBASIC resolves those bank types at startup from the resident
+<code>$C600</code> bank-type table, with a logical bank <code>0</code>
+mirror fallback for entries where the visible table is not yet
+dependable.</li>
+<li>ReadyBASIC stores the resolved bytes in bridge state and uses those
+values wherever the old <code>$44/$45</code> constants were used.</li>
+<li>The launcher frees the app snapshot and <code>rbcore</code> banks
+together on unload.</li>
+<li>Micromodule/submodule load addresses and under-ROM slot geometry
+stay unchanged.</li>
+<li>The shim ABI and shim-adjacent 1KB contract do not grow.</li>
+</ol>
+<p>Principal correction: ReadyBASIC should remain a late-stage
+compatibility consumer, not the proof vehicle for generic dependency
+parsing. This pass moved only the historical fixed core/code banks after
+the C app allocator and ReadyShell <code>rsovl</code> path were stable.
+Future ReadyBASIC module dependency work should reuse the generated
+resource/dependency model and must not add a broad runtime parser to
+ReadyBASIC or the shim.</p>
+<p>ReadyBASIC must continue to treat:</p>
+<ul>
+<li><code>$C600-$C7FF</code> as ReadyOS metadata/cache only;</li>
+<li><code>$C800-$C9FF</code> as ReadyOS shim ABI only;</li>
+<li>command micromodule memory below <code>$C600</code> and under-ROM
+slots as explicitly documented.</li>
+</ul>
+<h2 id="clipboard-plan">Clipboard Plan</h2>
+<p>Clipboard is a good early dynamic subsystem.</p>
+<p>Target behavior:</p>
+<ul>
+<li>clipboard banks are dynamically allocated;</li>
+<li>owner kind is <code>clipboard</code> or <code>system</code>;</li>
+<li>records identify payload chains and formats;</li>
+<li>clipboard root descriptor lives in logical bank <code>0</code> or
+resident cache;</li>
+<li>unload/cleanup can free clipboard payloads by owner/role.</li>
+</ul>
+<p>Clipboard should move before ReadyShell and ReadyBASIC because it has
+less assembler coupling and should prove the ownership model.</p>
+<h2 id="app-count-expansion">App Count Expansion</h2>
+<p>The target app catalog capacity is <code>64</code>, but this should
+be reached in stages.</p>
+<p>This is lower priority than correctness of dynamic ownership. Do not
+expand UI capacity and allocator behavior in the same phase. First prove
+that current apps can be represented by app id and resolved bank; then
+prove dynamic snapshot allocation for the current catalog; only then
+raise catalog capacity.</p>
+<p>Required changes:</p>
+<ul>
+<li>app ids become independent from REU banks;</li>
+<li>hotkeys point to app ids;</li>
+<li>app catalog parsing supports more entries;</li>
+<li>launcher menu/page logic supports more entries;</li>
+<li>loaded-state tracking no longer depends on a 24-bit fixed app
+bitmap;</li>
+<li>app preload and on-demand load paths allocate snapshot banks
+dynamically;</li>
+<li>reuviewer displays app ownership records instead of fixed app slot
+ranges;</li>
+<li>verifier no longer assumes app slots are only fixed banks
+<code>2-25</code>.</li>
+</ul>
+<p>The shim can stay unchanged because the launcher writes direct
+physical bank values before invoking shim operations.</p>
+<h2 id="file-dialog-os-service-app-plan">File Dialog / OS Service App
+Plan</h2>
+<p>The first modal UI service should probably be a shared file open/save
+service.</p>
+<p>Reasons:</p>
+<ul>
+<li>many apps duplicate 2-5KB of infrequently used file UI/action
+code;</li>
+<li>file name, drive, file type, filters, overwrite confirmation, and
+DOS status handling are easy to represent as request/result
+records;</li>
+<li>it validates modal service invocation with high practical
+value.</li>
+</ul>
+<p>Initial scope:</p>
+<ul>
+<li>file save service with caller-provided REU payload;</li>
+<li>suggested filename;</li>
+<li>drive and type fields;</li>
+<li>simple filter/type support;</li>
+<li>result includes final filename, drive, status, bytes written, and
+DOS status.</li>
+</ul>
+<p>First screen contract:</p>
+<ul>
+<li>service draws its own UI;</li>
+<li>caller redraws after return;</li>
+<li>no hidden screen preservation until later.</li>
+</ul>
+<p>Later scope:</p>
+<ul>
+<li>open/load service;</li>
+<li>service-allocated result buffers;</li>
+<li>REL-specific dialogs;</li>
+<li>overwrite policy options;</li>
+<li>path/drive picker reuse;</li>
+<li>optional OS screen/color save and restore.</li>
+</ul>
+<h2 id="baseline-measurement-plan">Baseline Measurement Plan</h2>
+<p>Before implementation, capture a full memory and size baseline for
+every app and for the special overlay/micromodule systems. This baseline
+is mandatory.</p>
+<p>Record:</p>
+<ul>
+<li>PRG file size;</li>
+<li>linker map runtime end;</li>
+<li>CODE, RODATA, DATA, BSS segment sizes;</li>
+<li>BSS start/end;</li>
+<li>raw headroom to <code>$C5FF</code>;</li>
+<li>aligned writable slack after BSS;</li>
+<li>any app-specific heap/headroom interpretation;</li>
+<li>ReadyShell resident heap;</li>
+<li>ReadyShell overlay sizes and overlay slack;</li>
+<li>ReadyBASIC resident size;</li>
+<li>ReadyBASIC BASIC workspace/free-memory facts;</li>
+<li>ReadyBASIC command micromodule/submodule seed and runtime
+usage;</li>
+<li>file dialog/simplefiles/simplecells special linker reserve
+behavior;</li>
+<li>shim byte size and fixed address layout;</li>
+<li><code>$C600-$C9FF</code> resident usage.</li>
+</ul>
+<p>Suggested tooling and artifacts:</p>
+<ul>
+<li><code>python3 verify.py</code>;</li>
+<li><code>python3 build_support/verify_memory_map.py</code>;</li>
+<li><code>python3 build_support/verify_readyos_shim.py</code>;</li>
+<li><code>make readybasic-memory-report</code>;</li>
+<li><code>python3 build_support/readybasic_memory_report.py</code> if
+direct invocation is useful;</li>
+<li><code>python3 build_support/readyshell_overlay_report.py</code>;</li>
+<li><code>python3 build_support/file_dialog_memory_report.py</code>
+where applicable;</li>
+<li>generated app <code>.map</code> files from a normal full ReadyOS
+build;</li>
+<li>generated PRGs in <code>bin/</code>;</li>
+<li>relevant generated reports under <code>docs/</code>.</li>
+</ul>
+<p>Create a baseline report file before code changes, for example:</p>
+<pre class="text"><code>docs/reports/readyos_reu_refactor_baseline_before.md</code></pre>
+<p>The baseline should include a table for every app and separate
+sections for ReadyShell, ReadyBASIC, shim, and resident metadata.</p>
+<h2 id="after-change-comparison-plan">After-Change Comparison Plan</h2>
+<p>After each phase, regenerate the same measurements and compare
+against the baseline.</p>
+<p>The comparison must flag:</p>
+<ul>
+<li>any app runtime end moving closer to <code>$C5FF</code>;</li>
+<li>any BSS growth;</li>
+<li>any CODE/RODATA/DATA growth;</li>
+<li>any reduced aligned writable slack;</li>
+<li>any ReadyShell resident heap reduction;</li>
+<li>any ReadyShell overlay slack reduction;</li>
+<li>any ReadyBASIC workspace reduction;</li>
+<li>any ReadyBASIC micromodule/submodule growth;</li>
+<li>any unexpected shim byte layout change;</li>
+<li>any <code>$C600-$C9FF</code> contract drift;</li>
+<li>any new app overlap with <code>$C600-$C7FF</code>,
+<code>$C800-$C9FF</code>, I/O, or ROM regions.</li>
+</ul>
+<p>Acceptance rule:</p>
+<ul>
+<li>no app may lose materially significant headroom without an explicit
+note and approval;</li>
+<li>no app may cross existing verifier fail thresholds;</li>
+<li>shim size and address layout must remain fixed;</li>
+<li>ReadyBASIC and ReadyShell special headroom must remain within
+documented guardrails;</li>
+<li>any intentional tradeoff must be captured in the comparison
+report.</li>
+</ul>
+<p>Create comparison reports such as:</p>
+<pre class="text"><code>docs/reports/readyos_reu_refactor_phase_01_compare.md
+docs/reports/readyos_reu_refactor_phase_02_compare.md</code></pre>
+<h2 id="code-placement-and-size-budgets">Code Placement And Size
+Budgets</h2>
+<p>The most likely failure mode is not REU capacity; it is C64 resident
+code and BSS growth. Treat the refactor as a code-placement problem
+first.</p>
+<p>Rules:</p>
+<ul>
+<li>normal apps should not link the full bank <code>0</code>
+manager;</li>
+<li>launcher, boot/cartridge code, reuviewer, and host/test tools may
+contain richer management code;</li>
+<li>app-facing APIs must be tiny wrappers or fixed structs;</li>
+<li>no app should gain new BSS for global REU registry state;</li>
+<li>no generic parser/interpreter should be added to normal app
+code;</li>
+<li>no service invocation code should be linked into apps until that
+feature is explicitly promoted;</li>
+<li>ReadyShell and ReadyBASIC size changes require separate review even
+if global app thresholds pass.</li>
+</ul>
+<p>Initial size budgets:</p>
+<ul>
+<li>normal app CODE/RODATA growth from shared helpers: target
+<code>0</code> bytes, hard review above <code>128</code> bytes per
+app;</li>
+<li>normal app BSS growth: target <code>0</code> bytes, hard review
+above <code>16</code> bytes per app;</li>
+<li>launcher growth: allowed only with measured headroom and map
+comparison;</li>
+<li>reuviewer growth: acceptable within app headroom, because it is a
+diagnostic app;</li>
+<li>ReadyShell resident heap loss: hard review for any loss above
+<code>64</code> bytes;</li>
+<li>ReadyShell overlay slack loss: hard review for any overlay losing
+more than <code>64</code> bytes, and automatic stop if a tight overlay
+falls below its current safety margin;</li>
+<li>ReadyBASIC BASIC workspace or micromodule/submodule loss: hard
+review for any measurable regression.</li>
+</ul>
+<p>These numbers are deliberately conservative. They can be loosened
+only after the baseline report shows actual margins and the change is
+clearly worth the cost.</p>
+<h2 id="implementation-phases">Implementation Phases</h2>
+<h3 id="phase-0-audit-and-baseline">Phase 0: Audit And Baseline</h3>
+<p>Goals:</p>
+<ul>
+<li>build the current full system;</li>
+<li>capture all memory, size, BSS, heap, overlay, micromodule, and shim
+facts;</li>
+<li>document stale fixed-bank wording;</li>
+<li>identify every fixed REU bank assumption.</li>
+</ul>
+<p>Tasks:</p>
+<ul>
+<li>run normal build and verification;</li>
+<li>run memory/report tooling;</li>
+<li>produce the before-baseline report;</li>
+<li><code>rg</code> for fixed bank constants and direct
+<code>$40-$48</code> assumptions;</li>
+<li><code>rg</code> for <code>$C600</code>, <code>$C700</code>,
+<code>$C800</code>, <code>$C9FF</code>, shim bitmap, and bank skip
+use;</li>
+<li>audit ReadyBASIC assembler constants;</li>
+<li>audit ReadyShell overlay fetch code;</li>
+<li>audit launcher app bank parsing and preload behavior;</li>
+<li>audit reuviewer bank type display assumptions.</li>
+</ul>
+<p>Exit criteria:</p>
+<ul>
+<li>baseline report exists;</li>
+<li>fixed-bank assumption list exists;</li>
+<li>no implementation changes have started.</li>
+</ul>
+<h3 id="phase-1-define-bank-0-schema-without-behavior-change">Phase 1:
+Define Bank 0 Schema Without Behavior Change</h3>
+<p>Goals:</p>
+<ul>
+<li>create minimal schema headers/docs for logical bank
+<code>0</code>;</li>
+<li>keep existing fixed bank behavior;</li>
+<li>keep helpers out of normal apps initially;</li>
+<li>prove zero runtime behavior change.</li>
+</ul>
+<p>Tasks:</p>
+<ul>
+<li>define control bank header;</li>
+<li>define compact bank ownership/mirror record;</li>
+<li>define compact fixed-resource record for current fixed subsystem
+banks;</li>
+<li>reserve, but do not implement, future app/resource/invocation
+regions;</li>
+<li>add constants in C form first;</li>
+<li>add assembler constants only for fields assembler actually
+reads;</li>
+<li>add documentation for schema versioning and compatibility.</li>
+</ul>
+<p>Exit criteria:</p>
+<ul>
+<li>schema is documented;</li>
+<li>no shim growth;</li>
+<li>no behavior change;</li>
+<li>verification still passes.</li>
+</ul>
+<h3 id="phase-2-mirror-existing-layout-into-bank-0">Phase 2: Mirror
+Existing Layout Into Bank 0</h3>
+<p>Goals:</p>
+<ul>
+<li>logical bank <code>0</code> becomes a truthful mirror of current
+fixed layout;</li>
+<li><code>$C600-$C7FF</code> remains the hot resident table/cache;</li>
+<li>existing launcher and shim behavior remain unchanged.</li>
+</ul>
+<p>Tasks:</p>
+<ul>
+<li>initialize logical bank <code>0</code> during boot or early launcher
+startup;</li>
+<li>write ownership records for current fixed banks;</li>
+<li>write app records for current catalog entries;</li>
+<li>write resource records for ReadyShell and ReadyBASIC fixed
+banks;</li>
+<li>add helper to refresh <code>$C600-$C7FF</code> from bank
+<code>0</code>;</li>
+<li>add helper to write back changed resident metadata to bank
+<code>0</code>;</li>
+<li>make reuviewer optionally inspect bank <code>0</code> records.</li>
+</ul>
+<p>Exit criteria:</p>
+<ul>
+<li>bank <code>0</code> mirror matches existing allocation table;</li>
+<li>old fixed behavior still works;</li>
+<li>ReadyOS boots normally;</li>
+<li>reuviewer/debug output can show ownership records.</li>
+</ul>
+<h3 id="phase-2.5-resolver-indirection-with-fixed-banks">Phase 2.5:
+Resolver Indirection With Fixed Banks</h3>
+<p>Goals:</p>
+<ul>
+<li>introduce app id to physical bank resolution without changing
+allocation;</li>
+<li>prove the launcher can use a resolver while still returning the old
+fixed physical banks;</li>
+<li>keep shim inputs identical to the old path.</li>
+</ul>
+<p>Tasks:</p>
+<ul>
+<li>assign compact app ids from the catalog;</li>
+<li>add a launcher-local resolver that maps app id to the current fixed
+physical snapshot bank;</li>
+<li>route launcher switch/preload decisions through the resolver;</li>
+<li>keep the fixed logical-to-physical formula as the resolver
+implementation;</li>
+<li>write resolver decisions into bank <code>0</code> audit
+records;</li>
+<li>add a comparison check that old formula and resolver output
+match.</li>
+</ul>
+<p>Exit criteria:</p>
+<ul>
+<li>every app still lands in the same bank it used before;</li>
+<li>shim bytes receive the same target/current bank values as
+before;</li>
+<li>bank <code>0</code> records show the app id and resolved bank;</li>
+<li>no app code size changes except launcher/reuviewer/test
+utilities.</li>
+</ul>
+<h3 id="phase-3-dynamic-snapshot-allocation-with-shim-unchanged">Phase
+3: Dynamic Snapshot Allocation With Shim Unchanged</h3>
+<p>Goals:</p>
+<ul>
+<li>app snapshot banks are allocated dynamically;</li>
+<li>shim still receives direct physical bank values;</li>
+<li>app id is separate from bank id.</li>
+</ul>
+<p>Tasks:</p>
+<ul>
+<li>add allocator API returning physical bank plus ownership
+record;</li>
+<li>launcher catalog stores app id and token;</li>
+<li>launcher assigns snapshot bank on preload/load;</li>
+<li>launcher records <code>app_id -&gt; snapshot bank</code>;</li>
+<li>launcher writes existing shim target/current bank fields before shim
+calls;</li>
+<li>current shim bitmap becomes compatibility/hot cache only;</li>
+<li>support load-all-to-REU through the same allocator path;</li>
+<li>support on-demand app loading through the same path.</li>
+</ul>
+<p>Exit criteria:</p>
+<ul>
+<li>app switching works with dynamically assigned snapshot banks;</li>
+<li>old fixed slot assumption is no longer required for normal app
+launch;</li>
+<li>shim size/layout unchanged;</li>
+<li>before/after app headroom comparison is acceptable.</li>
+</ul>
+<p>Do not start Phase 3 until Phase 2.5 has passed on disk and EasyFlash
+paths. Dynamic allocation should be introduced behind the resolver by
+changing the resolver backend, not by changing shim semantics or
+app-facing switch APIs.</p>
+<h3 id="phase-4-catalog-capacity-expansion">Phase 4: Catalog Capacity
+Expansion</h3>
+<p>Goals:</p>
+<ul>
+<li>lift app catalog capacity toward <code>64</code>;</li>
+<li>preserve UI usability and hotkeys;</li>
+<li>avoid making shim aware of the larger catalog.</li>
+</ul>
+<p>Tasks:</p>
+<ul>
+<li>update catalog parser limits;</li>
+<li>update launcher menu/page handling;</li>
+<li>update hotkey binding to point to app id;</li>
+<li>update verification expectations;</li>
+<li>update reuviewer app ownership display;</li>
+<li>keep preload policy independent of catalog count.</li>
+</ul>
+<p>Exit criteria:</p>
+<ul>
+<li>more than current app count can be represented;</li>
+<li>target capacity <code>64</code> is supported in metadata;</li>
+<li>runtime only allocates banks for loaded/preloaded apps;</li>
+<li>shim remains unchanged.</li>
+</ul>
+<h3 id="phase-5-clipboard-dynamic-ownership">Phase 5: Clipboard Dynamic
+Ownership</h3>
+<p>Goals:</p>
+<ul>
+<li>prove subsystem dynamic allocation with a lower-risk component.</li>
+</ul>
+<p>Tasks:</p>
+<ul>
+<li>move clipboard payload bank tracking to ownership/resource
+records;</li>
+<li>store clipboard root descriptor in bank <code>0</code> or resident
+cache;</li>
+<li>implement cleanup/free by owner;</li>
+<li>update clipboard manager and related library calls;</li>
+<li>update reuviewer display.</li>
+</ul>
+<p>Exit criteria:</p>
+<ul>
+<li>clipboard works across app switches;</li>
+<li>clipboard banks are unloadable/freeable by owner;</li>
+<li>memory comparison remains acceptable.</li>
+</ul>
+<h3 id="phase-6-manifest-resource-loading">Phase 6: Manifest Resource
+Loading</h3>
+<p>Goals:</p>
+<ul>
+<li>allow apps to declare compact generated dependency/resource
+records;</li>
+<li>use common resource allocation for disk, cartridge, load-all, and
+on-demand paths;</li>
+<li>generalize the existing cartridge ReadyShell overlay preload
+behavior.</li>
+</ul>
+<p>Tasks:</p>
+<ul>
+<li>extend host-side config/build generation for per-app
+dependencies;</li>
+<li>define resource source descriptors;</li>
+<li>update build tooling to generate manifest payloads;</li>
+<li>update cartridge preload tables to register resources into bank
+<code>0</code>;</li>
+<li>update launcher load-all and on-demand paths to use resource
+descriptors;</li>
+<li>prove ReadyShell overlay dependencies and ReadyBASIC module
+dependencies are represented in the generated records before changing
+their bank consumption;</li>
+<li>add verifier checks for manifest/resource consistency.</li>
+</ul>
+<p>Exit criteria:</p>
+<ul>
+<li>at least one app can declare a resource without hard-coded bank
+placement;</li>
+<li>cartridge and disk paths populate equivalent dependency/registry
+records;</li>
+<li>ReadyShell’s existing cartridge-preloaded overlays can be described
+by the new records;</li>
+<li>no fixed-bank behavior regresses.</li>
+</ul>
+<h3 id="phase-7-shared-file-service">Phase 7: Shared File Service</h3>
+<p>Goals:</p>
+<ul>
+<li>future-proof and eventually implement the first modal UI service
+using REU request/result passing;</li>
+<li>reduce future per-app duplicated file dialog code;</li>
+<li>keep this phase out of the required first milestone unless a later
+planning pass explicitly promotes it.</li>
+</ul>
+<p>Tasks:</p>
+<ul>
+<li>define file save request/result schema;</li>
+<li>build service invocation dispatcher in launcher/ReadyOS manager
+code, not shim;</li>
+<li>implement file save service app;</li>
+<li>caller writes payload to REU and request block;</li>
+<li>service writes result block;</li>
+<li>caller redraws after return;</li>
+<li>add one pilot caller app.</li>
+</ul>
+<p>Exit criteria:</p>
+<ul>
+<li>pilot app can save through service;</li>
+<li>cancel/error/success paths return structured results;</li>
+<li>caller redraw behavior is correct;</li>
+<li>service-owned temporary banks are freed.</li>
+</ul>
+<h3 id="phase-8-headless-invocation">Phase 8: Headless Invocation</h3>
+<p>Goals:</p>
+<ul>
+<li>future-proof and eventually implement invisible service/app
+invocation;</li>
+<li>keep this phase out of the required first milestone unless a later
+planning pass explicitly promotes it.</li>
+</ul>
+<p>Tasks:</p>
+<ul>
+<li>define headless capability flags;</li>
+<li>define headless entry convention;</li>
+<li>add request/result handling;</li>
+<li>add caller suspend/restore flow;</li>
+<li>require headless apps to avoid screen/keyboard unless declared
+otherwise;</li>
+<li>implement one small headless pilot service.</li>
+</ul>
+<p>Exit criteria:</p>
+<ul>
+<li>caller app invokes headless service and resumes invisibly;</li>
+<li>result is available in REU;</li>
+<li>screen is not disturbed;</li>
+<li>failure status returns cleanly.</li>
+</ul>
+<h3 id="phase-9-readyshell-dynamic-resources">Phase 9: ReadyShell
+Dynamic Resources</h3>
+<p>Goals:</p>
+<ul>
+<li>move ReadyShell overlay/cache/debug/scratch ownership from fixed
+constants to registry/config values.</li>
+</ul>
+<p>Tasks:</p>
+<ul>
+<li>register existing fixed ReadyShell banks as resources;</li>
+<li>add ReadyShell runtime config block;</li>
+<li>resolve overlay locations from bank <code>0</code>;</li>
+<li>migrate overlay fetch paths;</li>
+<li>migrate scratch/debug/value arena paths;</li>
+<li>update host-side ReadyShell REU tests.</li>
+</ul>
+<p>Exit criteria:</p>
+<ul>
+<li>ReadyShell works with dynamically assigned resource banks;</li>
+<li>overlay slack remains acceptable;</li>
+<li>resident heap remains acceptable;</li>
+<li>host and VICE tests pass.</li>
+</ul>
+<h3 id="phase-10-readybasic-dynamic-resources">Phase 10: ReadyBASIC
+Dynamic Resources</h3>
+<p>Goals:</p>
+<ul>
+<li>keep ReadyBASIC core/code banks loader-assigned while preserving the
+micromodule ABI and app-window headroom.</li>
+</ul>
+<p>Tasks:</p>
+<ul>
+<li>mark ReadyBASIC catalog entries with the generated
+<code>rbcore</code> resource;</li>
+<li>allocate and mark <code>REU_RB_CORE</code> and
+<code>REU_RB_CODE</code> banks in launcher-owned resource state;</li>
+<li>resolve bank ids in ReadyBASIC from <code>$C600</code> with logical
+bank <code>0</code> fallback;</li>
+<li>remove retired fixed <code>$44/$45</code> constants from shared REU
+initialization and mirror sync;</li>
+<li>keep micromodule/submodule ABI stable;</li>
+<li>update sync docs after the proven shift;</li>
+<li>rerun ReadyBASIC command, program, lifecycle, module, and visual
+probes.</li>
+</ul>
+<p>Exit criteria:</p>
+<ul>
+<li>ReadyBASIC works with resolved resource banks;</li>
+<li>micromodule docs match code;</li>
+<li>BASIC workspace/free memory remains acceptable;</li>
+<li>command module/submodule headroom remains acceptable.</li>
+</ul>
+<h3 id="phase-11-unload-and-eviction">Phase 11: Unload And Eviction</h3>
+<p>Goals:</p>
+<ul>
+<li>use ownership records to free all banks belonging to an
+app/service/subsystem.</li>
+</ul>
+<p>Tasks:</p>
+<ul>
+<li>implement unload by owner;</li>
+<li>implement service-temp cleanup;</li>
+<li>optionally implement resource-only unload;</li>
+<li>add dirty/pinned/evictable policy;</li>
+<li>update launcher UI if needed;</li>
+<li>update reuviewer to show reclaimable groups.</li>
+</ul>
+<p>Exit criteria:</p>
+<ul>
+<li>unloading an app frees snapshot, overlays, modules, and app-owned
+banks;</li>
+<li>pinned system resources are not freed;</li>
+<li>service temp resources are reliably cleaned after return/error.</li>
+</ul>
+<h2 id="verification-matrix-1">Verification Matrix</h2>
+<p>Minimum verification after each major phase:</p>
+<ul>
+<li>normal full build;</li>
+<li><code>python3 verify.py</code>;</li>
+<li><code>python3 build_support/verify_memory_map.py</code>;</li>
+<li><code>python3 build_support/verify_readyos_shim.py</code>;</li>
+<li>normal ReadyOS boot through <code>run.sh</code>;</li>
+<li>launcher load/switch/return flow;</li>
+<li>load-all-to-REU flow where applicable;</li>
+<li>EasyFlash/cartridge preload flow when touched;</li>
+<li>reuviewer inspection of ownership and fixed/cache state;</li>
+<li>ReadyShell host REU tests when ReadyShell code or resource records
+change;</li>
+<li>ReadyBASIC static/plugin/lifecycle/module tests when ReadyBASIC
+constants or config change.</li>
+</ul>
+<p>Special ReadyBASIC verification should include the existing probe
+scripts and make targets documented in the ReadyBASIC files, including
+lifecycle and module overlay probes.</p>
+<h3 id="required-build-and-test-commands">Required Build And Test
+Commands</h3>
+<p>The baseline and every major phase comparison should record the exact
+command set used. Use tiers so development remains practical while
+release checkpoints stay strict.</p>
+<p>Tier 1, required for small implementation steps:</p>
+<pre class="text"><code>make verify
+python3 build_support/verify_readyos_shim.py
+python3 build_support/verify_memory_map.py</code></pre>
+<p>Tier 2, required for any phase that changes REU allocation, preload,
+suspend/resume, launcher switch behavior, or bank ownership:</p>
+<pre class="text"><code>make verify
+make easyflash-verify
+make readyshell-host-tests
+make readybasic-plugin-static-check
+make readybasic-memory-report</code></pre>
+<p>Tier 3, required for milestone completion and before considering the
+refactor stable:</p>
+<pre class="text"><code>make fullcheck
+make release-all
+make audit-release-assets
+make easyflash-verify
+make easyflash-smoke
+make easyflash-preload-verify
+make easyflash-probe-verify
+make xefprobe-standalone-verify
+make readybasic-vice-suites</code></pre>
+<p>Use <code>make fullcheck</code> where a clean rebuild plus normal
+verification is desired outside the full Tier 3 matrix.</p>
+<p>Also run the profile build diversity path:</p>
+<pre class="text"><code>bash ./run.sh --build-all</code></pre>
+<p>For launch/smoke diversity, use normal ReadyOS boots, not single-app
+launches:</p>
+<pre class="text"><code>bash ./run.sh
+bash ./run.sh --profile precog-d81
+bash ./run.sh --profile precog-dual-d64
+bash ./run.sh --profile precog-solo-d64-a
+bash ./run.sh --profile precog-solo-d64-b
+bash ./run.sh --profile precog-solo-d64-c
+bash ./run.sh --profile precog-solo-d64-d
+bash ./run.sh --profile precog-solo-d64-e
+bash ./run.sh --vice-fast</code></pre>
+<p>The exact profile list should be generated from:</p>
+<pre class="text"><code>bash ./run.sh --list-profiles
+python3 build_support/readyos_profiles.py list-ids</code></pre>
+<p>The cartridge path is mandatory for this refactor because EasyFlash
+preload is one of the paths that must populate the same future bank
+<code>0</code> registry as disk and launcher-driven preload.</p>
+<h3 id="vice-runtime-diversity">VICE Runtime Diversity</h3>
+<p>VICE coverage should include at least:</p>
+<ul>
+<li>default dual-D71 profile through normal <code>run.sh</code>;</li>
+<li>D81 profile;</li>
+<li>dual-D64 profile;</li>
+<li>all solo-D64 profiles, especially ReadyShell-focused and planning
+subsets;</li>
+<li>normal drive behavior;</li>
+<li><code>--vice-fast</code> drive-trap/warp behavior;</li>
+<li>load-all-to-REU enabled and disabled profiles or overrides;</li>
+<li>run-first profile behavior where used;</li>
+<li>EasyFlash cartridge cold boot with companion
+<code>readyos_data.d64</code>;</li>
+<li>EasyFlash preload verification;</li>
+<li>EasyFlash probe verification;</li>
+<li>standalone EasyFlash probe screenshot verification.</li>
+</ul>
+<p>Where feasible, capture VICE logs and monitor logs for comparison,
+especially for phases that alter preload, app switch, REU allocation, or
+cartridge handoff.</p>
+<h3 id="harness-and-app-specific-tests">Harness And App-Specific
+Tests</h3>
+<p>The following harnesses should be built and run when their touched
+areas are in scope:</p>
+<ul>
+<li><code>xrelchk</code> for CAL26 REL transport and REL behavior;</li>
+<li><code>xfilechk</code> for file
+copy/rename/delete/file-dialog-adjacent storage behavior;</li>
+<li><code>xseqchk</code> for SEQ persistence behavior;</li>
+<li><code>xtextchk</code> for PETSCII/text edge cases;</li>
+<li><code>test_reu.prg</code> or its current equivalent for low-level
+REU DMA sanity;</li>
+<li>editor/tasklist/simplefiles host smoke tests already included in
+<code>make verify</code>;</li>
+<li>ReadyShell host parser, VM, overlay-command, and REU heap/value
+tests;</li>
+<li>ReadyBASIC direct command, program, lifecycle, module overlay,
+cross-app resume, large-vars, rbtest1, second-entry editor, state,
+repeat-label, and full visual VICE suites.</li>
+</ul>
+<p>If any of these harnesses do not currently have a single aggregate
+make target, add one before starting the invasive phases. The refactor
+should not rely on remembering a loose list of scripts.</p>
+<h3 id="new-tests-to-add-for-this-refactor">New Tests To Add For This
+Refactor</h3>
+<p>Add focused tests as the new architecture appears:</p>
+<ul>
+<li>bank <code>0</code> schema pack/unpack host test;</li>
+<li>bank <code>0</code> checksum/version/magic validation test;</li>
+<li>resident <code>$C600-$C7FF</code> cache import/export test;</li>
+<li>ownership table invariants test: no double owners, no free pinned
+banks, no dynamic allocation of reserved banks;</li>
+<li>app id to snapshot bank resolver test;</li>
+<li>dynamic snapshot allocation/free test;</li>
+<li>dynamic load-all-to-REU registry equivalence test;</li>
+<li>disk preload versus cartridge preload registry equivalence
+test;</li>
+<li>reuviewer ownership display smoke test;</li>
+<li>unload-by-owner test;</li>
+<li>clipboard dynamic allocation/free test;</li>
+<li>ReadyShell resource registry lookup test before removing fixed
+banks;</li>
+<li>ReadyBASIC config-block readback test before removing fixed
+<code>$44/$45</code> assumptions;</li>
+<li>service invocation schema host test, even before real services
+ship;</li>
+<li>modal/headless invocation VICE tests only when those future features
+are promoted from schema reservation to implementation.</li>
+</ul>
+<h3 id="acceptance-gates">Acceptance Gates</h3>
+<p>Before merging a phase that changes REU allocation, preload,
+suspend/resume, or resource ownership:</p>
+<ul>
+<li><code>make verify</code> passes;</li>
+<li><code>make release-all</code> passes;</li>
+<li><code>make audit-release-assets</code> passes;</li>
+<li><code>make easyflash-verify</code> passes;</li>
+<li>relevant VICE profile boots pass;</li>
+<li>relevant ReadyShell/ReadyBASIC suites pass;</li>
+<li>before/after memory comparison is documented;</li>
+<li>no unexpected shim layout or size change is present;</li>
+<li>no app has a materially significant headroom loss without explicit
+approval.</li>
+</ul>
+<h2 id="documentation-updates">Documentation Updates</h2>
+<p>The refactor must update docs as behavior changes.</p>
+<p>Likely files:</p>
+<ul>
+<li><code>README.md</code>;</li>
+<li><code>docs/ReadyOS SHIM Architecture Report (0.2).html</code> or
+successor report;</li>
+<li><code>docs/ReadyShellArchitecture.md</code>;</li>
+<li><code>docs/readyshell_overlay_inventory.md</code>;</li>
+<li><code>docs/readybasic_memory_diagrams.html</code> via
+regeneration;</li>
+<li><code>src/apps/readybasic/READYBASIC_MICROMODULE_SYNC.md</code>;</li>
+<li><code>src/apps/readybasic/READYBASIC_CURRENT_DESIGN.md</code>;</li>
+<li><code>src/apps/readybasic/READYBASIC_LIFECYCLE_AND_REU_ARCHITECTURE.md</code>;</li>
+<li><code>src/apps/readybasic/REadyBASICCommandModuleAndSubmodulePlan.MD</code>;</li>
+<li>any generated readme/help pages that describe REU layout.</li>
+</ul>
+<p>Stale wording to remove or clarify:</p>
+<ul>
+<li>“launcher bank 0” where launcher now maps to
+<code>skip + 1</code>;</li>
+<li>fixed app slots <code>2-25</code> as the only app model;</li>
+<li>fixed ReadyShell banks as permanent architecture rather than initial
+allocation;</li>
+<li>fixed ReadyBASIC banks once config indirection exists;</li>
+<li>legacy clipboard bank wording.</li>
+</ul>
+<h2 id="main-risks">Main Risks</h2>
+<h3 id="contract-sprawl">Contract Sprawl</h3>
+<p>Many current code paths treat bank number as identity, allocation
+state, and physical location. The refactor must separate these or it
+will become harder to reason about than the current fixed layout.</p>
+<p>Mitigation:</p>
+<ul>
+<li>introduce app id, resource id, owner kind, and physical bank as
+separate fields;</li>
+<li>keep the shim on physical banks only;</li>
+<li>make reuviewer display the separated concepts.</li>
+</ul>
+<h3 id="resident-memory-creep">Resident Memory Creep</h3>
+<p>Moving to dynamic registries can accidentally grow every app through
+shared library additions.</p>
+<p>Mitigation:</p>
+<ul>
+<li>keep most manager code in launcher/service code, not every app;</li>
+<li>expose tiny helper APIs for apps;</li>
+<li>measure every app before/after;</li>
+<li>reject broad app code-size increases unless justified.</li>
+</ul>
+<h3 id="readybasic-assembler-coupling">ReadyBASIC Assembler
+Coupling</h3>
+<p>ReadyBASIC duplicates REU constants and has micromodule/submodule
+placement rules.</p>
+<p>Mitigation:</p>
+<ul>
+<li>defer ReadyBASIC dynamic banks until late;</li>
+<li>use a runtime config block;</li>
+<li>migrate one path at a time;</li>
+<li>update micromodule sync docs immediately after each proven
+change.</li>
+</ul>
+<h3 id="shim-pressure">Shim Pressure</h3>
+<p>There will be temptation to add registry logic to the shim.</p>
+<p>Mitigation:</p>
+<ul>
+<li>keep the shim direct-bank only;</li>
+<li>do app id/resource lookup in launcher/manager;</li>
+<li>use bank <code>0</code> plus <code>$C600-$C7FF</code> cache for
+richer state.</li>
+</ul>
+<h3 id="screen-state-for-modal-services">Screen State For Modal
+Services</h3>
+<p>The app snapshot does not include normal screen RAM or color RAM.</p>
+<p>Mitigation:</p>
+<ul>
+<li>first modal services require caller redraw;</li>
+<li>later add explicit OS screen/color save/restore as a separate
+capability.</li>
+</ul>
+<h2 id="recommended-first-milestone">Recommended First Milestone</h2>
+<p>The first practical milestone should not attempt full dynamic
+everything.</p>
+<p>Recommended milestone:</p>
+<ol type="1">
+<li>capture baseline reports;</li>
+<li>define bank <code>0</code> schema;</li>
+<li>mirror the current fixed layout into bank <code>0</code>;</li>
+<li>keep all behavior fixed;</li>
+<li>make reuviewer/debug tooling show the bank <code>0</code> ownership
+records;</li>
+<li>compare memory/headroom and prove no material app impact.</li>
+</ol>
+<p>Explicit non-goals for the first milestone:</p>
+<ul>
+<li>no dynamic app snapshot allocation;</li>
+<li>no catalog capacity increase;</li>
+<li>no new runtime manifest parser;</li>
+<li>no ReadyShell dynamic bank consumption;</li>
+<li>no ReadyBASIC dynamic bank consumption;</li>
+<li>no clipboard migration unless it is promoted as a separate
+follow-up;</li>
+<li>no unload/eviction;</li>
+<li>no headless invocation;</li>
+<li>no modal UI service app;</li>
+<li>no shim growth or shim semantic change.</li>
+</ul>
+<p>The success condition is boring: the new bank <code>0</code> records
+exist, agree with the old runtime facts, survive normal and cartridge
+boot flows, and cost essentially nothing to normal apps.</p>
+<p>This gives ReadyOS a canonical future control bank without risking
+launcher, shim, ReadyShell, or ReadyBASIC behavior immediately.</p>
+<h2 id="historical-baseline-status-2026-06-02">Historical Baseline
+Status: 2026-06-02</h2>
+<p>At baseline commit
+<code>e7b5487 Add REU control bank mirror baseline</code>, this branch
+had implemented the conservative first milestone plus the first piece of
+Phase 2.5 resolver indirection. At that point it intentionally did not
+implement dynamic app allocation, catalog expansion, manifest parsing,
+unload, headless invocation, modal services, or dynamic
+ReadyShell/ReadyBASIC resource assignment. The current milestone status
+at the top of this document supersedes that baseline for launcher
+dynamic allocation, 64-entry catalogs, cartridge preload tracking, and
+disk launcher unload.</p>
+<p>Implemented:</p>
+<ul>
+<li>added <code>src/lib/reu_control_bank.h</code> and
+<code>src/lib/reu_control_bank.c</code>;</li>
+<li>defined logical bank <code>0</code> schema version <code>1</code>
+with magic <code>RCB0</code>;</li>
+<li>kept the shim at <code>512</code> bytes with no semantic
+change;</li>
+<li>kept <code>$C600-$C7FF</code> as fast resident truth;</li>
+<li>mirrored the resident <code>$C600</code> 256-byte bank-type table
+into logical bank <code>0</code> at offset <code>$0100</code>;</li>
+<li>wrote compact fixed-resource records at <code>$0200</code> for:
+<ul>
+<li>ReadyOS global/control bank;</li>
+<li>launcher snapshot;</li>
+<li>launcher overlay;</li>
+<li>ReadyShell debug bank <code>$43</code>;</li>
+<li>ReadyShell scratch bank <code>$48</code>;</li>
+<li>ReadyBASIC core/code banks <code>$44</code>, <code>$45</code>;</li>
+</ul></li>
+<li>linked the control-bank writer only into launcher and reuviewer, not
+broad normal-app REU libraries;</li>
+<li>refreshed the bank <code>0</code> mirror from launcher after bitmap
+sync and app preload state changes;</li>
+<li>added a fixed-bank launcher snapshot resolver so shim-facing
+launcher paths stop directly depending on <code>app_banks[index]</code>
+at the final handoff point;</li>
+<li>added reuviewer control-bank header validation/status display;</li>
+<li>added <code>build_support/verify_reu_control_bank.py</code>;</li>
+<li>added <code>build_support/report_app_headroom.py</code>;</li>
+<li>captured the current app-window report at
+<code>agentworkijg/reu_refactor_headroom_current.json</code>;</li>
+<li>wired the new static verifier into <code>make verify</code>.</li>
+</ul>
+<p>Verification passed after implementation:</p>
+<ul>
+<li><code>make bin/launcher.prg bin/launcher_easyflash.prg bin/reuviewer.prg</code>;</li>
+<li><code>python3 build_support/verify_reu_control_bank.py</code>;</li>
+<li><code>python3 build_support/report_app_headroom.py --output agentworkijg/reu_refactor_headroom_current.json</code>;</li>
+<li><code>python3 build_support/verify_memory_map.py</code>;</li>
+<li><code>python3 build_support/verify_readyos_shim.py --check-easyflash-bin</code>;</li>
+<li><code>make verify</code>;</li>
+<li><code>make easyflash-verify</code>.</li>
+</ul>
+<p>Observed memory-contract result:</p>
+<ul>
+<li>normal apps do not link the new control-bank writer;</li>
+<li>launcher and reuviewer grow because they deliberately own/debug the
+mirror;</li>
+<li><code>verify_memory_map.py</code> still passes the app-window,
+<code>$C600-$C7FF</code>, shim, and I/O exclusion checks;</li>
+<li><code>verify_readyos_shim.py --check-easyflash-bin</code> still
+reports a <code>512</code> byte shim and EasyFlash shim binary
+byte-identical to <code>readyos_shim.inc</code>;</li>
+<li>ReadyShell heap/overlay bounds still pass the existing memory-map
+checks.</li>
+<li>ReadyShell overlay cache banks are now launcher/loader-assigned
+<code>rsovl</code> resources instead of fixed <code>$40/$41/$42</code>
+global reservations.</li>
+<li>the current generated report shows ReadyBASIC as the tightest
+app-window case with <code>1031</code> bytes of headroom, so broad
+library growth remains unacceptable.</li>
+</ul>
+<p>Open work for the next branch or milestone:</p>
+<ul>
+<li>capture a clean pre-change/mainline report and compare it against
+<code>agentworkijg/reu_refactor_headroom_current.json</code> before
+making authority or allocator changes;</li>
+<li>add a VICE probe that reads logical bank <code>0</code> and
+validates the <code>RCB0</code> header, generation, bank-type mirror,
+and fixed-resource records at runtime; an initial monitor-script attempt
+was deferred because monitor writes to the REU I/O registers did not
+reliably affect the live REU transfer registers, so the next probe
+should be implemented as a small C64-side test program or with a proven
+VICE I/O-address-space command sequence;</li>
+<li>expand launcher resolver coverage beyond final shim-facing handoff
+sites before any dynamic bank assignment is introduced;</li>
+<li>keep the generated ReadyShell <code>rsovl</code> dependency records
+as the source of truth for disk and EasyFlash overlay preloads;</li>
+<li>keep ReadyBASIC module/micromodule dynamic-bank work deferred until
+the C app and ReadyShell resource model has proven stable;</li>
+<li>design unload/eviction and app-owned resource lists only after
+dynamic allocation exists and passes disk plus EasyFlash smoke
+paths.</li>
+</ul>
+
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+mermaid.initialize({ startOnLoad: true, theme: 'default' });
+</script>
+</body>
+</html>

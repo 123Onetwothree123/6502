@@ -713,11 +713,23 @@ jt_fetch_bank   = $C815     ; Helper: fetch from bank in A
             </tbody>
           </table>
           <h3>Logical bank 0 split</h3>
+          <p class="small">
+            <strong>Updated REU refactor note:</strong> this older shim report
+            predates the v3 logical bank 0 control-bank registry. For the full
+            current contract, see
+            <a href="ReadyOSREUenhancementrefactor.html">ReadyOS REU Enhancement Refactor Plan</a>.
+          </p>
           <table>
             <thead><tr><th>Offset</th><th>Meaning</th></tr></thead>
             <tbody>
-              <tr><td class="mono">$0000-$B5FF</td><td>launcher snapshot image of C64 RAM <span class="mono">$1000-$C5FF</span></td></tr>
-              <tr><td class="mono">$B600-$FFFF</td><td>launcher resume tail (<span class="mono">LauncherResumeV1</span> + header)</td></tr>
+              <tr><td class="mono">$0000-$003F</td><td><span class="mono">RCB0</span> v3 header, generation, writer id, bank skip, and section offsets.</td></tr>
+              <tr><td class="mono">$0100-$01FF</td><td>256-byte bank-type table mirror, kept cheap to copy into resident hot state if needed.</td></tr>
+              <tr><td class="mono">$0300-$04FF</td><td>64-entry hot app registry arrays: snapshot bank, loaded flag, resource set, resource loaded flag, drive, and default slot.</td></tr>
+              <tr><td class="mono">$0500-$083F</td><td>64 compact app metadata records, currently app/file token metadata.</td></tr>
+              <tr><td class="mono">$0900-$09FF</td><td>per-app resource-bank arrays used by loader-owned resource state.</td></tr>
+              <tr><td class="mono">$0A00-$0DFF</td><td>64 rich 16-byte resource records for overlays/modules/core/code ownership, physical bank, offset, length, slot, drive, and name tag.</td></tr>
+              <tr><td class="mono">$0E00-$2DFF</td><td>64 bounded dependency/source lines copied from <span class="mono">apps.cfg</span> or <span class="mono">app.*</span> manifests.</td></tr>
+              <tr><td class="mono">$2E00+</td><td>audit and reserved future expansion.</td></tr>
             </tbody>
           </table>
         </div>
