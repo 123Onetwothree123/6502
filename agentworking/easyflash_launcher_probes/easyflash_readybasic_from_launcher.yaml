@@ -1,0 +1,106 @@
+version: 1
+kind: vice_task_plan
+plan_id: easyflash_readybasic_from_launcher
+run_mode: gui_vice
+global_defaults:
+  monitor_host: 127.0.0.1
+  monitor_port_start: 6502
+  monitor_port_span: 40
+  retry_policy:
+    max_attempts: 1
+    backoff_ms: 250
+    jitter: false
+  timeouts:
+    launch_s: 60
+    step_s: 90
+    read_s: 2
+  artifact_policy:
+    capture_screen: true
+    capture_state: true
+    capture_dump: false
+  vice:
+    cart_crt: "/Users/karlprosserpp/dev/c64projects/readyosprecog/releases/0.2.4/precog-easyflash/readyos_easyflash.crt"
+    autostart_enabled: false
+    disk8: "/Users/karlprosserpp/dev/c64projects/readyosprecog/releases/0.2.4/precog-easyflash/readyos_data.d64"
+    drive8_enabled: true
+    drive8_type: 1541
+    drive9_enabled: false
+    true_drive: true
+    close_vice: true
+    headless: true
+    speed_percent: 100
+steps:
+  - id: launch_easyflash
+    type: vice.launch
+    params:
+      kill_stale: true
+  - id: wait_launcher
+    type: screen.wait_contains
+    params:
+      text: "READY OS"
+      pre_delay_s: 4
+      poll_s: 0.5
+      wait_timeout_s: 240
+      capture_label: easyflash_launcher_readybasic_start
+  - id: navigate_to_readybasic
+    type: input.sequence
+    params:
+      keys: [17,17,17,17,13]
+      inter_key_delay_s: 0.08
+      post_delay_s: 2.0
+  - id: wait_readybasic_prompt
+    type: screen.wait_contains
+    params:
+      text: "READYBASIC"
+      wait_timeout_s: 120
+      capture_label: easyflash_readybasic_prompt
+  - id: readybasic_clear_startup_line
+    type: input.sequence
+    params:
+      keys: [13]
+      inter_key_delay_s: 0.035
+      post_delay_s: 1.0
+  - id: wait_readybasic_ready_after_clear
+    type: screen.wait_contains
+    params:
+      text: "READY."
+      wait_timeout_s: 30
+      capture_label: easyflash_readybasic_ready_after_clear
+  - id: readybasic_direct_print_text
+    type: input.sequence
+    params:
+      keys: [80,82,73,78,84,32,34,69,70,67,65,82,84,66,65,83,73,67,34]
+      inter_key_delay_s: 0
+      post_delay_s: 0.3
+  - id: readybasic_direct_print_return
+    type: input.sequence
+    params:
+      keys: [13]
+      inter_key_delay_s: 0.035
+      post_delay_s: 1.0
+  - id: assert_readybasic_direct_print
+    type: assert.screen
+    params:
+      contains: "EFCARTBASIC"
+  - id: readybasic_zadd16_text
+    type: input.sequence
+    params:
+      keys: [80,82,73,78,84,32,34,83,85,77,34,59,90,65,68,68,49,54,40,49,44,50,41]
+      inter_key_delay_s: 0
+      post_delay_s: 0.3
+  - id: readybasic_zadd16_return
+    type: input.sequence
+    params:
+      keys: [13]
+      inter_key_delay_s: 0.035
+      post_delay_s: 1.2
+  - id: assert_readybasic_zadd16
+    type: assert.screen
+    params:
+      contains: "SUM 3"
+  - id: dump_readybasic_state
+    type: dump.memory_ranges
+    params:
+      ranges:
+        - { label: shim_c800, start: 0xC800, end: 0xCA00 }
+        - { label: readybasic_window, start: 0x1000, end: 0x1800 }
