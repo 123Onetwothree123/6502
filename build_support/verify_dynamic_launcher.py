@@ -34,6 +34,12 @@ def main() -> int:
     catalog = (ROOT / "build_support/build_apps_catalog_petscii.py").read_text(
         encoding="utf-8", errors="replace"
     )
+    rs_overlay = (ROOT / "src/apps/readyshell/platform/c64/rs_overlay_c64.c").read_text(
+        encoding="utf-8", errors="replace"
+    )
+    rs_state = (ROOT / "src/apps/readyshell/core/rs_ui_state.h").read_text(
+        encoding="utf-8", errors="replace"
+    )
     makefile = (ROOT / "Makefile").read_text(encoding="utf-8", errors="replace")
 
     check("launcher exposes 64 app capacity",
@@ -73,6 +79,20 @@ def main() -> int:
           "pending_dep_line_required" in launcher and
           "parse_dependency_list_line" in launcher and
           "RESOURCE_DEP_SUFFIX" in catalog)
+    check("dependency-line writer is safe when source is launcher buffer",
+          'line != (const char *)launcher_dep_line_buf' in launcher and
+          "for (; i < REUCB_DEP_LINE_SIZE; ++i)" in launcher)
+    check("ReadyShell dependency placement is config-driven in disk launcher",
+          "launcher_parse_rs_dep_entry" in launcher and
+          "readyshell_overlay_names" not in launcher and
+          "readyshell_overlay_offsets" not in launcher)
+    check("ReadyShell runtime reads overlay bank/offset metadata",
+          "RS_REU_OVL_CACHE_META_VERSION  4u" in rs_state and
+          "g_overlay_cache_offsets" in rs_overlay and
+          "rs_cmd_registry_apply_overlay_cache" in rs_overlay)
+    check("host dependency parser validates placement syntax",
+          "dependency resource bank must be 0..2" in catalog and
+          "dependency offset invalid for overlay slot" in catalog)
     check("host apps.cfg generator allows 64 apps",
           "len(apps) > 64" in catalog)
     check("global hotkeys allow dynamic logical banks",

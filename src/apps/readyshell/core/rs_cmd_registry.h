@@ -56,8 +56,8 @@ int rs_cmd_registry_read_overlay_state(unsigned char index, RSExternalOverlaySta
 int rs_cmd_registry_update_overlay_state(unsigned char index,
                                          unsigned char set_mask,
                                          unsigned char clear_mask);
-int rs_cmd_registry_apply_overlay_banks(unsigned char bank1,
-                                        unsigned char bank2);
+int rs_cmd_registry_apply_overlay_cache(const unsigned char *banks,
+                                        const unsigned short *offsets);
 int rs_cmd_is_external(RSCommandId id);
 
 #endif

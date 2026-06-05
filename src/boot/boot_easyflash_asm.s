@@ -68,7 +68,7 @@ APP_WINDOW_LEN    = $B600
 VERIFY_BUF        = $4000
 VERIFY_CHUNK_LEN  = $2000
 OVL_STAGE_LEN     = $3800
-OVL_META_RAM      = $C7F0
+OVL_META_RAM      = $C760
 SCREEN_RAM        = $0400
 BOOT_LINE0        = SCREEN_RAM + (40 * 0)
 BOOT_LINE1        = SCREEN_RAM + (40 * 1)
@@ -84,7 +84,7 @@ BOOT_BORDER_HANDOFF = $0D
 BOOT_BORDER_ERROR  = $02
 REU_MAGIC_VALUE   = $A5
 SHIM_STORAGE_DRIVE = $C839
-READYSHELL_OVL_META_VERSION = 3
+READYSHELL_OVL_META_VERSION = 4
 READYSHELL_OVL_META_VALID_MASK_LO = $FF
 READYSHELL_OVL_META_VALID_MASK_HI = $01
 DBG_RING_BASE = $C7A0
@@ -931,6 +931,13 @@ preload_overlay_banks:
     rts
 
 write_overlay_meta:
+    ldx #$23
+    lda #$00
+@clear_meta:
+    sta OVL_META_RAM,x
+    dex
+    bpl @clear_meta
+
     lda #'O'
     sta OVL_META_RAM+0
     lda #'V'
@@ -939,21 +946,35 @@ write_overlay_meta:
     sta OVL_META_RAM+2
     lda #READYSHELL_OVL_META_VALID_MASK_LO
     sta OVL_META_RAM+3
-    lda #READYSHELL_CACHE_BANK
-    sta OVL_META_RAM+4
-    lda #READYSHELL_CACHE_BANK2
-    sta OVL_META_RAM+5
     lda #<OVL_STAGE_LEN
-    sta OVL_META_RAM+6
+    sta OVL_META_RAM+4
     lda #>OVL_STAGE_LEN
-    sta OVL_META_RAM+7
+    sta OVL_META_RAM+5
     lda #READYSHELL_OVL_META_VALID_MASK_HI
+    sta OVL_META_RAM+6
+
+    lda #READYSHELL_CACHE_BANK
     sta OVL_META_RAM+8
-    lda #READYSHELL_CACHE_BANK3
-    sta OVL_META_RAM+9
-    lda #$00
-    sta OVL_META_RAM+10
     sta OVL_META_RAM+11
+    sta OVL_META_RAM+14
+    sta OVL_META_RAM+20
+    lda #READYSHELL_CACHE_BANK2
+    sta OVL_META_RAM+17
+    sta OVL_META_RAM+23
+    sta OVL_META_RAM+26
+    sta OVL_META_RAM+29
+    lda #READYSHELL_CACHE_BANK3
+    sta OVL_META_RAM+32
+
+    lda #$38
+    sta OVL_META_RAM+13
+    sta OVL_META_RAM+25
+    lda #$70
+    sta OVL_META_RAM+16
+    sta OVL_META_RAM+28
+    lda #$A8
+    sta OVL_META_RAM+22
+    sta OVL_META_RAM+31
 
     lda #$48
     sta reu_bank_zp
@@ -965,7 +986,7 @@ write_overlay_meta:
     sta dst_lo
     lda #>OVL_META_RAM
     sta dst_hi
-    lda #12
+    lda #36
     sta rem_lo
     lda #$00
     sta rem_hi

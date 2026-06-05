@@ -21,17 +21,18 @@ def fail(message: str) -> None:
 
 
 def expected_overlay_meta(layout: Dict[str, object]) -> bytes:
-    banks = list(layout.get("readyshell_cache_banks", [0, 0, 0]))
-    if len(banks) != 3:
-        fail("layout missing ReadyShell cache bank triplet")
-    return bytes([
-        0x4F, 0x56, 0x03, 0xFF,
-        int(banks[0]) & 0xFF,
-        int(banks[1]) & 0xFF,
-        0x00, 0x38, 0x01,
-        int(banks[2]) & 0xFF,
-        0x00, 0x00,
-    ])
+    overlays = list(layout.get("overlays", []))
+    if len(overlays) != 9:
+        fail("layout missing ReadyShell overlay records")
+    out = bytearray([0x4F, 0x56, 0x04, 0xFF, 0x00, 0x38, 0x01, 0x00])
+    for entry in overlays:
+        reu_off = int(entry["reu_off"])
+        out.extend([
+            int(entry["reu_bank"]) & 0xFF,
+            reu_off & 0xFF,
+            (reu_off >> 8) & 0xFF,
+        ])
+    return bytes(out)
 
 
 def payload_bytes_from_prg(path: Path) -> bytes:
@@ -262,7 +263,7 @@ def write_monitor(output_path: Path,
         "m c7a0 c7ef",
         "m c700 c700",
         "m c836 c839",
-        "m c7f0 c7fb",
+        "m c760 c783",
         "m de00 de02",
         "m df01 df08",
         "q",
@@ -326,15 +327,16 @@ def verify_preload_diagnostics(dumps: Dict[int, bytes], layout: Dict[str, object
         fail("missing REU magic memory dump at $C700")
     if 0xC836 not in dumps:
         fail("missing launcher bitmap memory dump at $C836")
-    if 0xC7F0 not in dumps:
-        fail("missing ReadyShell overlay metadata dump at $C7F0")
+    if 0xC760 not in dumps:
+        fail("missing ReadyShell overlay metadata dump at $C760")
     if 0xC7A0 not in dumps:
         fail("missing launcher debug ring dump at $C7A0")
 
     bitmap = expected_bitmap(layout)
     check_prefix(dumps[0xC700], bytes([0xA5]), "REU magic")
     check_prefix(dumps[0xC836], bitmap, "app preload bitmap/storage drive")
-    check_prefix(dumps[0xC7F0], expected_overlay_meta(layout), "overlay metadata")
+    check_prefix(region_bytes(dumps, 0xC760, len(expected_overlay_meta(layout))),
+                 expected_overlay_meta(layout), "overlay metadata")
     ring = region_bytes(dumps, 0xC7A0, 0x50)
     for marker in (b"R", b"L", b"A", b"O", b"M", b"V"):
         if not marker_present(ring, marker):
@@ -388,13 +390,14 @@ def verify_log(output_dir: Path,
         fail("missing REU magic memory dump at $C700")
     if 0xC836 not in dumps:
         fail("missing launcher bitmap memory dump at $C836")
-    if 0xC7F0 not in dumps:
-        fail("missing ReadyShell overlay metadata dump at $C7F0")
+    if 0xC760 not in dumps:
+        fail("missing ReadyShell overlay metadata dump at $C760")
 
     check_prefix(region_bytes(dumps, 0x1000, len(launcher_prefix)), launcher_prefix, "launcher RAM prefix")
     check_prefix(dumps[0xC700], bytes([0xA5]), "REU magic")
     check_prefix(dumps[0xC836], bitmap, "app preload bitmap/storage drive")
-    check_prefix(dumps[0xC7F0], expected_overlay_meta(layout), "overlay metadata")
+    check_prefix(region_bytes(dumps, 0xC760, len(expected_overlay_meta(layout))),
+                 expected_overlay_meta(layout), "overlay metadata")
     ring = region_bytes(dumps, 0xC7A0, 0x50)
     for marker in (b"R", b"L", b"A", b"O", b"M", b"V", b"T", b"J", b"K"):
         if not marker_present(ring, marker):

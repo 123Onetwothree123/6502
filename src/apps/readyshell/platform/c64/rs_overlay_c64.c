@@ -41,9 +41,8 @@ static unsigned char g_overlay_active_phase = RS_OVERLAY_PHASE_NONE;
 static unsigned short g_dbg_pos = 0u;
 static unsigned char g_ram_dbg_pos = 0u;
 static unsigned char g_overlay_meta_buf[RS_REU_OVL_CACHE_META_LEN];
-static unsigned char g_overlay_cache_bank1;
-static unsigned char g_overlay_cache_bank2;
-static unsigned char g_overlay_cache_bank3;
+static unsigned char g_overlay_cache_banks[RS_OVERLAY_COUNT];
+static unsigned short g_overlay_cache_offsets[RS_OVERLAY_COUNT];
 /* 0 = unknown, 1 = disabled (no REU), 2 = enabled */
 static unsigned char g_dbg_state = 0u;
 
@@ -69,15 +68,15 @@ static unsigned long rs_overlay_abs(unsigned char bank, unsigned short rel) {
 }
 
 static unsigned long rs_overlay_parse_off(void) {
-  return rs_overlay_abs(g_overlay_cache_bank1, RS_REU_OVL_CACHE_PARSE_REL);
+  return rs_overlay_abs(g_overlay_cache_banks[0], g_overlay_cache_offsets[0]);
 }
 
 static unsigned long rs_overlay_exec_off(void) {
-  return rs_overlay_abs(g_overlay_cache_bank1, RS_REU_OVL_CACHE_EXEC_REL);
+  return rs_overlay_abs(g_overlay_cache_banks[1], g_overlay_cache_offsets[1]);
 }
 
 static unsigned long rs_overlay_edit_off(void) {
-  return rs_overlay_abs(g_overlay_cache_bank3, RS_REU_OVL_CACHE_EDIT_REL);
+  return rs_overlay_abs(g_overlay_cache_banks[8], g_overlay_cache_offsets[8]);
 }
 
 static void rs_overlay_dbg_reset(void) {
@@ -166,12 +165,13 @@ static int rs_overlay_read_from_reu(unsigned long off, void* dst, unsigned short
   return rc == 0 ? 0 : -1;
 }
 
+static unsigned short rs_overlay_valid_bit(unsigned char overlay_num);
+
 static int rs_overlay_meta_read(unsigned short needed_mask) {
   unsigned short slot_len;
   unsigned short valid_mask;
-  unsigned char bank1;
-  unsigned char bank2;
-  unsigned char bank3;
+  unsigned char i;
+  unsigned char rec_off;
 
   memset(g_overlay_meta_buf, 0, sizeof(g_overlay_meta_buf));
   if (rs_reu_read(RS_REU_OVL_CACHE_META_OFF, g_overlay_meta_buf, sizeof(g_overlay_meta_buf)) != 0) {
@@ -182,27 +182,31 @@ static int rs_overlay_meta_read(unsigned short needed_mask) {
       g_overlay_meta_buf[2] != RS_REU_OVL_CACHE_META_VERSION) {
     return -1;
   }
-  bank1 = g_overlay_meta_buf[4];
-  bank2 = g_overlay_meta_buf[5];
-  bank3 = g_overlay_meta_buf[9];
-  if (bank1 == 0u || bank2 == 0u || bank3 == 0u) {
-    return -1;
-  }
   valid_mask = (unsigned short)g_overlay_meta_buf[3] |
-               ((unsigned short)g_overlay_meta_buf[8] << 8u);
+               ((unsigned short)g_overlay_meta_buf[6] << 8u);
   if ((valid_mask & needed_mask) != needed_mask) {
     return -1;
   }
 
-  slot_len = (unsigned short)g_overlay_meta_buf[6] |
-             ((unsigned short)g_overlay_meta_buf[7] << 8u);
+  slot_len = (unsigned short)g_overlay_meta_buf[4] |
+             ((unsigned short)g_overlay_meta_buf[5] << 8u);
   if (slot_len != RS_REU_OVL_CACHE_SLOT_LEN) {
     return -1;
   }
-  g_overlay_cache_bank1 = bank1;
-  g_overlay_cache_bank2 = bank2;
-  g_overlay_cache_bank3 = bank3;
-  if (rs_cmd_registry_apply_overlay_banks(bank1, bank2) != 0) {
+  for (i = 0u; i < RS_OVERLAY_COUNT; ++i) {
+    rec_off = (unsigned char)(RS_REU_OVL_CACHE_META_REC_OFF +
+                              (i * RS_REU_OVL_CACHE_META_REC_LEN));
+    g_overlay_cache_banks[i] = g_overlay_meta_buf[rec_off];
+    g_overlay_cache_offsets[i] =
+        (unsigned short)g_overlay_meta_buf[(unsigned char)(rec_off + 1u)] |
+        ((unsigned short)g_overlay_meta_buf[(unsigned char)(rec_off + 2u)] << 8u);
+    if ((valid_mask & rs_overlay_valid_bit((unsigned char)(i + 1u))) != 0u &&
+        g_overlay_cache_banks[i] == 0u) {
+      return -1;
+    }
+  }
+  if (rs_cmd_registry_apply_overlay_cache(g_overlay_cache_banks,
+                                          g_overlay_cache_offsets) != 0) {
     return -1;
   }
   return 0;

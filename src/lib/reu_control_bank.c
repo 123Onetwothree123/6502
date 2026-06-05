@@ -95,6 +95,14 @@ static void reucb_write_header(unsigned char control_bank, unsigned char writer_
     reucb_header[33] = REUCB_DEP_SIZE;
     reucb_header[34] = (unsigned char)(REUCB_AUDIT_OFF & 0xFFu);
     reucb_header[35] = (unsigned char)(REUCB_AUDIT_OFF >> 8);
+    reucb_header[36] = (unsigned char)(REUCB_RSRC_REC_OFF & 0xFFu);
+    reucb_header[37] = (unsigned char)(REUCB_RSRC_REC_OFF >> 8);
+    reucb_header[38] = REUCB_RSRC_REC_COUNT;
+    reucb_header[39] = REUCB_RSRC_REC_SIZE;
+    reucb_header[40] = (unsigned char)(REUCB_DEP_LINE_OFF & 0xFFu);
+    reucb_header[41] = (unsigned char)(REUCB_DEP_LINE_OFF >> 8);
+    reucb_header[42] = REUCB_DEP_LINE_COUNT;
+    reucb_header[43] = REUCB_DEP_LINE_SIZE;
 
     reu_dma_stash((unsigned int)reucb_header, control_bank,
                   REUCB_HEADER_OFF, REUCB_HEADER_SIZE);

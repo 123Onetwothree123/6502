@@ -28,6 +28,110 @@ tracker for the REU enhancement refactor. Completed implementation status is
 recorded explicitly; future design notes remain design notes until marked
 implemented here.
 
+## Implementation Status 2026-06-04
+
+Completed in branch `codex/reu-control-bank-refactor` after the v2 registry
+checkpoint:
+
+- logical REU bank `0` mirror schema advanced to `RCB0`, version `3`;
+- the hot app registry remains array-shaped and cheap to copy:
+  - `$0300`: 64-entry app-state arrays;
+  - `$0500`: compact app filename/token records;
+  - `$0900`: per-app resource-bank arrays;
+- richer loader-owned relationship metadata now lives outside the hot copy path:
+  - `$0A00`: 64 compact 16-byte resource/file records containing app owner,
+    resource set, resource kind, physical bank, offset, length, flags, next
+    index, overlay slot, source drive, and a short name tag;
+  - `$0E00`: 64 fixed 128-byte dependency/source lines copied from disk
+    `apps.cfg` or `app.*` manifests;
+- the disk launcher no longer hard-codes the ReadyShell overlay file table,
+  bank ordinal table, or slot offsets. ReadyShell `rsovl+` placement is read
+  from the dependency line using `name@resourceBankOrdinal:offset`;
+- shipped disk catalogs and manifests now carry the explicit ReadyShell packing
+  line:
+
+```text
+rsparser@0:0000,rsvm@0:3800,rsdrvilst@0:7000,rsldv@1:0000,rsstv@0:a800,rsfops@1:3800,rscat@1:7000,rscopy@1:a800,rsedit@2:0000
+```
+
+- the launcher still owns allocation/unload policy. On load it writes rich
+  resource records for ReadyShell overlays and ReadyBASIC module banks; on
+  unload it clears records for the app before freeing those banks;
+- ReadyShell consumes only the small v4 `OV` metadata block with nine
+  `(bank, offset)` records. That keeps ReadyShell from linking the larger
+  registry machinery;
+- EasyFlash remains generated/static at build time, but now writes the same v4
+  ReadyShell metadata shape and mirrors equivalent rich resource records into
+  bank `0`;
+- REU Viewer now uses the bank `0` metadata to show whether the selected bank is
+  an app snapshot, which app slot/name owns it, or which overlay/module record
+  is stored in it;
+- static verifiers now reject:
+  - a launcher-side return to hard-coded ReadyShell overlay placement;
+  - dependency writers that erase the source line when the source is the
+    launcher dependency buffer;
+  - schema regressions in the v3 bank `0` rich-record layout;
+  - EasyFlash v4 ReadyShell metadata verifier drift.
+
+Final measured v3 rich-registry impact against the accepted v2 bank-0 registry
+baseline:
+
+| App | Before | Final | Delta |
+| --- | ---: | ---: | ---: |
+| launcher | 3583 | 1009 | -2574 |
+| editor | 11712 | 11712 | 0 |
+| quicknotes | 9518 | 9518 | 0 |
+| calcplus | 6715 | 6715 | 0 |
+| hexview | 32399 | 32399 | 0 |
+| clipmgr | 13561 | 13561 | 0 |
+| reuviewer | 29572 | 28781 | -791 |
+| sysinfo | 30021 | 30021 | 0 |
+| tasklist | 6069 | 6069 | 0 |
+| simplefiles | 12636 | 12636 | 0 |
+| game2048 | 28580 | 28580 | 0 |
+| deminer | 22167 | 22167 | 0 |
+| cal26 | 8751 | 8751 | 0 |
+| dizzy | 1834 | 1834 | 0 |
+| readyirc | 29006 | 29006 | 0 |
+| rirc-rrnet | 18220 | 18220 | 0 |
+| readybasic | 1029 | 1029 | 0 |
+| readme | 22748 | 22748 | 0 |
+| readyshell | 18660 | 18327 | -333 |
+
+Interpretation: normal apps and ReadyBASIC do not pay for the rich bank `0`
+registry. The cost is concentrated in the launcher, which owns parse/load/unload
+policy, and REU Viewer, which displays the relationship data. ReadyShell pays
+333 bytes for consuming dynamic bank/offset overlay metadata while still
+avoiding the large registry writer.
+
+Verification completed for this v3 checkpoint:
+
+- `python3 -m py_compile build_support/build_apps_catalog_petscii.py build_support/readyos_easyflash.py build_support/verify_reu_control_bank.py build_support/verify_dynamic_launcher.py build_support/vice_easyflash_smoke.py verify.py`;
+- `python3 build_support/verify_reu_control_bank.py`;
+- `python3 build_support/verify_dynamic_launcher.py`;
+- `make verify`;
+- `make readyshell-host-tests`;
+- `READYSHELL_VISIBLE=0 build_support/run_readyshell_cross_app_resume_probe.sh`;
+- `make easyflash-verify`.
+
+The EasyFlash smoke now verifies the full 36-byte v4 overlay metadata region at
+`$C760-$C783`, including multi-line VICE monitor dumps. Earlier verifier logic
+only compared the first 16-byte monitor row and was corrected.
+
+ReadyBASIC headless VICE suite status for this checkpoint is tracked in
+`agentworking/reu_rich_registry_working_notes.md` and should be kept current
+with the final command result before the branch is merged.
+
+Still not implemented:
+
+- a generic arbitrary dependency loader for unknown app-specific overlays;
+- app-requested bank ownership records after app launch;
+- headless/service/modal invocation records;
+- a dedicated disk-launcher VICE navigation test for REU Viewer selection
+  details. Static schema checks and full app memory-map verification cover the
+  current REU Viewer implementation; a future VICE plan should navigate the
+  viewer after loading ReadyShell and assert visible owner/detail text.
+
 ## Implementation Status 2026-06-03
 
 Completed in branch `codex/reu-control-bank-refactor`:

@@ -106,7 +106,21 @@ def validate_dependency_list(raw: str, path: str, line_no: int) -> None:
         item = part.strip()
         if not item:
             continue
-        if ":" in item:
+        if "@" in item:
+            name_raw, placement_raw = [p.strip() for p in item.split("@", 1)]
+            normalize_prg_token(name_raw, path, line_no)
+            if ":" not in placement_raw:
+                fail(path, line_no, f"dependency placement missing offset: {item!r}")
+            bank_raw, off_raw = [p.strip() for p in placement_raw.split(":", 1)]
+            if bank_raw not in {"0", "1", "2"}:
+                fail(path, line_no, f"dependency resource bank must be 0..2: {bank_raw!r}")
+            try:
+                off = int(off_raw, 16)
+            except ValueError:
+                fail(path, line_no, f"dependency offset must be hex: {off_raw!r}")
+            if off < 0 or off > 0xC800 or off % 0x3800:
+                fail(path, line_no, f"dependency offset invalid for overlay slot: {off_raw!r}")
+        elif ":" in item:
             drive_raw, name_raw = [p.strip() for p in item.split(":", 1)]
             if not drive_raw.isdigit():
                 fail(path, line_no, f"dependency drive must be numeric: {drive_raw!r}")

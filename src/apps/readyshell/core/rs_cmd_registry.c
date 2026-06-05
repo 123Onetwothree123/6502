@@ -171,20 +171,30 @@ int rs_cmd_registry_update_overlay_state(unsigned char index,
   return rs_reu_write(off, &state, 1u);
 }
 
-int rs_cmd_registry_apply_overlay_banks(unsigned char bank1,
-                                        unsigned char bank2) {
+int rs_cmd_registry_apply_overlay_cache(const unsigned char *banks,
+                                        const unsigned short *offsets) {
   unsigned char i;
-  unsigned char bank;
+  unsigned char overlay_index;
   unsigned long off;
+  static const unsigned char overlay_nums[RS_CMD_REG_STATE_COUNT] = {
+    3u, 4u, 5u, 6u, 7u, 8u
+  };
 
-  if (bank1 == 0u || bank2 == 0u || rs_cmd_registry_ensure_seeded() != 0) {
+  if (!banks || !offsets || rs_cmd_registry_ensure_seeded() != 0) {
     return -1;
   }
 
   for (i = 0u; i < RS_CMD_REG_STATE_COUNT; ++i) {
-    bank = (i == 0u || i == 2u) ? bank1 : bank2;
+    overlay_index = (unsigned char)(overlay_nums[i] - 1u);
+    if (banks[overlay_index] == 0u) {
+      return -1;
+    }
     off = rs_cmd_reg_state_abs(i) + RS_CMD_REG_STATE_CACHE_BANK_OFF;
-    if (rs_reu_write(off, &bank, 1u) != 0) {
+    if (rs_reu_write(off, &banks[overlay_index], 1u) != 0) {
+      return -1;
+    }
+    off = rs_cmd_reg_state_abs(i) + RS_CMD_REG_STATE_CACHE_OFF_LO;
+    if (rs_reu_write(off, &offsets[overlay_index], 2u) != 0) {
       return -1;
     }
   }

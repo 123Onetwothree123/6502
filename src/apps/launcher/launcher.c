@@ -7,6 +7,7 @@
 
 #include "../../lib/tui.h"
 #include "../../lib/resume_state.h"
+#include "../../lib/reu_control_bank.h"
 #include "../../generated/build_version.h"
 #ifndef READYOS_LAUNCHER_VARIANT_EASYFLASH
 #define READYOS_LAUNCHER_VARIANT_EASYFLASH 0
@@ -138,7 +139,10 @@ void reu_dma_stash(unsigned int c64_addr, unsigned char bank,
 #define READYSHELL_OVERLAY_LOAD_ADDR 0x8E00u
 #define READYSHELL_META_BANK 0x48u
 #define READYSHELL_META_OFF 0x80F0u
-#define READYSHELL_META_VERSION 3u
+#define READYSHELL_META_VERSION 4u
+#define READYSHELL_META_LEN 36u
+#define READYSHELL_META_REC_OFF 8u
+#define READYSHELL_META_REC_LEN 3u
 #define READYSHELL_META_VALID_LO 0xFFu
 #define READYSHELL_META_VALID_HI 0x01u
 #define RESOURCE_IO_CHUNK 128
@@ -270,7 +274,9 @@ static char launcher_variant_boot_name[VARIANT_MAX_LEN + 1];
 static char launcher_runappfirst_prg[MAX_FILE_LEN + 1];
 static char launcher_notice[LAUNCHER_NOTICE_LEN + 1];
 static unsigned char launcher_notice_color = TUI_COLOR_GRAY3;
-static unsigned char launcher_rs_meta_buf[12];
+static unsigned char launcher_rs_meta_buf[READYSHELL_META_LEN];
+static unsigned char launcher_rsrc_rec_buf[REUCB_RSRC_REC_SIZE];
+static unsigned char launcher_dep_line_buf[REUCB_DEP_LINE_SIZE];
 #if !READYOS_LAUNCHER_VARIANT_EASYFLASH
 static unsigned char launcher_resource_buf[RESOURCE_IO_CHUNK];
 static FileDialogState launcher_file_dialog;
@@ -323,7 +329,14 @@ static unsigned char launcher_prepare_app_resources(unsigned char index);
 #if !READYOS_LAUNCHER_VARIANT_EASYFLASH
 static void launcher_free_app_resources(unsigned char index);
 #endif
+static void launcher_control_clear_resource_records(void);
+static void launcher_control_clear_dependency_lines(void);
+#if !READYOS_LAUNCHER_VARIANT_EASYFLASH
+static void launcher_control_write_dep_line(unsigned char index,
+                                            const char *line);
+#endif
 static void launcher_set_notice(const char *msg, unsigned char color);
+static void launcher_set_notice_if_empty(const char *msg, unsigned char color);
 #if READYOS_LAUNCHER_VARIANT_EASYFLASH
 static void launcher_mark_embedded_preloads_loaded(void);
 #endif
@@ -343,36 +356,6 @@ unsigned char tui_get_prev_app(unsigned char current_bank) {
     (void)current_bank;
     return 0;
 }
-
-#if !READYOS_LAUNCHER_VARIANT_EASYFLASH
-static const char readyshell_overlay_names[READYSHELL_OVERLAY_COUNT][MAX_FILE_LEN + 1] = {
-    "rsparser",
-    "rsvm",
-    "rsdrvilst",
-    "rsldv",
-    "rsstv",
-    "rsfops",
-    "rscat",
-    "rscopy",
-    "rsedit"
-};
-
-static const unsigned char readyshell_overlay_bank_slot[READYSHELL_OVERLAY_COUNT] = {
-    0u, 0u, 0u, 1u, 0u, 1u, 1u, 1u, 2u
-};
-
-static const unsigned int readyshell_overlay_offsets[READYSHELL_OVERLAY_COUNT] = {
-    0x0000u,
-    0x3800u,
-    0x7000u,
-    0x0000u,
-    0xA800u,
-    0x3800u,
-    0x7000u,
-    0xA800u,
-    0x0000u
-};
-#endif
 
 static unsigned char launcher_has_load_all_slot(void) {
 #if READYOS_LAUNCHER_VARIANT_EASYFLASH
@@ -865,10 +848,33 @@ static unsigned char parse_resource_field(char *field_resource,
     return CFG_ERR_RESOURCE;
 }
 
+static unsigned char parse_dep_hex_word(const char *text,
+                                        unsigned int *out_value) {
+    unsigned char i;
+    unsigned char ch;
+    unsigned int value = 0u;
+
+    for (i = 0u; text[i] != 0; ++i) {
+        ch = (unsigned char)text[i];
+        value = (unsigned int)(value << 4);
+        if (ch >= '0' && ch <= '9') {
+            value = (unsigned int)(value + (unsigned int)(ch - '0'));
+        } else if (ch >= 'a' && ch <= 'f') {
+            value = (unsigned int)(value + (unsigned int)(10u + ch - 'a'));
+        } else {
+            return 0u;
+        }
+    }
+    *out_value = value;
+    return (unsigned char)(i != 0u);
+}
+
 static unsigned char parse_dependency_list_line(char *line,
                                                 unsigned char default_drive,
+                                                unsigned char resource_set,
                                                 unsigned char *out_detail) {
     (void)default_drive;
+    (void)resource_set;
     *out_detail = 0u;
     trim_in_place(line);
     if (line[0] == 0) {
@@ -1293,7 +1299,7 @@ static unsigned char load_catalog_from_embedded(unsigned char *detail_a,
 static unsigned char load_catalog_from_disk(unsigned char *detail_a,
                                             unsigned char *detail_b,
                                             unsigned char *detail_c) {
-    char line[96];
+    char line[REUCB_DEP_LINE_SIZE];
     char *key;
     char *value;
     char pending_prg[MAX_FILE_LEN + 1];
@@ -1421,7 +1427,11 @@ static unsigned char load_catalog_from_disk(unsigned char *detail_a,
             }
         } else {
             parse_detail = 0u;
-            err = parse_dependency_list_line(line, pending_drive, &parse_detail);
+            copy_text_limit((char *)launcher_dep_line_buf,
+                            sizeof(launcher_dep_line_buf), line);
+            err = parse_dependency_list_line(line, pending_drive,
+                                             pending_resource_set,
+                                             &parse_detail);
             if (err != 0u) {
                 cbm_close(APP_CFG_LFN);
                 *detail_a = err;
@@ -1439,6 +1449,10 @@ static unsigned char load_catalog_from_disk(unsigned char *detail_a,
             *detail_b = err;
             *detail_c = app_count;
             return err;
+        }
+        if (pending_dep_line_required) {
+            launcher_control_write_dep_line((unsigned char)(app_count - 1u),
+                                            (const char *)launcher_dep_line_buf);
         }
 
         pending_state = 0u;
@@ -1666,20 +1680,240 @@ static void launcher_mirror_reu_control(void) {
         apps_loaded);
 }
 
-static void launcher_write_readyshell_meta(unsigned char index) {
+static unsigned int launcher_control_dep_line_off(unsigned char index) {
+    return (unsigned int)(REUCB_DEP_LINE_OFF +
+                          ((unsigned int)index * REUCB_DEP_LINE_SIZE));
+}
+
+static unsigned char launcher_control_app_id(unsigned char index) {
+    unsigned char first;
+
+    first = launcher_first_app_index();
+    if (index < first) {
+        return REUCB_NULL_REC;
+    }
+    return (unsigned char)(index - first);
+}
+
+static unsigned int launcher_control_rsrc_rec_off(unsigned char rec_index) {
+    return (unsigned int)(REUCB_RSRC_REC_OFF +
+                          ((unsigned int)rec_index * REUCB_RSRC_REC_SIZE));
+}
+
+#if !READYOS_LAUNCHER_VARIANT_EASYFLASH
+static void launcher_control_write_dep_line(unsigned char index,
+                                            const char *line) {
+    unsigned char i;
+    unsigned char control_bank;
+    unsigned char app_id;
+
+    app_id = launcher_control_app_id(index);
+    if (app_id >= REUCB_DEP_LINE_COUNT) {
+        return;
+    }
+    for (i = 0u; i < (unsigned char)(REUCB_DEP_LINE_SIZE - 1u) &&
+                 line != 0 && line[i] != 0; ++i) {
+        if (line != (const char *)launcher_dep_line_buf) {
+            launcher_dep_line_buf[i] = (unsigned char)line[i];
+        }
+    }
+    for (; i < REUCB_DEP_LINE_SIZE; ++i) {
+        launcher_dep_line_buf[i] = 0u;
+    }
+    control_bank = REU_READYOS_GLOBAL_PHYSICAL();
+    reu_dma_stash((unsigned int)launcher_dep_line_buf, control_bank,
+                  launcher_control_dep_line_off(app_id), REUCB_DEP_LINE_SIZE);
+}
+
+static void launcher_control_read_dep_line(unsigned char index) {
+    unsigned char control_bank;
+    unsigned char app_id;
+
+    app_id = launcher_control_app_id(index);
+    if (app_id >= REUCB_DEP_LINE_COUNT) {
+        launcher_dep_line_buf[0] = 0u;
+        return;
+    }
+    control_bank = REU_READYOS_GLOBAL_PHYSICAL();
+    reu_dma_fetch((unsigned int)launcher_dep_line_buf, control_bank,
+                  launcher_control_dep_line_off(app_id), REUCB_DEP_LINE_SIZE);
+    launcher_dep_line_buf[REUCB_DEP_LINE_SIZE - 1u] = 0u;
+}
+#endif
+
+static void launcher_control_clear_resource_records(void) {
+    unsigned char i;
+    unsigned char control_bank;
+
+    control_bank = REU_READYOS_GLOBAL_PHYSICAL();
+    for (i = 0u; i < REUCB_RSRC_REC_SIZE; ++i) {
+        launcher_rsrc_rec_buf[i] = 0u;
+    }
+    launcher_rsrc_rec_buf[0] = REUCB_NULL_REC;
+    for (i = 0u; i < REUCB_RSRC_REC_COUNT; ++i) {
+        reu_dma_stash((unsigned int)launcher_rsrc_rec_buf, control_bank,
+                      launcher_control_rsrc_rec_off(i), REUCB_RSRC_REC_SIZE);
+    }
+}
+
+static void launcher_control_clear_dependency_lines(void) {
+    unsigned char i;
+    unsigned char control_bank;
+
+    control_bank = REU_READYOS_GLOBAL_PHYSICAL();
+    memset(launcher_dep_line_buf, 0, sizeof(launcher_dep_line_buf));
+    for (i = 0u; i < REUCB_DEP_LINE_COUNT; ++i) {
+        reu_dma_stash((unsigned int)launcher_dep_line_buf, control_bank,
+                      launcher_control_dep_line_off(i), REUCB_DEP_LINE_SIZE);
+    }
+}
+
+static void launcher_control_clear_app_resource_records(unsigned char index) {
+    unsigned char i;
+    unsigned char control_bank;
+    unsigned char app_id;
+
+    app_id = launcher_control_app_id(index);
+    if (app_id == REUCB_NULL_REC) {
+        return;
+    }
+    control_bank = REU_READYOS_GLOBAL_PHYSICAL();
+    for (i = 0u; i < REUCB_RSRC_REC_COUNT; ++i) {
+        reu_dma_fetch((unsigned int)launcher_rsrc_rec_buf, control_bank,
+                      launcher_control_rsrc_rec_off(i), REUCB_RSRC_REC_SIZE);
+        if (launcher_rsrc_rec_buf[0] == app_id) {
+            memset(launcher_rsrc_rec_buf, 0, sizeof(launcher_rsrc_rec_buf));
+            launcher_rsrc_rec_buf[0] = REUCB_NULL_REC;
+            reu_dma_stash((unsigned int)launcher_rsrc_rec_buf, control_bank,
+                          launcher_control_rsrc_rec_off(i), REUCB_RSRC_REC_SIZE);
+        }
+    }
+}
+
+static unsigned char launcher_control_alloc_resource_record(void) {
+    unsigned char i;
+    unsigned char control_bank;
+
+    control_bank = REU_READYOS_GLOBAL_PHYSICAL();
+    for (i = 0u; i < REUCB_RSRC_REC_COUNT; ++i) {
+        reu_dma_fetch((unsigned int)launcher_rsrc_rec_buf, control_bank,
+                      launcher_control_rsrc_rec_off(i), REUCB_RSRC_REC_SIZE);
+        if (launcher_rsrc_rec_buf[0] == REUCB_NULL_REC) {
+            return i;
+        }
+    }
+    return REUCB_NULL_REC;
+}
+
+static void launcher_control_write_resource_record(unsigned char rec_index,
+                                                   unsigned char app_index,
+                                                   unsigned char resource_set,
+                                                   unsigned char kind,
+                                                   unsigned char bank,
+                                                   unsigned int offset,
+                                                   unsigned int length,
+                                                   unsigned char flags,
+                                                   unsigned char slot_id,
+                                                   unsigned char drive,
+                                                   const char *name) {
+    unsigned char i;
+    unsigned char app_id;
+
+    if (rec_index >= REUCB_RSRC_REC_COUNT) {
+        return;
+    }
+    app_id = launcher_control_app_id(app_index);
+    if (app_id == REUCB_NULL_REC) {
+        return;
+    }
+    memset(launcher_rsrc_rec_buf, 0, sizeof(launcher_rsrc_rec_buf));
+    launcher_rsrc_rec_buf[0] = app_id;
+    launcher_rsrc_rec_buf[1] = resource_set;
+    launcher_rsrc_rec_buf[2] = kind;
+    launcher_rsrc_rec_buf[3] = bank;
+    launcher_rsrc_rec_buf[4] = (unsigned char)(offset & 0xFFu);
+    launcher_rsrc_rec_buf[5] = (unsigned char)(offset >> 8);
+    launcher_rsrc_rec_buf[6] = (unsigned char)(length & 0xFFu);
+    launcher_rsrc_rec_buf[7] = (unsigned char)(length >> 8);
+    launcher_rsrc_rec_buf[8] = flags;
+    launcher_rsrc_rec_buf[9] = REUCB_NULL_REC;
+    launcher_rsrc_rec_buf[10] = slot_id;
+    launcher_rsrc_rec_buf[11] = drive;
+    for (i = 0u; i < 4u && name != 0 && name[i] != 0; ++i) {
+        launcher_rsrc_rec_buf[(unsigned char)(12u + i)] = (unsigned char)name[i];
+    }
+    reu_dma_stash((unsigned int)launcher_rsrc_rec_buf, REU_READYOS_GLOBAL_PHYSICAL(),
+                  launcher_control_rsrc_rec_off(rec_index), REUCB_RSRC_REC_SIZE);
+}
+
+static void launcher_init_readyshell_meta(void) {
     memset(launcher_rs_meta_buf, 0, sizeof(launcher_rs_meta_buf));
     launcher_rs_meta_buf[0] = 'O';
     launcher_rs_meta_buf[1] = 'V';
     launcher_rs_meta_buf[2] = READYSHELL_META_VERSION;
-    launcher_rs_meta_buf[3] = READYSHELL_META_VALID_LO;
-    launcher_rs_meta_buf[4] = app_rs_bank1[index];
-    launcher_rs_meta_buf[5] = app_rs_bank2[index];
-    launcher_rs_meta_buf[6] = (unsigned char)(READYSHELL_OVERLAY_SLOT_LEN & 0xFFu);
-    launcher_rs_meta_buf[7] = (unsigned char)(READYSHELL_OVERLAY_SLOT_LEN >> 8);
-    launcher_rs_meta_buf[8] = READYSHELL_META_VALID_HI;
-    launcher_rs_meta_buf[9] = app_rs_bank3[index];
+    launcher_rs_meta_buf[4] = (unsigned char)(READYSHELL_OVERLAY_SLOT_LEN & 0xFFu);
+    launcher_rs_meta_buf[5] = (unsigned char)(READYSHELL_OVERLAY_SLOT_LEN >> 8);
+}
+
+static void launcher_add_readyshell_meta_record(unsigned char overlay_num,
+                                                unsigned char bank,
+                                                unsigned int offset) {
+    unsigned char rec_off;
+    unsigned short bit;
+
+    if (overlay_num == 0u || overlay_num > READYSHELL_OVERLAY_COUNT) {
+        return;
+    }
+    rec_off = (unsigned char)(READYSHELL_META_REC_OFF +
+                              ((unsigned char)(overlay_num - 1u) *
+                               READYSHELL_META_REC_LEN));
+    launcher_rs_meta_buf[rec_off] = bank;
+    launcher_rs_meta_buf[(unsigned char)(rec_off + 1u)] =
+        (unsigned char)(offset & 0xFFu);
+    launcher_rs_meta_buf[(unsigned char)(rec_off + 2u)] =
+        (unsigned char)(offset >> 8);
+    bit = (unsigned short)(1u << (overlay_num - 1u));
+    launcher_rs_meta_buf[3] =
+        (unsigned char)(launcher_rs_meta_buf[3] | (unsigned char)(bit & 0xFFu));
+    launcher_rs_meta_buf[6] =
+        (unsigned char)(launcher_rs_meta_buf[6] | (unsigned char)(bit >> 8));
+}
+
+static void launcher_commit_readyshell_meta(void) {
     reu_dma_stash((unsigned int)launcher_rs_meta_buf, READYSHELL_META_BANK,
                   READYSHELL_META_OFF, sizeof(launcher_rs_meta_buf));
+}
+
+static unsigned char launcher_restore_readyshell_meta(unsigned char index) {
+    unsigned char i;
+    unsigned char count = 0u;
+    unsigned char app_id;
+    unsigned int off;
+
+    app_id = launcher_control_app_id(index);
+    if (app_id == REUCB_NULL_REC) {
+        return 0u;
+    }
+    launcher_init_readyshell_meta();
+    for (i = 0u; i < REUCB_RSRC_REC_COUNT; ++i) {
+        reu_dma_fetch((unsigned int)launcher_rsrc_rec_buf,
+                      REU_READYOS_GLOBAL_PHYSICAL(),
+                      launcher_control_rsrc_rec_off(i), REUCB_RSRC_REC_SIZE);
+        if (launcher_rsrc_rec_buf[0] != app_id ||
+            launcher_rsrc_rec_buf[2] != REUCB_DEP_KIND_RS_OVL) {
+            continue;
+        }
+        off = (unsigned int)launcher_rsrc_rec_buf[4] |
+              ((unsigned int)launcher_rsrc_rec_buf[5] << 8);
+        launcher_add_readyshell_meta_record(launcher_rsrc_rec_buf[10],
+                                            launcher_rsrc_rec_buf[3], off);
+        ++count;
+    }
+    if (count != READYSHELL_OVERLAY_COUNT) {
+        return 0u;
+    }
+    launcher_commit_readyshell_meta();
+    return 1u;
 }
 
 #if !READYOS_LAUNCHER_VARIANT_EASYFLASH
@@ -1832,41 +2066,145 @@ static unsigned char launcher_stream_prg_to_reu(unsigned char drive,
     return (unsigned char)(pos != 0u);
 }
 
+static unsigned char launcher_readyshell_physical_bank(unsigned char index,
+                                                       unsigned char ordinal) {
+    if (ordinal == 0u) {
+        return app_rs_bank1[index];
+    }
+    if (ordinal == 1u) {
+        return app_rs_bank2[index];
+    }
+    if (ordinal == 2u) {
+        return app_rs_bank3[index];
+    }
+    return 0u;
+}
+
+static unsigned char launcher_parse_rs_dep_entry(char *entry,
+                                                 char **out_name,
+                                                 unsigned char *out_ordinal,
+                                                 unsigned int *out_offset) {
+    char *at;
+    char *colon;
+
+    trim_in_place(entry);
+    at = strchr(entry, '@');
+    colon = at ? strchr(at, ':') : 0;
+    if (entry[0] == 0 || at == 0 || colon == 0) {
+        return 0u;
+    }
+    *at = 0;
+    *colon = 0;
+    trim_in_place(entry);
+    trim_in_place((char *)(at + 1));
+    trim_in_place((char *)(colon + 1));
+    if ((at + 1)[0] < '0' || (at + 1)[0] > '2' || (at + 1)[1] != 0) {
+        return 0u;
+    }
+    if (!parse_dep_hex_word((char *)(colon + 1), out_offset)) {
+        return 0u;
+    }
+    *out_name = entry;
+    *out_ordinal = (unsigned char)((at + 1)[0] - '0');
+    return 1u;
+}
+
 static unsigned char launcher_load_readyshell_resources(unsigned char index) {
-    unsigned char i;
+    char *cursor;
+    char *comma;
+    char *name;
     unsigned char bank;
-    unsigned char slot;
+    unsigned char ordinal;
+    unsigned char overlay_num = 1u;
+    unsigned char rec_index;
+    unsigned int reu_off;
 
     if (!launcher_ensure_readyshell_banks(index)) {
+        launcher_set_notice("rs fail banks", TUI_COLOR_LIGHTRED);
         return 0u;
     }
 
-    for (i = 0u; i < READYSHELL_OVERLAY_COUNT; ++i) {
-        slot = readyshell_overlay_bank_slot[i];
-        bank = app_rs_bank1[index];
-        if (slot == 1u) {
-            bank = app_rs_bank2[index];
-        } else if (slot == 2u) {
-            bank = app_rs_bank3[index];
+    launcher_control_read_dep_line(index);
+    if (launcher_dep_line_buf[0] == 0u) {
+        launcher_set_notice("rs fail dep", TUI_COLOR_LIGHTRED);
+        return 0u;
+    }
+    launcher_control_clear_app_resource_records(index);
+    launcher_init_readyshell_meta();
+
+    cursor = (char *)launcher_dep_line_buf;
+    while (cursor != 0 && cursor[0] != 0) {
+        comma = strchr(cursor, ',');
+        if (comma != 0) {
+            *comma = 0;
         }
-        if (!launcher_stream_prg_to_reu(app_drives[index],
-                                        readyshell_overlay_names[i],
-                                        bank,
-                                        readyshell_overlay_offsets[i])) {
+        if (!launcher_parse_rs_dep_entry(cursor, &name, &ordinal, &reu_off)) {
+            launcher_set_notice("rs fail parse", TUI_COLOR_LIGHTRED);
             return 0u;
         }
+        bank = launcher_readyshell_physical_bank(index, ordinal);
+        if (bank == 0u ||
+            !launcher_stream_prg_to_reu(app_drives[index], name, bank, reu_off)) {
+            launcher_set_notice("rs fail load", TUI_COLOR_LIGHTRED);
+            return 0u;
+        }
+        rec_index = launcher_control_alloc_resource_record();
+        if (rec_index == REUCB_NULL_REC) {
+            launcher_set_notice("rs fail rec", TUI_COLOR_LIGHTRED);
+            return 0u;
+        }
+        launcher_control_write_resource_record(rec_index, index,
+                                               APP_RESOURCE_READYSHELL_OVL,
+                                               REUCB_DEP_KIND_RS_OVL,
+                                               bank, reu_off,
+                                               READYSHELL_OVERLAY_SLOT_LEN,
+                                               1u, overlay_num,
+                                               app_drives[index], name);
+        launcher_add_readyshell_meta_record(overlay_num, bank, reu_off);
+        ++overlay_num;
+        if (comma == 0) {
+            break;
+        }
+        cursor = (char *)(comma + 1);
     }
 
-    launcher_write_readyshell_meta(index);
+    if (overlay_num != (unsigned char)(READYSHELL_OVERLAY_COUNT + 1u)) {
+        launcher_set_notice("rs fail count", TUI_COLOR_LIGHTRED);
+        return 0u;
+    }
+    launcher_commit_readyshell_meta();
     app_resource_loaded[index] = 1u;
     launcher_mirror_reu_control();
     return 1u;
 }
 
 static unsigned char launcher_load_readybasic_resources(unsigned char index) {
+    unsigned char rec_index;
+
     if (!launcher_ensure_readybasic_banks(index)) {
         return 0u;
     }
+    launcher_control_clear_app_resource_records(index);
+    rec_index = launcher_control_alloc_resource_record();
+    if (rec_index == REUCB_NULL_REC) {
+        return 0u;
+    }
+    launcher_control_write_resource_record(rec_index, index,
+                                           APP_RESOURCE_READYBASIC_CORE,
+                                           REUCB_DEP_KIND_RB_CORE,
+                                           app_rs_bank1[index], 0u, 0u,
+                                           1u, 1u, app_drives[index],
+                                           "rbcore");
+    rec_index = launcher_control_alloc_resource_record();
+    if (rec_index == REUCB_NULL_REC) {
+        return 0u;
+    }
+    launcher_control_write_resource_record(rec_index, index,
+                                           APP_RESOURCE_READYBASIC_CORE,
+                                           REUCB_DEP_KIND_RB_CODE,
+                                           app_rs_bank2[index], 0u, 0u,
+                                           1u, 2u, app_drives[index],
+                                           "rbcode");
     app_resource_loaded[index] = 1u;
     launcher_mirror_reu_control();
     return 1u;
@@ -1882,7 +2220,7 @@ static unsigned char launcher_prepare_app_resources(unsigned char index) {
     }
     if (app_resource_loaded[index]) {
         if (app_resource_sets[index] == APP_RESOURCE_READYSHELL_OVL) {
-            launcher_write_readyshell_meta(index);
+            return launcher_restore_readyshell_meta(index);
         } else if (app_resource_sets[index] == APP_RESOURCE_READYBASIC_CORE) {
 #if !READYOS_LAUNCHER_VARIANT_EASYFLASH
             launcher_mark_readybasic_banks(index);
@@ -1910,6 +2248,7 @@ static void launcher_free_app_resources(unsigned char index) {
     if (index >= app_count) {
         return;
     }
+    launcher_control_clear_app_resource_records(index);
     if (app_rs_bank1[index] != 0u) {
         REU_ALLOC_TABLE[app_rs_bank1[index]] = REU_FREE;
     }
@@ -1996,7 +2335,7 @@ static unsigned int load_app_to_reu(unsigned char index) {
             if (!launcher_prepare_app_resources(index)) {
                 apps_loaded[index] = 0;
                 app_sizes[index] = 0;
-                launcher_set_notice("app resources failed", TUI_COLOR_LIGHTRED);
+                launcher_set_notice_if_empty("app resources failed", TUI_COLOR_LIGHTRED);
                 launcher_mirror_reu_control();
                 return 0;
             }
@@ -2019,7 +2358,7 @@ static unsigned int load_app_to_reu(unsigned char index) {
             if (!launcher_prepare_app_resources(index)) {
                 apps_loaded[index] = 0;
                 app_sizes[index] = 0;
-                launcher_set_notice("app resources failed", TUI_COLOR_LIGHTRED);
+                launcher_set_notice_if_empty("app resources failed", TUI_COLOR_LIGHTRED);
                 launcher_mirror_reu_control();
                 return 0;
             }
@@ -2049,7 +2388,7 @@ static unsigned int load_app_to_reu(unsigned char index) {
     if (!launcher_prepare_app_resources(index)) {
         apps_loaded[index] = 0;
         app_sizes[index] = 0;
-        launcher_set_notice("app resources failed", TUI_COLOR_LIGHTRED);
+        launcher_set_notice_if_empty("app resources failed", TUI_COLOR_LIGHTRED);
         launcher_mirror_reu_control();
         return 0;
     }
@@ -2083,6 +2422,12 @@ static const char *launcher_resolved_variant_title(void) {
 static void launcher_set_notice(const char *msg, unsigned char color) {
     copy_text_limit(launcher_notice, sizeof(launcher_notice), msg);
     launcher_notice_color = color;
+}
+
+static void launcher_set_notice_if_empty(const char *msg, unsigned char color) {
+    if (launcher_notice[0] == 0) {
+        launcher_set_notice(msg, color);
+    }
 }
 
 static unsigned char launcher_find_app_by_prg(const char *prg) {
@@ -2287,6 +2632,73 @@ static void launcher_bind_default_hotkey_for_index(unsigned char index) {
 }
 
 #if READYOS_LAUNCHER_VARIANT_EASYFLASH
+static void launcher_write_easyflash_readyshell_records(unsigned char index) {
+    unsigned char i;
+    unsigned char rec_index;
+    static const unsigned char banks[READYSHELL_OVERLAY_COUNT] = {
+        READYOS_EASYFLASH_RS_CACHE_BANK1,
+        READYOS_EASYFLASH_RS_CACHE_BANK1,
+        READYOS_EASYFLASH_RS_CACHE_BANK1,
+        READYOS_EASYFLASH_RS_CACHE_BANK2,
+        READYOS_EASYFLASH_RS_CACHE_BANK1,
+        READYOS_EASYFLASH_RS_CACHE_BANK2,
+        READYOS_EASYFLASH_RS_CACHE_BANK2,
+        READYOS_EASYFLASH_RS_CACHE_BANK2,
+        READYOS_EASYFLASH_RS_CACHE_BANK3
+    };
+    static const unsigned int offsets[READYSHELL_OVERLAY_COUNT] = {
+        0x0000u, 0x3800u, 0x7000u, 0x0000u, 0xA800u,
+        0x3800u, 0x7000u, 0xA800u, 0x0000u
+    };
+    static const char *const names[READYSHELL_OVERLAY_COUNT] = {
+        "rsparser", "rsvm", "rsdrvilst", "rsldv", "rsstv",
+        "rsfops", "rscat", "rscopy", "rsedit"
+    };
+
+    launcher_control_clear_app_resource_records(index);
+    launcher_init_readyshell_meta();
+    for (i = 0u; i < READYSHELL_OVERLAY_COUNT; ++i) {
+        rec_index = launcher_control_alloc_resource_record();
+        if (rec_index == REUCB_NULL_REC) {
+            return;
+        }
+        launcher_control_write_resource_record(rec_index, index,
+                                               APP_RESOURCE_READYSHELL_OVL,
+                                               REUCB_DEP_KIND_RS_OVL,
+                                               banks[i], offsets[i],
+                                               READYSHELL_OVERLAY_SLOT_LEN,
+                                               1u, (unsigned char)(i + 1u),
+                                               app_drives[index], names[i]);
+        launcher_add_readyshell_meta_record((unsigned char)(i + 1u),
+                                            banks[i], offsets[i]);
+    }
+    launcher_commit_readyshell_meta();
+}
+
+static void launcher_write_easyflash_readybasic_records(unsigned char index) {
+    unsigned char rec_index;
+
+    launcher_control_clear_app_resource_records(index);
+    rec_index = launcher_control_alloc_resource_record();
+    if (rec_index != REUCB_NULL_REC) {
+        launcher_control_write_resource_record(rec_index, index,
+                                               APP_RESOURCE_READYBASIC_CORE,
+                                               REUCB_DEP_KIND_RB_CORE,
+                                               app_rs_bank1[index], 0u, 0u,
+                                               1u, 1u, app_drives[index],
+                                               "rbcore");
+    }
+    rec_index = launcher_control_alloc_resource_record();
+    if (rec_index != REUCB_NULL_REC) {
+        launcher_control_write_resource_record(rec_index, index,
+                                               APP_RESOURCE_READYBASIC_CORE,
+                                               REUCB_DEP_KIND_RB_CODE,
+                                               app_rs_bank2[index], 0u, 0u,
+                                               1u, 2u, app_drives[index],
+                                               "rbcode");
+    }
+}
+
 static void launcher_mark_embedded_preloads_loaded(void) {
     unsigned char i;
     unsigned char bank;
@@ -2312,6 +2724,7 @@ static void launcher_mark_embedded_preloads_loaded(void) {
             REU_ALLOC_TABLE[app_rs_bank2[i]] = REU_RS_CACHE;
             REU_ALLOC_TABLE[app_rs_bank3[i]] = REU_RS_CACHE;
             app_resource_loaded[i] = 1u;
+            launcher_write_easyflash_readyshell_records(i);
         } else if (app_resource_sets[i] == APP_RESOURCE_READYBASIC_CORE) {
             app_rs_bank1[i] = READYOS_EASYFLASH_RB_CORE_BANK;
             app_rs_bank2[i] = READYOS_EASYFLASH_RB_CODE_BANK;
@@ -2319,6 +2732,7 @@ static void launcher_mark_embedded_preloads_loaded(void) {
             REU_ALLOC_TABLE[app_rs_bank1[i]] = REU_RB_CORE;
             REU_ALLOC_TABLE[app_rs_bank2[i]] = REU_RB_CODE;
             app_resource_loaded[i] = 1u;
+            launcher_write_easyflash_readybasic_records(i);
         }
         apps_loaded[i] = 1u;
         app_sizes[i] = APP_SAVE_SIZE;
@@ -2473,7 +2887,7 @@ static unsigned char parse_manifest_from_disk(unsigned char manifest_drive,
                                               const char *manifest_name,
                                               unsigned char *out_index,
                                               unsigned char *out_existing) {
-    char line[96];
+    char line[REUCB_DEP_LINE_SIZE];
     char pending_prg[MAX_FILE_LEN + 1];
     char pending_label[MAX_NAME_LEN + 1];
     char pending_desc[MAX_DESC_LEN + 1];
@@ -2531,7 +2945,11 @@ static unsigned char parse_manifest_from_disk(unsigned char manifest_drive,
 
         if (state == 2u) {
             parse_detail = 0u;
-            err = parse_dependency_list_line(line, pending_drive, &parse_detail);
+            copy_text_limit((char *)launcher_dep_line_buf,
+                            sizeof(launcher_dep_line_buf), line);
+            err = parse_dependency_list_line(line, pending_drive,
+                                             pending_resource_set,
+                                             &parse_detail);
             if (err != 0u) {
                 cbm_close(APP_MANIFEST_LFN);
                 return err;
@@ -2560,6 +2978,10 @@ static unsigned char parse_manifest_from_disk(unsigned char manifest_drive,
     if (existing < app_count) {
         *out_index = existing;
         *out_existing = 1u;
+        if (pending_dep_line_required) {
+            launcher_control_write_dep_line(existing,
+                                            (const char *)launcher_dep_line_buf);
+        }
         return 0u;
     }
 
@@ -2571,6 +2993,10 @@ static unsigned char parse_manifest_from_disk(unsigned char manifest_drive,
                             pending_desc, pending_slot, pending_resource_set);
     if (err != 0u) {
         return err;
+    }
+    if (pending_dep_line_required) {
+        launcher_control_write_dep_line((unsigned char)(app_count - 1u),
+                                        (const char *)launcher_dep_line_buf);
     }
 
     catalog_rebind_views();
@@ -2693,7 +3119,7 @@ static void launch_from_reu(unsigned char index) {
     bank = launcher_resolve_snapshot_bank(index);
     if (bank == 0) return;
     if (!launcher_prepare_app_resources(index)) {
-        launcher_set_notice("app resources failed", TUI_COLOR_LIGHTRED);
+        launcher_set_notice_if_empty("app resources failed", TUI_COLOR_LIGHTRED);
         return;
     }
     size = app_sizes[index];
@@ -2726,7 +3152,7 @@ static void launch_from_disk(unsigned char index) {
     bank = launcher_resolve_snapshot_bank(index);
     if (bank == 0) return;
     if (!launcher_prepare_app_resources(index)) {
-        launcher_set_notice("app resources failed", TUI_COLOR_LIGHTRED);
+        launcher_set_notice_if_empty("app resources failed", TUI_COLOR_LIGHTRED);
         return;
     }
     launcher_bind_default_hotkey_for_index(index);
@@ -3218,6 +3644,8 @@ static void launcher_init(void) {
     }
 
     if (!used_cached_catalog) {
+        launcher_control_clear_dependency_lines();
+        launcher_control_clear_resource_records();
 #if READYOS_LAUNCHER_VARIANT_EASYFLASH
         err = load_catalog_from_embedded(&detail_a, &detail_b, &detail_c);
 #else

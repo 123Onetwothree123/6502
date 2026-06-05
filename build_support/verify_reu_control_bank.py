@@ -48,7 +48,7 @@ def main() -> int:
     reuviewer = read("src/apps/reuviewer/reuviewer.c")
     makefile = read("Makefile")
 
-    require(define_int(hdr, "REUCB_SCHEMA_VERSION") == 2, "schema version is 2")
+    require(define_int(hdr, "REUCB_SCHEMA_VERSION") == 3, "schema version is 3")
     require(define_int(hdr, "REUCB_HEADER_OFF") == 0x0000, "header starts at $0000")
     require(define_int(hdr, "REUCB_HEADER_SIZE") == 0x0040, "header is 64 bytes")
     require(define_int(hdr, "REUCB_BANK_TYPE_OFF") == 0x0100, "bank table mirror starts at $0100")
@@ -60,8 +60,14 @@ def main() -> int:
     require(define_int(hdr, "REUCB_APP_REG_SIZE") == 8, "app registry records are 8 bytes")
     require(define_int(hdr, "REUCB_APP_REG_COUNT") == 64, "app registry has 64 entries")
     require(define_int(hdr, "REUCB_APP_META_OFF") == 0x0500, "app metadata starts at $0500")
+    require(define_int(hdr, "REUCB_APP_META_SIZE") == 13, "app filename records are 13 bytes")
     require(define_int(hdr, "REUCB_DEP_OFF") == 0x0900, "dependency records start at $0900")
     require(define_int(hdr, "REUCB_DEP_COUNT") == 128, "dependency record capacity is 128")
+    require(define_int(hdr, "REUCB_RSRC_REC_OFF") == 0x0A00, "rich resource records start at $0A00")
+    require(define_int(hdr, "REUCB_RSRC_REC_SIZE") == 16, "rich resource records are 16 bytes")
+    require(define_int(hdr, "REUCB_RSRC_REC_COUNT") == 64, "rich resource record capacity is 64")
+    require(define_int(hdr, "REUCB_DEP_LINE_OFF") == 0x0E00, "dependency lines start at $0E00")
+    require(define_int(hdr, "REUCB_DEP_LINE_SIZE") == 128, "dependency line records are 128 bytes")
 
     require("REU_READYOS_GLOBAL_PHYSICAL()" in src, "control mirror records ReadyOS global bank")
     require("REU_LAUNCHER_PHYSICAL()" in src, "control mirror records launcher bank")
@@ -98,6 +104,12 @@ def main() -> int:
             "launcher refreshes control mirror")
     require("reu_control_bank_write_launcher_registry(" in launcher,
             "launcher mirrors app registry into control bank")
+    require("launcher_control_write_resource_record" in launcher and
+            "launcher_control_write_dep_line" in launcher,
+            "launcher writes rich resource/dependency metadata")
+    require("readyshell_overlay_names" not in launcher and
+            "readyshell_overlay_offsets" not in launcher,
+            "disk launcher does not carry hard-coded ReadyShell overlay placement tables")
     require("launcher_resolve_snapshot_bank" in launcher,
             "launcher has snapshot-bank resolver")
     require("bank = launcher_resolve_snapshot_bank(index);" in launcher,
@@ -108,6 +120,8 @@ def main() -> int:
             "reuviewer refreshes control mirror")
     require("reuviewer_read_control_bank_header" in reuviewer and "CBGEN:" in reuviewer,
             "reuviewer displays control-bank header status")
+    require("reuviewer_find_resource_for_bank" in reuviewer and "OWNER:" in reuviewer,
+            "reuviewer decodes rich app/resource ownership records")
 
     print("REU control bank static checks passed.")
     return 0

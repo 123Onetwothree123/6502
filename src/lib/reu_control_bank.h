@@ -10,7 +10,7 @@
 
 #include "reu_mgr.h"
 
-#define REUCB_SCHEMA_VERSION 2
+#define REUCB_SCHEMA_VERSION 3
 
 #define REUCB_MAGIC0 'R'
 #define REUCB_MAGIC1 'C'
@@ -29,14 +29,21 @@
 #define REUCB_APP_REG_SIZE      8u
 #define REUCB_APP_REG_COUNT     64u
 #define REUCB_APP_META_OFF      0x0500u
-#define REUCB_APP_META_SIZE     16u
+#define REUCB_APP_META_SIZE     13u
 #define REUCB_APP_META_COUNT    64u
 #define REUCB_DEP_OFF           0x0900u
 #define REUCB_DEP_SIZE          24u
 #define REUCB_DEP_COUNT         128u
-#define REUCB_AUDIT_OFF         0x1500u
+#define REUCB_RSRC_REC_OFF      0x0A00u
+#define REUCB_RSRC_REC_SIZE     16u
+#define REUCB_RSRC_REC_COUNT    64u
+#define REUCB_DEP_LINE_OFF      0x0E00u
+#define REUCB_DEP_LINE_SIZE     128u
+#define REUCB_DEP_LINE_COUNT    64u
+#define REUCB_AUDIT_OFF         0x2E00u
 
 #define REUCB_NULL_DEP          0xFFu
+#define REUCB_NULL_REC          0xFFu
 
 #define REUCB_APP_FLAG_LOADED   0x01u
 #define REUCB_APP_FLAG_HAS_DEPS 0x02u
@@ -44,6 +51,7 @@
 #define REUCB_DEP_KIND_RS_CACHE 1u
 #define REUCB_DEP_KIND_RB_CORE  2u
 #define REUCB_DEP_KIND_RB_CODE  3u
+#define REUCB_DEP_KIND_RS_OVL   4u
 
 #define REUCB_WRITER_LAUNCHER   1u
 #define REUCB_WRITER_REUVIEWER  2u

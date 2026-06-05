@@ -51,6 +51,8 @@ static unsigned int reu_physical_banks;
 static unsigned char control_header[8];
 static unsigned char control_bank_ok;
 static unsigned char control_bank_generation;
+static unsigned char detail_rec[REUCB_RSRC_REC_SIZE];
+static char detail_app_name[REUCB_APP_META_SIZE + 1u];
 
 typedef struct {
     unsigned char cursor_x;
@@ -143,6 +145,55 @@ static void reuviewer_read_control_bank_header(void) {
         control_header[3] == REUCB_MAGIC3 &&
         control_header[4] == REUCB_SCHEMA_VERSION);
     control_bank_generation = control_header[6];
+}
+
+static void reuviewer_fetch_app_name(unsigned char app_index) {
+    if (!control_bank_ok || app_index >= REUCB_APP_META_COUNT) {
+        detail_app_name[0] = 0;
+        return;
+    }
+    reu_dma_fetch((unsigned int)detail_app_name, REU_READYOS_GLOBAL_PHYSICAL(),
+                  (unsigned int)(REUCB_APP_META_OFF +
+                                 ((unsigned int)app_index * REUCB_APP_META_SIZE)),
+                  REUCB_APP_META_SIZE);
+    detail_app_name[REUCB_APP_META_SIZE] = 0;
+}
+
+static unsigned char reuviewer_find_app_for_logical(unsigned char logical,
+                                                    unsigned char *out_app) {
+    unsigned char i;
+    unsigned char app_bank;
+
+    if (!control_bank_ok) {
+        return 0u;
+    }
+    for (i = 0u; i < REUCB_APP_REG_COUNT; ++i) {
+        reu_dma_fetch((unsigned int)&app_bank, REU_READYOS_GLOBAL_PHYSICAL(),
+                      (unsigned int)(REUCB_APP_REG_OFF + i), 1u);
+        if (app_bank == logical) {
+            *out_app = i;
+            return 1u;
+        }
+    }
+    return 0u;
+}
+
+static unsigned char reuviewer_find_resource_for_bank(unsigned char bank) {
+    unsigned char i;
+
+    if (!control_bank_ok) {
+        return 0u;
+    }
+    for (i = 0u; i < REUCB_RSRC_REC_COUNT; ++i) {
+        reu_dma_fetch((unsigned int)detail_rec, REU_READYOS_GLOBAL_PHYSICAL(),
+                      (unsigned int)(REUCB_RSRC_REC_OFF +
+                                     ((unsigned int)i * REUCB_RSRC_REC_SIZE)),
+                      REUCB_RSRC_REC_SIZE);
+        if (detail_rec[0] != REUCB_NULL_REC && detail_rec[3] == bank) {
+            return 1u;
+        }
+    }
+    return 0u;
 }
 
 /*---------------------------------------------------------------------------
@@ -314,7 +365,9 @@ static void draw_grid(void) {
 static void draw_detail(void) {
     unsigned char bank;
     unsigned char logical;
+    unsigned char app_index;
     unsigned char type;
+    unsigned int rec_off;
     const char *type_str;
 
     bank = cursor_y_pos * 16 + cursor_x;
@@ -322,6 +375,7 @@ static void draw_detail(void) {
 
     tui_clear_line(DETAIL_Y, 0, 40, TUI_COLOR_WHITE);
     tui_clear_line(DETAIL_Y + 1, 0, 40, TUI_COLOR_WHITE);
+    tui_clear_line(HELP_Y, 0, 40, TUI_COLOR_WHITE);
 
     tui_puts(1, DETAIL_Y, "PHYS ", TUI_COLOR_WHITE);
     tui_print_hex8(6, DETAIL_Y, bank, TUI_COLOR_CYAN);
@@ -350,17 +404,33 @@ static void draw_detail(void) {
     tui_print_uint(6, DETAIL_Y + 1, bank, TUI_COLOR_WHITE);
     tui_puts(12, DETAIL_Y + 1, "LOG: ", TUI_COLOR_GRAY3);
     if (!bank_is_unavailable(bank) &&
-        bank >= (unsigned char)(*SHIM_REU_BANK_SKIP + 3u) &&
-        bank <= (unsigned char)(*SHIM_REU_BANK_SKIP + 25u)) {
+        bank >= (unsigned char)(*SHIM_REU_BANK_SKIP + 3u)) {
         logical = (unsigned char)(bank - *SHIM_REU_BANK_SKIP - 2u);
         tui_print_hex8(17, DETAIL_Y + 1, logical, TUI_COLOR_CYAN);
+        if (reuviewer_find_app_for_logical(logical, &app_index)) {
+            reuviewer_fetch_app_name(app_index);
+            tui_puts(22, DETAIL_Y + 1, "APP", TUI_COLOR_GRAY3);
+            tui_print_uint(26, DETAIL_Y + 1, app_index, TUI_COLOR_WHITE);
+            tui_puts_n(30, DETAIL_Y + 1, detail_app_name, 10, TUI_COLOR_YELLOW);
+        }
     } else {
         tui_puts(17, DETAIL_Y + 1, "--", TUI_COLOR_GRAY3);
+    }
+
+    if (reuviewer_find_resource_for_bank(bank)) {
+        reuviewer_fetch_app_name(detail_rec[0]);
+        rec_off = (unsigned int)detail_rec[4] |
+                  ((unsigned int)detail_rec[5] << 8);
+        tui_puts(0, HELP_Y, "OWNER:", TUI_COLOR_GRAY3);
+        tui_puts_n(7, HELP_Y, detail_app_name, 10, TUI_COLOR_YELLOW);
+        tui_puts(18, HELP_Y, "SLOT", TUI_COLOR_GRAY3);
+        tui_print_uint(23, HELP_Y, detail_rec[10], TUI_COLOR_WHITE);
+        tui_puts(27, HELP_Y, "OFF", TUI_COLOR_GRAY3);
+        tui_print_hex16(31, HELP_Y, rec_off, TUI_COLOR_CYAN);
     }
 }
 
 static void draw_help(void) {
-    tui_puts(0, HELP_Y, "CURSORS:NAVIGATE  READ-ONLY VIEW", TUI_COLOR_GRAY3);
     tui_puts(0, HELP_Y + 1, "S/D:RS  F2/F4:APPS  CTRL+B", TUI_COLOR_GRAY3);
 }
 

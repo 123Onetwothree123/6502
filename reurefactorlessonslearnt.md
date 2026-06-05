@@ -103,3 +103,29 @@
   splitting. The accepted shape copies existing normalized launcher arrays into
   separated REU blocks and leaves richer name-linked records as reserved design
   space until there is a concrete consumer.
+- Rich resource ownership records are useful, but keep them out of the hot shim
+  mirror path. The v3 compromise is `$0300/$0500/$0900` for cheap array copies
+  and `$0A00/$0E00` for slower loader/viewer-only relationship data.
+- Disk ReadyShell overlay placement can be config-driven without making
+  ReadyShell own the parser. The launcher parses one compact dependency line,
+  writes small v4 `OV` metadata, and ReadyShell consumes only `(bank, offset)`
+  records.
+- Bank-0 dependency writers must be alias-safe. The launcher sometimes writes
+  the same dependency buffer it is holding; zeroing the destination before
+  copying erased the source and caused `rs fail count 0` in the ReadyShell
+  cross-app VICE probe. The writer now copies before clearing the tail, and the
+  static verifier checks for that pattern.
+- Preserve specific launcher failure notices while debugging resource loading.
+  A generic "app resources failed" message hid whether ReadyShell failed bank
+  allocation, dependency lookup, parse, load, or record writes.
+- EasyFlash overlay metadata verification must read the full VICE monitor
+  memory region, not just the first 16-byte row. The v4 `OV` block is 36 bytes
+  at `$C760`, so verifier comparisons should use region assembly.
+- EasyFlash boot metadata must use the same byte order as the disk launcher and
+  ReadyShell runtime: `(bank, offset_lo, offset_hi)`. The first generated v4
+  boot writer put non-zero offset high bytes in the low-byte slot; the cartridge
+  smoke test caught it.
+- The launcher is now the tight binary in this part of the system. The v3 rich
+  records are acceptable because normal app headroom is unchanged, ReadyBASIC is
+  unchanged, and launcher still has about 1KB of app-window headroom. Treat any
+  future launcher parser feature as expensive until measured.
