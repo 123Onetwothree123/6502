@@ -119,20 +119,21 @@ Current release build memory layout:
 - Resident app window: `$1000-$C5FF` (`46592` bytes)
 - Overlay load-address bytes: `$8DFE-$8DFF`
 - Overlay execution window: `$8E00-$C5FF` (`14336` bytes)
-- Resident BSS: `$7BA2-$7D1B` (`378` bytes)
-- Resident heap: `$7D1C-$8DFD` (`4322` bytes)
+- Resident BSS: `$7D37-$7EE0` (`426` bytes)
+- Resident heap: `$7EE2-$8DFD` (`3868` bytes)
 - High RAM runtime outside the app snapshot: `$CA00-$CFFF`
 
 Overlay policy:
 
 - The launcher/loader owns the ReadyShell `rsovl` resource set
 - Three REU banks are allocated or generated for ReadyShell before entry
-- ReadyShell reads the assigned bank ids from shared metadata at `$4880F0`
+- ReadyShell reads the assigned bank ids from shared metadata at offset `$80F0`
+  inside the loader-assigned ReadyShell state bank
 - Assigned bank 1 holds overlays `1`, `2`, `3`, and `5`
 - Assigned bank 2 holds overlays `4`, `6`, `7`, and `8`
 - Assigned bank 3 holds overlay `9`
 - Each cache slot stores the full overlay window size, not just file bytes
-- Shared REU metadata, command registry, pause state, command scratch, and the value arena live in bank `0x48`
+- Shared REU metadata, command registry, pause state, command scratch, and the value arena live at fixed offsets inside the loader-assigned ReadyShell state bank
 
 Shared REU cache slot layout:
 

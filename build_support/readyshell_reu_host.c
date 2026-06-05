@@ -14,6 +14,14 @@ int rs_reu_available(void) {
   return 1;
 }
 
+unsigned char rs_reu_state_bank(void) {
+  return 0x48u;
+}
+
+unsigned long rs_reu_state_abs(unsigned short rel_off) {
+  return ((unsigned long)rs_reu_state_bank() << 16u) + (unsigned long)rel_off;
+}
+
 int rs_reu_read(unsigned long reu_off, void* ram_dst, unsigned short len) {
   if (len == 0u) {
     return 0;

@@ -91,7 +91,8 @@ def main() -> int:
           "g_overlay_cache_offsets" in rs_overlay and
           "rs_cmd_registry_apply_overlay_cache" in rs_overlay)
     check("ReadyShell overlay metadata does not overlap UI flags or value arena",
-          "RS_REU_UI_FLAGS_OFF 0x488114ul" in rs_state and
+          "RS_REU_UI_FLAGS_REL 0x8114u" in rs_state and
+          "RS_REU_UI_FLAGS_OFF rs_reu_state_abs(RS_REU_UI_FLAGS_REL)" in rs_state and
           "RS_REU_HEAP_ARENA_REL  0x8120u" in
           (ROOT / "src/apps/readyshell/core/rs_value.c").read_text(
               encoding="utf-8", errors="replace"

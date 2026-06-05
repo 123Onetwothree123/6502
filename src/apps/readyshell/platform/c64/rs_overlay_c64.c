@@ -33,6 +33,11 @@
 #define RS_OVL_RC_REU_CACHE    0xEAu
 #define RS_OVL_RC_REU_CMD      0xEBu
 #define RS_OVL_RC_REU_REG      0xECu
+#define RS_OVL_RC_REU_META_IO  0xEDu
+#define RS_OVL_RC_REU_META_HDR 0xEEu
+#define RS_OVL_RC_REU_META_MASK 0xEFu
+#define RS_OVL_RC_REU_META_LEN 0xF0u
+#define RS_OVL_RC_REU_META_BANK 0xF1u
 
 static int g_overlay_loaded = 0;
 static int g_overlay_cached_reu = 0;
@@ -175,22 +180,26 @@ static int rs_overlay_meta_read(unsigned short needed_mask) {
 
   memset(g_overlay_meta_buf, 0, sizeof(g_overlay_meta_buf));
   if (rs_reu_read(RS_REU_OVL_CACHE_META_OFF, g_overlay_meta_buf, sizeof(g_overlay_meta_buf)) != 0) {
+    g_overlay_last_rc = RS_OVL_RC_REU_META_IO;
     return -1;
   }
   if (g_overlay_meta_buf[0] != 'O' ||
       g_overlay_meta_buf[1] != 'V' ||
       g_overlay_meta_buf[2] != RS_REU_OVL_CACHE_META_VERSION) {
+    g_overlay_last_rc = RS_OVL_RC_REU_META_HDR;
     return -1;
   }
   valid_mask = (unsigned short)g_overlay_meta_buf[3] |
                ((unsigned short)g_overlay_meta_buf[6] << 8u);
   if ((valid_mask & needed_mask) != needed_mask) {
+    g_overlay_last_rc = RS_OVL_RC_REU_META_MASK;
     return -1;
   }
 
   slot_len = (unsigned short)g_overlay_meta_buf[4] |
              ((unsigned short)g_overlay_meta_buf[5] << 8u);
   if (slot_len != RS_REU_OVL_CACHE_SLOT_LEN) {
+    g_overlay_last_rc = RS_OVL_RC_REU_META_LEN;
     return -1;
   }
   for (i = 0u; i < RS_OVERLAY_COUNT; ++i) {
@@ -202,11 +211,13 @@ static int rs_overlay_meta_read(unsigned short needed_mask) {
         ((unsigned short)g_overlay_meta_buf[(unsigned char)(rec_off + 2u)] << 8u);
     if ((valid_mask & rs_overlay_valid_bit((unsigned char)(i + 1u))) != 0u &&
         g_overlay_cache_banks[i] == 0u) {
+      g_overlay_last_rc = RS_OVL_RC_REU_META_BANK;
       return -1;
     }
   }
   if (rs_cmd_registry_apply_overlay_cache(g_overlay_cache_banks,
                                           g_overlay_cache_offsets) != 0) {
+    g_overlay_last_rc = RS_OVL_RC_REU_REG;
     return -1;
   }
   return 0;
@@ -292,7 +303,9 @@ int rs_overlay_boot_with_progress(RSOverlayProgressFn progress, void* user) {
     return -1;
   }
   if (rs_overlay_meta_read(preload_mask) != 0) {
-    g_overlay_last_rc = RS_OVL_RC_REU_CACHE;
+    if (g_overlay_last_rc == 0u) {
+      g_overlay_last_rc = RS_OVL_RC_REU_CACHE;
+    }
     return -1;
   }
   if (rs_overlay_sync_preloaded_registry() != 0) {

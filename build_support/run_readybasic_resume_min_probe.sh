@@ -107,7 +107,7 @@ steps:
   - id: initial_state_seed
     type: input.sequence
     params:
-      keys: [$(keys $'V%=321:VS$="OK"\rPRINT "STATE";V%;":";VS$\r')]
+      keys: [$(keys $'PRINT CHR$(147)\rV%=321:VS$="OK"\rPRINT "STATE";V%;":";VS$\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 0.8
   - id: assert_initial_state_seed

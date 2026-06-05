@@ -4,6 +4,7 @@
 #include "rs_cmd.h"
 #include "rs_errors.h"
 #include "rs_value.h"
+#include "../platform/rs_platform.h"
 
 #define RS_CMD_OVL_OP_BEGIN   1u
 #define RS_CMD_OVL_OP_ITEM    2u
@@ -16,7 +17,7 @@
 #define RS_CMD_FRAME_LINE_CAP         32u
 
 /* REU-backed inter-overlay handoff area for streaming command state. */
-#define RS_CMD_SCRATCH_OFF 0x480000ul
+#define RS_CMD_SCRATCH_OFF rs_reu_state_abs(0x0000u)
 #define RS_CMD_SCRATCH_LEN 0x8000u
 
 typedef struct RSCommandFrame {

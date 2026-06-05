@@ -40,8 +40,7 @@
     "bank_launcher_overlay": 2,
     "bank_app_base": 3,
     "bank_app_count": 23,
-    "bank_rs_debug": 67,
-    "bank_rs_scratch": 72
+    "bank_rs_debug": 67
   },
   "map_files": [
     "obj/launcher.map",
@@ -125,6 +124,7 @@
     "0xCE00",
     "0xCFF0",
     "0xCFF1",
+    "0xCFF2",
     "0xD011",
     "0xD012",
     "0xD800",

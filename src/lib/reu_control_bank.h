@@ -52,6 +52,7 @@
 #define REUCB_DEP_KIND_RB_CORE  2u
 #define REUCB_DEP_KIND_RB_CODE  3u
 #define REUCB_DEP_KIND_RS_OVL   4u
+#define REUCB_DEP_KIND_RS_STATE 5u
 
 #define REUCB_WRITER_LAUNCHER   1u
 #define REUCB_WRITER_REUVIEWER  2u
@@ -83,6 +84,7 @@ void reu_control_bank_write_launcher_registry(
     const unsigned char *app_rs_bank1,
     const unsigned char *app_rs_bank2,
     const unsigned char *app_rs_bank3,
+    const unsigned char *app_rs_bank4,
     const char *app_file_buf,
     unsigned char app_file_stride,
     const unsigned char *apps_loaded);

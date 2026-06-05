@@ -6,7 +6,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define RS_REU_BANK_BASE_OFF   0x480000ul
 #define RS_REU_HEAP_META_REL   0x8000u
 #define RS_REU_HEAP_ARENA_REL  0x8120u
 #define RS_REU_HEAP_ARENA_END  0xFF00u
@@ -46,7 +45,7 @@ static char* rs_strdup_local(const char* s) {
 }
 
 static unsigned long rs_reu_abs(unsigned short rel_off) {
-  return RS_REU_BANK_BASE_OFF + (unsigned long)rel_off;
+  return rs_reu_state_abs(rel_off);
 }
 
 static int rs_reu_read_u8(unsigned short rel_off, unsigned char* out) {

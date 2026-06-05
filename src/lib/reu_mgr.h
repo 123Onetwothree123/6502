@@ -34,7 +34,6 @@
 /* Remaining fixed support banks. ReadyShell overlay cache and ReadyBASIC core
  * banks are launcher-assigned app resources, not fixed addresses. */
 #define REU_BANK_RS_DEBUG 0x43
-#define REU_BANK_RS_SCRATCH 0x48
 
 /* Shim bitmap at $C836-$C838 (tracks which app banks are loaded) */
 #define SHIM_REU_BITMAP_LO  ((unsigned char*)0xC836)

@@ -5,7 +5,7 @@
 #include "rs_cmd_value_local.h"
 #include "../platform/rs_platform.h"
 
-#define RS_CMD_REU_BANK_BASE   (RS_CMD_SCRATCH_OFF & 0xFF0000ul)
+#define RS_CMD_REU_BANK_BASE   rs_reu_state_abs(0x0000u)
 #define RS_CMD_REC_FALSE       1u
 #define RS_CMD_REC_TRUE        2u
 #define RS_CMD_REC_U16         3u

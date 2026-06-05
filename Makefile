@@ -990,6 +990,15 @@ easyflash-preload-verify: easyflash
 	script -q /dev/null x64sc -console -default +sound -warp -reu -reusize 16384 -cartcrt "$(EASYFLASH_SMOKE_RUNTIME_CRT)" -drive8type 1541 -devicebackend8 0 +busdevice8 -8 "$(EASYFLASH_OUTPUT_DIR)/readyos_data.d64" -moncommands "$(EASYFLASH_SMOKE_MON)" -monlog -monlogname "$(EASYFLASH_SMOKE_LOG)" -initbreak 0xe000 -limitcycles 120000000 || true
 	$(PYTHON) $(BUILD_SUPPORT_DIR)/vice_easyflash_smoke.py verify-log --layout "$(EASYFLASH_LAYOUT_JSON)" --output-dir "$(EASYFLASH_OUTPUT_DIR)" --log "$(EASYFLASH_SMOKE_LOG)" --launcher-map "$(OBJ_DIR)/launcher_easyflash.map" --verify-preload --preload-only
 
+easyflash-readybasic-vice-suites:
+	$(BUILD_SUPPORT_DIR)/run_easyflash_vice_suites.sh readybasic
+
+easyflash-readyshell-vice-suites:
+	$(BUILD_SUPPORT_DIR)/run_easyflash_vice_suites.sh readyshell
+
+easyflash-vice-suites:
+	$(BUILD_SUPPORT_DIR)/run_easyflash_vice_suites.sh all
+
 easyflash-probe: $(XEFPROBE_HOST) $(XEFPROBE_PAYLOAD) $(XEFPROBE_LAYOUT_JSON) $(BOOT_EASYFLASH_PROBE_ROML) $(BOOT_EASYFLASH_ROMH)
 	$(PYTHON) $(BUILD_SUPPORT_DIR)/readyos_easyflash_probe.py build-release \
 		--layout "$(XEFPROBE_LAYOUT_JSON)" \

@@ -85,12 +85,123 @@ steps:
       text: "readybasic"
       wait_timeout_s: 180
       capture_label: readybasic_prompt
-  - id: build_program_and_large_direct_vars
+  - id: build_program_lines
     type: input.sequence
     params:
-      keys: [$(keys $'NEW\r10 PRINT "ONE"\r20 PRINT "TWO"\r30 PRINT "THREE"\r40 PRINT "FOUR"\r50 PRINT "FIVE"\rA$="ALPHA"\rB$="BRAVO"\rC$="CHARLIE"\rD$="DELTA"\rDIM E(200)\rE(199)=1234\rPRINT A$\rPRINT B$\rPRINT C$\rPRINT D$\rPRINT E(199)\r')]
-      inter_key_delay_s: 0.03
+      keys: [$(keys $'NEW\r10 PRINT "ONE"\r20 PRINT "TWO"\r30 PRINT "THREE"\r40 PRINT "FOUR"\r50 PRINT "FIVE"\r')]
+      inter_key_delay_s: 0.04
+      post_delay_s: 0.8
+  - id: clear_variables
+    type: input.sequence
+    params:
+      keys: [$(keys $'CLR\r')]
+      inter_key_delay_s: 0.04
+      post_delay_s: 2.0
+  - id: assign_alpha_string
+    type: input.sequence
+    params:
+      keys: [$(keys $'A$="ALPHA"\r')]
+      inter_key_delay_s: 0.05
+      post_delay_s: 2.0
+  - id: assign_bravo_string
+    type: input.sequence
+    params:
+      keys: [$(keys $'B$="BRAVO"\r')]
+      inter_key_delay_s: 0.05
+      post_delay_s: 2.0
+  - id: assign_charlie_string
+    type: input.sequence
+    params:
+      keys: [$(keys $'G$="CHARLIE"\r')]
+      inter_key_delay_s: 0.05
+      post_delay_s: 2.0
+  - id: dump_after_abc_assignment
+    type: dump.memory_ranges
+    params:
+      ranges:
+        - { label: basic_pointers_002b, start: 0x002B, end: 0x003F }
+        - { label: basic_var_table_2b00, start: 0x2B00, end: 0x2B3F }
+        - { label: string_heap_9f80, start: 0x9F80, end: 0x9FFF }
+        - { label: bridge_c000, start: 0xC000, end: 0xC5FF }
+  - id: print_charlie_after_c_assignment
+    type: input.sequence
+    params:
+      keys: [$(keys $'PRINT G$\r')]
+      inter_key_delay_s: 0.04
+      post_delay_s: 2.0
+  - id: dump_after_first_print_charlie
+    type: dump.memory_ranges
+    params:
+      ranges:
+        - { label: basic_pointers_002b, start: 0x002B, end: 0x003F }
+        - { label: basic_var_table_2b00, start: 0x2B00, end: 0x2B3F }
+        - { label: string_heap_9f80, start: 0x9F80, end: 0x9FFF }
+        - { label: bridge_c000, start: 0xC000, end: 0xC5FF }
+  - id: assert_charlie_after_c_assignment
+    type: assert.screen
+    params:
+      contains: "CHARLIE"
+  - id: assign_delta_string
+    type: input.sequence
+    params:
+      keys: [$(keys $'D$="DELTA"\r')]
+      inter_key_delay_s: 0.05
+      post_delay_s: 2.0
+  - id: dump_after_delta_assignment
+    type: dump.memory_ranges
+    params:
+      ranges:
+        - { label: basic_pointers_002b, start: 0x002B, end: 0x003F }
+        - { label: basic_var_table_2b00, start: 0x2B00, end: 0x2B3F }
+        - { label: string_heap_9f80, start: 0x9F80, end: 0x9FFF }
+        - { label: bridge_c000, start: 0xC000, end: 0xC5FF }
+  - id: print_charlie_after_delta_assignment
+    type: input.sequence
+    params:
+      keys: [$(keys $'PRINT G$\r')]
+      inter_key_delay_s: 0.04
+      post_delay_s: 2.0
+  - id: dump_after_second_print_charlie
+    type: dump.memory_ranges
+    params:
+      ranges:
+        - { label: basic_pointers_002b, start: 0x002B, end: 0x003F }
+        - { label: basic_var_table_2b00, start: 0x2B00, end: 0x2B3F }
+        - { label: string_heap_9f80, start: 0x9F80, end: 0x9FFF }
+        - { label: bridge_c000, start: 0xC000, end: 0xC5FF }
+  - id: assert_charlie_after_delta_assignment
+    type: assert.screen
+    params:
+      contains: "CHARLIE"
+  - id: dump_after_delta_before_dim
+    type: dump.memory_ranges
+    params:
+      ranges:
+        - { label: basic_pointers_002b, start: 0x002B, end: 0x003F }
+        - { label: basic_var_table_2b00, start: 0x2B00, end: 0x2B3F }
+        - { label: string_heap_9f80, start: 0x9F80, end: 0x9FFF }
+  - id: dim_large_array
+    type: input.sequence
+    params:
+      keys: [$(keys $'DIM E(200)\rE(199)=1234\r')]
+      inter_key_delay_s: 0.05
+      post_delay_s: 0.8
+  - id: print_large_direct_vars_before_exit
+    type: input.sequence
+    params:
+      keys: [$(keys $'PRINT A$\rPRINT B$\rPRINT G$\rPRINT D$\rPRINT E(199)\r')]
+      inter_key_delay_s: 0.04
       post_delay_s: 1.5
+  - id: dump_before_exit
+    type: dump.memory_ranges
+    params:
+      ranges:
+        - { label: basic_pointers_002b, start: 0x002B, end: 0x003F }
+        - { label: basic_var_table_2b00, start: 0x2B00, end: 0x2B3F }
+        - { label: basic_vars_start_1200, start: 0x1200, end: 0x1600 }
+        - { label: string_heap_9f80, start: 0x9F80, end: 0x9FFF }
+        - { label: runtime_state_9600, start: 0x9600, end: 0x9A00 }
+        - { label: bridge_c000, start: 0xC000, end: 0xC5FF }
   - id: assert_before_exit_alpha
     type: assert.screen
     params:
@@ -99,19 +210,14 @@ steps:
     type: assert.screen
     params:
       contains: "DELTA"
+  - id: assert_before_exit_charlie
+    type: assert.screen
+    params:
+      contains: "CHARLIE"
   - id: assert_before_exit_array
     type: assert.screen
     params:
       contains: "1234"
-  - id: dump_before_exit
-    type: dump.memory_ranges
-    params:
-      ranges:
-        - { label: basic_pointers_002b, start: 0x002B, end: 0x003F }
-        - { label: basic_vars_start_1200, start: 0x1200, end: 0x1600 }
-        - { label: string_heap_9400, start: 0x9400, end: 0x9600 }
-        - { label: runtime_state_9600, start: 0x9600, end: 0x9A00 }
-        - { label: bridge_c000, start: 0xC000, end: 0xC5FF }
   - id: exit_readybasic
     type: input.sequence
     params:
@@ -137,9 +243,19 @@ steps:
   - id: print_large_direct_vars_after_resume
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT A$+B$+C$+D$\rPRINT E(199)\rLIST\r')]
+      keys: [$(keys $'PRINT A$+B$+G$+D$\rPRINT E(199)\rLIST\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 1.5
+  - id: dump_after_resume
+    type: dump.memory_ranges
+    params:
+      ranges:
+        - { label: basic_pointers_002b, start: 0x002B, end: 0x003F }
+        - { label: basic_var_table_2b00, start: 0x2B00, end: 0x2B3F }
+        - { label: basic_vars_start_1200, start: 0x1200, end: 0x1600 }
+        - { label: string_heap_9f80, start: 0x9F80, end: 0x9FFF }
+        - { label: runtime_state_9600, start: 0x9600, end: 0x9A00 }
+        - { label: bridge_c000, start: 0xC000, end: 0xC5FF }
   - id: assert_after_resume_alpha
     type: assert.screen
     params:
@@ -164,13 +280,14 @@ steps:
     type: assert.screen
     params:
       contains: "50 PRINT"
-  - id: dump_after_resume
+  - id: dump_after_resume_verified
     type: dump.memory_ranges
     params:
       ranges:
         - { label: basic_pointers_002b, start: 0x002B, end: 0x003F }
+        - { label: basic_var_table_2b00, start: 0x2B00, end: 0x2B3F }
         - { label: basic_vars_start_1200, start: 0x1200, end: 0x1600 }
-        - { label: string_heap_9400, start: 0x9400, end: 0x9600 }
+        - { label: string_heap_9f80, start: 0x9F80, end: 0x9FFF }
         - { label: runtime_state_9600, start: 0x9600, end: 0x9A00 }
         - { label: bridge_c000, start: 0xC000, end: 0xC5FF }
 YAML

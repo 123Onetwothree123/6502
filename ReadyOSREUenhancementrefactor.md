@@ -133,14 +133,16 @@ Implemented cartridge-specific corrections:
 - EasyFlash catalog generation emits ReadyShell overlay resource rows from the
   same generated layout data used by the cartridge preload image.
 - EasyFlash boot writes the 36-byte ReadyShell v4 `OV` metadata block from its
-  generated `OVERLAY_TABLE_RAM` values. The runtime metadata byte order is the
-  same as the disk launcher contract: `(bank, offset_lo, offset_hi)`.
+  generated `OVERLAY_TABLE_RAM` values into the generated ReadyShell state
+  bank. The runtime metadata byte order is the same as the disk launcher
+  contract: `(bank, offset_lo, offset_hi)`.
 - The EasyFlash launcher mirrors equivalent rich resource records into logical
   bank `0`, so REU Viewer and later owner/unload diagnostics see the same
   relationship shape even though cartridge resources are generated/static.
-- ReadyShell still consumes only the tiny `$4880F0` metadata block and assigned
-  `(bank, offset)` values. It does not parse the bank `0` registry and does not
-  allocate or free its own overlay cache banks.
+- ReadyShell still consumes only the tiny metadata block at offset `$80F0`
+  inside its loader-assigned state bank plus assigned `(bank, offset)` values.
+  It does not parse the bank `0` registry and does not allocate or free its own
+  overlay cache/state banks.
 - ReadyBASIC cartridge first-entry startup now validates restored BASIC runtime
   state before trusting it. If the hidden saved zero page/CHRGET/TXTPTR state is
   not credible, ReadyBASIC falls back through its own cold-start path, runs the
@@ -1575,17 +1577,56 @@ current contract is:
   app-owned REU banks before entering ReadyShell;
 - EasyFlash generation allocates three physical cache banks from the generated
   free-bank set and emits the assigned bank ids into generated artifacts;
-- ReadyShell reads those assigned bank ids from the existing shared metadata
-  block at `$4880F0`;
+- the launcher/loader also allocates or generates a fourth ReadyShell state
+  bank for command scratch, command registry state, overlay metadata, pause
+  state, and the REU-backed value arena;
+- ReadyShell reads those assigned bank ids from the shared metadata block at
+  offset `$80F0` inside its loader-assigned state bank;
 - ReadyShell no longer self-loads overlay sidecar PRGs or writes its own cache
   metadata. Missing or invalid `rsovl` metadata is a loader failure;
 - ReadyShell keeps the old slot geometry inside each assigned bank:
   `+$0000`, `+$3800`, `+$7000`, `+$A800`, with `0x3800` bytes per full-window
   overlay snapshot;
 - the shim remains unchanged and does not know about `rsovl`;
-- bank `$48` remains the fixed ReadyShell state/scratch/value-arena bank for
-  this phase. Moving `$48` should be a separate follow-up after overlay cache
-  allocation is proven stable.
+- the ReadyShell state/scratch/value-arena bank is no longer fixed at `$48`.
+  The launcher owns it as the fourth ReadyShell resource bank, records it in
+  the bank `0` resource metadata as `REUCB_DEP_KIND_RS_STATE`, seeds
+  ReadyShell's `$CFF2` state-bank cache before entry, and frees it as part of launcher
+  unload.
+
+Latest ReadyShell state-bank implementation status:
+
+- `$48` is no longer reserved by `reu_mgr` or mirrored as a fixed ReadyShell
+  scratch bank. It can still be allocated if it is the next free bank, but it
+  has no architectural meaning.
+- disk launcher entries with `rsovl` allocate four ReadyShell-owned resource
+  banks: three overlay cache banks plus one state/scratch/value bank;
+- EasyFlash generation emits three cache banks and one state bank from the
+  generated free-bank set. In the current generated layout those are
+  `$3A/$3B/$3C` for cache and `$3D` for state;
+- ReadyShell resolves all former `$48xxxx` scratch, registry, pause, metadata,
+  and value-arena addresses through the tiny platform helper
+  `rs_reu_state_abs(relative_offset)`;
+- the launcher seeds `$CFF2` before entering ReadyShell. ReadyShell validates
+  that cached bank against `REU_ALLOC_TABLE == REU_RS_SCRATCH` and only scans
+  the table as a fallback. `$CFF2` is shim-adjacent runtime state, not new shim
+  ABI surface;
+- unload remains a launcher operation. Freeing ReadyShell resources clears the
+  resource records, zeroes the state metadata in the assigned state bank, and
+  returns all four resource banks to `REU_FREE`.
+
+Measured cost of making the ReadyShell state/scratch/value arena dynamic:
+
+| App | Headroom before | Headroom after | Delta | CODE delta | RODATA delta | DATA delta | BSS delta |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| launcher | 951 | 445 | -506 | +414 | +19 | 0 | +73 |
+| readyshell | 18327 | 18207 | -120 | +120 | 0 | 0 | 0 |
+| readybasic | 1029 | 1029 | 0 | 0 | 0 | 0 | 0 |
+| reuviewer | 28781 | 28827 | +46 | -46 | 0 | 0 | 0 |
+
+ReadyShell resident heap moved from `3988` to `3868` bytes. That is the
+expected 120-byte CODE-only cost of the micromodule helper path and relative
+address calls; no ReadyShell BSS, DATA, or RODATA was added.
 
 Implemented ReadyShell phases:
 
@@ -1602,6 +1643,26 @@ Implemented ReadyShell phases:
    bank ids instead of hard-coded `$40/$41/$42`.
 7. Update host and VICE coverage so disk and EasyFlash paths both prove the
    assigned overlay-bank metadata.
+8. Move ReadyShell's scratch/registry/pause/value arena off fixed `$48` and
+   into the fourth loader-owned ReadyShell resource bank, with launcher-owned
+   unload/free semantics.
+
+Verification after the dynamic ReadyShell state-bank implementation:
+
+- `make verify` passed.
+- regular ReadyShell host REU tests passed via `make readyshell-reu-tests-host`.
+- regular ReadyShell cross-app VICE probe passed:
+  `logs/vice_auto_20260605_152650/manifest.json`.
+- full regular ReadyBASIC VICE suite passed through `make readybasic-vice-suites`;
+  final visual verification manifest:
+  `logs/vice_auto_20260605_155114/manifest.json`.
+- full EasyFlash/cartridge VICE suite passed through `make easyflash-vice-suites`;
+  ReadyShell cartridge probe manifest:
+  `logs/vice_auto_20260605_164427/manifest.json`.
+- EasyFlash large-vars had one cold-boot preload stall on first attempt
+  (`logs/vice_auto_20260605_162211/manifest.json`), then the suite's cold-start
+  retry passed the same plan completely:
+  `logs/vice_auto_20260605_163046/manifest.json`.
 
 Guardrails:
 

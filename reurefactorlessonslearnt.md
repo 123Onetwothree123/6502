@@ -62,8 +62,21 @@
   direct-bank transfer primitive and must not grow owner/free-list policy.
 - ReadyShell overlay cache banks can be dynamic without making ReadyShell own
   allocation. The launcher/loader should allocate the `rsovl` banks, write the
-  existing `$4880F0` metadata block, and let ReadyShell consume only the bank
-  ids it needs.
+  metadata block at offset `$80F0` inside the assigned ReadyShell state bank,
+  and let ReadyShell consume only the bank ids it needs.
+- ReadyShell's scratch/value arena should be treated like the overlay banks:
+  loader-owned, resource-recorded, and unloadable. Seeding ReadyShell's `$CFF2`
+  state-bank cache before entry avoids a wrong-bank scan if a future catalog
+  ever has more than one `REU_RS_SCRATCH` owner.
+- The `$CFF2` state-bank cache is deliberately outside the shim ABI. `$CFF1`
+  was already ReadyShell's command-session epoch byte, so do not reuse nearby
+  shim-adjacent bytes without checking both launcher and app high-RAM runtime
+  allocations.
+- Keep temporary diagnostics out of the final ReadyShell resident path unless
+  they materially improve field support. The final dynamic state-bank change
+  costs ReadyShell 120 bytes of CODE, 0 bytes of BSS/RODATA/DATA, and 120 bytes
+  of resident heap; keeping the boot-screen numeric diagnostic would have added
+  extra code/RODATA for a problem that the targeted VICE suite now covers.
 - Preserve ReadyShell's slot geometry when changing ownership. Keeping
   `+$0000`, `+$3800`, `+$7000`, `+$A800` avoided a broad ReadyShell rewrite and
   confined app impact to metadata read/registry patching.

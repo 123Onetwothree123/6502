@@ -20,6 +20,7 @@ void reu_control_bank_write_launcher_registry(
     const unsigned char *app_rs_bank1,
     const unsigned char *app_rs_bank2,
     const unsigned char *app_rs_bank3,
+    const unsigned char *app_rs_bank4,
     const char *app_file_buf,
     unsigned char app_file_stride,
     const unsigned char *apps_loaded) {
@@ -52,4 +53,6 @@ void reu_control_bank_write_launcher_registry(
                   REUCB_DEP_OFF + 0x0040u, REUCB_APP_ARRAY_LEN);
     reu_dma_stash((unsigned int)(app_rs_bank3 + first_app_index), control_bank,
                   REUCB_DEP_OFF + 0x0080u, REUCB_APP_ARRAY_LEN);
+    reu_dma_stash((unsigned int)(app_rs_bank4 + first_app_index), control_bank,
+                  REUCB_DEP_OFF + 0x00C0u, REUCB_APP_ARRAY_LEN);
 }

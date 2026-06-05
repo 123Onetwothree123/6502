@@ -67,7 +67,7 @@ OVERLAY_SPECS: dict[int, OverlaySpec] = {
         "DRVI, LST",
         ("DRVI", "LST"),
         "Loader-preloaded into an app-owned ReadyShell overlay resource bank, then restored from that cache slot.",
-        "Shares the inter-command REU handoff area at 0x480000-0x487FFF.",
+        "Shares the inter-command REU handoff area at offset $0000-$7FFF in the loader-assigned ReadyShell state bank.",
     ),
     4: OverlaySpec(
         4,
@@ -79,7 +79,7 @@ OVERLAY_SPECS: dict[int, OverlaySpec] = {
         "LDV",
         ("LDV",),
         "Loader-preloaded into an app-owned ReadyShell overlay resource bank, then restored from that cache slot.",
-        "Uses the shared handoff region plus the REU-backed value arena in bank 0x48 when hydrating pointer-backed values.",
+        "Uses the shared handoff region plus the REU-backed value arena in the loader-assigned ReadyShell state bank when hydrating pointer-backed values.",
     ),
     5: OverlaySpec(
         5,
@@ -91,7 +91,7 @@ OVERLAY_SPECS: dict[int, OverlaySpec] = {
         "STV",
         ("STV",),
         "Loader-preloaded into an app-owned ReadyShell overlay resource bank, then restored from that cache slot.",
-        "Uses the shared handoff region plus the REU-backed value arena in bank 0x48 when serializing pointer-backed values.",
+        "Uses the shared handoff region plus the REU-backed value arena in the loader-assigned ReadyShell state bank when serializing pointer-backed values.",
     ),
     6: OverlaySpec(
         6,
@@ -642,9 +642,8 @@ def build_report_context(args: argparse.Namespace) -> dict[str, object]:
     easyflash_layout_path = args.root / "src/generated/easyflash_layout.inc"
     easyflash_layout = read_text(easyflash_layout_path) if easyflash_layout_path.exists() else ""
 
-    scratch_off = parse_define(cmd_overlay_h, "RS_CMD_SCRATCH_OFF")
+    scratch_rel = 0x0000
     scratch_len = parse_define(cmd_overlay_h, "RS_CMD_SCRATCH_LEN")
-    heap_bank_base = parse_define(value_c, "RS_REU_BANK_BASE_OFF")
     heap_meta_rel = parse_define(value_c, "RS_REU_HEAP_META_REL")
     heap_arena_rel = parse_define(value_c, "RS_REU_HEAP_ARENA_REL")
     heap_arena_end_rel = parse_define(value_c, "RS_REU_HEAP_ARENA_END")
@@ -653,29 +652,33 @@ def build_report_context(args: argparse.Namespace) -> dict[str, object]:
     dbg_head_off = parse_define(overlay_c, "RS_REU_DBG_HEAD_OFF")
     dbg_data_off = parse_define(overlay_c, "RS_REU_DBG_DATA_OFF")
     dbg_data_len = parse_define(overlay_c, "RS_REU_DBG_DATA_LEN")
-    shared_meta_off = parse_define(ui_state_h, "RS_REU_SHARED_META_OFF")
-    cmd_reg_hdr_off = parse_define(ui_state_h, "RS_REU_CMD_REG_HDR_OFF")
+    shared_meta_rel = parse_define(ui_state_h, "RS_REU_SHARED_META_REL")
+    cmd_reg_hdr_rel = parse_define(ui_state_h, "RS_REU_CMD_REG_HDR_REL")
     cmd_reg_hdr_len = parse_define(ui_state_h, "RS_REU_CMD_REG_HDR_LEN")
-    cmd_reg_desc_off = parse_define(ui_state_h, "RS_REU_CMD_REG_DESC_OFF")
+    cmd_reg_desc_rel = parse_define(ui_state_h, "RS_REU_CMD_REG_DESC_REL")
     cmd_reg_desc_len = parse_define(ui_state_h, "RS_REU_CMD_REG_DESC_LEN")
     cmd_reg_desc_cap = parse_define(ui_state_h, "RS_REU_CMD_REG_DESC_CAP")
-    cmd_reg_state_off = parse_define(ui_state_h, "RS_REU_CMD_REG_STATE_OFF")
+    cmd_reg_state_rel = parse_define(ui_state_h, "RS_REU_CMD_REG_STATE_REL")
     cmd_reg_state_len = parse_define(ui_state_h, "RS_REU_CMD_REG_STATE_LEN")
     cmd_reg_state_cap = parse_define(ui_state_h, "RS_REU_CMD_REG_STATE_CAP")
     cmd_reg_desc_count = parse_define(registry_c, "RS_CMD_REG_DESC_COUNT")
     cmd_reg_state_count = parse_define(registry_c, "RS_CMD_REG_STATE_COUNT")
-    ovl_meta_off = shared_meta_off
+    ovl_meta_rel = shared_meta_rel
     ovl_meta_len = parse_define(ui_state_h, "RS_REU_OVL_CACHE_META_LEN")
     if easyflash_layout:
         ovl_cache_bank = parse_asm_assignment(easyflash_layout, "READYSHELL_CACHE_BANK")
         ovl_cache_bank2 = parse_asm_assignment(easyflash_layout, "READYSHELL_CACHE_BANK2")
         ovl_cache_bank3 = parse_asm_assignment(easyflash_layout, "READYSHELL_CACHE_BANK3")
+        state_bank = parse_asm_assignment(easyflash_layout, "READYSHELL_STATE_BANK")
         cache_assignment_note = "current generated EasyFlash assignment"
+        state_assignment_note = f"current generated EasyFlash state bank 0x{state_bank:02X}"
     else:
         ovl_cache_bank = 0
         ovl_cache_bank2 = 1
         ovl_cache_bank3 = 2
+        state_bank = 0
         cache_assignment_note = "symbolic loader-assigned bank set"
+        state_assignment_note = "symbolic loader-assigned ReadyShell state bank"
     ovl_parse_rel = parse_define(ui_state_h, "RS_REU_OVL_CACHE_PARSE_REL")
     ovl_exec_rel = parse_define(ui_state_h, "RS_REU_OVL_CACHE_EXEC_REL")
     ovl_cmd3_rel = parse_define(ui_state_h, "RS_REU_OVL_CACHE_CMD3_REL")
@@ -686,7 +689,7 @@ def build_report_context(args: argparse.Namespace) -> dict[str, object]:
     ovl_cmd8_rel = parse_define(ui_state_h, "RS_REU_OVL_CACHE_CMD8_REL")
     ovl_edit_rel = parse_define(ui_state_h, "RS_REU_OVL_CACHE_EDIT_REL")
     ovl_slot_len = parse_define(ui_state_h, "RS_REU_OVL_CACHE_SLOT_LEN")
-    ui_flags_off = parse_define(ui_state_h, "RS_REU_UI_FLAGS_OFF")
+    ui_flags_rel = parse_define(ui_state_h, "RS_REU_UI_FLAGS_REL")
     ovl_cache_base = ovl_cache_bank << 16
     ovl_cache_base2 = ovl_cache_bank2 << 16
 
@@ -698,6 +701,15 @@ def build_report_context(args: argparse.Namespace) -> dict[str, object]:
 
     bank_size = 0x10000
     ovl_cache_base3 = ovl_cache_bank3 << 16
+    state_base = state_bank << 16
+    scratch_off = state_base + scratch_rel
+    heap_bank_base = state_base
+    shared_meta_off = state_base + shared_meta_rel
+    cmd_reg_hdr_off = state_base + cmd_reg_hdr_rel
+    cmd_reg_desc_off = state_base + cmd_reg_desc_rel
+    cmd_reg_state_off = state_base + cmd_reg_state_rel
+    ovl_meta_off = state_base + ovl_meta_rel
+    ui_flags_off = state_base + ui_flags_rel
     parse_abs = ovl_cache_base + ovl_parse_rel
     exec_abs = ovl_cache_base + ovl_exec_rel
     cache_slots = {
@@ -785,6 +797,7 @@ def build_report_context(args: argparse.Namespace) -> dict[str, object]:
         "init_size": init_size,
         "once_size": once_size,
         "scratch_off": scratch_off,
+        "scratch_rel": scratch_rel,
         "scratch_len": scratch_len,
         "scratch_end": scratch_off + scratch_len - 1,
         "dbg_head_off": dbg_head_off,
@@ -793,7 +806,11 @@ def build_report_context(args: argparse.Namespace) -> dict[str, object]:
         "dbg_end_off": dbg_data_off + dbg_data_len - 1,
         "dbg_span_len": dbg_data_off + dbg_data_len - dbg_head_off,
         "heap_bank_base": heap_bank_base,
+        "state_bank": state_bank,
+        "state_base": state_base,
+        "state_assignment_note": state_assignment_note,
         "shared_meta_off": shared_meta_off,
+        "shared_meta_rel": shared_meta_rel,
         "cmd_reg_hdr_off": cmd_reg_hdr_off,
         "cmd_reg_hdr_len": cmd_reg_hdr_len,
         "cmd_reg_hdr_end": cmd_reg_hdr_off + cmd_reg_hdr_len - 1,
@@ -906,6 +923,7 @@ def render_markdown(ctx: dict[str, object]) -> str:
             f"| Shared cache bank 3 | `{fmt_hex24(ctx['ovl_cache_base3'])}-{fmt_hex24(ctx['ovl_cache_base3'] + 0xFFFF)}` | `65536` | Loader-assigned ReadyShell resource bank holding overlay 9, the prompt editor ({ctx['cache_assignment_note']}). |",
             f"| Overlay 9 editor slot | `{fmt_hex24(ctx['ovl_edit_abs'])}-{fmt_hex24(ctx['ovl_edit_abs'] + ctx['ovl_slot_len'] - 1)}` | `{ctx['ovl_slot_len']}` | Full overlay-window snapshot for overlay 9. |",
             f"| Cache bank 3 free tail | `{fmt_hex24(ctx['cache_tails'][ctx['ovl_cache_bank3']][0])}-{fmt_hex24(ctx['ovl_cache_base3'] + 0xFFFF)}` | `{ctx['cache_tails'][ctx['ovl_cache_bank3']][1]}` | Unused tail after the editor slot in assigned bank 3. |",
+            f"| ReadyShell state bank | `{fmt_hex24(ctx['state_base'])}-{fmt_hex24(ctx['state_base'] + 0xFFFF)}` | `65536` | Loader-assigned ReadyShell resource bank for command scratch, registry metadata, pause state, and the value arena ({ctx['state_assignment_note']}). |",
             f"| Debug trace ring | `{fmt_hex24(ctx['dbg_head_off'])}-{fmt_hex24(ctx['dbg_end_off'])}` | `{ctx['dbg_span_len']}` | Overlay debug markers and verification state. |",
             f"| Command scratch | `{fmt_hex24(ctx['scratch_off'])}-{fmt_hex24(ctx['scratch_off'] + ctx['scratch_len'] - 1)}` | `{ctx['scratch_len']}` | Inter-overlay handoff area for command frames and streaming state. |",
             f"| Command registry header | `{fmt_hex24(ctx['cmd_reg_hdr_off'])}-{fmt_hex24(ctx['cmd_reg_hdr_off'] + ctx['cmd_reg_hdr_len'] - 1)}` | `{ctx['cmd_reg_hdr_len']}` | REU-backed external-command registry header. |",
@@ -935,7 +953,7 @@ def render_markdown(ctx: dict[str, object]) -> str:
             "- REU policy split:",
             f"  - overlays {fmt_overlay_nums(ctx['cached_overlays'])} are boot-loaded during shell startup and cached into fixed full-window REU slots",
             f"  - bank `0x{ctx['ovl_cache_bank']:02X}` holds overlays `1`, `2`, `3`, and `5`; bank `0x{ctx['ovl_cache_bank2']:02X}` holds overlays `4`, `6`, `7`, and `8`; bank `0x{ctx['ovl_cache_bank3']:02X}` holds overlay `9`",
-            "  - bank 0x48 is shared for the external-command registry, overlay metadata, pause state, command handoff scratch, and the REU-backed ReadyShell value arena",
+            f"  - the ReadyShell state bank ({ctx['state_assignment_note']}) holds the external-command registry, overlay metadata, pause state, command handoff scratch, and REU-backed value arena",
             "",
             "## Runtime Memory Map",
             "",
@@ -1022,7 +1040,7 @@ def render_markdown(ctx: dict[str, object]) -> str:
             *cmd_reu_rows,
             "",
             "- The command scratch window is shared, not partitioned per overlay. Only one command overlay owns it at a time even though all external overlays are preloaded into REU, because they still run serially through the shared overlay window.",
-            "- The value arena is persistent session state in bank `0x48`. `LDV` populates it explicitly, while `STV` can serialize values already living there.",
+            "- The value arena is persistent session state in the loader-assigned ReadyShell state bank. `LDV` populates it explicitly, while `STV` can serialize values already living there.",
             "",
             "## Static Audit Checks",
             "",
@@ -1484,7 +1502,7 @@ def render_html(ctx: dict[str, object]) -> str:
     <h2>Command Scratch And Value Arena Usage</h2>
     <div class="note">
       The command-scratch window is a single shared REU work area, so only the active command overlay owns it at any moment even though all command overlays are now preloaded into REU.
-      The value arena is persistent session state in bank <code>0x48</code>: <code>LDV</code> populates it directly, while <code>STV</code>
+      The value arena is persistent session state in the loader-assigned ReadyShell state bank: <code>LDV</code> populates it directly, while <code>STV</code>
       can serialize values that already live there.
     </div>
     <div class="table-wrap">

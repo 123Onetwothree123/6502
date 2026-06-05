@@ -190,9 +190,11 @@ steps:
       inter_key_delay_s: 0.03
       post_delay_s: 30.0
   - id: assert_done
-    type: assert.screen
+    type: screen.wait_contains
     params:
-      contains: "RBSCRREU DONE"
+      text: "RBSCRREU DONE"
+      wait_timeout_s: 300
+      capture_label: scrreu_done
   - id: dump_after_done
     type: dump.memory_ranges
     params:
@@ -202,6 +204,11 @@ steps:
     params:
       command: "r"
 YAML
+
+if [ "${READYBASIC_GENERATE_PLAN_ONLY:-0}" = "1" ]; then
+  echo "wrote $PLAN"
+  exit 0
+fi
 
 dotnet run --project "$PROJECT" -- run \
   --plan "$PLAN" \

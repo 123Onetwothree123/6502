@@ -19,9 +19,9 @@ global_defaults:
     capture_state: true
     capture_dump: false
   vice:
-    disk8: "Releases/0.2.4/precog-d81/readyos-v0.2.4b-d81.d81"
-    disk9: "Releases/0.2.4/precog-d81/readyos-v0.2.4b-d81.d81"
-    autostart_prg: "Releases/0.2.4/precog-d81/readyos-v0.2.4b-d81-preboot.prg"
+    disk8: "Releases/0.2.4/precog-d81/readyos-v0.2.4v-d81.d81"
+    disk9: "Releases/0.2.4/precog-d81/readyos-v0.2.4v-d81.d81"
+    autostart_prg: "Releases/0.2.4/precog-d81/readyos-v0.2.4v-d81-preboot.prg"
     drive8_type: 1581
     drive9_type: 1581
     true_drive: false
@@ -39,16 +39,40 @@ steps:
       text: "ready."
       wait_timeout_s: 180
       capture_label: readybasic_prompt
-  - id: build_program_and_large_direct_vars
+  - id: build_program_lines
     type: input.sequence
     params:
-      keys: [78,69,87,13,49,48,32,80,82,73,78,84,32,34,79,78,69,34,13,50,48,32,80,82,73,78,84,32,34,84,87,79,34,13,51,48,32,80,82,73,78,84,32,34,84,72,82,69,69,34,13,52,48,32,80,82,73,78,84,32,34,70,79,85,82,34,13,53,48,32,80,82,73,78,84,32,34,70,73,86,69,34,13,65,36,61,34,65,76,80,72,65,34,13,66,36,61,34,66,82,65,86,79,34,13,67,36,61,34,67,72,65,82,76,73,69,34,13,68,36,61,34,68,69,76,84,65,34,13,68,73,77,32,69,40,50,48,48,41,13,69,40,49,57,57,41,61,49,50,51,52,13,80,82,73,78,84,32,65,36,13,80,82,73,78,84,32,66,36,13,80,82,73,78,84,32,67,36,13,80,82,73,78,84,32,68,36,13,80,82,73,78,84,32,69,40,49,57,57,41,13]
+      keys: [78,69,87,13,49,48,32,80,82,73,78,84,32,34,79,78,69,34,13,50,48,32,80,82,73,78,84,32,34,84,87,79,34,13,51,48,32,80,82,73,78,84,32,34,84,72,82,69,69,34,13,52,48,32,80,82,73,78,84,32,34,70,79,85,82,34,13,53,48,32,80,82,73,78,84,32,34,70,73,86,69,34,13]
+      inter_key_delay_s: 0.03
+      post_delay_s: 0.8
+  - id: clear_variables_after_program_entry
+    type: input.sequence
+    params:
+      keys: [67,76,82,13]
+      inter_key_delay_s: 0.03
+      post_delay_s: 0.5
+  - id: seed_large_direct_vars
+    type: input.sequence
+    params:
+      keys: [65,36,61,34,65,76,80,72,65,34,13,66,36,61,34,66,82,65,86,79,34,13,71,36,61,34,67,72,65,82,76,73,69,34,13,68,36,61,34,68,69,76,84,65,34,13,68,73,77,32,69,40,50,48,48,41,13,69,40,49,57,57,41,61,49,50,51,52,13,80,82,73,78,84,32,65,36,13,80,82,73,78,84,32,66,36,13,80,82,73,78,84,32,71,36,13,80,82,73,78,84,32,68,36,13,80,82,73,78,84,32,69,40,49,57,57,41,13]
       inter_key_delay_s: 0.03
       post_delay_s: 1.5
   - id: assert_setup_alpha
     type: assert.screen
     params:
       contains: "ALPHA"
+  - id: assert_setup_bravo
+    type: assert.screen
+    params:
+      contains: "BRAVO"
+  - id: assert_setup_charlie
+    type: assert.screen
+    params:
+      contains: "CHARLIE"
+  - id: assert_setup_delta
+    type: assert.screen
+    params:
+      contains: "DELTA"
   - id: assert_setup_array
     type: assert.screen
     params:
@@ -130,13 +154,13 @@ steps:
     type: assert.screen
     params:
       contains: "BRAVO"
-  - id: print_c_after_cross_app_1
+  - id: print_g_after_cross_app_1
     type: input.sequence
     params:
-      keys: [80,82,73,78,84,32,67,36,13]
+      keys: [80,82,73,78,84,32,71,36,13]
       inter_key_delay_s: 0.03
       post_delay_s: 0.4
-  - id: assert_c_after_cross_app_1
+  - id: assert_g_after_cross_app_1
     type: assert.screen
     params:
       contains: "CHARLIE"
@@ -237,13 +261,13 @@ steps:
     type: assert.screen
     params:
       contains: "BRAVO"
-  - id: print_c_after_cross_app_2
+  - id: print_g_after_cross_app_2
     type: input.sequence
     params:
-      keys: [80,82,73,78,84,32,67,36,13]
+      keys: [80,82,73,78,84,32,71,36,13]
       inter_key_delay_s: 0.03
       post_delay_s: 0.4
-  - id: assert_c_after_cross_app_2
+  - id: assert_g_after_cross_app_2
     type: assert.screen
     params:
       contains: "CHARLIE"
@@ -344,13 +368,13 @@ steps:
     type: assert.screen
     params:
       contains: "BRAVO"
-  - id: print_c_after_cross_app_3
+  - id: print_g_after_cross_app_3
     type: input.sequence
     params:
-      keys: [80,82,73,78,84,32,67,36,13]
+      keys: [80,82,73,78,84,32,71,36,13]
       inter_key_delay_s: 0.03
       post_delay_s: 0.4
-  - id: assert_c_after_cross_app_3
+  - id: assert_g_after_cross_app_3
     type: assert.screen
     params:
       contains: "CHARLIE"
@@ -451,13 +475,13 @@ steps:
     type: assert.screen
     params:
       contains: "BRAVO"
-  - id: print_c_after_cross_app_4
+  - id: print_g_after_cross_app_4
     type: input.sequence
     params:
-      keys: [80,82,73,78,84,32,67,36,13]
+      keys: [80,82,73,78,84,32,71,36,13]
       inter_key_delay_s: 0.03
       post_delay_s: 0.4
-  - id: assert_c_after_cross_app_4
+  - id: assert_g_after_cross_app_4
     type: assert.screen
     params:
       contains: "CHARLIE"
@@ -558,13 +582,13 @@ steps:
     type: assert.screen
     params:
       contains: "BRAVO"
-  - id: print_c_after_cross_app_5
+  - id: print_g_after_cross_app_5
     type: input.sequence
     params:
-      keys: [80,82,73,78,84,32,67,36,13]
+      keys: [80,82,73,78,84,32,71,36,13]
       inter_key_delay_s: 0.03
       post_delay_s: 0.4
-  - id: assert_c_after_cross_app_5
+  - id: assert_g_after_cross_app_5
     type: assert.screen
     params:
       contains: "CHARLIE"
@@ -665,13 +689,13 @@ steps:
     type: assert.screen
     params:
       contains: "BRAVO"
-  - id: print_c_after_cross_app_6
+  - id: print_g_after_cross_app_6
     type: input.sequence
     params:
-      keys: [80,82,73,78,84,32,67,36,13]
+      keys: [80,82,73,78,84,32,71,36,13]
       inter_key_delay_s: 0.03
       post_delay_s: 0.4
-  - id: assert_c_after_cross_app_6
+  - id: assert_g_after_cross_app_6
     type: assert.screen
     params:
       contains: "CHARLIE"
@@ -772,13 +796,13 @@ steps:
     type: assert.screen
     params:
       contains: "BRAVO"
-  - id: print_c_after_cross_app_7
+  - id: print_g_after_cross_app_7
     type: input.sequence
     params:
-      keys: [80,82,73,78,84,32,67,36,13]
+      keys: [80,82,73,78,84,32,71,36,13]
       inter_key_delay_s: 0.03
       post_delay_s: 0.4
-  - id: assert_c_after_cross_app_7
+  - id: assert_g_after_cross_app_7
     type: assert.screen
     params:
       contains: "CHARLIE"
@@ -879,13 +903,13 @@ steps:
     type: assert.screen
     params:
       contains: "BRAVO"
-  - id: print_c_after_cross_app_8
+  - id: print_g_after_cross_app_8
     type: input.sequence
     params:
-      keys: [80,82,73,78,84,32,67,36,13]
+      keys: [80,82,73,78,84,32,71,36,13]
       inter_key_delay_s: 0.03
       post_delay_s: 0.4
-  - id: assert_c_after_cross_app_8
+  - id: assert_g_after_cross_app_8
     type: assert.screen
     params:
       contains: "CHARLIE"
@@ -986,13 +1010,13 @@ steps:
     type: assert.screen
     params:
       contains: "BRAVO"
-  - id: print_c_after_cross_app_9
+  - id: print_g_after_cross_app_9
     type: input.sequence
     params:
-      keys: [80,82,73,78,84,32,67,36,13]
+      keys: [80,82,73,78,84,32,71,36,13]
       inter_key_delay_s: 0.03
       post_delay_s: 0.4
-  - id: assert_c_after_cross_app_9
+  - id: assert_g_after_cross_app_9
     type: assert.screen
     params:
       contains: "CHARLIE"
@@ -1093,13 +1117,13 @@ steps:
     type: assert.screen
     params:
       contains: "BRAVO"
-  - id: print_c_after_cross_app_10
+  - id: print_g_after_cross_app_10
     type: input.sequence
     params:
-      keys: [80,82,73,78,84,32,67,36,13]
+      keys: [80,82,73,78,84,32,71,36,13]
       inter_key_delay_s: 0.03
       post_delay_s: 0.4
-  - id: assert_c_after_cross_app_10
+  - id: assert_g_after_cross_app_10
     type: assert.screen
     params:
       contains: "CHARLIE"

@@ -988,11 +988,11 @@ write_overlay_meta:
     dec loop_index
     bne @meta_loop
 
-    lda #$48
+    lda #READYSHELL_STATE_BANK
     sta reu_bank_zp
-    lda #<$80F0
+    lda #<READYSHELL_OVERLAY_META_OFF
     sta reu_off_lo
-    lda #>$80F0
+    lda #>READYSHELL_OVERLAY_META_OFF
     sta reu_off_hi
     lda #<OVL_META_RAM
     sta dst_lo

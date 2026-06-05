@@ -53,7 +53,6 @@ static void reucb_sync_from_bitmap(void) {
     }
 
     REU_ALLOC_TABLE[REU_BANK_RS_DEBUG] = REU_RS_DEBUG;
-    REU_ALLOC_TABLE[REU_BANK_RS_SCRATCH] = REU_RS_SCRATCH;
 }
 
 static void reucb_write_header(unsigned char control_bank, unsigned char writer_id) {
@@ -143,8 +142,8 @@ static void reucb_write_resources(unsigned char control_bank) {
                          REU_FREE, 0, 0);
     reucb_write_resource(control_bank, 8, 0,
                          REU_FREE, 0, 0);
-    reucb_write_resource(control_bank, 9, REU_BANK_RS_SCRATCH,
-                         REU_RS_SCRATCH, REUCB_OWNER_READYSHELL, REUCB_ROLE_SCRATCH);
+    reucb_write_resource(control_bank, 9, 0,
+                         REU_FREE, 0, 0);
 }
 
 void reu_control_bank_sync_and_mirror(unsigned char writer_id) {

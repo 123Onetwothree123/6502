@@ -42,7 +42,6 @@ static void reu_sync_from_bitmap(void) {
 
 static void reu_apply_fixed_system_banks(void) {
     REU_ALLOC_TABLE[REU_BANK_RS_DEBUG] = REU_RS_DEBUG;
-    REU_ALLOC_TABLE[REU_BANK_RS_SCRATCH] = REU_RS_SCRATCH;
 }
 
 void reu_mgr_init(void) {

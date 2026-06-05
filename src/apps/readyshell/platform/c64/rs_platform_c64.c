@@ -3,6 +3,7 @@
 
 #define RS_REU_PROBE_BANK 0x43u
 #define RS_REU_PROBE_OFF  0x0000u
+#define RS_REU_STATE_BANK_CACHE (*(unsigned char*)0xCFF2)
 
 int rs_reu_available(void) {
   unsigned char probe;
@@ -12,6 +13,28 @@ int rs_reu_available(void) {
   reu_dma_stash((unsigned int)&probe, RS_REU_PROBE_BANK, RS_REU_PROBE_OFF, 1u);
   reu_dma_fetch((unsigned int)&check, RS_REU_PROBE_BANK, RS_REU_PROBE_OFF, 1u);
   return check == probe;
+}
+
+unsigned char rs_reu_state_bank(void) {
+  unsigned int bank;
+
+  if (RS_REU_STATE_BANK_CACHE != 0u &&
+      REU_ALLOC_TABLE[RS_REU_STATE_BANK_CACHE] == REU_RS_SCRATCH) {
+    return RS_REU_STATE_BANK_CACHE;
+  }
+
+  for (bank = 0u; bank < REU_TOTAL_BANKS; ++bank) {
+    if (REU_ALLOC_TABLE[bank] == REU_RS_SCRATCH) {
+      RS_REU_STATE_BANK_CACHE = (unsigned char)bank;
+      return (unsigned char)bank;
+    }
+  }
+
+  return 0u;
+}
+
+unsigned long rs_reu_state_abs(unsigned short rel_off) {
+  return ((unsigned long)rs_reu_state_bank() << 16u) + (unsigned long)rel_off;
 }
 
 int rs_reu_read(unsigned long reu_off, void* ram_dst, unsigned short len) {

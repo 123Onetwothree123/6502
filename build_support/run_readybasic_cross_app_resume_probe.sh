@@ -86,16 +86,40 @@ steps:
       text: "ready."
       wait_timeout_s: 180
       capture_label: readybasic_prompt
-  - id: build_program_and_large_direct_vars
+  - id: build_program_lines
     type: input.sequence
     params:
-      keys: [$(keys $'NEW\r10 PRINT "ONE"\r20 PRINT "TWO"\r30 PRINT "THREE"\r40 PRINT "FOUR"\r50 PRINT "FIVE"\rA$="ALPHA"\rB$="BRAVO"\rC$="CHARLIE"\rD$="DELTA"\rDIM E(200)\rE(199)=1234\rPRINT A$\rPRINT B$\rPRINT C$\rPRINT D$\rPRINT E(199)\r')]
+      keys: [$(keys $'NEW\r10 PRINT "ONE"\r20 PRINT "TWO"\r30 PRINT "THREE"\r40 PRINT "FOUR"\r50 PRINT "FIVE"\r')]
+      inter_key_delay_s: 0.03
+      post_delay_s: 0.8
+  - id: clear_variables_after_program_entry
+    type: input.sequence
+    params:
+      keys: [$(keys $'CLR\r')]
+      inter_key_delay_s: 0.03
+      post_delay_s: 0.5
+  - id: seed_large_direct_vars
+    type: input.sequence
+    params:
+      keys: [$(keys $'A$="ALPHA"\rB$="BRAVO"\rG$="CHARLIE"\rD$="DELTA"\rDIM E(200)\rE(199)=1234\rPRINT A$\rPRINT B$\rPRINT G$\rPRINT D$\rPRINT E(199)\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 1.5
   - id: assert_setup_alpha
     type: assert.screen
     params:
       contains: "ALPHA"
+  - id: assert_setup_bravo
+    type: assert.screen
+    params:
+      contains: "BRAVO"
+  - id: assert_setup_charlie
+    type: assert.screen
+    params:
+      contains: "CHARLIE"
+  - id: assert_setup_delta
+    type: assert.screen
+    params:
+      contains: "DELTA"
   - id: assert_setup_array
     type: assert.screen
     params:
@@ -181,13 +205,13 @@ cat >>"$PLAN" <<YAML
     type: assert.screen
     params:
       contains: "BRAVO"
-  - id: print_c_after_cross_app_$i
+  - id: print_g_after_cross_app_$i
     type: input.sequence
     params:
-      keys: [$(keys $'PRINT C$\r')]
+      keys: [$(keys $'PRINT G$\r')]
       inter_key_delay_s: 0.03
       post_delay_s: 0.4
-  - id: assert_c_after_cross_app_$i
+  - id: assert_g_after_cross_app_$i
     type: assert.screen
     params:
       contains: "CHARLIE"

@@ -67,8 +67,8 @@ Current release build layout:
 | Resident app window | `$1000-$C5FF` | ReadyShell-owned app RAM |
 | Overlay load bytes | `$8DFE-$8DFF` | PRG load-address bytes for overlay sidecars |
 | Overlay execution window | `$8E00-$C5FF` | Shared live window for whichever overlay is active |
-| Resident BSS | `$7BA2-$7D1B` | Resident writable state below overlays |
-| Resident heap | `$7D1C-$8DFD` | cc65 heap below overlay load address |
+| Resident BSS | `$7D37-$7EE0` | Resident writable state below overlays |
+| Resident heap | `$7EE2-$8DFD` | cc65 heap below overlay load address |
 | High runtime area | `$CA00-$CFFF` | ReadyShell runtime state outside app snapshot |
 
 Important constraints:
@@ -309,8 +309,9 @@ assigned bank 3
 Important detail:
 
 - these are full-window snapshots, not just PRG payload bytes
-- the bank numbers are supplied by the launcher/loader through `$4880F0`
-  metadata, not by fixed ReadyShell constants
+- the bank numbers are supplied by the launcher/loader through metadata at
+  offset `$80F0` in the loader-assigned ReadyShell state bank, not by fixed
+  ReadyShell constants
 - writable overlay data survives phase switching because the whole window image
   is cached
 
@@ -320,18 +321,21 @@ Important detail:
 bank 0x43
   debug/probe ring and verification bytes
 
-bank 0x48
-  command scratch     $480000-$487FFF
-  command registry    $488010-$4880EB
-  shared metadata     $4880F0-$488113
-  pause flag          $488114
-  REU heap metadata   $488000-$4880FF
-  reserved guard      $488100-$48811F
-  REU value arena     $488120-$48FEFF
+loader-assigned ReadyShell state bank
+  command scratch     +$0000-+$7FFF
+  REU heap metadata   +$8000-+$80FF
+  command registry    +$8010-+$80EB
+  shared metadata     +$80F0-+$8113
+  pause flag          +$8114
+  reserved guard      +$8100-+$811F
+  REU value arena     +$8120-+$FEFF
 ```
 
-`bank 0x48` is shared but not overlaid: scratch, registry, pause state, and
-the REU-backed value arena all live there at fixed addresses.
+The state bank is shared but not overlaid: scratch, registry, pause state, and
+the REU-backed value arena all live there at fixed offsets. The launcher owns
+the physical bank, mirrors it as the ReadyShell state resource in bank `0`, and
+seeds ReadyShell's `$CFF2` state-bank cache before entry so the runtime does not need a
+large registry reader.
 
 ## 9. Responsibilities
 
@@ -346,8 +350,8 @@ the REU-backed value arena all live there at fixed addresses.
 
 ## 10. Current Constraints
 
-- Resident heap below the overlay load address is `2246` bytes.
-- `OVERLAY6` is currently the tightest overlay, with only `3` bytes left in the
+- Resident heap below the overlay load address is `3868` bytes.
+- `OVERLAY6` is currently the tightest overlay, with only `11` bytes left in the
   `$3800` live window.
 - The assigned cache layout leaves `8192` bytes free at the tail of assigned
   bank 1, `8192` bytes free at the tail of assigned bank 2, and most of

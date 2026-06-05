@@ -72,7 +72,7 @@ def main() -> int:
     require("REU_READYOS_GLOBAL_PHYSICAL()" in src, "control mirror records ReadyOS global bank")
     require("REU_LAUNCHER_PHYSICAL()" in src, "control mirror records launcher bank")
     require("REU_BANK_RS_CACHE" not in src, "control mirror no longer records fixed ReadyShell cache banks")
-    require("REU_BANK_RS_SCRATCH" in src, "control mirror records ReadyShell scratch bank")
+    require("REU_BANK_RS_SCRATCH" not in src, "control mirror no longer records fixed ReadyShell scratch bank")
     require("REU_BANK_RB_CORE" not in src and "REU_BANK_RB_CODE" not in src,
             "control mirror must not record fixed ReadyBASIC core/code banks")
     require("reu_dma_stash((unsigned int)REU_ALLOC_TABLE" in src,
@@ -80,7 +80,8 @@ def main() -> int:
     require("reu_control_bank_write_launcher_registry" in registry,
             "control mirror writes launcher 64-app registry")
     require("app_rs_bank1 + first_app_index" in registry and
-            "app_rs_bank3 + first_app_index" in registry,
+            "app_rs_bank3 + first_app_index" in registry and
+            "app_rs_bank4 + first_app_index" in registry,
             "control mirror records loader-owned dependency/resource bank arrays")
 
     require("REU_CONTROL_BANK_SRC = $(LIB_DIR)/reu_control_bank.c" in makefile,

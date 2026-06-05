@@ -12,5 +12,7 @@ void rs_prompt(void);
 int rs_reu_available(void);
 int rs_reu_read(unsigned long reu_off, void* ram_dst, unsigned short len);
 int rs_reu_write(unsigned long reu_off, const void* ram_src, unsigned short len);
+unsigned char rs_reu_state_bank(void);
+unsigned long rs_reu_state_abs(unsigned short rel_off);
 
 #endif

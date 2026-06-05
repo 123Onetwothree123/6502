@@ -2,7 +2,7 @@
   "id": "precog-easyflash",
   "display_name": "precog easyflash",
   "kind": "easyflash",
-  "version_text": "0.2.4K",
+  "version_text": "0.2.4Y",
   "catalog_source": "cfg/flavors/readyos_easyflash.ini",
   "artifacts": {
     "crt": "releases/0.2.4/precog-easyflash/readyos_easyflash.crt",
@@ -185,8 +185,8 @@
     "start_bank": 1,
     "bank_span": 2,
     "load_addr": 4096,
-    "payload_len": 25892,
-    "checksum16": 8731
+    "payload_len": 26207,
+    "checksum16": 49515
   },
   "overlays": [
     {
@@ -196,7 +196,7 @@
       "bank_span": 1,
       "load_addr": 36352,
       "payload_len": 13005,
-      "checksum16": 2038,
+      "checksum16": 39787,
       "reu_bank": 58,
       "reu_off": 0,
       "valid_bit": 1
@@ -207,8 +207,8 @@
       "start_bank": 46,
       "bank_span": 1,
       "load_addr": 36352,
-      "payload_len": 14043,
-      "checksum16": 6276,
+      "payload_len": 14028,
+      "checksum16": 30388,
       "reu_bank": 58,
       "reu_off": 14336,
       "valid_bit": 2
@@ -219,8 +219,8 @@
       "start_bank": 47,
       "bank_span": 1,
       "load_addr": 36352,
-      "payload_len": 11272,
-      "checksum16": 58227,
+      "payload_len": 11258,
+      "checksum16": 15297,
       "reu_bank": 58,
       "reu_off": 28672,
       "valid_bit": 4
@@ -232,7 +232,7 @@
       "bank_span": 1,
       "load_addr": 36352,
       "payload_len": 11894,
-      "checksum16": 1979,
+      "checksum16": 29585,
       "reu_bank": 59,
       "reu_off": 0,
       "valid_bit": 8
@@ -243,8 +243,8 @@
       "start_bank": 49,
       "bank_span": 1,
       "load_addr": 36352,
-      "payload_len": 10205,
-      "checksum16": 20935,
+      "payload_len": 10249,
+      "checksum16": 52999,
       "reu_bank": 58,
       "reu_off": 43008,
       "valid_bit": 16
@@ -255,8 +255,8 @@
       "start_bank": 50,
       "bank_span": 1,
       "load_addr": 36352,
-      "payload_len": 14333,
-      "checksum16": 29598,
+      "payload_len": 14325,
+      "checksum16": 50189,
       "reu_bank": 59,
       "reu_off": 14336,
       "valid_bit": 32
@@ -268,7 +268,7 @@
       "bank_span": 1,
       "load_addr": 36352,
       "payload_len": 8078,
-      "checksum16": 36257,
+      "checksum16": 11213,
       "reu_bank": 59,
       "reu_off": 28672,
       "valid_bit": 64
@@ -280,7 +280,7 @@
       "bank_span": 1,
       "load_addr": 36352,
       "payload_len": 6599,
-      "checksum16": 53263,
+      "checksum16": 33349,
       "reu_bank": 59,
       "reu_off": 43008,
       "valid_bit": 128
@@ -292,7 +292,7 @@
       "bank_span": 1,
       "load_addr": 36352,
       "payload_len": 2002,
-      "checksum16": 8518,
+      "checksum16": 4108,
       "reu_bank": 60,
       "reu_off": 0,
       "valid_bit": 256

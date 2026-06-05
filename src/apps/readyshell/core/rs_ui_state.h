@@ -1,22 +1,28 @@
 #ifndef RS_UI_STATE_H
 #define RS_UI_STATE_H
 
+#include "../platform/rs_platform.h"
+
 /*
- * Shared ReadyShell state lives in REU bank 0x48 metadata space instead of
- * overlay or resident heap RAM. This keeps small cross-layer state visible
- * across the resident/output boundary without colliding with command scratch
- * payloads or the REU value arena.
+ * Shared ReadyShell state lives in a launcher-assigned REU state bank instead
+ * of overlay or resident heap RAM. Keep these as relative offsets so the
+ * platform layer can resolve the current physical bank without teaching
+ * ReadyShell about the launcher registry.
  */
-#define RS_REU_CMD_REG_HDR_OFF         0x488010ul
+#define RS_REU_CMD_REG_HDR_REL         0x8010u
+#define RS_REU_CMD_REG_HDR_OFF         rs_reu_state_abs(RS_REU_CMD_REG_HDR_REL)
 #define RS_REU_CMD_REG_HDR_LEN         8u
-#define RS_REU_CMD_REG_DESC_OFF        0x488020ul
+#define RS_REU_CMD_REG_DESC_REL        0x8020u
+#define RS_REU_CMD_REG_DESC_OFF        rs_reu_state_abs(RS_REU_CMD_REG_DESC_REL)
 #define RS_REU_CMD_REG_DESC_LEN        6u
 #define RS_REU_CMD_REG_DESC_CAP        16u
-#define RS_REU_CMD_REG_STATE_OFF       0x488080ul
+#define RS_REU_CMD_REG_STATE_REL       0x8080u
+#define RS_REU_CMD_REG_STATE_OFF       rs_reu_state_abs(RS_REU_CMD_REG_STATE_REL)
 #define RS_REU_CMD_REG_STATE_LEN       18u
 #define RS_REU_CMD_REG_STATE_CAP       6u
 
-#define RS_REU_SHARED_META_OFF         0x4880F0ul
+#define RS_REU_SHARED_META_REL         0x80F0u
+#define RS_REU_SHARED_META_OFF         rs_reu_state_abs(RS_REU_SHARED_META_REL)
 #define RS_REU_OVL_CACHE_META_OFF      RS_REU_SHARED_META_OFF
 #define RS_REU_OVL_CACHE_META_LEN      36u
 #define RS_REU_OVL_CACHE_META_VERSION  4u
@@ -42,7 +48,8 @@
 #define RS_REU_OVL_CACHE_VALID_CMD8    0x0080u
 #define RS_REU_OVL_CACHE_VALID_EDIT    0x0100u
 
-#define RS_REU_UI_FLAGS_OFF 0x488114ul
+#define RS_REU_UI_FLAGS_REL 0x8114u
+#define RS_REU_UI_FLAGS_OFF rs_reu_state_abs(RS_REU_UI_FLAGS_REL)
 #define RS_UI_FLAG_PAUSED 0x01u
 
 #endif
