@@ -323,10 +323,11 @@ bank 0x43
 bank 0x48
   command scratch     $480000-$487FFF
   command registry    $488010-$4880EB
-  shared metadata     $4880F0-$4880FB
-  pause flag          $4880FC
+  shared metadata     $4880F0-$488113
+  pause flag          $488114
   REU heap metadata   $488000-$4880FF
-  REU value arena     $488100-$48FEFF
+  reserved guard      $488100-$48811F
+  REU value arena     $488120-$48FEFF
 ```
 
 `bank 0x48` is shared but not overlaid: scratch, registry, pause state, and

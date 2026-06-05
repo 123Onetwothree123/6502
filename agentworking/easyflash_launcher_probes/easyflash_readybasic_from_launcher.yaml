@@ -54,50 +54,52 @@ steps:
       text: "READYBASIC"
       wait_timeout_s: 120
       capture_label: easyflash_readybasic_prompt
-  - id: readybasic_clear_startup_line
+  - id: dump_readybasic_prompt_core
+    type: dump.memory_ranges
+    params:
+      ranges:
+        - { label: entry_1000, start: 0x1000, end: 0x1120 }
+        - { label: hidden_shadow_9a00, start: 0x9A00, end: 0x9F40 }
+        - { label: hidden_visible_a000, start: 0xA000, end: 0xA540 }
+        - { label: vectors_0300, start: 0x0300, end: 0x030B }
+        - { label: kernal_vectors_0324, start: 0x0324, end: 0x032B }
+        - { label: chrget_0073, start: 0x0073, end: 0x008A }
+        - { label: basic_zp_002b, start: 0x002B, end: 0x003F }
+        - { label: txtptr_007a, start: 0x007A, end: 0x007B }
+        - { label: kernal_mem_bounds_0280, start: 0x0280, end: 0x0287 }
+        - { label: input_buffer_0200, start: 0x0200, end: 0x0258 }
+        - { label: low_ram_0100_0600, start: 0x0100, end: 0x0600 }
+        - { label: screen_0400, start: 0x0400, end: 0x07E7 }
+        - { label: basic_text_1200, start: 0x1200, end: 0x1300 }
+        - { label: readybasic_bridge_c000, start: 0xC000, end: 0xC5FF }
+  - id: readybasic_direct_print
     type: input.sequence
     params:
-      keys: [13]
+      keys: [80,82,73,78,84,32,54,42,55,13]
       inter_key_delay_s: 0.035
-      post_delay_s: 1.0
-  - id: wait_readybasic_ready_after_clear
+      post_delay_s: 3.0
+  - id: capture_readybasic_direct_print
+    type: screen.capture
+    params:
+      label: easyflash_readybasic_after_direct_print
+  - id: assert_readybasic_direct_print
     type: screen.wait_contains
     params:
-      text: "READY."
+      text: " 42"
       wait_timeout_s: 30
-      capture_label: easyflash_readybasic_ready_after_clear
-  - id: readybasic_direct_print_text
+      capture_label: easyflash_readybasic_direct_print
+  - id: readybasic_zadd16
     type: input.sequence
     params:
-      keys: [80,82,73,78,84,32,34,69,70,67,65,82,84,66,65,83,73,67,34]
-      inter_key_delay_s: 0
-      post_delay_s: 0.3
-  - id: readybasic_direct_print_return
-    type: input.sequence
-    params:
-      keys: [13]
+      keys: [80,82,73,78,84,32,34,83,85,77,34,59,90,65,68,68,49,54,40,49,44,50,41,13]
       inter_key_delay_s: 0.035
-      post_delay_s: 1.0
-  - id: assert_readybasic_direct_print
-    type: assert.screen
-    params:
-      contains: "EFCARTBASIC"
-  - id: readybasic_zadd16_text
-    type: input.sequence
-    params:
-      keys: [80,82,73,78,84,32,34,83,85,77,34,59,90,65,68,68,49,54,40,49,44,50,41]
-      inter_key_delay_s: 0
-      post_delay_s: 0.3
-  - id: readybasic_zadd16_return
-    type: input.sequence
-    params:
-      keys: [13]
-      inter_key_delay_s: 0.035
-      post_delay_s: 1.2
+      post_delay_s: 3.0
   - id: assert_readybasic_zadd16
-    type: assert.screen
+    type: screen.wait_contains
     params:
-      contains: "SUM 3"
+      text: "SUM 3"
+      wait_timeout_s: 30
+      capture_label: easyflash_readybasic_zadd16
   - id: dump_readybasic_state
     type: dump.memory_ranges
     params:

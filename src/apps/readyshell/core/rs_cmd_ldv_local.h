@@ -4,7 +4,7 @@
 #include "rs_cmd_ser_local.h"
 
 #define RS_CMD_REU_HEAP_META_REL   0x8000u
-#define RS_CMD_REU_HEAP_ARENA_REL  0x8100u
+#define RS_CMD_REU_HEAP_ARENA_REL  0x8120u
 #define RS_CMD_REU_HEAP_ARENA_END  0xFF00u
 
 #define RS_CMD_REU_HEAP_MAGIC0 'R'

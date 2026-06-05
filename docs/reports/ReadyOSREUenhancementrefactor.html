@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="generator" content="pandoc" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
-  <title>ReadyOS REU Enhancement Refactor Plan</title>
+  <title>ReadyOSREUenhancementrefactor</title>
   <style>
     /* Default styles provided by pandoc.
     ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -237,9 +237,6 @@
   </style>
 </head>
 <body>
-<header id="title-block-header">
-<h1 class="title">ReadyOS REU Enhancement Refactor Plan</h1>
-</header>
 <h1 id="readyos-reu-enhancement-refactor-plan">ReadyOS REU Enhancement
 Refactor Plan</h1>
 <h2 id="purpose">Purpose</h2>
@@ -480,6 +477,71 @@ row and was corrected.</p>
 in <code>agentworking/reu_rich_registry_working_notes.md</code> and
 should be kept current with the final command result before the branch
 is merged.</p>
+<h2 id="cartridge-stabilization-checkpoint-2026-06-04">Cartridge
+Stabilization Checkpoint 2026-06-04</h2>
+<p>The cartridge SKU is now aligned with the same resource-ownership
+pattern as the disk launcher without adding new shim ABI or teaching the
+cartridge launcher a separate hard-coded resource contract.</p>
+<p>Implemented cartridge-specific corrections:</p>
+<ul>
+<li>EasyFlash catalog generation emits ReadyShell overlay resource rows
+from the same generated layout data used by the cartridge preload
+image.</li>
+<li>EasyFlash boot writes the 36-byte ReadyShell v4 <code>OV</code>
+metadata block from its generated <code>OVERLAY_TABLE_RAM</code> values.
+The runtime metadata byte order is the same as the disk launcher
+contract: <code>(bank, offset_lo, offset_hi)</code>.</li>
+<li>The EasyFlash launcher mirrors equivalent rich resource records into
+logical bank <code>0</code>, so REU Viewer and later owner/unload
+diagnostics see the same relationship shape even though cartridge
+resources are generated/static.</li>
+<li>ReadyShell still consumes only the tiny <code>$4880F0</code>
+metadata block and assigned <code>(bank, offset)</code> values. It does
+not parse the bank <code>0</code> registry and does not allocate or free
+its own overlay cache banks.</li>
+<li>ReadyBASIC cartridge first-entry startup now validates restored
+BASIC runtime state before trusting it. If the hidden saved zero
+page/CHRGET/TXTPTR state is not credible, ReadyBASIC falls back through
+its own cold-start path, runs the BASIC ROM zero-page initializer at
+<code>$E3BF</code>, and resets <code>TXTPTR</code> through the BASIC
+workspace reset path at <code>$A68E</code>.</li>
+<li>The ReadyBASIC correction is intentionally app-owned. The launcher
+does not special-case ReadyBASIC first entry, the shim does not grow,
+and the EasyFlash conditional code does not become a second ReadyBASIC
+initializer.</li>
+</ul>
+<p>Measured implementation impact for the cartridge stabilization
+pass:</p>
+<ul>
+<li>resident shim: unchanged;</li>
+<li>normal disk apps: unchanged by the cartridge fix itself;</li>
+<li>ReadyShell C64 app-window RAM: unchanged by the EasyFlash metadata
+fix;</li>
+<li>ReadyShell REU value arena: moved from <code>$488100-$48FEFF</code>
+to <code>$488120-$48FEFF</code>, a 32-byte REU-only tax to reserve
+non-overlapping shared metadata and pause-state space;</li>
+<li>ReadyBASIC resident/app-window image: still passes the compact
+app-window bounds check with the current map showing <code>ENTRY</code>,
+<code>HIDDEN</code>, and <code>BRIDGE</code> inside
+<code>$1000-$C5FF</code>;</li>
+<li>EasyFlash boot ROML: pays the small generated metadata writer cost
+instead of hard-coded bank constants.</li>
+</ul>
+<p>Verification completed after this checkpoint:</p>
+<ul>
+<li><code>make verify</code>;</li>
+<li><code>make readyshell-reu-tests-host</code>;</li>
+<li><code>make easyflash-smoke</code>;</li>
+<li><code>bash agentworking/run_easyflash_launcher_app_probes.sh</code>;</li>
+<li><code>READYBASIC_VISIBLE=0 READYBASIC_KEEP_VICE=0 READYBASIC_SKIP_BUILD=1 make readybasic-lifecycle-vice</code>.</li>
+</ul>
+<p>The dotnet VICE launcher probes exercise the cartridge SKU from the
+launcher screen, not by direct-loading apps. The ReadyBASIC probe enters
+ReadyBASIC from the cartridge launcher, verifies <code>PRINT 6*7</code>
+produces <code>42</code>, and verifies <code>ZADD16(1,2)</code> produces
+<code>SUM 3</code>. The ReadyShell probe enters ReadyShell from the
+cartridge launcher and verifies <code>VER</code> plus
+<code>LST "RSHELP"</code>.</p>
 <h2 id="current-v3-architecture-detail">Current v3 Architecture
 Detail</h2>
 <p>This section is the current implemented contract for logical REU bank
@@ -2991,10 +3053,5 @@ the C app and ReadyShell resource model has proven stable;</li>
 dynamic allocation exists and passes disk plus EasyFlash smoke
 paths.</li>
 </ul>
-
-<script type="module">
-import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-mermaid.initialize({ startOnLoad: true, theme: 'default' });
-</script>
 </body>
 </html>

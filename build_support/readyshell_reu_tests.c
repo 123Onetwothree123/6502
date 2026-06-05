@@ -128,7 +128,7 @@ int main(void) {
                       rs_cmd_drive_canonicalize_path("10:answer", 9u, fmt, sizeof(fmt)) == 0 &&
                       strcmp(fmt, "10:answer") == 0);
 
-  fail |= expect_true("heap reset", rs_value_heap_next_free() == 0x8100u);
+  fail |= expect_true("heap reset", rs_value_heap_next_free() == RS_CMD_REU_HEAP_ARENA_REL);
 
   rs_value_init_false(&str);
   rs_value_init_false(&stored_str);

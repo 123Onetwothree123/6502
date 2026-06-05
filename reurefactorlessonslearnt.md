@@ -129,3 +129,16 @@
   records are acceptable because normal app headroom is unchanged, ReadyBASIC is
   unchanged, and launcher still has about 1KB of app-window headroom. Treat any
   future launcher parser feature as expensive until measured.
+- Cartridge verification must not run concurrently with other VICE probes that
+  perform prelaunch cleanup. The dotnet probe harness kills stale `x64sc`
+  processes before launching, which can interrupt monitor-script smoke tests and
+  produce a false missing-dump failure.
+- Cartridge ReadyBASIC first-entry bugs are best fixed in ReadyBASIC's own
+  runtime validation/cold-start path. The launcher should provide assigned
+  resource banks; it should not become a BASIC zero-page/CHRGET/TXTPTR
+  initializer. Using BASIC ROM `$E3BF` and `$A68E` kept the fix small and kept
+  cartridge conditionals out of the launcher/shim contract.
+- Generated cartridge metadata should be treated like a compiled manifest.
+  EasyFlash may remain static, but the emitted ReadyShell overlay rows and bank
+  `0` rich records must be generated from the same layout source as the preload
+  image, not copied as independent hard-coded tables.

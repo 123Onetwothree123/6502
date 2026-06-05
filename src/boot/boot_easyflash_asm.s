@@ -953,28 +953,40 @@ write_overlay_meta:
     lda #READYSHELL_OVL_META_VALID_MASK_HI
     sta OVL_META_RAM+6
 
-    lda #READYSHELL_CACHE_BANK
-    sta OVL_META_RAM+8
-    sta OVL_META_RAM+11
-    sta OVL_META_RAM+14
-    sta OVL_META_RAM+20
-    lda #READYSHELL_CACHE_BANK2
-    sta OVL_META_RAM+17
-    sta OVL_META_RAM+23
-    sta OVL_META_RAM+26
-    sta OVL_META_RAM+29
-    lda #READYSHELL_CACHE_BANK3
-    sta OVL_META_RAM+32
-
-    lda #$38
-    sta OVL_META_RAM+13
-    sta OVL_META_RAM+25
-    lda #$70
-    sta OVL_META_RAM+16
-    sta OVL_META_RAM+28
-    lda #$A8
-    sta OVL_META_RAM+22
-    sta OVL_META_RAM+31
+    lda #<OVERLAY_TABLE_RAM
+    sta table_lo
+    lda #>OVERLAY_TABLE_RAM
+    sta table_hi
+    lda #$08
+    sta chunk_lo
+    lda #EASYFLASH_OVERLAY_COUNT
+    sta loop_index
+@meta_loop:
+    ldy #$08
+    ldx chunk_lo
+    lda (table_lo),y
+    sta OVL_META_RAM,x
+    iny
+    inx
+    lda (table_lo),y
+    sta OVL_META_RAM,x
+    iny
+    inx
+    lda (table_lo),y
+    sta OVL_META_RAM,x
+    clc
+    lda chunk_lo
+    adc #$03
+    sta chunk_lo
+    clc
+    lda table_lo
+    adc #12
+    sta table_lo
+    bcc @meta_no_carry
+    inc table_hi
+@meta_no_carry:
+    dec loop_index
+    bne @meta_loop
 
     lda #$48
     sta reu_bank_zp

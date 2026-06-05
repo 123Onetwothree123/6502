@@ -122,6 +122,62 @@ ReadyBASIC headless VICE suite status for this checkpoint is tracked in
 `agentworking/reu_rich_registry_working_notes.md` and should be kept current
 with the final command result before the branch is merged.
 
+## Cartridge Stabilization Checkpoint 2026-06-04
+
+The cartridge SKU is now aligned with the same resource-ownership pattern as
+the disk launcher without adding new shim ABI or teaching the cartridge launcher
+a separate hard-coded resource contract.
+
+Implemented cartridge-specific corrections:
+
+- EasyFlash catalog generation emits ReadyShell overlay resource rows from the
+  same generated layout data used by the cartridge preload image.
+- EasyFlash boot writes the 36-byte ReadyShell v4 `OV` metadata block from its
+  generated `OVERLAY_TABLE_RAM` values. The runtime metadata byte order is the
+  same as the disk launcher contract: `(bank, offset_lo, offset_hi)`.
+- The EasyFlash launcher mirrors equivalent rich resource records into logical
+  bank `0`, so REU Viewer and later owner/unload diagnostics see the same
+  relationship shape even though cartridge resources are generated/static.
+- ReadyShell still consumes only the tiny `$4880F0` metadata block and assigned
+  `(bank, offset)` values. It does not parse the bank `0` registry and does not
+  allocate or free its own overlay cache banks.
+- ReadyBASIC cartridge first-entry startup now validates restored BASIC runtime
+  state before trusting it. If the hidden saved zero page/CHRGET/TXTPTR state is
+  not credible, ReadyBASIC falls back through its own cold-start path, runs the
+  BASIC ROM zero-page initializer at `$E3BF`, and resets `TXTPTR` through the
+  BASIC workspace reset path at `$A68E`.
+- The ReadyBASIC correction is intentionally app-owned. The launcher does not
+  special-case ReadyBASIC first entry, the shim does not grow, and the
+  EasyFlash conditional code does not become a second ReadyBASIC initializer.
+
+Measured implementation impact for the cartridge stabilization pass:
+
+- resident shim: unchanged;
+- normal disk apps: unchanged by the cartridge fix itself;
+- ReadyShell C64 app-window RAM: unchanged by the EasyFlash metadata fix;
+- ReadyShell REU value arena: moved from `$488100-$48FEFF` to
+  `$488120-$48FEFF`, a 32-byte REU-only tax to reserve non-overlapping shared
+  metadata and pause-state space;
+- ReadyBASIC resident/app-window image: still passes the compact app-window
+  bounds check with the current map showing `ENTRY`, `HIDDEN`, and `BRIDGE`
+  inside `$1000-$C5FF`;
+- EasyFlash boot ROML: pays the small generated metadata writer cost instead of
+  hard-coded bank constants.
+
+Verification completed after this checkpoint:
+
+- `make verify`;
+- `make readyshell-reu-tests-host`;
+- `make easyflash-smoke`;
+- `bash agentworking/run_easyflash_launcher_app_probes.sh`;
+- `READYBASIC_VISIBLE=0 READYBASIC_KEEP_VICE=0 READYBASIC_SKIP_BUILD=1 make readybasic-lifecycle-vice`.
+
+The dotnet VICE launcher probes exercise the cartridge SKU from the launcher
+screen, not by direct-loading apps. The ReadyBASIC probe enters ReadyBASIC from
+the cartridge launcher, verifies `PRINT 6*7` produces `42`, and verifies
+`ZADD16(1,2)` produces `SUM 3`. The ReadyShell probe enters ReadyShell from the
+cartridge launcher and verifies `VER` plus `LST "RSHELP"`.
+
 ## Current v3 Architecture Detail
 
 This section is the current implemented contract for logical REU bank `0`.

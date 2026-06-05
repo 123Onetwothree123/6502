@@ -2632,32 +2632,16 @@ static void launcher_bind_default_hotkey_for_index(unsigned char index) {
 }
 
 #if READYOS_LAUNCHER_VARIANT_EASYFLASH
+#if READYOS_EASYFLASH_RS_OVERLAY_COUNT != READYSHELL_OVERLAY_COUNT
+#error EasyFlash ReadyShell overlay catalog count must match launcher runtime
+#endif
 static void launcher_write_easyflash_readyshell_records(unsigned char index) {
     unsigned char i;
     unsigned char rec_index;
-    static const unsigned char banks[READYSHELL_OVERLAY_COUNT] = {
-        READYOS_EASYFLASH_RS_CACHE_BANK1,
-        READYOS_EASYFLASH_RS_CACHE_BANK1,
-        READYOS_EASYFLASH_RS_CACHE_BANK1,
-        READYOS_EASYFLASH_RS_CACHE_BANK2,
-        READYOS_EASYFLASH_RS_CACHE_BANK1,
-        READYOS_EASYFLASH_RS_CACHE_BANK2,
-        READYOS_EASYFLASH_RS_CACHE_BANK2,
-        READYOS_EASYFLASH_RS_CACHE_BANK2,
-        READYOS_EASYFLASH_RS_CACHE_BANK3
-    };
-    static const unsigned int offsets[READYSHELL_OVERLAY_COUNT] = {
-        0x0000u, 0x3800u, 0x7000u, 0x0000u, 0xA800u,
-        0x3800u, 0x7000u, 0xA800u, 0x0000u
-    };
-    static const char *const names[READYSHELL_OVERLAY_COUNT] = {
-        "rsparser", "rsvm", "rsdrvilst", "rsldv", "rsstv",
-        "rsfops", "rscat", "rscopy", "rsedit"
-    };
 
     launcher_control_clear_app_resource_records(index);
     launcher_init_readyshell_meta();
-    for (i = 0u; i < READYSHELL_OVERLAY_COUNT; ++i) {
+    for (i = 0u; i < READYOS_EASYFLASH_RS_OVERLAY_COUNT; ++i) {
         rec_index = launcher_control_alloc_resource_record();
         if (rec_index == REUCB_NULL_REC) {
             return;
@@ -2665,12 +2649,15 @@ static void launcher_write_easyflash_readyshell_records(unsigned char index) {
         launcher_control_write_resource_record(rec_index, index,
                                                APP_RESOURCE_READYSHELL_OVL,
                                                REUCB_DEP_KIND_RS_OVL,
-                                               banks[i], offsets[i],
+                                               readyos_easyflash_rs_overlay_banks[i],
+                                               readyos_easyflash_rs_overlay_offsets[i],
                                                READYSHELL_OVERLAY_SLOT_LEN,
                                                1u, (unsigned char)(i + 1u),
-                                               app_drives[index], names[i]);
+                                               app_drives[index],
+                                               readyos_easyflash_rs_overlay_names[i]);
         launcher_add_readyshell_meta_record((unsigned char)(i + 1u),
-                                            banks[i], offsets[i]);
+                                            readyos_easyflash_rs_overlay_banks[i],
+                                            readyos_easyflash_rs_overlay_offsets[i]);
     }
     launcher_commit_readyshell_meta();
 }

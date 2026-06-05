@@ -37,6 +37,8 @@ BASIC_MOVMF     = $BBD4
 BASIC_GETADR    = $B7F7
 BASIC_LINPRT    = $BDCD
 BASIC_RESTORE_VECTORS = $E453
+BASIC_RESET_TXTPTR = $A68E
+BASIC_INIT_ZP   = $E3BF
 
 K_CHROUT        = $FFD2
 K_CLRCHN        = $FFCC
@@ -463,6 +465,7 @@ rb_boot:
 rb_cold_start:
         jsr K_RESTOR
         jsr BASIC_RESTORE_VECTORS
+        jsr install_basic_chrget
         jsr install_vectors
         jsr init_basic_workspace
         lda #1
@@ -930,9 +933,7 @@ restore_basic_runtime_state_fallback:
         sta CPU_DDR
         lda #$37
         sta CPU_PORT
-        jsr force_basic_workspace_pointers
-        cli
-        jmp BASIC_READY
+        jmp rb_cold_start
 
 restore_basic_finish_ready:
         lda CPU_DDR
@@ -984,7 +985,10 @@ force_basic_workspace_pointers:
         lda #>BASIC_LIMIT
         sta FRETOP+1
         sta MEMSIZ+1
-        rts
+        jmp BASIC_RESET_TXTPTR
+
+install_basic_chrget:
+        jmp BASIC_INIT_ZP
 
 set_basic_memory_bounds:
         lda #<BASIC_LIMIT
@@ -1010,6 +1014,12 @@ prepare_basic_console:
         rts
 
 position_basic_prompt:
+        ldx #39
+        lda #$20
+@clear_row:
+        sta SCREEN + 120,x
+        dex
+        bpl @clear_row
         clc
         ldx #3
         ldy #0
@@ -3876,6 +3886,29 @@ hidden_restore_basic_runtime_state:
         lda #1
         sta rb_reu_len_hi
         jsr rb_reu_fetch
+
+        lda RUNTIME_ZP_BUF + CHRGET
+        cmp #$E6
+        bne @fallback
+        lda RUNTIME_ZP_BUF + CHRGET + 1
+        cmp #$7A
+        bne @fallback
+        lda RUNTIME_ZP_BUF + CHRGET + 2
+        cmp #$D0
+        bne @fallback
+        lda RUNTIME_FIRST_LO
+        cmp #<BASIC_START
+        bne @fallback
+        lda RUNTIME_FIRST_HI
+        cmp #>BASIC_START
+        bne @fallback
+        lda RUNTIME_MODE
+        cmp #RB_RESUME_RUN
+        bne @runtime_ok
+        lda RUNTIME_ZP_BUF + TXTPTR + 1
+        cmp #>BASIC_START
+        bcc @fallback
+@runtime_ok:
 
         jsr set_basic_memory_bounds
         lda #0

@@ -26,6 +26,27 @@ static const unsigned char readyos_easyflash_resource_sets[READYOS_EASYFLASH_APP
     0, 1, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
+#define READYOS_EASYFLASH_RS_OVERLAY_COUNT 9
+static const unsigned char readyos_easyflash_rs_overlay_banks[READYOS_EASYFLASH_RS_OVERLAY_COUNT] = {
+    58, 58, 58, 59, 58, 59, 59, 59, 60
+};
+
+static const unsigned int readyos_easyflash_rs_overlay_offsets[READYOS_EASYFLASH_RS_OVERLAY_COUNT] = {
+    0x0000u, 0x3800u, 0x7000u, 0x0000u, 0xA800u, 0x3800u, 0x7000u, 0xA800u, 0x0000u
+};
+
+static const char *const readyos_easyflash_rs_overlay_names[READYOS_EASYFLASH_RS_OVERLAY_COUNT] = {
+    "rsparser",
+    "rsvm",
+    "rsdrvilst",
+    "rsldv",
+    "rsstv",
+    "rsfops",
+    "rscat",
+    "rscopy",
+    "rsedit",
+};
+
 static const char *const readyos_easyflash_prgs[READYOS_EASYFLASH_APP_COUNT] = {
     "editor",
     "readyshell",

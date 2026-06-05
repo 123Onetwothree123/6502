@@ -505,7 +505,7 @@ def static_audit_rows(ctx: dict[str, object]) -> list[str]:
             f"rows into `{ctx['cmd_reg_state_cap']}` reserved state slots."
         ),
         (
-            f"Metadata-page packing check: the full ReadyShell metadata block fits inside "
+            f"Metadata packing check: ReadyShell control metadata starts in "
             f"`{fmt_hex24(ctx['heap_meta_abs'])}-{fmt_hex24(ctx['heap_meta_end'])}`. Header uses "
             f"`{fmt_hex24(ctx['cmd_reg_hdr_off'])}-{fmt_hex24(ctx['cmd_reg_hdr_end'])}`, descriptor rows reserve "
             f"`{fmt_hex24(ctx['cmd_reg_desc_off'])}-{fmt_hex24(ctx['cmd_reg_desc_cap_end'])}` with live rows ending at "
@@ -513,7 +513,7 @@ def static_audit_rows(ctx: dict[str, object]) -> list[str]:
             f"`{fmt_hex24(ctx['cmd_reg_state_off'])}-{fmt_hex24(ctx['cmd_reg_state_cap_end'])}` with live rows ending at "
             f"`{fmt_hex24(ctx['cmd_reg_state_used_end'])}`, shared metadata uses "
             f"`{fmt_hex24(ctx['ovl_meta_off'])}-{fmt_hex24(ctx['ovl_meta_end'])}`, and the pause flag sits at "
-            f"`{fmt_hex24(ctx['ui_flags_off'])}`."
+            f"`{fmt_hex24(ctx['ui_flags_off'])}` before the value arena at `{fmt_hex24(ctx['heap_arena_abs'])}`."
         ),
         (
             f"Non-overlap check: command scratch ends at `{fmt_hex24(ctx['scratch_end'])}` and REU heap metadata begins at "
@@ -587,12 +587,8 @@ def validate_overlay_layout(ctx: dict[str, object]) -> None:
             "pause flag overlaps the REU heap arena",
         ),
         (
-            ctx["ui_flags_off"] <= ctx["heap_meta_end"],
-            "pause flag no longer fits in the REU heap metadata page",
-        ),
-        (
-            ctx["heap_arena_abs"] == ctx["heap_meta_end"] + 1,
-            "REU heap arena is no longer immediately after the metadata page",
+            ctx["heap_meta_end"] < ctx["heap_arena_abs"],
+            "REU heap arena overlaps the metadata/reserved page",
         ),
     ]
     for ok, message in checks:
@@ -918,6 +914,7 @@ def render_markdown(ctx: dict[str, object]) -> str:
             f"| Shared ReadyShell metadata | `{fmt_hex24(ctx['ovl_meta_off'])}-{fmt_hex24(ctx['ovl_meta_off'] + ctx['ovl_meta_len'] - 1)}` | `{ctx['ovl_meta_len']}` | Shared core-overlay cache metadata record. |",
             f"| Pause flag | `{fmt_hex24(ctx['ui_flags_off'])}` | `1` | Shared output-pause bit used by resident output and `MORE`. |",
             f"| REU heap metadata | `{fmt_hex24(ctx['heap_meta_abs'])}-{fmt_hex24(ctx['heap_meta_abs'] + 0xFF)}` | `256` | ReadyShell REU heap header region, including shared metadata bytes. |",
+            f"| Reserved metadata guard | `{fmt_hex24(ctx['heap_meta_end'] + 1)}-{fmt_hex24(ctx['heap_arena_abs'] - 1)}` | `{ctx['heap_arena_abs'] - ctx['heap_meta_end'] - 1}` | Reserved gap keeping shared overlay metadata and pause state clear of the value arena. |",
             f"| REU heap arena | `{fmt_hex24(ctx['heap_arena_abs'])}-{fmt_hex24(ctx['heap_arena_end_abs'])}` | `{ctx['heap_arena_size']}` | Persistent value payload arena for REU-backed strings/arrays/objects. |",
         ]
     )
