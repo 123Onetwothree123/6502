@@ -48,6 +48,7 @@
 #define SHIM_REU_BITMAP_HI ((unsigned char*)0xC837) /* Bitmap bits 8-15 */
 #define SHIM_REU_BITMAP_XHI ((unsigned char*)0xC838) /* Bitmap bits 16-23 */
 #define SHIM_REU_BANK_SKIP ((unsigned char*)0xC83B)  /* Physical REU banks skipped before ReadyOS */
+#define SHIM_LAUNCHER_FLAGS ((unsigned char*)0xC83C) /* Launcher one-shot flags */
 #define SHIM_LOAD_DISK_DEV_IMM ((unsigned char*)0xC84D) /* A2 xx at $C84C */
 #define SHIM_PRELOAD_DEV_IMM   ((unsigned char*)0xC89C) /* A2 xx at $C89B */
 
@@ -98,6 +99,7 @@ void reu_dma_stash(unsigned int c64_addr, unsigned char bank,
 #define VARIANT_MAX_LEN 31
 #define LAUNCHER_NOTICE_LEN 38
 #define MENU_NO_APP 0xFFu
+#define SHIM_LAUNCHER_FLAG_SUPPRESS_STARTUP 0x01u
 #define LOAD_ALL_LIST_Y 4
 #define LOAD_ALL_LIST_ROWS 19
 
@@ -326,6 +328,7 @@ static unsigned char launcher_app_to_menu_index(unsigned char app_index);
 static void launcher_mirror_reu_control(void);
 static void launcher_bind_default_hotkey_for_index(unsigned char index);
 static unsigned char launcher_prepare_app_resources(unsigned char index);
+static void launcher_set_startup_suppressed(void);
 #if !READYOS_LAUNCHER_VARIANT_EASYFLASH
 static void launcher_free_app_resources(unsigned char index);
 #endif
@@ -377,6 +380,11 @@ static unsigned char launcher_is_app_slot(unsigned char index) {
         return 0;
     }
     return (unsigned char)(app_files[index][0] != 0);
+}
+
+static void launcher_set_startup_suppressed(void) {
+    *SHIM_LAUNCHER_FLAGS =
+        (unsigned char)(*SHIM_LAUNCHER_FLAGS | SHIM_LAUNCHER_FLAG_SUPPRESS_STARTUP);
 }
 
 static unsigned char launcher_logical_to_physical(unsigned char logical_bank) {
@@ -3111,6 +3119,7 @@ static void launch_from_reu(unsigned char index) {
     }
     size = app_sizes[index];
 
+    launcher_set_startup_suppressed();
     launcher_resume_save(launcher_app_to_menu_index(index), menu.scroll_offset, 1);
 
     /* Save current launcher state to REU bank 0 first */
@@ -3155,6 +3164,7 @@ static void launch_from_disk(unsigned char index) {
     set_shim_name(filename);
     set_shim_drive(app_drives[index]);
 
+    launcher_set_startup_suppressed();
     launcher_resume_save(launcher_app_to_menu_index(index), menu.scroll_offset, 1);
 
     /* Save launcher to REU first so we can return to it */
@@ -3560,6 +3570,7 @@ static void launcher_apply_startup_actions(unsigned char suppress_startup_once) 
                 launcher_set_notice("runappfirst app not found", TUI_COLOR_LIGHTRED);
                 return;
             }
+            launcher_runappfirst_prg[0] = 0;
             launch_app(index);
             return;
         }
@@ -3573,6 +3584,7 @@ static void launcher_apply_startup_actions(unsigned char suppress_startup_once) 
             launcher_set_notice("runappfirst app not found", TUI_COLOR_LIGHTRED);
             return;
         }
+        launcher_runappfirst_prg[0] = 0;
         launch_app(index);
     }
 }
@@ -3598,6 +3610,7 @@ static void launcher_init(void) {
     unsigned char saved_selected = 0;
     unsigned char saved_scroll_offset = 0;
     unsigned char saved_suppress_startup_once = 0;
+    unsigned char shim_suppress_startup_once;
     unsigned char restored_resume = 0;
     unsigned char used_cached_catalog = 0;
     unsigned char err;
@@ -3606,6 +3619,11 @@ static void launcher_init(void) {
     unsigned char detail_c;
 
     tui_init();
+    shim_suppress_startup_once =
+        (unsigned char)((*SHIM_LAUNCHER_FLAGS & SHIM_LAUNCHER_FLAG_SUPPRESS_STARTUP) != 0u);
+    *SHIM_LAUNCHER_FLAGS =
+        (unsigned char)(*SHIM_LAUNCHER_FLAGS &
+                        (unsigned char)~SHIM_LAUNCHER_FLAG_SUPPRESS_STARTUP);
     catalog_init_defaults();
     catalog_rebind_views();
     resume_ready = 0;
@@ -3653,6 +3671,9 @@ static void launcher_init(void) {
             return;
         }
         slot_contract_ok = 1;
+    }
+    if (shim_suppress_startup_once) {
+        saved_suppress_startup_once = 1;
     }
 
     /* Initialize menu */

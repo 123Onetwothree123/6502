@@ -179,6 +179,12 @@ emit_assert_step "assert_demo_01_program_sum" "PROGRAM SUM 50"
 
 emit_type_step "demo_02_intro" $'PRINT CHR$(147);CHR$(158);"DEMO 2: SUSPEND AND RESTORE"\rPRINT "EXIT TO READYOS, VISIT EDITOR, RETURN":PRINT CHR$(5)\r' "$READ_PAUSE"
 emit_type_step "demo_02_exit_to_launcher" $'EXIT\r' "$STEP_POST"
+cat >>"$PLAN" <<'YAML'
+  - id: capture_after_demo_02_exit
+    type: screen.capture
+    params:
+      label: after_demo_02_exit
+YAML
 emit_wait_step "wait_launcher_after_demo_02_exit" "READY OS" "30"
 emit_key_step "move_readybasic_to_editor_demo" "145,145,145,145,13" "$STEP_POST"
 emit_wait_step "wait_editor_demo" "editor" "60"

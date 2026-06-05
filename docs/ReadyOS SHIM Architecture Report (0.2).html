@@ -367,7 +367,8 @@
               <tr><td class="mono">$C839</td><td><span class="mono">storage_drive</span></td><td>shared file-dialog default drive</td></tr>
               <tr><td class="mono">$C83A</td><td><span class="mono">log_index</span></td><td>legacy ring head; <span class="mono">$C980-$C99F</span> is no longer safe ring storage</td></tr>
               <tr><td class="mono">$C83B</td><td><span class="mono">reu_bank_skip</span></td><td>compiled physical REU bank offset for the ReadyOS region</td></tr>
-              <tr><td class="mono">$C83C-$C83F</td><td>reserved</td><td>unused padding</td></tr>
+              <tr><td class="mono">$C83C</td><td><span class="mono">launcher_flags</span></td><td>launcher-owned one-shot state flags</td></tr>
+              <tr><td class="mono">$C83D-$C83F</td><td>reserved</td><td>unused padding</td></tr>
               <tr><td class="mono">$C84D</td><td>device immediate</td><td><span class="mono">load_disk</span> launcher-patched drive byte</td></tr>
               <tr><td class="mono">$C89C</td><td>device immediate</td><td><span class="mono">preload</span> launcher-patched drive byte</td></tr>
             </tbody>
@@ -444,7 +445,8 @@ jt_fetch_bank   = $C815     ; Helper: fetch from bank in A
 ;        common file-dialog default-drive contract.
 ; $C83A: log_index - legacy debug byte ring head
 ; $C83B: reu_bank_skip - physical 64K banks reserved before ReadyOS bank start
-; $C83C-$C83F: reserved
+	; $C83C: launcher_flags - launcher-owned one-shot state flags
+	; $C83D-$C83F: reserved
 
 .byte $00                   ; $C820: target_bank
 .byte $08                   ; $C821: filename_len
@@ -460,7 +462,8 @@ jt_fetch_bank   = $C815     ; Helper: fetch from bank in A
 .byte $08                   ; $C839: storage_drive (default drive 8)
 .byte $00                   ; $C83A: log_index (legacy debug buffer)
 .byte READYOS_REU_BANK_SKIP ; $C83B: reu_bank_skip (compiled into boot image)
-.byte $00,$00,$00,$00       ; $C83C-$C83F: reserved
+	.byte $00                   ; $C83C: launcher_flags
+	.byte $00,$00,$00           ; $C83D-$C83F: reserved
 
 ;-----------------------------------------------------------------------------
 ; $C840: load_disk - Load app from disk and run (32 bytes)

@@ -49,7 +49,8 @@ jt_fetch_bank   = $C815     ; Helper: fetch from bank in A
 ;        common file-dialog default-drive contract.
 ; $C83A: log_index - debug byte ring head
 ; $C83B: reu_bank_skip - physical 64K banks reserved before ReadyOS bank start
-; $C83C-$C83F: reserved
+; $C83C: launcher_flags - launcher-owned one-shot state flags
+; $C83D-$C83F: reserved
 
 .byte $00                   ; $C820: target_bank
 .byte $08                   ; $C821: filename_len
@@ -65,7 +66,8 @@ jt_fetch_bank   = $C815     ; Helper: fetch from bank in A
 .byte $08                   ; $C839: storage_drive (default drive 8)
 .byte $00                   ; $C83A: log_index (for debug buffer)
 .byte READYOS_REU_BANK_SKIP ; $C83B: reu_bank_skip (compiled into boot image)
-.byte $00,$00,$00,$00       ; $C83C-$C83F: reserved
+.byte $00                   ; $C83C: launcher_flags
+.byte $00,$00,$00           ; $C83D-$C83F: reserved
 
 ;-----------------------------------------------------------------------------
 ; $C840: load_disk - Load app from disk and run (32 bytes)

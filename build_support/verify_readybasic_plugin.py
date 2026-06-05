@@ -123,8 +123,8 @@ def main() -> None:
         fail(f"overlay 2 proof payload must fit in slot 2 with measured size $0015, got ${ovl2pack[0]:04X}-${ovl2pack[1]:04X} size ${ovl2pack[2]:04X}")
     if hidden[0] != 0xA000 or hidden[1] > 0xA7FF:
         fail(f"HIDDEN helper/common area must fit in $A000-$A7FF, got ${hidden[0]:04X}-${hidden[1]:04X}")
-    if hidden[2] > 0x0400:
-        fail(f"HIDDEN helper/common area grew past dynamic-bank budget $0400, got ${hidden[2]:04X}")
+    if hidden[2] > 0x0800:
+        fail(f"HIDDEN helper/common area grew past under-ROM budget $0800, got ${hidden[2]:04X}")
     if bridge[0] != 0xC000 or bridge[1] >= 0xC200:
         fail(f"BRIDGE must stay below relocated shared frames at $C200, got ${bridge[0]:04X}-${bridge[1]:04X}")
     if bridge[2] > 0x01FF:
@@ -140,10 +140,13 @@ def main() -> None:
     require(r"^RB_LOW_BASE\s*=\s*RB_SLOT0_BASE\b", asm, "legacy low base alias must point at slot 0")
     require(r"^RUNTIME_ZP_BUF\s*=\s*\$C400\b", asm, "RUNTIME_ZP_BUF must be $C400")
     require(r"^RUNTIME_STACK_BUF\s*=\s*\$C500\b", asm, "RUNTIME_STACK_BUF must be $C500")
-    require(r"^HIDDEN_SHADOW\s*=\s*\$A400\b", asm, "HIDDEN_SHADOW must live under BASIC ROM at $A400")
-    hidden_shadow_end = 0xA400 + hidden[2] - 1
-    if hidden_shadow_end >= 0xA800:
-        fail(f"HIDDEN shadow copy must stay below command slot 0 at $A800, got $A400-${hidden_shadow_end:04X}")
+    require(r"^RB_REU_HIDDEN_SHADOW_OFF\s*=\s*\$3000\b",
+            asm, "hidden helper shadow must live in ReadyBASIC core REU offset $3000")
+    if re.search(r"^HIDDEN_SHADOW\s*=", asm, re.MULTILINE):
+        fail("ReadyBASIC hidden helper shadow must not consume C64 RAM")
+    hidden_shadow_end = 0x3000 + hidden[2] - 1
+    if hidden_shadow_end >= 0x4000:
+        fail(f"HIDDEN shadow copy must stay inside REU common area, got $3000-${hidden_shadow_end:04X}")
     if regseed[0] != 0x5000 or regseed[2] > 0x1200:
         fail(f"REGSEED must stay within cold seed $5000-$61FF, got ${regseed[0]:04X} size ${regseed[2]:04X}")
     expected_payload = 0x6200 - 0x1000

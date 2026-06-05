@@ -7,7 +7,7 @@
 ; Shared call/result buffers: $C200-$C5FF
 ; BASIC workspace: $2AC1-$9FFF
 ; Runtime zero page/stack snapshot: REU bank $44 offsets $0A00/$0B00
-; Hidden helper shadow: $C280+, restored to $A000+ on warm entry
+; Hidden helper shadow: ReadyBASIC core REU bank offset $3000
 ; Bridge state/trampolines: $C000-$C1FF
 ;
 
@@ -89,7 +89,6 @@ BASIC_INPUT_BUF = $0200
 BASIC_INPUT_MAX = $58
 RUNTIME_ZP_BUF  = $C400
 RUNTIME_STACK_BUF = $C500
-HIDDEN_SHADOW   = $A400
 
 CPU_DDR         = $0000
 CPU_PORT        = $0001
@@ -211,6 +210,7 @@ RB_REU_HANDLE_OFF  = $0800
 RB_REU_HEAP_OFF    = $0C00
 RB_REU_RUNTIME_ZP_OFF = $0A00
 RB_REU_RUNTIME_STACK_OFF = $0B00
+RB_REU_HIDDEN_SHADOW_OFF = $3000
 RB_REU_COMMON_LIMIT= $4000
 RB_REU_DATA_OFF    = $4000
 
@@ -345,19 +345,6 @@ entry:
         sta rb_entry_len+1
         jsr entry_copy_block
 
-        lda #<__HIDDEN_LOAD__
-        sta rb_entry_src
-        lda #>__HIDDEN_LOAD__
-        sta rb_entry_src+1
-        lda #<HIDDEN_SHADOW
-        sta rb_entry_dst
-        lda #>HIDDEN_SHADOW
-        sta rb_entry_dst+1
-        lda #<__HIDDEN_SIZE__
-        sta rb_entry_len
-        lda #>__HIDDEN_SIZE__
-        sta rb_entry_len+1
-        jsr entry_copy_block
         lda rb_entry_cpu
         sta CPU_PORT
 
@@ -388,19 +375,22 @@ entry:
         sta rb_entry_cpu
         and #RAM_UNDER_BASIC
         sta CPU_PORT
-        lda #<HIDDEN_SHADOW
-        sta rb_entry_src
-        lda #>HIDDEN_SHADOW
-        sta rb_entry_src+1
         lda #<__HIDDEN_RUN__
-        sta rb_entry_dst
+        sta REU_C64_LO
         lda #>__HIDDEN_RUN__
-        sta rb_entry_dst+1
+        sta REU_C64_HI
+        lda #<RB_REU_HIDDEN_SHADOW_OFF
+        sta REU_ADDR_LO
+        lda #>RB_REU_HIDDEN_SHADOW_OFF
+        sta REU_ADDR_HI
+        lda rb_reu_core_bank
+        sta REU_BANK
         lda #<__HIDDEN_SIZE__
-        sta rb_entry_len
+        sta REU_LEN_LO
         lda #>__HIDDEN_SIZE__
-        sta rb_entry_len+1
-        jsr entry_copy_block
+        sta REU_LEN_HI
+        lda #$91
+        sta REU_CMD
         lda rb_entry_cpu
         sta CPU_PORT
         jmp rb_boot
@@ -466,8 +456,8 @@ rb_cold_start:
         jsr K_RESTOR
         jsr BASIC_RESTORE_VECTORS
         jsr install_basic_chrget
-        jsr install_vectors
         jsr init_basic_workspace
+        jsr install_vectors
         lda #1
         sta rb_seed_cold
         jsr call_hidden_seed_plugin_reu
@@ -687,23 +677,20 @@ rb_match_exit:
         sta rb_ptr_hi
         ldy #1
         lda (rb_ptr_lo),y
+        and #$DF
         cmp #'X'
-        beq :+
-        cmp #'x'
         bne @no
-:       iny
+        iny
         lda (rb_ptr_lo),y
+        and #$DF
         cmp #'I'
-        beq :+
-        cmp #'i'
         bne @no
-:       iny
+        iny
         lda (rb_ptr_lo),y
+        and #$DF
         cmp #'T'
-        beq :+
-        cmp #'t'
         bne @no
-:       tya
+        tya
         clc
         adc rb_peek_lo
         sta TXTPTR
@@ -4100,6 +4087,8 @@ rb_seed_plugin_reu_hidden:
         sta rb_reu_len_hi
         jsr rb_reu_stash
 
+        jsr refresh_hidden_shadow
+
         lda #<rb_command_descriptors
         sta rb_reu_c64_lo
         lda #>rb_command_descriptors
@@ -4294,9 +4283,9 @@ save_basic_runtime_state:
         sta RUNTIME_MAGIC1
         lda #RB_STATE_MAGIC2
         sta RUNTIME_MAGIC2
-        lda BASIC_START
+        lda TXTTAB
         sta RUNTIME_FIRST_LO
-        lda BASIC_START+1
+        lda TXTTAB+1
         sta RUNTIME_FIRST_HI
         jmp validate_basic_line_chain
 
@@ -4353,18 +4342,20 @@ rb_hidden_next_hi: .byte 0
 
 refresh_hidden_shadow:
         lda #<__HIDDEN_RUN__
-        sta rb_entry_src
+        sta rb_reu_c64_lo
         lda #>__HIDDEN_RUN__
-        sta rb_entry_src+1
-        lda #<HIDDEN_SHADOW
-        sta rb_entry_dst
-        lda #>HIDDEN_SHADOW
-        sta rb_entry_dst+1
+        sta rb_reu_c64_hi
+        lda #<RB_REU_HIDDEN_SHADOW_OFF
+        sta rb_reu_off_lo
+        lda #>RB_REU_HIDDEN_SHADOW_OFF
+        sta rb_reu_off_hi
+        lda rb_reu_core_bank
+        sta rb_reu_bank
         lda #<__HIDDEN_SIZE__
-        sta rb_entry_len
+        sta rb_reu_len_lo
         lda #>__HIDDEN_SIZE__
-        sta rb_entry_len+1
-        jmp entry_copy_block
+        sta rb_reu_len_hi
+        jmp rb_reu_stash
 
 ; ---------------------------------------------------------------------------
 ; Bridge state only.  Code stays out of $C000 unless it must be resident there.

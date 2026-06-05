@@ -637,8 +637,9 @@ class="sourceCode asm"><code class="sourceCode fasm"><span id="cb2-1"><a href="#
 <span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a><span class="co">;        common file-dialog default-drive contract.</span></span>
 <span id="cb2-50"><a href="#cb2-50" aria-hidden="true" tabindex="-1"></a><span class="co">; $C83A: log_index - debug byte ring head</span></span>
 <span id="cb2-51"><a href="#cb2-51" aria-hidden="true" tabindex="-1"></a><span class="co">; $C83B: reu_bank_skip - physical 64K banks reserved before ReadyOS bank start</span></span>
-<span id="cb2-52"><a href="#cb2-52" aria-hidden="true" tabindex="-1"></a><span class="co">; $C83C-$C83F: reserved</span></span>
-<span id="cb2-53"><a href="#cb2-53" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-52"><a href="#cb2-52" aria-hidden="true" tabindex="-1"></a><span class="co">; $C83C: launcher_flags - launcher-owned one-shot state flags</span></span>
+<span id="cb2-53"><a href="#cb2-53" aria-hidden="true" tabindex="-1"></a><span class="co">; $C83D-$C83F: reserved</span></span>
+<span id="cb2-54"><a href="#cb2-54" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-54"><a href="#cb2-54" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">00</span>                   <span class="co">; $C820: target_bank</span></span>
 <span id="cb2-55"><a href="#cb2-55" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">08</span>                   <span class="co">; $C821: filename_len</span></span>
 <span id="cb2-56"><a href="#cb2-56" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">00</span><span class="op">,</span> <span class="op">$</span><span class="bn">00</span>              <span class="co">; $C822-$C823: unused</span></span>
@@ -653,7 +654,8 @@ class="sourceCode asm"><code class="sourceCode fasm"><span id="cb2-1"><a href="#
 <span id="cb2-65"><a href="#cb2-65" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">08</span>                   <span class="co">; $C839: storage_drive (default drive 8)</span></span>
 <span id="cb2-66"><a href="#cb2-66" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">00</span>                   <span class="co">; $C83A: log_index (for debug buffer)</span></span>
 <span id="cb2-67"><a href="#cb2-67" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> READYOS_REU_BANK_SKIP <span class="co">; $C83B: reu_bank_skip (compiled into boot image)</span></span>
-<span id="cb2-68"><a href="#cb2-68" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span>       <span class="co">; $C83C-$C83F: reserved</span></span>
+<span id="cb2-68"><a href="#cb2-68" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">00</span>                   <span class="co">; $C83C: launcher_flags</span></span>
+<span id="cb2-69"><a href="#cb2-69" aria-hidden="true" tabindex="-1"></a>.<span class="dt">byte</span> <span class="op">$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span><span class="op">,$</span><span class="bn">00</span>           <span class="co">; $C83D-$C83F: reserved</span></span>
 <span id="cb2-69"><a href="#cb2-69" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-70"><a href="#cb2-70" aria-hidden="true" tabindex="-1"></a><span class="co">;-----------------------------------------------------------------------------</span></span>
 <span id="cb2-71"><a href="#cb2-71" aria-hidden="true" tabindex="-1"></a><span class="co">; $C840: load_disk - Load app from disk and run (32 bytes)</span></span>
