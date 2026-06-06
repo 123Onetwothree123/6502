@@ -51,14 +51,9 @@ static void reu_sync_from_bitmap(void) {
     }
 }
 
-static void reu_apply_fixed_system_banks(void) {
-    REU_ALLOC_TABLE[REU_BANK_RS_DEBUG] = REU_RS_DEBUG;
-}
-
 void reu_mgr_init(void) {
     if (*REU_SYS_MAGIC == REU_MAGIC_VALUE) {
         reu_sync_from_bitmap();
-        reu_apply_fixed_system_banks();
         return;
     }
 
@@ -70,5 +65,4 @@ void reu_mgr_init(void) {
     }
     *REU_SYS_MAGIC = REU_MAGIC_VALUE;
     reu_sync_from_bitmap();
-    reu_apply_fixed_system_banks();
 }

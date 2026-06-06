@@ -20,9 +20,6 @@
 #include <string.h>
 
 #define RS_OVERLAY_COUNT 9u
-#define RS_REU_DBG_HEAD_OFF 0x43F000ul
-#define RS_REU_DBG_DATA_OFF 0x43F010ul
-#define RS_REU_DBG_DATA_LEN 0x0200u
 #define RS_RAM_DBG_HEAD      (*(unsigned char*)0xC7F0)
 #define RS_RAM_DBG_BASE      ((unsigned char*)0xC7A0)
 #define RS_RAM_DBG_LEN       0x40u

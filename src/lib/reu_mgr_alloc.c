@@ -17,10 +17,7 @@ static unsigned char reu_fixed_bank_type(unsigned char bank) {
     if (bank == REU_LAUNCHER_OVERLAY_PHYSICAL()) {
         return REU_LAUNCHER;
     }
-    switch (bank) {
-        case REU_BANK_RS_DEBUG: return REU_RS_DEBUG;
-        default:                return 0xFF;
-    }
+    return 0xFF;
 }
 
 unsigned char reu_alloc_bank(unsigned char type) {

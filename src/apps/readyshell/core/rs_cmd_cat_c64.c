@@ -18,7 +18,7 @@
 #define DEBUG_RSCAT 0
 #endif
 
-#define CAT_REU_BASE          0x43D800ul
+#define CAT_REU_BASE          RS_CMD_SCRATCH_OFF
 #define CAT_REU_LEN           0x1800u
 #define CAT_META_OFF          CAT_REU_BASE
 #define CAT_META_LEN          12u

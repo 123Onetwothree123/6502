@@ -80,6 +80,7 @@ def main() -> int:
     require("REU_LAUNCHER_PHYSICAL()" in src, "control mirror records launcher bank")
     require("REU_BANK_RS_CACHE" not in src, "control mirror no longer records fixed ReadyShell cache banks")
     require("REU_BANK_RS_SCRATCH" not in src, "control mirror no longer records fixed ReadyShell scratch bank")
+    require("REU_BANK_RS_DEBUG" not in src, "control mirror no longer records fixed ReadyShell debug bank")
     require("REU_BANK_RB_CORE" not in src and "REU_BANK_RB_CODE" not in src,
             "control mirror must not record fixed ReadyBASIC core/code banks")
     require("reu_dma_stash((unsigned int)REU_ALLOC_TABLE" in src,

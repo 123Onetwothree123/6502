@@ -371,7 +371,7 @@ def render(ctx: dict[str, object]) -> str:
     reu_overview_blocks = [
         Block("Launcher/system", 0x000000, 0x010000, "readyos", "Bank 0 logical launcher/system state."),
         Block("App snapshots", 0x020000, 24 * 0x10000, "entry", "Banks 2-25 logical app-slot snapshots."),
-        Block("Fixed support", 0x430000, 0x60000, "underrom", "ReadyShell debug/scratch and legacy high-bank gap; ReadyBASIC banks are no longer fixed here."),
+        Block("Legacy high-bank gap", 0x430000, 0x60000, "underrom", "No current ReadyOS fixed resource assignment here; ReadyBASIC banks and ReadyShell diagnostics/scratch are no longer fixed in this range."),
         Block("Dynamic resources / free", 0x490000, (reu["REU_TOTAL_BANKS"] - 0x49) * 0x10000, "free", "Remaining 16MB REU space, including launcher-assigned ReadyBASIC core/code resource banks."),
     ]
 

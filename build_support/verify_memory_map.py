@@ -441,7 +441,6 @@ def main():
     try:
         reu_total = parse_define(ROOT / "src" / "lib" / "reu_mgr.h", "REU_TOTAL_BANKS")
         reu_first = parse_define(ROOT / "src" / "lib" / "reu_mgr.h", "REU_FIRST_DYNAMIC")
-        reu_rs_debug = parse_define(ROOT / "src" / "lib" / "reu_mgr.h", "REU_BANK_RS_DEBUG")
         reu_skip_addr = parse_pointer_define(ROOT / "src" / "lib" / "reu_mgr.h", "SHIM_REU_BANK_SKIP")
         reu_mgr_h = (ROOT / "src" / "lib" / "reu_mgr.h").read_text(encoding="utf-8", errors="replace")
         ok &= check("REU total banks", reu_total == int(spec["reu_contract"]["total_banks"]), str(reu_total))
@@ -461,7 +460,9 @@ def main():
         ok &= check("REU ReadyShell scratch/value bank dynamic",
                     "REU_BANK_RS_SCRATCH" not in reu_mgr_h,
                     "scratch/value bank must not be fixed")
-        ok &= check("REU bank RS debug", reu_rs_debug == int(spec["reu_contract"]["bank_rs_debug"]), str(reu_rs_debug))
+        ok &= check("REU ReadyShell debug bank removed",
+                    "REU_BANK_RS_DEBUG" not in reu_mgr_h and "REU_RS_DEBUG" not in reu_mgr_h,
+                    "debug/probe must live in loader-assigned ReadyShell state bank")
     except ValueError as ex:
         ok &= check("reu_mgr.h constants", False, str(ex))
 

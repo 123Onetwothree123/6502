@@ -35,7 +35,7 @@
 #define CHAR_SKIP   0x18  /* 'X' screen code */
 #define CHAR_UNAV   0x2D  /* '-' screen code */
 #define CHAR_RSC    0x13  /* 'S' screen code */
-#define CHAR_RSD    0x04  /* 'D' screen code */
+#define CHAR_RST    0x14  /* 'T' screen code */
 
 #define SHIM_CURRENT_BANK ((unsigned char*)0xC834)
 #define REU_TEST_OFF 0xFFF0u
@@ -213,7 +213,7 @@ static void draw_summary(void) {
     unsigned char alloc_count;
     unsigned char rsv_count;
     unsigned char rsc_count;
-    unsigned char rsd_count;
+    unsigned char rst_count;
     unsigned char rs_count;
 
     free_count = reu_count_free();
@@ -222,8 +222,8 @@ static void draw_summary(void) {
     alloc_count = reu_count_type(REU_APP_ALLOC);
     rsv_count = reu_count_type(REU_RESERVED);
     rsc_count = reu_count_type(REU_RS_CACHE);
-    rsd_count = reu_count_type(REU_RS_DEBUG);
-    rs_count = (unsigned char)(rsc_count + rsd_count);
+    rst_count = reu_count_type(REU_RS_SCRATCH);
+    rs_count = (unsigned char)(rsc_count + rst_count);
 
     tui_puts(1, TITLE_Y + 1, "PHYS:", TUI_COLOR_WHITE);
     tui_print_uint(6, TITLE_Y + 1, reu_physical_banks, TUI_COLOR_WHITE);
@@ -249,8 +249,8 @@ static void draw_summary(void) {
     tui_print_uint(17, TITLE_Y + 2, clip_count, TUI_COLOR_YELLOW);
     tui_puts(22, TITLE_Y + 2, "S:", TUI_COLOR_LIGHTBLUE);
     tui_print_uint(24, TITLE_Y + 2, rsc_count, TUI_COLOR_LIGHTBLUE);
-    tui_puts(29, TITLE_Y + 2, "D:", TUI_COLOR_ORANGE);
-    tui_print_uint(31, TITLE_Y + 2, rsd_count, TUI_COLOR_ORANGE);
+    tui_puts(29, TITLE_Y + 2, "T:", TUI_COLOR_ORANGE);
+    tui_print_uint(31, TITLE_Y + 2, rst_count, TUI_COLOR_ORANGE);
     tui_puts(34, TITLE_Y + 2, "CB:", TUI_COLOR_LIGHTGREEN);
     tui_puts(37, TITLE_Y + 2, control_bank_ok ? "OK" : "--",
              control_bank_ok ? TUI_COLOR_LIGHTGREEN : TUI_COLOR_LIGHTRED);
@@ -259,7 +259,7 @@ static void draw_summary(void) {
 static void draw_legend(void) {
     tui_clear_line(3, 0, 40, TUI_COLOR_GRAY3);
 
-    tui_puts(0, 3, ".F A C U R L G X - S D", TUI_COLOR_GRAY3);
+    tui_puts(0, 3, ".F A C U R L G X - S T", TUI_COLOR_GRAY3);
 }
 
 static void draw_grid(void) {
@@ -329,8 +329,8 @@ static void draw_grid(void) {
                     ch = CHAR_RSC;
                     color = TUI_COLOR_LIGHTBLUE;
                     break;
-                case REU_RS_DEBUG:
-                    ch = CHAR_RSD;
+                case REU_RS_SCRATCH:
+                    ch = CHAR_RST;
                     color = TUI_COLOR_ORANGE;
                     break;
                 case REU_RB_CORE:
@@ -393,7 +393,7 @@ static void draw_detail(void) {
         case REU_SKIPPED:   type_str = "SKIPPED"; break;
         case REU_UNAVAIL:   type_str = "UNAVAILABLE"; break;
         case REU_RS_CACHE:  type_str = "RS CACHE"; break;
-        case REU_RS_DEBUG:  type_str = "RS DEBUG/PROBE"; break;
+        case REU_RS_SCRATCH:type_str = "RS STATE/SCRATCH"; break;
         case REU_RB_CORE:   type_str = "RB CORE/SYSTEM"; break;
         case REU_RB_CODE:   type_str = "RB COMMAND CODE"; break;
         default:            type_str = "UNKNOWN"; break;

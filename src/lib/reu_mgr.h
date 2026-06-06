@@ -15,7 +15,6 @@
 #define REU_RS_CACHE   5
 #define REU_SKIPPED    6
 #define REU_GLOBAL     7
-#define REU_RS_DEBUG   8
 #define REU_LAUNCHER   9
 #define REU_UNAVAIL    10
 #define REU_RS_SCRATCH 13
@@ -31,10 +30,6 @@
 /* Logical app snapshot tokens start at 1. Physical dynamic allocation starts
  * immediately after ReadyOS global, launcher, and launcher overlay banks. */
 #define REU_FIRST_DYNAMIC 1
-
-/* Remaining fixed support banks. ReadyShell overlay cache and ReadyBASIC core
- * banks are launcher-assigned app resources, not fixed addresses. */
-#define REU_BANK_RS_DEBUG 0x43
 
 /* Shim bitmap at $C836-$C838 (tracks which app banks are loaded) */
 #define SHIM_REU_BITMAP_LO  ((unsigned char*)0xC836)

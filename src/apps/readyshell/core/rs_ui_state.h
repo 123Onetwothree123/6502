@@ -48,6 +48,13 @@
 #define RS_REU_OVL_CACHE_VALID_CMD8    0x0080u
 #define RS_REU_OVL_CACHE_VALID_EDIT    0x0100u
 
+#define RS_REU_DBG_HEAD_REL 0x7DE0u
+#define RS_REU_DBG_HEAD_OFF rs_reu_state_abs(RS_REU_DBG_HEAD_REL)
+#define RS_REU_DBG_DATA_REL 0x7DF0u
+#define RS_REU_DBG_DATA_OFF rs_reu_state_abs(RS_REU_DBG_DATA_REL)
+#define RS_REU_DBG_DATA_LEN 0x0200u
+#define RS_REU_PROBE_REL    0x7FFFu
+
 #define RS_REU_UI_FLAGS_REL 0x8114u
 #define RS_REU_UI_FLAGS_OFF rs_reu_state_abs(RS_REU_UI_FLAGS_REL)
 #define RS_UI_FLAG_PAUSED 0x01u

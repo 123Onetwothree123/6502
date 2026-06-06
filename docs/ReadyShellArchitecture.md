@@ -315,14 +315,16 @@ Important detail:
 - writable overlay data survives phase switching because the whole window image
   is cached
 
-### 8.2 Debug and shell-state banks
+### 8.2 State/scratch bank
 
 ```text
-bank 0x43
-  debug/probe ring and verification bytes
-
 loader-assigned ReadyShell state bank
-  command scratch     +$0000-+$7FFF
+  command scratch     +$0000-+$7DDF
+    CAT uses          +$0000-+$17FF while CAT is active
+  diagnostics tail    +$7DE0-+$7FFF
+    debug head        +$7DE0
+    debug data        +$7DF0-+$7FEF
+    REU probe byte    +$7FFF
   REU heap metadata   +$8000-+$80FF
   command registry    +$8010-+$80EB
   shared metadata     +$80F0-+$8113
@@ -331,11 +333,14 @@ loader-assigned ReadyShell state bank
   REU value arena     +$8120-+$FEFF
 ```
 
-The state bank is shared but not overlaid: scratch, registry, pause state, and
-the REU-backed value arena all live there at fixed offsets. The launcher owns
-the physical bank, mirrors it as the ReadyShell state resource in bank `0`, and
-seeds ReadyShell's `$CFF2` state-bank cache before entry so the runtime does not need a
-large registry reader.
+The state bank is shared but not overlaid: command scratch, CAT staging,
+diagnostics/probe bytes, registry, pause state, and the REU-backed value arena
+all live there at fixed offsets. The launcher owns the physical bank, mirrors it
+as the ReadyShell state resource in bank `0`, and seeds ReadyShell's `$CFF2`
+state-bank cache before entry so the runtime does not need a large registry
+reader. CAT is safe to place in the same scratch area because command overlays
+execute serially; while CAT is active, no other command owns that transient
+handoff area.
 
 ## 9. Responsibilities
 

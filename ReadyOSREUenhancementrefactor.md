@@ -185,6 +185,114 @@ Verification completed:
 - `python3 build_support/verify_memory_map.py`;
 - `bash run.sh --build-all`.
 
+## ReadyShell State-Bank Diagnostic/CAT Checkpoint 2026-06-06
+
+This checkpoint retires ReadyShell's last fixed `$43` REU dependency without
+adding a new bank, new shim ABI, or a launcher-side special case for CAT.
+
+Implemented:
+
+- `REU_RS_DEBUG` and `REU_BANK_RS_DEBUG` were removed from the REU manager
+  contract, allocator fixed-bank filters, bank-0 control-bank seed records, and
+  memory-map verifier inputs;
+- ReadyShell's one-byte REU availability probe now uses the loader-assigned
+  ReadyShell state bank, at relative offset `+$7FFF`, instead of fixed bank
+  `$43`;
+- the overlay debug/verification ring moved into the tail of the same
+  ReadyShell state bank:
+  - debug head: `+$7DE0`;
+  - debug data: `+$7DF0-+$7FEF`;
+  - probe byte: `+$7FFF`;
+- the generic ReadyShell command scratch window now ends at `+$7DDF`, reserving
+  the `+$7DE0-+$7FFF` diagnostic tail;
+- CAT no longer stages data in fixed `$43D800`. It uses the existing
+  command-scratch base, exactly like LST/LDV/STV/PUT/ADD, and remains safe
+  because ReadyShell command overlays execute serially through one live overlay
+  window;
+- REU Viewer now reports the loader-assigned ReadyShell state/scratch bank as
+  `T` instead of showing a misleading fixed `D` debug bank;
+- generated ReadyShell overlay inventory docs now compute diagnostic placement
+  from the state-bank-relative constants, so disk and cartridge generated-bank
+  layouts remain accurate.
+
+Current ReadyShell state-bank layout:
+
+```text
+$0000-$7DDF  shared transient command scratch
+$0000-$17FF  CAT staging while CAT is active
+$7DE0-$7FFF  diagnostics/probe tail
+$8000-$80FF  heap metadata / command registry block
+$80F0-$8113  shared ReadyShell overlay metadata
+$8114        pause flag
+$8120-$FEFF  persistent REU value arena
+$FF00-$FFFF  unused tail
+```
+
+Intentional capacity tradeoff:
+
+- generic command scratch: `32768` -> `32224` bytes (`-544`);
+- CAT is unchanged at its existing `6144` byte staging envelope, because it
+  only uses the front of scratch while active;
+- the ReadyShell value arena remains `32224` bytes;
+- the shim remains exactly `512` bytes and does not learn about this placement.
+
+Measured app-window headroom impact against
+`agentworking/readyshell_statebank_debug_cat_headroom_before.json`:
+
+| App | Before | After | Delta |
+| --- | ---: | ---: | ---: |
+| launcher | 5841 | 5861 | +20 |
+| editor | 11967 | 11999 | +32 |
+| quicknotes | 9773 | 9805 | +32 |
+| calcplus | 7170 | 7219 | +49 |
+| hexview | 32854 | 32903 | +49 |
+| clipmgr | 14016 | 14065 | +49 |
+| reuviewer | 29010 | 29073 | +63 |
+| tasklist | 6324 | 6356 | +32 |
+| cal26 | 9006 | 9038 | +32 |
+| readyirc | 29261 | 29293 | +32 |
+| rirc-rrnet | 18475 | 18507 | +32 |
+| readyshell | 18207 | 18185 | -22 |
+
+Interpretation: ReadyShell pays 22 bytes of resident app-window headroom for
+state-bank-relative diagnostics/probe access. REU manager consumers recover
+small amounts because the retired fixed debug-bank type no longer participates
+in fixed-bank filtering and viewer display logic.
+
+Verification for this checkpoint must include a ReadyShell VICE CAT probe using
+the shipped `RSHELP` SEQ file, plus the normal regular and cartridge VICE
+suites. The generated cross-app ReadyShell probe now runs:
+
+```text
+VER
+LST "RSHELP"
+VER
+CAT "RSHELP" ! TOP 1
+VER
+```
+
+Regular ReadyShell CAT/cross-app probe status:
+
+- `READYSHELL_SKIP_BUILD=1 READYSHELL_VISIBLE=0 build_support/run_readyshell_cross_app_resume_probe.sh` passed on 2026-06-06;
+- run artifact: `logs/vice_auto_20260606_144857`;
+- captured screen confirms `CAT "RSHELP" ! TOP 1` prints `READYSHELL QUICK REF`
+  and returns to `VER`.
+
+Regular and cartridge suite status for this checkpoint:
+
+- `READYBASIC_VISIBLE=0 READYBASIC_KEEP_VICE=0 make readybasic-vice-suites`
+  passed on 2026-06-06. Notable artifacts include
+  `logs/vice_auto_20260606_150934` for the 211-step regular ReadyBASIC
+  cross-app resume probe and `logs/vice_auto_20260606_151405` for the
+  184-step regular full-suite visual verification.
+- `READYBASIC_VISIBLE=0 READYBASIC_KEEP_VICE=0 READYSHELL_VISIBLE=0 make
+  easyflash-vice-suites` passed on 2026-06-06. Notable artifacts include
+  `logs/vice_auto_20260606_154237` for the 213-step EasyFlash ReadyBASIC
+  cross-app resume probe, `logs/vice_auto_20260606_154716` for the 186-step
+  EasyFlash full-suite visual verification, and
+  `logs/vice_auto_20260606_155519` for the EasyFlash ReadyShell cross-app
+  probe with `VER`, `LST`, `CAT "RSHELP" ! TOP 1`, and post-CAT `VER`.
+
 ## Cartridge Stabilization Checkpoint 2026-06-04
 
 The cartridge SKU is now aligned with the same resource-ownership pattern as
@@ -651,7 +759,7 @@ flowchart TB
     subgraph B0["Logical REU bank 0 / physical READYOS_REU_BANK_SKIP + 0"]
         H["$0000 header\nRCB0 v3, generation, writer, skip, section offsets"]
         R["$0100 bank type mirror\nfast 256-byte image of live REU use"]
-        F["$0200 fixed roots\nsystem, launcher snapshot, launcher overlay,\nReadyShell debug/scratch roots"]
+        F["$0200 fixed roots\nsystem, launcher snapshot, launcher overlay\n(no fixed ReadyShell debug/scratch bank)"]
         A["$0300 hot app registry\n64 app ids, snapshot banks, flags,\nresource set, resource-loaded flag, drive/hotkey"]
         M["$0500 app metadata\nshort file/app token table"]
         D["$0900 hot resource-bank arrays\nsmall per-app bank slots for loader use"]
@@ -2682,6 +2790,12 @@ Implemented:
 - captured the current app-window report at
   `agentworkijg/reu_refactor_headroom_current.json`;
 - wired the new static verifier into `make verify`.
+
+That list is intentionally historical. Later ReadyShell checkpoints superseded
+the fixed `$43/$48` resource shape: ReadyShell overlay cache and state/scratch
+banks are now loader-assigned, the former fixed debug bank `$43` is removed,
+CAT stages in the front of the dynamically assigned ReadyShell state/scratch
+bank, and diagnostics/probe bytes live in that same bank's tail.
 
 Verification passed after implementation:
 

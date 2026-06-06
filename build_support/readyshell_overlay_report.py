@@ -636,7 +636,6 @@ def build_report_context(args: argparse.Namespace) -> dict[str, object]:
 
     cmd_overlay_h = read_text(args.cmd_overlay_header)
     value_c = read_text(args.value_c)
-    overlay_c = read_text(args.overlay_c)
     shell_c = read_text(args.shell_c)
     ui_state_h = read_text(args.ui_state_h)
     easyflash_layout_path = args.root / "src/generated/easyflash_layout.inc"
@@ -649,9 +648,10 @@ def build_report_context(args: argparse.Namespace) -> dict[str, object]:
     heap_arena_end_rel = parse_define(value_c, "RS_REU_HEAP_ARENA_END")
     runtime_addr = parse_define(shell_c, "RS_RUNTIME_ADDR")
     runtime_limit = parse_define(shell_c, "RS_RUNTIME_LIMIT_ADDR")
-    dbg_head_off = parse_define(overlay_c, "RS_REU_DBG_HEAD_OFF")
-    dbg_data_off = parse_define(overlay_c, "RS_REU_DBG_DATA_OFF")
-    dbg_data_len = parse_define(overlay_c, "RS_REU_DBG_DATA_LEN")
+    dbg_head_rel = parse_define(ui_state_h, "RS_REU_DBG_HEAD_REL")
+    dbg_data_rel = parse_define(ui_state_h, "RS_REU_DBG_DATA_REL")
+    dbg_data_len = parse_define(ui_state_h, "RS_REU_DBG_DATA_LEN")
+    dbg_probe_rel = parse_define(ui_state_h, "RS_REU_PROBE_REL")
     shared_meta_rel = parse_define(ui_state_h, "RS_REU_SHARED_META_REL")
     cmd_reg_hdr_rel = parse_define(ui_state_h, "RS_REU_CMD_REG_HDR_REL")
     cmd_reg_hdr_len = parse_define(ui_state_h, "RS_REU_CMD_REG_HDR_LEN")
@@ -800,11 +800,15 @@ def build_report_context(args: argparse.Namespace) -> dict[str, object]:
         "scratch_rel": scratch_rel,
         "scratch_len": scratch_len,
         "scratch_end": scratch_off + scratch_len - 1,
-        "dbg_head_off": dbg_head_off,
-        "dbg_data_off": dbg_data_off,
+        "dbg_head_rel": dbg_head_rel,
+        "dbg_data_rel": dbg_data_rel,
+        "dbg_probe_rel": dbg_probe_rel,
+        "dbg_head_off": state_base + dbg_head_rel,
+        "dbg_data_off": state_base + dbg_data_rel,
         "dbg_data_len": dbg_data_len,
-        "dbg_end_off": dbg_data_off + dbg_data_len - 1,
-        "dbg_span_len": dbg_data_off + dbg_data_len - dbg_head_off,
+        "dbg_probe_off": state_base + dbg_probe_rel,
+        "dbg_end_off": state_base + dbg_data_rel + dbg_data_len - 1,
+        "dbg_span_len": dbg_data_rel + dbg_data_len - dbg_head_rel,
         "heap_bank_base": heap_bank_base,
         "state_bank": state_bank,
         "state_base": state_base,

@@ -87,6 +87,17 @@ emit_assert_step() {
 YAML
 }
 
+emit_capture_step() {
+  local id="$1"
+  local label="$2"
+  cat >>"$PLAN" <<YAML
+  - id: $id
+    type: screen.capture
+    params:
+      label: $label
+YAML
+}
+
 emit_readyshell_ver() {
   local label="$1"
   emit_type_step "readyshell_ver_$label" $'VER\r' "1.0"
@@ -99,6 +110,15 @@ emit_readyshell_lst_overlay() {
   emit_wait_step "wait_readyshell_lst_result_$label" "BLOCKS" "60"
   emit_type_step "readyshell_ver_after_lst_$label" $'VER\r' "1.0"
   emit_assert_step "assert_readyshell_ver_after_lst_$label" "version 0.2"
+}
+
+emit_readyshell_cat_overlay() {
+  local label="$1"
+  emit_type_step "readyshell_cat_$label" $'CAT "RSHELP" ! TOP 1\r' "2.0"
+  emit_capture_step "capture_readyshell_cat_$label" "readyshell_cat_$label"
+  emit_wait_step "wait_readyshell_cat_result_$label" "readyshell quick ref" "60"
+  emit_type_step "readyshell_ver_after_cat_$label" $'VER\r' "1.0"
+  emit_assert_step "assert_readyshell_ver_after_cat_$label" "version 0.2"
 }
 
 cd "$READYOS_ROOT"
@@ -251,6 +271,7 @@ cat >>"$PLAN" <<YAML
 YAML
 emit_readyshell_ver "from_editor_$i"
 emit_readyshell_lst_overlay "from_editor_$i"
+emit_readyshell_cat_overlay "from_editor_$i"
 done
 
 cat >>"$PLAN" <<'YAML'

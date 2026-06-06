@@ -176,3 +176,10 @@
   `skip+3` and trust the allocation table to skip system banks, app snapshots,
   and resources already in use. This recovered app-side code in the split REU
   manager while costing launcher only 112 bytes for the lookup-page mirror.
+- ReadyShell diagnostics and CAT did not need a separate fixed support bank.
+  The better shape is a small reserved tail inside the loader-assigned
+  ReadyShell state bank (`+$7DE0-+$7FFF`) plus shared command scratch in the
+  front. Command overlays execute serially, so CAT can reuse the same scratch
+  region as LST/LDV/STV/PUT/ADD without a distinct ownership type, while unload
+  stays simple because all ReadyShell scratch/diagnostic state belongs to the
+  ReadyShell state resource.

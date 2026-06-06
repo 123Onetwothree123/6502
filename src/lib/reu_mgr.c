@@ -72,10 +72,6 @@ static void reu_sync_from_bitmap(void) {
     }
 }
 
-static void reu_apply_fixed_system_banks(void) {
-    REU_ALLOC_TABLE[REU_BANK_RS_DEBUG] = REU_RS_DEBUG;
-}
-
 static unsigned char reu_fixed_bank_type(unsigned char bank) {
     if (bank < *SHIM_REU_BANK_SKIP) {
         return REU_SKIPPED;
@@ -89,10 +85,7 @@ static unsigned char reu_fixed_bank_type(unsigned char bank) {
     if (bank == REU_LAUNCHER_OVERLAY_PHYSICAL()) {
         return REU_LAUNCHER;
     }
-    switch (bank) {
-        case REU_BANK_RS_DEBUG: return REU_RS_DEBUG;
-        default:                return 0xFF;
-    }
+    return 0xFF;
 }
 
 /*---------------------------------------------------------------------------
@@ -102,7 +95,6 @@ void reu_mgr_init(void) {
     if (*REU_SYS_MAGIC == REU_MAGIC_VALUE) {
         /* Already initialized - just sync from shim bitmap */
         reu_sync_from_bitmap();
-        reu_apply_fixed_system_banks();
         return;
     }
 
@@ -117,7 +109,6 @@ void reu_mgr_init(void) {
 
     /* Sync from shim bitmap in case apps were already loaded */
     reu_sync_from_bitmap();
-    reu_apply_fixed_system_banks();
 }
 
 /*---------------------------------------------------------------------------

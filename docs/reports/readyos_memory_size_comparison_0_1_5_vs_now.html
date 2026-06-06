@@ -144,8 +144,8 @@
       <li>Bitmap-tracked namespace: logical banks <code>0-23</code>; logical apps <code>1-23</code> map to physical <code>Start+3..Start+25</code>.</li>
       <li>Dynamic allocator start: physical <code>Start+26</code>.</li>
       <li>ReadyShell shared cache banks: <code>0x40</code> for overlays 1, 2, 3, and 5; <code>0x41</code> for overlays 4, 6, 7, and 8; <code>0x42</code> for overlay 9 (<code>rsedit.prg</code> prompt editor).</li>
-      <li>ReadyShell REU debug bank: <code>0x43</code>.</li>
-      <li>ReadyShell scratch/registry/value bank: <code>0x48</code>.</li>
+      <li>Historical note: this report originally listed ReadyShell REU debug bank <code>0x43</code> and scratch/registry/value bank <code>0x48</code>.</li>
+      <li>Current ReadyShell contract: overlay cache banks and the state/scratch/value bank are loader assigned; diagnostics live in the state bank at relative <code>+$7DE0..+$7FFF</code>, and CAT uses the shared command scratch front while active.</li>
       <li>Shipped media is profile-driven: <code>cfg/profiles/*.ini</code> generates the selected profile’s <code>apps.cfg</code> on drive <code>8</code>.</li>
     </ul>
     <p class="small">

@@ -1,17 +1,23 @@
 #include "../rs_platform.h"
+#include "../../core/rs_ui_state.h"
 #include "reu_mgr.h"
 
-#define RS_REU_PROBE_BANK 0x43u
-#define RS_REU_PROBE_OFF  0x0000u
 #define RS_REU_STATE_BANK_CACHE (*(unsigned char*)0xCFF2)
 
 int rs_reu_available(void) {
   unsigned char probe;
   unsigned char check;
+  unsigned char bank;
+
+  bank = rs_reu_state_bank();
+  if (bank == 0u) {
+    return 0;
+  }
+
   probe = 0xA5u;
   check = 0u;
-  reu_dma_stash((unsigned int)&probe, RS_REU_PROBE_BANK, RS_REU_PROBE_OFF, 1u);
-  reu_dma_fetch((unsigned int)&check, RS_REU_PROBE_BANK, RS_REU_PROBE_OFF, 1u);
+  reu_dma_stash((unsigned int)&probe, bank, RS_REU_PROBE_REL, 1u);
+  reu_dma_fetch((unsigned int)&check, bank, RS_REU_PROBE_REL, 1u);
   return check == probe;
 }
 

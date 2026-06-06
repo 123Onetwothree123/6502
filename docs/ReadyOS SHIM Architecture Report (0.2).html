@@ -706,13 +706,10 @@ jt_fetch_bank   = $C815     ; Helper: fetch from bank in A
               <tr><td class="mono">Start+0</td><td>ReadyOS system/global bank</td></tr>
               <tr><td class="mono">Start+1</td><td>launcher snapshot/resume bank</td></tr>
               <tr><td class="mono">Start+2</td><td>launcher overlay reserve bank</td></tr>
-              <tr><td class="mono">Start+3..Start+25</td><td>catalog app slots: logical app slot 1 begins at Start+3, through logical app slot 23 at Start+25</td></tr>
-              <tr><td class="mono">Start+26+</td><td>dynamic allocator pool; after ReadyOS, launcher, and fixed app slots</td></tr>
-              <tr><td class="mono">$40</td><td>ReadyShell overlay cache bank for overlays 1, 2, 3, and 5</td></tr>
-              <tr><td class="mono">$41</td><td>ReadyShell overlay cache bank for overlays 4, 6, 7, and 8</td></tr>
-              <tr><td class="mono">$42</td><td>ReadyShell prompt-editor overlay cache bank for overlay 9 (<span class="mono">rsedit.prg</span>)</td></tr>
-              <tr><td class="mono">$43</td><td>ReadyShell REU debug ring</td></tr>
-              <tr><td class="mono">$48</td><td>ReadyShell scratch, registry, metadata, and value arena</td></tr>
+              <tr><td class="mono">Start+3+</td><td>current dynamic allocator pool; logical app tokens resolve through logical REU bank 0 rather than a fixed reserved app-slot gap</td></tr>
+              <tr><td class="mono">loader assigned</td><td>ReadyShell overlay cache banks; bank 0 rich-resource records describe which overlays live in each bank/offset</td></tr>
+              <tr><td class="mono">loader assigned</td><td>ReadyShell state/scratch/value bank; CAT and diagnostics share this bank at fixed relative offsets</td></tr>
+              <tr><td class="mono">state+$7DE0..$7FFF</td><td>ReadyShell REU debug/probe tail; this supersedes the retired fixed $43 debug bank</td></tr>
             </tbody>
           </table>
           <h3>Logical bank 0 split</h3>
@@ -992,8 +989,9 @@ tail end              = $10000</pre>
             <tbody>
               <tr><td class="mono">$C7A0-$C7DF</td><td>ReadyShell RAM debug ring</td></tr>
               <tr><td class="mono">$C7F0</td><td>ReadyShell RAM debug head</td></tr>
-              <tr><td class="mono">0x43F000</td><td>ReadyShell REU debug head</td></tr>
-              <tr><td class="mono">0x43F010</td><td>ReadyShell REU debug data</td></tr>
+              <tr><td class="mono">state+$7DE0</td><td>ReadyShell REU debug head in the loader-assigned state bank</td></tr>
+              <tr><td class="mono">state+$7DF0..$7FEF</td><td>ReadyShell REU debug data in the loader-assigned state bank</td></tr>
+              <tr><td class="mono">state+$7FFF</td><td>ReadyShell REU availability probe byte</td></tr>
             </tbody>
           </table>
         </div>

@@ -170,6 +170,31 @@ steps:
     type: assert.screen
     params:
       contains: "version 0.2"
+  - id: readyshell_cat_from_editor_1
+    type: input.sequence
+    params:
+      keys: [67,65,84,32,34,82,83,72,69,76,80,34,32,33,32,84,79,80,32,49,13]
+      inter_key_delay_s: 0.035
+      post_delay_s: 2.0
+  - id: capture_readyshell_cat_from_editor_1
+    type: screen.capture
+    params:
+      label: readyshell_cat_from_editor_1
+  - id: wait_readyshell_cat_result_from_editor_1
+    type: screen.wait_contains
+    params:
+      text: "readyshell quick ref"
+      wait_timeout_s: 60
+  - id: readyshell_ver_after_cat_from_editor_1
+    type: input.sequence
+    params:
+      keys: [86,69,82,13]
+      inter_key_delay_s: 0.035
+      post_delay_s: 1.0
+  - id: assert_readyshell_ver_after_cat_from_editor_1
+    type: assert.screen
+    params:
+      contains: "version 0.2"
   - id: dump_final_state
     type: dump.memory_ranges
     params:
