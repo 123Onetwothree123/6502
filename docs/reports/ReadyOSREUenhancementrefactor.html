@@ -910,7 +910,21 @@ $0A00-$0DFF  rich resource/file records
 $0E00-$2DFF  dependency/source lines
              64 records * 128 bytes copied from apps.cfg or app.* manifests
 
-$2E00+       audit/reserved future expansion</code></pre>
+$2E00-$2FFF  audit/reserved future expansion
+
+$3000-$37FF  launcher cold catalog names
+             64 records * 32 bytes; copied into a 12-row RAM window cache for
+             normal menu drawing
+
+$3800-$41BF  launcher cold catalog descriptions
+             64 records * 39 bytes; copied into one shared RAM text buffer
+             only for the selected app/details line
+
+$4200-$453F  launcher cold catalog file tokens
+             64 records * 13 bytes; copied into one shared RAM text buffer
+             only when validating, launching, or looking up an app by PRG name
+
+$4540+       reserved future expansion</code></pre>
 <p>The overlap between the older <code>$0900</code> reserved dependency
 area and the v3 <code>$0A00</code> rich record area is historical debt
 from the v2 reservation. The v3 code treats <code>$0A00</code> and
@@ -930,10 +944,16 @@ current behavior.</p>
         Q[&quot;$0A00 rich resource records\nowner app -&gt; overlay/module/core/code\nbank + offset + length + slot&quot;]
         L[&quot;$0E00 dependency lines\nbounded source text from apps.cfg/app.*&quot;]
         X[&quot;$2E00 audit/future\nreserved for validation and later service records&quot;]
+        N[&quot;$3000 names\n64 fixed app display names&quot;]
+        DS[&quot;$3800 descriptions\n64 fixed app description lines&quot;]
+        FT[&quot;$4200 file tokens\n64 fixed PRG/load tokens&quot;]
     end
 
     C600[&quot;$C600-$C7FF resident hot state&quot;] --&gt;|&quot;mirrored by launcher/control-bank writer&quot;| R
     CFG[&quot;apps.cfg / app.* manifest&quot;] --&gt;|&quot;bounded dependency line&quot;| L
+    CFG --&gt;|&quot;catalog text stored cold&quot;| N
+    CFG --&gt; DS
+    CFG --&gt; FT
     LAUNCH[&quot;launcher loader&quot;] --&gt;|&quot;allocates banks and writes&quot;| A
     LAUNCH --&gt;|&quot;writes owner/resource records&quot;| Q
     VIEW[&quot;REU Viewer&quot;] --&gt;|&quot;reads owner/app/resource details&quot;| A
@@ -1184,8 +1204,14 @@ catalogs;</li>
 <code>223</code>;</li>
 <li>cartridge launcher records embedded preloaded apps as loaded even
 above the shim bitmap range;</li>
-<li>launcher duplicate resident catalog resume cache removed; launcher
-now saves catalog arrays as segmented REU resume payloads;</li>
+<li>launcher duplicate resident catalog resume cache removed;</li>
+<li>launcher cold catalog text moved out of resident BSS and into
+logical REU bank <code>0</code> at <code>$3000/$3800/$4200</code>, while
+preserving a 12-row RAM name cache and one shared text buffer for
+like-for-like menu behavior and launch speed;</li>
+<li>launcher resume no longer saves catalog text arrays. It saves only
+runtime state arrays and relies on the global bank <code>0</code>
+catalog text records across launcher snapshot/restore;</li>
 <li>dynamic launcher static verifier added to
 <code>make verify</code>.</li>
 <li>ReadyShell overlay cache banks are loader-assigned via the
@@ -1212,6 +1238,11 @@ arrays;</li>
 <li><code>$0900</code>: loader-owned dependency/resource bank arrays,
 currently the three per-app resource-bank slots used by ReadyShell
 <code>rsovl</code> and ReadyBASIC <code>rbcore</code>;</li>
+<li><code>$3000</code>: 64 fixed-width app display names;</li>
+<li><code>$3800</code>: 64 fixed-width app descriptions;</li>
+<li><code>$4200</code>: 64 fixed-width app PRG/file tokens, mirrored
+into the older <code>$0500</code> app metadata token block for existing
+tools;</li>
 </ul></li>
 <li>the initial linked-list dependency writer was rejected before
 acceptance because it cost roughly <code>2.3KB</code> of
@@ -2160,6 +2191,50 @@ dynamic:</p>
 <code>3868</code> bytes. That is the expected 120-byte CODE-only cost of
 the micromodule helper path and relative address calls; no ReadyShell
 BSS, DATA, or RODATA was added.</p>
+<p>Measured size impact of the launcher REU-backed cold catalog
+refactor:</p>
+<table>
+<colgroup>
+<col style="width: 9%" />
+<col style="width: 12%" />
+<col style="width: 12%" />
+<col style="width: 12%" />
+<col style="width: 12%" />
+<col style="width: 12%" />
+<col style="width: 12%" />
+<col style="width: 12%" />
+</colgroup>
+<thead>
+<tr>
+<th>App</th>
+<th style="text-align: right;">Headroom before</th>
+<th style="text-align: right;">Headroom after</th>
+<th style="text-align: right;">Delta</th>
+<th style="text-align: right;">CODE delta</th>
+<th style="text-align: right;">RODATA delta</th>
+<th style="text-align: right;">DATA delta</th>
+<th style="text-align: right;">BSS delta</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>launcher</td>
+<td style="text-align: right;">445</td>
+<td style="text-align: right;">5953</td>
+<td style="text-align: right;">+5508</td>
+<td style="text-align: right;">+72</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">+1</td>
+<td style="text-align: right;">-5581</td>
+</tr>
+</tbody>
+</table>
+<p>No normal app, ReadyShell, ReadyBASIC, or REU Viewer binary changed
+from this catalog-storage refactor. The TUI hotkey module remains linked
+unchanged. The functional tradeoff is intentionally narrow: full 64-app
+name/description/file text is now stored in the global REU control bank,
+while the launcher keeps only the currently visible menu-name window and
+a shared selected-text/file scratch buffer in resident RAM.</p>
 <p>Implemented ReadyShell phases:</p>
 <ol type="1">
 <li>Add generated dependency/resource records for ReadyShell

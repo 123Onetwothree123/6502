@@ -41,6 +41,13 @@
 #define REUCB_DEP_LINE_SIZE     128u
 #define REUCB_DEP_LINE_COUNT    64u
 #define REUCB_AUDIT_OFF         0x2E00u
+#define REUCB_CATALOG_TEXT_OFF  0x3000u
+#define REUCB_CATALOG_NAME_OFF  0x3000u
+#define REUCB_CATALOG_NAME_SIZE 32u
+#define REUCB_CATALOG_DESC_OFF  0x3800u
+#define REUCB_CATALOG_DESC_SIZE 39u
+#define REUCB_CATALOG_FILE_OFF  0x4200u
+#define REUCB_CATALOG_FILE_SIZE 13u
 
 #define REUCB_NULL_DEP          0xFFu
 #define REUCB_NULL_REC          0xFFu
@@ -85,8 +92,6 @@ void reu_control_bank_write_launcher_registry(
     const unsigned char *app_rs_bank2,
     const unsigned char *app_rs_bank3,
     const unsigned char *app_rs_bank4,
-    const char *app_file_buf,
-    unsigned char app_file_stride,
     const unsigned char *apps_loaded);
 
 #endif /* REU_CONTROL_BANK_H */

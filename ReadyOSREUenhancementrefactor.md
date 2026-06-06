@@ -548,7 +548,21 @@ $0A00-$0DFF  rich resource/file records
 $0E00-$2DFF  dependency/source lines
              64 records * 128 bytes copied from apps.cfg or app.* manifests
 
-$2E00+       audit/reserved future expansion
+$2E00-$2FFF  audit/reserved future expansion
+
+$3000-$37FF  launcher cold catalog names
+             64 records * 32 bytes; copied into a 12-row RAM window cache for
+             normal menu drawing
+
+$3800-$41BF  launcher cold catalog descriptions
+             64 records * 39 bytes; copied into one shared RAM text buffer
+             only for the selected app/details line
+
+$4200-$453F  launcher cold catalog file tokens
+             64 records * 13 bytes; copied into one shared RAM text buffer
+             only when validating, launching, or looking up an app by PRG name
+
+$4540+       reserved future expansion
 ```
 
 The overlap between the older `$0900` reserved dependency area and the v3
@@ -572,10 +586,16 @@ flowchart TB
         Q["$0A00 rich resource records\nowner app -> overlay/module/core/code\nbank + offset + length + slot"]
         L["$0E00 dependency lines\nbounded source text from apps.cfg/app.*"]
         X["$2E00 audit/future\nreserved for validation and later service records"]
+        N["$3000 names\n64 fixed app display names"]
+        DS["$3800 descriptions\n64 fixed app description lines"]
+        FT["$4200 file tokens\n64 fixed PRG/load tokens"]
     end
 
     C600["$C600-$C7FF resident hot state"] -->|"mirrored by launcher/control-bank writer"| R
     CFG["apps.cfg / app.* manifest"] -->|"bounded dependency line"| L
+    CFG -->|"catalog text stored cold"| N
+    CFG --> DS
+    CFG --> FT
     LAUNCH["launcher loader"] -->|"allocates banks and writes"| A
     LAUNCH -->|"writes owner/resource records"| Q
     VIEW["REU Viewer"] -->|"reads owner/app/resource details"| A
@@ -790,8 +810,13 @@ Completed in branch `codex/reu-control-bank-refactor`:
 - global hotkeys accept logical app banks through `223`;
 - cartridge launcher records embedded preloaded apps as loaded even above the
   shim bitmap range;
-- launcher duplicate resident catalog resume cache removed; launcher now saves
-  catalog arrays as segmented REU resume payloads;
+- launcher duplicate resident catalog resume cache removed;
+- launcher cold catalog text moved out of resident BSS and into logical REU
+  bank `0` at `$3000/$3800/$4200`, while preserving a 12-row RAM name cache
+  and one shared text buffer for like-for-like menu behavior and launch speed;
+- launcher resume no longer saves catalog text arrays. It saves only runtime
+  state arrays and relies on the global bank `0` catalog text records across
+  launcher snapshot/restore;
 - dynamic launcher static verifier added to `make verify`.
 - ReadyShell overlay cache banks are loader-assigned via the `rsovl` resource
   set instead of fixed cache banks;
@@ -812,6 +837,10 @@ Completed in branch `codex/reu-control-bank-refactor`:
   - `$0900`: loader-owned dependency/resource bank arrays, currently the three
     per-app resource-bank slots used by ReadyShell `rsovl` and ReadyBASIC
     `rbcore`;
+  - `$3000`: 64 fixed-width app display names;
+  - `$3800`: 64 fixed-width app descriptions;
+  - `$4200`: 64 fixed-width app PRG/file tokens, mirrored into the older
+    `$0500` app metadata token block for existing tools;
 - the initial linked-list dependency writer was rejected before acceptance
   because it cost roughly `2.3KB` of launcher/reuviewer app-window headroom.
   The accepted v2 shape is less elegant but much cheaper: it copies normalized
@@ -1627,6 +1656,19 @@ Measured cost of making the ReadyShell state/scratch/value arena dynamic:
 ReadyShell resident heap moved from `3988` to `3868` bytes. That is the
 expected 120-byte CODE-only cost of the micromodule helper path and relative
 address calls; no ReadyShell BSS, DATA, or RODATA was added.
+
+Measured size impact of the launcher REU-backed cold catalog refactor:
+
+| App | Headroom before | Headroom after | Delta | CODE delta | RODATA delta | DATA delta | BSS delta |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| launcher | 445 | 5953 | +5508 | +72 | 0 | +1 | -5581 |
+
+No normal app, ReadyShell, ReadyBASIC, or REU Viewer binary changed from this
+catalog-storage refactor. The TUI hotkey module remains linked unchanged. The
+functional tradeoff is intentionally narrow: full 64-app name/description/file
+text is now stored in the global REU control bank, while the launcher keeps
+only the currently visible menu-name window and a shared selected-text/file
+scratch buffer in resident RAM.
 
 Implemented ReadyShell phases:
 

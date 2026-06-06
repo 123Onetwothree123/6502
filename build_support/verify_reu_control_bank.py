@@ -68,6 +68,13 @@ def main() -> int:
     require(define_int(hdr, "REUCB_RSRC_REC_COUNT") == 64, "rich resource record capacity is 64")
     require(define_int(hdr, "REUCB_DEP_LINE_OFF") == 0x0E00, "dependency lines start at $0E00")
     require(define_int(hdr, "REUCB_DEP_LINE_SIZE") == 128, "dependency line records are 128 bytes")
+    require(define_int(hdr, "REUCB_CATALOG_TEXT_OFF") == 0x3000, "cold catalog text starts at $3000")
+    require(define_int(hdr, "REUCB_CATALOG_NAME_OFF") == 0x3000, "catalog names start at $3000")
+    require(define_int(hdr, "REUCB_CATALOG_NAME_SIZE") == 32, "catalog name records are 32 bytes")
+    require(define_int(hdr, "REUCB_CATALOG_DESC_OFF") == 0x3800, "catalog descriptions start at $3800")
+    require(define_int(hdr, "REUCB_CATALOG_DESC_SIZE") == 39, "catalog description records are 39 bytes")
+    require(define_int(hdr, "REUCB_CATALOG_FILE_OFF") == 0x4200, "catalog file tokens start at $4200")
+    require(define_int(hdr, "REUCB_CATALOG_FILE_SIZE") == 13, "catalog file token records are 13 bytes")
 
     require("REU_READYOS_GLOBAL_PHYSICAL()" in src, "control mirror records ReadyOS global bank")
     require("REU_LAUNCHER_PHYSICAL()" in src, "control mirror records launcher bank")
@@ -105,6 +112,22 @@ def main() -> int:
             "launcher refreshes control mirror")
     require("reu_control_bank_write_launcher_registry(" in launcher,
             "launcher mirrors app registry into control bank")
+    require("catalog_store_entry" in launcher and
+            "REUCB_CATALOG_NAME_OFF" in launcher and
+            "REUCB_CATALOG_DESC_OFF" in launcher and
+            "REUCB_CATALOG_FILE_OFF" in launcher,
+            "launcher stores cold catalog strings in logical REU bank 0")
+    require("catalog_name_cache[APPS_HEIGHT]" in launcher and
+            "catalog_text_buf[MAX_DESC_LEN + 1]" in launcher,
+            "launcher keeps only visible catalog-name cache and one text scratch buffer")
+    require("app_name_buf[" not in launcher and
+            "app_desc_buf[" not in launcher and
+            "app_file_buf[" not in launcher and
+            "launcher_menu_items[" not in launcher,
+            "launcher no longer keeps full catalog text arrays in C64 RAM")
+    require("tui_handle_global_hotkey" in launcher and
+            "$(TUI_HOTKEY_SRC)" in make_var(makefile, "LIB_LAUNCHER"),
+            "launcher still uses the shared TUI hotkey path")
     require("launcher_control_write_resource_record" in launcher and
             "launcher_control_write_dep_line" in launcher,
             "launcher writes rich resource/dependency metadata")

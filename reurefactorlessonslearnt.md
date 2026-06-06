@@ -142,6 +142,13 @@
   records are acceptable because normal app headroom is unchanged, ReadyBASIC is
   unchanged, and launcher still has about 1KB of app-window headroom. Treat any
   future launcher parser feature as expensive until measured.
+- Large launcher catalog text belongs in global REU, not resident BSS. Moving
+  64 app names/descriptions/file tokens to logical bank `0` at
+  `$3000/$3800/$4200`, while keeping a 12-row RAM name cache and one shared
+  text/file scratch buffer, recovered 5508 bytes of launcher headroom without
+  changing the TUI hotkey module, shim ABI, app.config syntax, or manifest
+  syntax. The key is to cache visible menu rows, not to perform tiny REU reads
+  for every character draw.
 - Cartridge verification must not run concurrently with other VICE probes that
   perform prelaunch cleanup. The dotnet probe harness kills stale `x64sc`
   processes before launching, which can interrupt monitor-script smoke tests and
