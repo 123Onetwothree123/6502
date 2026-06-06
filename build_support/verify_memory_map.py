@@ -447,8 +447,8 @@ def main():
         ok &= check("REU total banks", reu_total == int(spec["reu_contract"]["total_banks"]), str(reu_total))
         ok &= check("REU first dynamic logical", reu_first == int(spec["reu_contract"]["first_dynamic_logical"]), str(reu_first))
         ok &= check("REU physical dynamic offset macro",
-                    "*SHIM_REU_BANK_SKIP + 26u" in reu_mgr_h,
-                    "expect skip + 26")
+                    "*SHIM_REU_BANK_SKIP + 3u" in reu_mgr_h,
+                    "expect skip + 3")
         ok &= check("REU logical-to-physical macro",
                     "? 1u : (2u + (unsigned char)(bank))" in reu_mgr_h,
                     "expect logical 0 -> skip + 1, apps -> skip + 2 + logical")

@@ -28,8 +28,9 @@
 #define REU_MAGIC_VALUE  0xA5
 #define REU_TOTAL_BANKS  256
 
-/* Logical first dynamic bank; physical dynamic base is skip + 26. */
-#define REU_FIRST_DYNAMIC 24
+/* Logical app snapshot tokens start at 1. Physical dynamic allocation starts
+ * immediately after ReadyOS global, launcher, and launcher overlay banks. */
+#define REU_FIRST_DYNAMIC 1
 
 /* Remaining fixed support banks. ReadyShell overlay cache and ReadyBASIC core
  * banks are launcher-assigned app resources, not fixed addresses. */
@@ -47,7 +48,7 @@
 #define REU_LOGICAL_TO_PHYSICAL(bank) \
     ((unsigned char)(*SHIM_REU_BANK_SKIP + \
      (((unsigned char)(bank) == 0u) ? 1u : (2u + (unsigned char)(bank)))))
-#define REU_FIRST_DYNAMIC_PHYSICAL()  ((unsigned char)(*SHIM_REU_BANK_SKIP + 26u))
+#define REU_FIRST_DYNAMIC_PHYSICAL()  ((unsigned char)(*SHIM_REU_BANK_SKIP + 3u))
 
 /* Initialize REU manager (safe to call multiple times) */
 void reu_mgr_init(void);

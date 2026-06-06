@@ -49,8 +49,28 @@ def main() -> int:
     check("launcher has lazy snapshot allocator",
           "launcher_alloc_snapshot_bank" in launcher and
           "REU_ALLOC_TABLE[physical] == REU_FREE" in launcher)
-    check("low shim-bitmap banks remain dynamic allocation candidates",
-          "bank < 24u && REU_ALLOC_TABLE[physical] == REU_RESERVED" in launcher)
+    check("low shim-bitmap banks no longer require reserved placeholders",
+          "bank < 24u && REU_ALLOC_TABLE[physical] == REU_RESERVED" not in launcher)
+    reu_mgr = (ROOT / "src/lib/reu_mgr.h").read_text(
+        encoding="utf-8", errors="replace"
+    )
+    reu_control = (ROOT / "src/lib/reu_control_bank.c").read_text(
+        encoding="utf-8", errors="replace"
+    )
+    shim = (ROOT / "src/boot/readyos_shim.inc").read_text(
+        encoding="utf-8", errors="replace"
+    )
+    check("allocator dynamic pool starts after ReadyOS system banks",
+          "#define REU_FIRST_DYNAMIC 1" in reu_mgr and
+          "*SHIM_REU_BANK_SKIP + 3u" in reu_mgr)
+    check("REU bank 0 publishes shim token lookup page",
+          "REUCB_SHIM_LOOKUP_OFF" in reu_control and
+          "REUCB_SHIM_LOOKUP_SIZE" in reu_control and
+          "reucb_write_shim_lookup" in reu_control)
+    check("shim resolves app tokens through REU bank 0 lookup",
+          "lookup_app_bank" in shim and
+          "STA $DF05 (REU offset hi = lookup page)" in shim and
+          "LDA $C83D (resolved physical bank)" in shim)
     check("launcher tracks banks above shim bitmap",
           "bank >= 24u && last_saved == bank" in launcher)
     check("launcher validates extended loaded state",

@@ -30,16 +30,16 @@
   },
   "reu_contract": {
     "total_banks": 256,
-    "first_dynamic": 24,
-    "first_dynamic_logical": 24,
-    "first_dynamic_physical_offset": 26,
+    "first_dynamic": 1,
+    "first_dynamic_logical": 1,
+    "first_dynamic_physical_offset": 3,
     "bank_skip_max": 39,
     "shim_reu_bank_skip_addr": "0xC83B",
     "bank_system": 0,
     "bank_launcher": 1,
     "bank_launcher_overlay": 2,
     "bank_app_base": 3,
-    "bank_app_count": 23,
+    "bank_app_count": 0,
     "bank_rs_debug": 67
   },
   "map_files": [

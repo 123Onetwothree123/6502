@@ -40,33 +40,10 @@ unsigned char reu_alloc_bank(unsigned char type) {
 }
 
 void reu_free_bank(unsigned char bank) {
-    unsigned char mask;
     unsigned char fixed_type = reu_fixed_bank_type(bank);
 
     if (fixed_type != 0xFF) {
         REU_ALLOC_TABLE[bank] = fixed_type;
-        return;
-    }
-
-    if (bank < REU_FIRST_DYNAMIC_PHYSICAL()) {
-        REU_ALLOC_TABLE[bank] = REU_RESERVED;
-        if (bank <= REU_LAUNCHER_OVERLAY_PHYSICAL()) {
-            return;
-        }
-        bank = (unsigned char)(bank - *SHIM_REU_BANK_SKIP - 2u);
-        if (bank == 0) {
-            return;
-        }
-        if (bank < 8) {
-            mask = (unsigned char)(1 << bank);
-            *SHIM_REU_BITMAP_LO &= (unsigned char)~mask;
-        } else if (bank < 16) {
-            mask = (unsigned char)(1 << (bank - 8));
-            *SHIM_REU_BITMAP_HI &= (unsigned char)~mask;
-        } else {
-            mask = (unsigned char)(1 << (bank - 16));
-            *SHIM_REU_BITMAP_XHI &= (unsigned char)~mask;
-        }
         return;
     }
 

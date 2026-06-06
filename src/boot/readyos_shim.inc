@@ -50,7 +50,8 @@ jt_fetch_bank   = $C815     ; Helper: fetch from bank in A
 ; $C83A: log_index - debug byte ring head
 ; $C83B: reu_bank_skip - physical 64K banks reserved before ReadyOS bank start
 ; $C83C: launcher_flags - launcher-owned one-shot state flags
-; $C83D-$C83F: reserved
+; $C83D: reu_lookup_scratch - one-byte physical bank fetched from REU bank 0
+; $C83E-$C83F: reserved
 
 .byte $00                   ; $C820: target_bank
 .byte $08                   ; $C821: filename_len
@@ -67,7 +68,8 @@ jt_fetch_bank   = $C815     ; Helper: fetch from bank in A
 .byte $00                   ; $C83A: log_index (for debug buffer)
 .byte READYOS_REU_BANK_SKIP ; $C83B: reu_bank_skip (compiled into boot image)
 .byte $00                   ; $C83C: launcher_flags
-.byte $00,$00,$00           ; $C83D-$C83F: reserved
+.byte $00                   ; $C83D: reu_lookup_scratch
+.byte $00,$00               ; $C83E-$C83F: reserved
 
 ;-----------------------------------------------------------------------------
 ; $C840: load_disk - Load app from disk and run (32 bytes)
@@ -205,32 +207,34 @@ jt_fetch_bank   = $C815     ; Helper: fetch from bank in A
 .byte $00,$00,$00,$00,$00
 
 ;-----------------------------------------------------------------------------
-; $C960: reu_setup_logical - Map logical bank to physical, then setup REU regs
+; $C960: reu_setup_logical - Resolve logical token via REU bank 0, then setup regs
 ;-----------------------------------------------------------------------------
 .byte $C9, $00              ; CMP #0 (logical launcher bank?)
-.byte $D0, $09              ; BNE app_bank
+.byte $D0, $09              ; BNE lookup_app_bank
 .byte $AD, $3B, $C8         ; LDA $C83B (reu_bank_skip)
 .byte $18                   ; CLC
 .byte $69, $01              ; ADC #$01 (launcher is Start+1)
-.byte $4C, $74, $C9         ; JMP store_physical_bank
-.byte $18                   ; app_bank: CLC
-.byte $6D, $3B, $C8         ; ADC $C83B (logical app bank + skip)
-.byte $18                   ; CLC
-.byte $69, $02              ; ADC #$02 (global + launcher overlay reserve)
-.byte $8D, $06, $DF         ; STA $DF06 (physical bank)
-.byte $A9, $00              ; LDA #$00
-.byte $8D, $02, $DF         ; STA $DF02 (C64 addr lo = $00)
-.byte $A9, $10              ; LDA #$10
-.byte $8D, $03, $DF         ; STA $DF03 (C64 addr hi = $10, so $1000)
-.byte $A9, $00              ; LDA #$00
-.byte $8D, $04, $DF         ; STA $DF04 (REU addr lo)
-.byte $8D, $05, $DF         ; STA $DF05 (REU addr hi)
-.byte $8D, $07, $DF         ; STA $DF07 (len lo = $00)
-.byte $A9, $B6              ; LDA #$B6
-.byte $8D, $08, $DF         ; STA $DF08 (len hi = $B6, so $B600 bytes)
-.byte $60                   ; RTS
-
-.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $4C, $A0, $C9         ; JMP reu_setup ($C9A0)
+.byte $AA                   ; lookup_app_bank: TAX (preserve logical token)
+.byte $A9, $3D              ; LDA #<$C83D
+.byte $8D, $02, $DF         ; STA $DF02 (C64 addr lo)
+.byte $A9, $C8              ; LDA #>$C83D
+.byte $8D, $03, $DF         ; STA $DF03 (C64 addr hi)
+.byte $8A                   ; TXA
+.byte $8D, $04, $DF         ; STA $DF04 (REU offset lo = logical token)
+.byte $A9, $2F              ; LDA #$2F
+.byte $8D, $05, $DF         ; STA $DF05 (REU offset hi = lookup page)
+.byte $AD, $3B, $C8         ; LDA $C83B (ReadyOS global physical bank)
+.byte $8D, $06, $DF         ; STA $DF06
+.byte $A9, $01              ; LDA #1
+.byte $8D, $07, $DF         ; STA $DF07 (length lo)
+.byte $A9, $00              ; LDA #0
+.byte $8D, $08, $DF         ; STA $DF08 (length hi)
+.byte $A9, $91              ; LDA #$91 (FETCH command)
+.byte $8D, $01, $DF         ; STA $DF01 - fetch physical bank byte
+.byte $AD, $3D, $C8         ; LDA $C83D (resolved physical bank)
+.byte $4C, $A0, $C9         ; JMP reu_setup ($C9A0)
+.byte $00,$00,$00,$00       ; Padding to $C9A0
 
 ;-----------------------------------------------------------------------------
 ; $C9A0: reu_setup - Set up REU registers for $B600 transfer at $1000

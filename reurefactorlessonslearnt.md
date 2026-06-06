@@ -162,3 +162,17 @@
   EasyFlash may remain static, but the emitted ReadyShell overlay rows and bank
   `0` rich records must be generated from the same layout source as the preload
   image, not copied as independent hard-coded tables.
+- The shim can depend on REU bank `0` without growing beyond 512 bytes if the
+  contract is a bounded byte lookup, not a parser. The accepted pattern is:
+  token `0` maps directly to launcher `skip+1`; non-zero tokens fetch one byte
+  from `$2F00 + token` in the ReadyOS global/control bank into `$C83D`; then
+  the existing physical-bank setup path runs unchanged.
+- Do not recreate old `REU_RESERVED` placeholders for clear shim bitmap bits.
+  They were a display/allocator artifact, not ownership. Clear old reserved
+  entries to `REU_FREE`, preserve explicit launcher `REU_APP_STATE`
+  allocations until unload/free, and let resource/app ownership records in
+  bank `0` explain who owns a bank.
+- `skip+26` is retired as a resource/dynamic allocation base. Start scanning at
+  `skip+3` and trust the allocation table to skip system banks, app snapshots,
+  and resources already in use. This recovered app-side code in the split REU
+  manager while costing launcher only 112 bytes for the lookup-page mirror.

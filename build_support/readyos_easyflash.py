@@ -282,7 +282,7 @@ def catalog_resource_banks(catalog: Dict[str, object]) -> Dict[str, List[int]]:
     used = {reu_bank_skip, reu_bank_skip + 1, reu_bank_skip + 2}
     for entry in list(catalog["apps"]):
         used.add(reu_bank_skip + 2 + int(entry["bank"]))
-    first_resource_bank = reu_bank_skip + 26
+    first_resource_bank = reu_bank_skip + 3
     rs_banks = [0, 0, 0, 0]
     rb_banks = [0, 0]
     if catalog_needs_readyshell_resources(catalog):

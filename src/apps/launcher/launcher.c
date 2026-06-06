@@ -432,10 +432,10 @@ static unsigned char launcher_alloc_snapshot_bank(unsigned char index) {
         if (launcher_catalog_uses_bank(bank, index)) {
             continue;
         }
-        if (REU_ALLOC_TABLE[physical] == REU_FREE ||
-            (bank < 24u && REU_ALLOC_TABLE[physical] == REU_RESERVED)) {
+        if (REU_ALLOC_TABLE[physical] == REU_FREE) {
             app_banks[index] = bank;
             REU_ALLOC_TABLE[physical] = REU_APP_STATE;
+            launcher_mirror_reu_control();
             return bank;
         }
     }
@@ -2077,7 +2077,7 @@ static unsigned char launcher_alloc_physical_resource_bank(unsigned char type) {
     unsigned int bank;
     unsigned int first;
 
-    first = (unsigned int)(*SHIM_REU_BANK_SKIP) + 26u;
+    first = (unsigned int)(*SHIM_REU_BANK_SKIP) + 3u;
     if (first >= REU_TOTAL_BANKS) {
         return 0u;
     }

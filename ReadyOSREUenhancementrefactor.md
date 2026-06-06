@@ -122,6 +122,69 @@ ReadyBASIC headless VICE suite status for this checkpoint is tracked in
 `agentworking/reu_rich_registry_working_notes.md` and should be kept current
 with the final command result before the branch is merged.
 
+## REU Bank-0 Lookup Checkpoint 2026-06-06
+
+This checkpoint removes the remaining false "reserved app slot" pool from the
+runtime REU map and moves shim-facing app-token resolution into logical REU
+bank `0`.
+
+Implemented:
+
+- logical app snapshot tokens still use the same one-byte ABI passed through
+  `$C820`, `$C834`, and the hotkey/suspend/resume paths;
+- the resident shim no longer computes app physical banks as `skip + 2 +
+  token`. For non-zero tokens, `reu_setup_logical` fetches one byte from
+  logical bank `0` at `$2F00 + token` into `$C83D`, then jumps to the existing
+  physical-bank setup helper at `$C9A0`;
+- token `0` remains the launcher snapshot and still resolves directly to
+  `skip + 1`, so boot/preload launcher restore does not depend on the lookup
+  page;
+- the control-bank writer publishes the 256-byte shim lookup page at
+  `$2F00-$2FFF`. Current entries preserve the existing physical formula
+  (`token 1 -> skip + 3`, etc.) as a compatibility step, but the authority is
+  now in REU bank `0`;
+- `REU_FIRST_DYNAMIC_PHYSICAL()` now starts at `skip + 3`, immediately after
+  ReadyOS global, launcher snapshot, and launcher overlay banks;
+- bitmap sync no longer repopulates `REU_RESERVED` placeholders for clear
+  low-token app bits. Existing old `REU_RESERVED` entries are collapsed to
+  `REU_FREE`, while explicit launcher-owned `REU_APP_STATE` allocations are
+  preserved until launcher unload/free clears them;
+- disk and EasyFlash resource-bank allocation now starts at the same dynamic
+  base and skips banks already marked used, rather than preserving a hidden
+  `skip+3..skip+25` gap;
+- the shim remains exactly `512` bytes. `$C83D` is now the one-byte lookup
+  scratch byte; `$C83E-$C83F` remain reserved.
+
+Measured app-window headroom impact against the pre-checkpoint snapshot in
+`agentworking/reu_bank0_lookup_headroom_before.json`:
+
+| App | Before | After | Delta |
+| --- | ---: | ---: | ---: |
+| launcher | 5953 | 5841 | -112 |
+| editor | 11730 | 11967 | +237 |
+| quicknotes | 9536 | 9773 | +237 |
+| calcplus | 6745 | 7170 | +425 |
+| hexview | 32429 | 32854 | +425 |
+| clipmgr | 13591 | 14016 | +425 |
+| reuviewer | 28827 | 29010 | +183 |
+| tasklist | 6087 | 6324 | +237 |
+| cal26 | 8769 | 9006 | +237 |
+| readyirc | 29024 | 29261 | +237 |
+| rirc-rrnet | 18238 | 18475 | +237 |
+
+Interpretation: the launcher pays 112 bytes for the lookup-page writer/mirror
+path. Apps that link the split REU allocation helper recover 183-425 bytes
+because the old "free low app slot but preserve reserved placeholder" code path
+was removed. ReadyBASIC and ReadyShell app-window headroom did not materially
+move in this checkpoint.
+
+Verification completed:
+
+- `python3 build_support/verify_readyos_shim.py`;
+- `python3 build_support/verify_dynamic_launcher.py`;
+- `python3 build_support/verify_memory_map.py`;
+- `bash run.sh --build-all`.
+
 ## Cartridge Stabilization Checkpoint 2026-06-04
 
 The cartridge SKU is now aligned with the same resource-ownership pattern as
@@ -195,16 +258,16 @@ did change in a small and deliberate way:
 
 - `src/boot/readyos_shim.inc` now stores `READYOS_REU_BANK_SKIP` at `$C83B`;
 - `stash_to_bank` and `fetch_bank` now call `reu_setup_logical` at `$C960`;
-- `reu_setup_logical` maps the logical launcher/app bank byte passed in `A` to
-  the physical REU bank by adding the configured bank skip and the ReadyOS
-  reserved-bank offset;
+- `reu_setup_logical` maps launcher token `0` directly to `skip + 1`;
+- for non-zero app tokens, `reu_setup_logical` fetches the physical bank byte
+  from logical REU bank `0` at `$2F00 + token` into `$C83D`, then jumps to the
+  existing physical-bank setup helper;
 - the `$C800-$C9FF` shim remains exactly `512` bytes;
 - the shim still does not parse app ids, manifests, dependency records,
   resource ownership records, unload policy, or service invocation records.
 
 The source-level shim support files also had small constant corrections so the
-older preallocation model says "23 app banks starting at logical bank 3" instead
-of "24 app banks starting at bank 2":
+older preallocation model no longer advertises fixed reserved app slots:
 
 - `src/shim/registry.c`;
 - `src/shim/reu.h`;
@@ -212,7 +275,8 @@ of "24 app banks starting at bank 2":
 
 Those support files are not the new REU bank `0` manager. The bank `0` manager
 continues to live in launcher/REU-viewer/control-bank code, not in the resident
-shim.
+shim. The only resident-shim dependency on bank `0` is the bounded one-byte
+lookup fetch from `$2F00 + token`.
 
 
 ### Full Commented Resident Shim Source
@@ -274,7 +338,8 @@ jt_fetch_bank   = $C815     ; Helper: fetch from bank in A
 ; $C83A: log_index - debug byte ring head
 ; $C83B: reu_bank_skip - physical 64K banks reserved before ReadyOS bank start
 ; $C83C: launcher_flags - launcher-owned one-shot state flags
-; $C83D-$C83F: reserved
+; $C83D: reu_lookup_scratch - one-byte physical bank fetched from REU bank 0
+; $C83E-$C83F: reserved
 
 .byte $00                   ; $C820: target_bank
 .byte $08                   ; $C821: filename_len
@@ -291,7 +356,8 @@ jt_fetch_bank   = $C815     ; Helper: fetch from bank in A
 .byte $00                   ; $C83A: log_index (for debug buffer)
 .byte READYOS_REU_BANK_SKIP ; $C83B: reu_bank_skip (compiled into boot image)
 .byte $00                   ; $C83C: launcher_flags
-.byte $00,$00,$00           ; $C83D-$C83F: reserved
+.byte $00                   ; $C83D: reu_lookup_scratch
+.byte $00,$00               ; $C83E-$C83F: reserved
 
 ;-----------------------------------------------------------------------------
 ; $C840: load_disk - Load app from disk and run (32 bytes)
@@ -429,32 +495,34 @@ jt_fetch_bank   = $C815     ; Helper: fetch from bank in A
 .byte $00,$00,$00,$00,$00
 
 ;-----------------------------------------------------------------------------
-; $C960: reu_setup_logical - Map logical bank to physical, then setup REU regs
+; $C960: reu_setup_logical - Resolve logical token via REU bank 0, then setup regs
 ;-----------------------------------------------------------------------------
 .byte $C9, $00              ; CMP #0 (logical launcher bank?)
-.byte $D0, $09              ; BNE app_bank
+.byte $D0, $09              ; BNE lookup_app_bank
 .byte $AD, $3B, $C8         ; LDA $C83B (reu_bank_skip)
 .byte $18                   ; CLC
 .byte $69, $01              ; ADC #$01 (launcher is Start+1)
-.byte $4C, $74, $C9         ; JMP store_physical_bank
-.byte $18                   ; app_bank: CLC
-.byte $6D, $3B, $C8         ; ADC $C83B (logical app bank + skip)
-.byte $18                   ; CLC
-.byte $69, $02              ; ADC #$02 (global + launcher overlay reserve)
-.byte $8D, $06, $DF         ; STA $DF06 (physical bank)
-.byte $A9, $00              ; LDA #$00
-.byte $8D, $02, $DF         ; STA $DF02 (C64 addr lo = $00)
-.byte $A9, $10              ; LDA #$10
-.byte $8D, $03, $DF         ; STA $DF03 (C64 addr hi = $10, so $1000)
-.byte $A9, $00              ; LDA #$00
-.byte $8D, $04, $DF         ; STA $DF04 (REU addr lo)
-.byte $8D, $05, $DF         ; STA $DF05 (REU addr hi)
-.byte $8D, $07, $DF         ; STA $DF07 (len lo = $00)
-.byte $A9, $B6              ; LDA #$B6
-.byte $8D, $08, $DF         ; STA $DF08 (len hi = $B6, so $B600 bytes)
-.byte $60                   ; RTS
-
-.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $4C, $A0, $C9         ; JMP reu_setup ($C9A0)
+.byte $AA                   ; lookup_app_bank: TAX (preserve logical token)
+.byte $A9, $3D              ; LDA #<$C83D
+.byte $8D, $02, $DF         ; STA $DF02 (C64 addr lo)
+.byte $A9, $C8              ; LDA #>$C83D
+.byte $8D, $03, $DF         ; STA $DF03 (C64 addr hi)
+.byte $8A                   ; TXA
+.byte $8D, $04, $DF         ; STA $DF04 (REU offset lo = logical token)
+.byte $A9, $2F              ; LDA #$2F
+.byte $8D, $05, $DF         ; STA $DF05 (REU offset hi = lookup page)
+.byte $AD, $3B, $C8         ; LDA $C83B (ReadyOS global physical bank)
+.byte $8D, $06, $DF         ; STA $DF06
+.byte $A9, $01              ; LDA #1
+.byte $8D, $07, $DF         ; STA $DF07 (length lo)
+.byte $A9, $00              ; LDA #0
+.byte $8D, $08, $DF         ; STA $DF08 (length hi)
+.byte $A9, $91              ; LDA #$91 (FETCH command)
+.byte $8D, $01, $DF         ; STA $DF01 - fetch physical bank byte
+.byte $AD, $3D, $C8         ; LDA $C83D (resolved physical bank)
+.byte $4C, $A0, $C9         ; JMP reu_setup ($C9A0)
+.byte $00,$00,$00,$00       ; Padding to $C9A0
 
 ;-----------------------------------------------------------------------------
 ; $C9A0: reu_setup - Set up REU registers for $B600 transfer at $1000
@@ -548,7 +616,11 @@ $0A00-$0DFF  rich resource/file records
 $0E00-$2DFF  dependency/source lines
              64 records * 128 bytes copied from apps.cfg or app.* manifests
 
-$2E00-$2FFF  audit/reserved future expansion
+$2E00-$2EFF  audit/reserved future expansion
+
+$2F00-$2FFF  shim token -> physical bank lookup page
+             256 bytes; the resident shim fetches one byte from here for
+             non-zero app snapshot tokens before doing the $1000-$C5FF DMA
 
 $3000-$37FF  launcher cold catalog names
              64 records * 32 bytes; copied into a 12-row RAM window cache for
@@ -586,6 +658,7 @@ flowchart TB
         Q["$0A00 rich resource records\nowner app -> overlay/module/core/code\nbank + offset + length + slot"]
         L["$0E00 dependency lines\nbounded source text from apps.cfg/app.*"]
         X["$2E00 audit/future\nreserved for validation and later service records"]
+        LK["$2F00 shim lookup\n256 token -> physical bank bytes"]
         N["$3000 names\n64 fixed app display names"]
         DS["$3800 descriptions\n64 fixed app description lines"]
         FT["$4200 file tokens\n64 fixed PRG/load tokens"]
@@ -600,7 +673,8 @@ flowchart TB
     LAUNCH -->|"writes owner/resource records"| Q
     VIEW["REU Viewer"] -->|"reads owner/app/resource details"| A
     VIEW --> Q
-    SHIM["resident shim $C800-$C9FF"] -->|"does not read rich records"| C600
+    SHIM["resident shim $C800-$C9FF"] -->|"fetches one byte for app token lookup"| LK
+    SHIM -->|"does not read rich records"| C600
 ```
 
 ### Load And Ownership Flow
