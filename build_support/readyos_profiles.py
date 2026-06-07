@@ -21,7 +21,7 @@ import build_apps_catalog_petscii as apps_catalog
 
 ROOT = Path(__file__).resolve().parents[1]
 PROFILES_DIR = ROOT / "cfg" / "profiles"
-RELEASES_DIR = ROOT / "releases"
+RELEASES_DIR = ROOT / "Releases"
 LEGACY_RELEASE_DIR = ROOT / "release"
 BIN_DIR = ROOT / "bin"
 RELEASE_ROOT_README_TEMPLATE = ROOT / "docs" / "release_root_readme_template.md"
@@ -35,6 +35,7 @@ WIKI_URL = "https://readyos.notion.site"
 PUBLIC_VARIANT_ORDER = [
     "precog-dual-d71",
     "precog-d81",
+    "precog-kung-fu-flash-2-d81",
     "precog-dual-d64",
     "precog-solo-d64-a",
     "precog-solo-d64-b",
@@ -45,6 +46,7 @@ PUBLIC_VARIANT_ORDER = [
 VARIANT_NOTES = {
     "dual-d71": "Default full-content profile for two 1571-class drives and the main local verification target.",
     "d81": "Full-content single-disk profile for 1581 and D81 setups where the whole current app catalog fits on one image.",
+    "kung-fu-flash-2-d81": "Full-content single-D81 profile tuned for Kung Fu Flash 2 disk loading with a 1MB REU and no skipped REU banks.",
     "dual-d64": "Reduced dual-disk profile for 1541-class environments that can mount two D64 images but not higher-capacity media.",
     "solo-d64-a": "Single-D64 subset focused on editor, reference, and dizzy for one-disk-only environments.",
     "solo-d64-b": "Single-D64 productivity subset centered on quicknotes, clipboard, calculator, and files.",
@@ -55,6 +57,7 @@ VARIANT_NOTES = {
 VARIANT_BEST_FIT = {
     "dual-d71": "C64 Ultimate, Ultimate 64, or VICE setups that can keep two 1571-class drives mounted.",
     "d81": "C64 Ultimate, VICE, or other 1581-capable setups that prefer one full-content image.",
+    "kung-fu-flash-2-d81": "Kung Fu Flash 2 users who want one full-content D81 and the cartridge's 1MB REU mode instead of CRT cartridge mode.",
     "dual-d64": "Real or emulated 1541-only setups that can mount two disks but not D71 or D81 media.",
     "solo-d64-a": "THEC64, web emulators, or simple loaders that can mount only one D64 at a time.",
     "solo-d64-b": "THEC64, web emulators, or simple loaders that can mount only one D64 at a time.",
@@ -681,6 +684,7 @@ def resolve_profile(profile_id: str, version_text: str | None, latest: bool) -> 
         "display_name": profile["display_name"],
         "kind": profile["kind"],
         "readyshell_parse_trace_debug": readyshell_parse_trace_debug(profile),
+        "reu_size_kb": int(profile.get("reu_size_kb", 16384)),
         "variant_boot_name": system_cfg.get("variant_boot_name", ""),
         "version_text": version_text,
         "catalog_source": str(profile_catalog_source(profile)),
@@ -1116,7 +1120,10 @@ def build_help_text(profile: Dict[str, object],
                     resolved: Dict[str, object],
                     entries: List[Dict[str, object]]) -> str:
     public_version = public_release_version(str(resolved["version_text"]))
-    vice_parts: List[str] = ["x64sc", "-reu", "-reusize", "16384"]
+    reu_size_kb = int(resolved.get("reu_size_kb", profile.get("reu_size_kb", 16384)))
+    reu_size_mb = reu_size_kb // 1024 if reu_size_kb % 1024 == 0 else 0
+    reu_size_label = f"{reu_size_mb}MB" if reu_size_mb else f"{reu_size_kb}KB"
+    vice_parts: List[str] = ["x64sc", "-reu", "-reusize", str(reu_size_kb)]
     for disk in resolved["disks"]:
         drive = str(disk["drive"])
         vice_parts.extend([f"-drive{drive}type", str(disk["vice_drive_type"])])
@@ -1166,7 +1173,7 @@ def build_help_text(profile: Dict[str, object],
         "",
         "## VICE Setup",
         "",
-        "- Enable REU with `16MB`.",
+        f"- Enable REU with `{reu_size_label}`.",
         "- The host-side boot PRGs are convenience autostart files. The disk copy of `PREBOOT` is still the normal disk-side bootstrap.",
     ])
     for disk in resolved["disks"]:
@@ -1184,6 +1191,23 @@ def build_help_text(profile: Dict[str, object],
         vice_command,
         "```",
         "",
+    ])
+    if reu_size_kb <= 1024:
+        lines.extend([
+            "## 1MB REU Budget",
+            "",
+            "- This SKU is intentionally limited to `1MB` REU, which is `16` physical `64KB` REU banks.",
+            "- It uses `reu_bank_skip=0`, so ReadyOS can use all 16 physical banks instead of skipping the lower bank range used by the normal test profiles.",
+            "- Fresh launcher state uses `2` banks by default: bank `0` for ReadyOS control/global metadata and bank `1` for the launcher snapshot. That leaves `14` banks for suspended apps and app resources.",
+            "- Each suspended app normally costs `1` additional bank.",
+            "- ReadyShell costs `5` banks when loaded: `1` app snapshot bank, `3` overlay cache banks, and `1` state/scratch bank. With only ReadyShell loaded, expect about `7/16` banks in use.",
+            "- ReadyBasic costs `3` banks when loaded: `1` app snapshot bank plus `2` ReadyBasic core/code resource banks. With only ReadyBasic loaded, expect about `5/16` banks in use.",
+            "- ReadyShell and ReadyBasic loaded at the same time can use about `10/16` banks before any other suspended apps are counted.",
+            "- When REU Viewer or the launcher shows the 1MB REU getting close to full, unload suspended apps before launching more. Unloading frees their app snapshot and resource banks.",
+            "- If all REU banks are full, launching another app may simply do nothing instead of showing an error. Unload one or more apps to make room, then launch the app again.",
+            "",
+        ])
+    lines.extend([
         "## Boot",
         "",
     ])
@@ -1208,7 +1232,7 @@ def build_help_text(profile: Dict[str, object],
         "## C64 Ultimate",
         "",
         "- Copy the listed disk image files to the target storage.",
-        "- Enable the REU and set it to `16MB`.",
+        f"- Enable the REU and set it to `{reu_size_label}`.",
         "- The host-side boot PRGs are optional convenience files for emulator launching; the disk-side `PREBOOT` entry is the standard hardware boot path.",
     ])
     if preboot_mode == "setd71":
@@ -1312,6 +1336,8 @@ def build_release(profile_id: str,
     help_text = build_help_text(profile, resolved, entries)
     (output_dir / "helpme.md").write_text(help_text + "\n", encoding="utf-8")
     (output_dir / "help.md").write_text(help_text + "\n", encoding="utf-8")
+    if bool(profile.get("write_readme", False)):
+        (output_dir / "README.md").write_text(help_text + "\n", encoding="utf-8")
 
     manifest = {
         "id": profile["id"],
@@ -1319,6 +1345,7 @@ def build_release(profile_id: str,
         "kind": profile["kind"],
         "variant_boot_name": resolved["variant_boot_name"],
         "version_text": version_text,
+        "reu_size_kb": resolved["reu_size_kb"],
         "catalog_source": str(catalog_source),
         "autostart_prg": resolved["autostart_prg"],
         "autostart_disk_prg": resolved["autostart_disk_prg"],
@@ -1356,6 +1383,7 @@ def print_shell_exports(profile_id: str, version_text: str) -> None:
     print(f"PROFILE_DISPLAY_NAME={shell_quote(str(resolved['display_name']))}")
     print(f"PROFILE_VERSION_TEXT={shell_quote(str(resolved['version_text']))}")
     print(f"PROFILE_READYSHELL_PARSE_TRACE_DEBUG={shell_quote(str(resolved['readyshell_parse_trace_debug']))}")
+    print(f"PROFILE_DEFAULT_REU_SIZE_KB={shell_quote(str(resolved['reu_size_kb']))}")
     print(f"PROFILE_AUTOSTART_PRG={shell_quote(str(resolved['autostart_prg']))}")
     print(f"PROFILE_AUTOSTART_DISK_PRG={shell_quote(str(resolved['autostart_disk_prg']))}")
     print(f"PROFILE_PREBOOT_MODE={shell_quote(str(resolved['preboot_mode']))}")

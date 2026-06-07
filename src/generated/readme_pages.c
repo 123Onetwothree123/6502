@@ -18,7 +18,7 @@ const char *const readme_page_line_text[README_PAGE_COUNT][README_LINES_PER_PAGE
         "Ultimate turbo workflows",
         "* Media layout: profile-based release",
         "  media under",
-        "  `releases/<version>/<profile>/`",
+        "  `Releases/<version>/<profile>/`",
         "  with external `helpme.md`",
         "instructions for the selected build",
     },

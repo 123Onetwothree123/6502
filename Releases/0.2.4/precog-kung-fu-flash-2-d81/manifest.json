@@ -1,11 +1,12 @@
 {
-  "id": "precog-d81",
-  "display_name": "precog (d81)",
-  "kind": "d81",
-  "variant_boot_name": "precog d81",
-  "version_text": "0.2.1",
-  "catalog_source": "/Users/karlprosserpp/dev/c64projects/readyosprecog/cfg/profiles/precog-d81.ini",
-  "autostart_prg": "/Users/karlprosserpp/dev/c64projects/readyosprecog/Releases/0.2.1/precog-d81/readyos-v0.2.1-d81-preboot.prg",
+  "id": "precog-kung-fu-flash-2-d81",
+  "display_name": "precog (kung fu flash 2 d81)",
+  "kind": "kung-fu-flash-2-d81",
+  "variant_boot_name": "precog kung fu flash 2 d81",
+  "version_text": "0.2.4J",
+  "reu_size_kb": 1024,
+  "catalog_source": "/Users/karlprosserpp/dev/c64projects/readyosprecog/cfg/profiles/precog-kung-fu-flash-2-d81.ini",
+  "autostart_prg": "/Users/karlprosserpp/dev/c64projects/readyosprecog/Releases/0.2.4/precog-kung-fu-flash-2-d81/readyos-v0.2.4j-kung-fu-flash-2-d81-preboot.prg",
   "autostart_disk_prg": "preboot.prg",
   "preboot_mode": "boot",
   "disks": [
@@ -14,8 +15,8 @@
       "drive": 8,
       "image_type": "d81",
       "vice_drive_type": "1581",
-      "true_drive": true,
-      "path": "/Users/karlprosserpp/dev/c64projects/readyosprecog/Releases/0.2.1/precog-d81/readyos-v0.2.1-d81.d81"
+      "true_drive": false,
+      "path": "/Users/karlprosserpp/dev/c64projects/readyosprecog/Releases/0.2.4/precog-kung-fu-flash-2-d81/readyos-v0.2.4j-kung-fu-flash-2-d81.d81"
     }
   ],
   "boot_prgs": [
@@ -23,13 +24,13 @@
       "stem": "preboot",
       "disk_name": "preboot",
       "source": "/Users/karlprosserpp/dev/c64projects/readyosprecog/bin/preboot.prg",
-      "path": "/Users/karlprosserpp/dev/c64projects/readyosprecog/Releases/0.2.1/precog-d81/readyos-v0.2.1-d81-preboot.prg"
+      "path": "/Users/karlprosserpp/dev/c64projects/readyosprecog/Releases/0.2.4/precog-kung-fu-flash-2-d81/readyos-v0.2.4j-kung-fu-flash-2-d81-preboot.prg"
     },
     {
       "stem": "boot",
       "disk_name": "boot",
       "source": "/Users/karlprosserpp/dev/c64projects/readyosprecog/bin/boot.prg",
-      "path": "/Users/karlprosserpp/dev/c64projects/readyosprecog/Releases/0.2.1/precog-d81/readyos-v0.2.1-d81-boot.prg"
+      "path": "/Users/karlprosserpp/dev/c64projects/readyosprecog/Releases/0.2.4/precog-kung-fu-flash-2-d81/readyos-v0.2.4j-kung-fu-flash-2-d81-boot.prg"
     }
   ],
   "apps": [
@@ -59,6 +60,12 @@
     },
     {
       "drive": 8,
+      "prg": "readybasic",
+      "label": "ready basic (alpha)",
+      "desc": "scoped basic v2 bridge poc"
+    },
+    {
+      "drive": 8,
       "prg": "cal26",
       "label": "calendar 26",
       "desc": "calendar for 2026 with appointments"
@@ -74,6 +81,12 @@
       "prg": "reuviewer",
       "label": "reu viewer",
       "desc": "view reu memory usage"
+    },
+    {
+      "drive": 8,
+      "prg": "sysinfo",
+      "label": "system info",
+      "desc": "system, reu, and ultimate status"
     },
     {
       "drive": 8,
@@ -107,12 +120,6 @@
     },
     {
       "drive": 8,
-      "prg": "sidetris",
-      "label": "sidetris",
-      "desc": "sideways tetris"
-    },
-    {
-      "drive": 8,
       "prg": "deminer",
       "label": "deminer",
       "desc": "minesweeper-style puzzle"
@@ -122,6 +129,24 @@
       "prg": "dizzy",
       "label": "dizzy kanban",
       "desc": "fizzy inspired kanban app"
+    },
+    {
+      "drive": 8,
+      "prg": "readyirc",
+      "label": "readyirc",
+      "desc": "ultimate tcp irc client"
+    },
+    {
+      "drive": 8,
+      "prg": "ucitest",
+      "label": "uci tester",
+      "desc": "ultimate command interface lab"
+    },
+    {
+      "drive": 8,
+      "prg": "rirc-rrnet",
+      "label": "readyirc rrnet",
+      "desc": "rr-net tcp irc client"
     },
     {
       "drive": 8,

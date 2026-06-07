@@ -4,8 +4,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HARNESS="${VICE_TASKS_REPO:-$ROOT/../agenticdevharness}/tools/vice_tasks_dotnet"
 PROJECT="$HARNESS/src/ViceTasks.Binary/ViceTasks.Binary.csproj"
-CRT="$ROOT/releases/0.2.4/precog-easyflash/readyos_easyflash.crt"
-D64="$ROOT/releases/0.2.4/precog-easyflash/readyos_data.d64"
+CRT="$ROOT/Releases/0.2.4/precog-easyflash/readyos_easyflash.crt"
+D64="$ROOT/Releases/0.2.4/precog-easyflash/readyos_data.d64"
 OUT_DIR="$ROOT/agentworking/easyflash_launcher_probes"
 
 keys_raw() {

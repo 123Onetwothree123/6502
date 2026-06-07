@@ -5,7 +5,7 @@
   "variant_boot_name": "precog solo d64 subset e",
   "version_text": "0.2.1",
   "catalog_source": "/Users/karlprosserpp/dev/c64projects/readyosprecog/cfg/profiles/precog-solo-d64-e.ini",
-  "autostart_prg": "/Users/karlprosserpp/dev/c64projects/readyosprecog/releases/0.2.1/precog-solo-d64-e/readyos-v0.2.1-solo-d64-e-preboot.prg",
+  "autostart_prg": "/Users/karlprosserpp/dev/c64projects/readyosprecog/Releases/0.2.1/precog-solo-d64-e/readyos-v0.2.1-solo-d64-e-preboot.prg",
   "autostart_disk_prg": "preboot.prg",
   "preboot_mode": "boot",
   "disks": [
@@ -15,7 +15,7 @@
       "image_type": "d64",
       "vice_drive_type": "1541",
       "true_drive": true,
-      "path": "/Users/karlprosserpp/dev/c64projects/readyosprecog/releases/0.2.1/precog-solo-d64-e/readyos-v0.2.1-solo-d64-e.d64"
+      "path": "/Users/karlprosserpp/dev/c64projects/readyosprecog/Releases/0.2.1/precog-solo-d64-e/readyos-v0.2.1-solo-d64-e.d64"
     }
   ],
   "boot_prgs": [
@@ -23,13 +23,13 @@
       "stem": "preboot",
       "disk_name": "preboot",
       "source": "/Users/karlprosserpp/dev/c64projects/readyosprecog/bin/preboot.prg",
-      "path": "/Users/karlprosserpp/dev/c64projects/readyosprecog/releases/0.2.1/precog-solo-d64-e/readyos-v0.2.1-solo-d64-e-preboot.prg"
+      "path": "/Users/karlprosserpp/dev/c64projects/readyosprecog/Releases/0.2.1/precog-solo-d64-e/readyos-v0.2.1-solo-d64-e-preboot.prg"
     },
     {
       "stem": "boot",
       "disk_name": "boot",
       "source": "/Users/karlprosserpp/dev/c64projects/readyosprecog/bin/boot.prg",
-      "path": "/Users/karlprosserpp/dev/c64projects/readyosprecog/releases/0.2.1/precog-solo-d64-e/readyos-v0.2.1-solo-d64-e-boot.prg"
+      "path": "/Users/karlprosserpp/dev/c64projects/readyosprecog/Releases/0.2.1/precog-solo-d64-e/readyos-v0.2.1-solo-d64-e-boot.prg"
     }
   ],
   "apps": [

@@ -3,6 +3,7 @@
 - attach `readyos_easyflash.crt` as an easyflash cartridge
 - mount `readyos_data.d64` on drive `8`
 - enable reu `16mb`
+- if an app snapshot preloaded from the cartridge is unloaded from REU, ReadyOS cannot load it again from the cartridge until you restart ReadyOS
 
 ## vice example
 

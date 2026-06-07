@@ -9,7 +9,7 @@ real-world C64 environments without pretending every machine, cartridge,
 loader, or emulator mounts the same media.
 
 - Public release line: `0.2.4`
-- Current artifact build in this tree: `0.2.4Q`
+- Current artifact build in this tree: `0.2.4J`
 - Main site: [readyos64.com](https://readyos64.com)
 - Wiki / working knowledge base: [readyos.notion.site](https://readyos.notion.site)
 - GitHub source and issues: [ReadyOS-C64/ReadyOs](https://github.com/ReadyOS-C64/ReadyOs)
@@ -89,12 +89,13 @@ packaging changes to match the target.
 
 ## Public Variant Matrix
 
-This release line currently has `8` public variants.
+This release line currently has `9` public variants.
 
 | Folder | Media | Best Fit | Why It Exists | Boot |
 | --- | --- | --- | --- | --- |
 | `precog-dual-d71` | 2x `D71` on drives `8` and `9` | C64 Ultimate, Ultimate 64, or VICE setups that can keep two 1571-class drives mounted. | Default full-content profile for two 1571-class drives and the main local verification target. | `PREBOOT -> SETD71 -> BOOT` |
 | `precog-d81` | 1x `D81` on drive `8` | C64 Ultimate, VICE, or other 1581-capable setups that prefer one full-content image. | Full-content single-disk profile for 1581 and D81 setups where the whole current app catalog fits on one image. | `PREBOOT -> BOOT` |
+| `precog-kung-fu-flash-2-d81` | 1x `D81` on drive `8` | Kung Fu Flash 2 users who want one full-content D81 and the cartridge's 1MB REU mode instead of CRT cartridge mode. | Full-content single-D81 profile tuned for Kung Fu Flash 2 disk loading with a 1MB REU and no skipped REU banks. | `PREBOOT -> BOOT` |
 | `precog-dual-d64` | 2x `D64` on drives `8` and `9` | Real or emulated 1541-only setups that can mount two disks but not D71 or D81 media. | Reduced dual-disk profile for 1541-class environments that can mount two D64 images but not higher-capacity media. | `PREBOOT -> BOOT` |
 | `precog-solo-d64-a` | 1x `D64` on drive `8` | THEC64, web emulators, or simple loaders that can mount only one D64 at a time. | Single-D64 subset focused on editor, reference, and dizzy for one-disk-only environments. | `PREBOOT -> BOOT` |
 | `precog-solo-d64-b` | 1x `D64` on drive `8` | THEC64, web emulators, or simple loaders that can mount only one D64 at a time. | Single-D64 productivity subset centered on quicknotes, clipboard, calculator, and files. | `PREBOOT -> BOOT` |
@@ -108,6 +109,7 @@ The release line is centered on these public folders:
 
 - `precog-dual-d71/`
 - `precog-d81/`
+- `precog-kung-fu-flash-2-d81/`
 - `precog-dual-d64/`
 - `precog-solo-d64-a/`
 - `precog-solo-d64-b/`

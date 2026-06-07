@@ -56,6 +56,7 @@ configure_vice_env
 PROFILE_TOOL="$BUILD_SUPPORT_DIR/readyos_profiles.py"
 VERSION_TOOL="$BUILD_SUPPORT_DIR/update_build_version.py"
 DEFAULT_PROFILE="$(python3 "$PROFILE_TOOL" default-id)"
+KFF2_PROFILE="precog-kung-fu-flash-2-d81"
 PROFILE="$DEFAULT_PROFILE"
 BIN_DIR="bin"
 
@@ -103,6 +104,7 @@ RRNET=0
 ETHERNET_DRIVER="pcap"
 ETHERNET_INTERFACE=""
 REU_SIZE_KB=16384
+REU_SIZE_EXPLICIT=0
 DEBUG_MONCMDS=""
 FAST_VICE_ARGS=()
 RRNET_VICE_ARGS=()
@@ -211,7 +213,6 @@ resolve_easyflash_release_dir() {
     local candidate=""
 
     for candidate in \
-        "releases/$version_text/precog-easyflash" \
         "Releases/$version_text/precog-easyflash"
     do
         if [ -d "$candidate" ]; then
@@ -220,7 +221,7 @@ resolve_easyflash_release_dir() {
         fi
     done
 
-    echo "releases/$version_text/precog-easyflash"
+    echo "Releases/$version_text/precog-easyflash"
     return 0
 }
 
@@ -235,6 +236,8 @@ show_help() {
     echo "  debug          Run with VICE monitor breakpoints at shim entry points"
     echo "  warp           Run in warp mode"
     echo "  easyflash      Run the EasyFlash CRT + runtime data disk flavor"
+    echo "  kff2           Run the Kung Fu Flash 2 D81 SKU with its 1MB REU profile"
+    echo "  kff2-fast      Run the Kung Fu Flash 2 D81 SKU with VICE fast disk mode"
     echo "  launcher       Run $LAUNCHER_PRG directly"
     echo "  editor         Run $EDITOR_PRG directly"
     echo "  calcplus       Run $CALCPLUS_PRG directly"
@@ -266,6 +269,7 @@ show_help() {
     echo "  --ethernet-driver NAME      VICE Ethernet I/O driver: pcap or tuntap (default: pcap)"
     echo "  --ethernet-interface NAME   Optional VICE Ethernet interface name, e.g. en0"
     echo "  --reu-size KB              Set VICE REU size in KB (default: 16384; use 12288 for 12MB)"
+    echo "                              Profile defaults apply when omitted; kff2 uses 1024KB"
     echo "  --config PATH               Override the profile's catalog source"
     echo "  --load-all 0|1              Override launcher auto-preload in generated apps.cfg"
     echo "  --run-first APP             Override launcher runappfirst in generated apps.cfg"
@@ -365,10 +369,12 @@ while [ $# -gt 0 ]; do
             ;;
         --reu-size)
             REU_SIZE_KB="$2"
+            REU_SIZE_EXPLICIT=1
             shift 2
             ;;
         --reu-size=*)
             REU_SIZE_KB="${1#*=}"
+            REU_SIZE_EXPLICIT=1
             shift
             ;;
         --config)
@@ -423,6 +429,18 @@ while [ $# -gt 0 ]; do
             ;;
     esac
 done
+
+case "${MODE:-}" in
+    kff2|kungfu|kung-fu-flash-2|kung-fu-flash-2-d81)
+        PROFILE="$KFF2_PROFILE"
+        MODE=""
+        ;;
+    kff2-fast|kungfu-fast|kung-fu-flash-2-fast|kung-fu-flash-2-d81-fast)
+        PROFILE="$KFF2_PROFILE"
+        VICE_FAST=1
+        MODE=""
+        ;;
+esac
 
 if [ "$LIST_PROFILES" -eq 1 ]; then
     python3 "$PROFILE_TOOL" list-ids
@@ -496,6 +514,9 @@ PY
         eval "$(python3 "$PROFILE_TOOL" export-shell --profile "$PROFILE" --version "$version")"
     else
         eval "$(python3 "$PROFILE_TOOL" export-shell --profile "$PROFILE" --version "$RUN_VERSION_TEXT")"
+    fi
+    if [ "$REU_SIZE_EXPLICIT" -eq 0 ] && [ -n "${PROFILE_DEFAULT_REU_SIZE_KB:-}" ]; then
+        REU_SIZE_KB="$PROFILE_DEFAULT_REU_SIZE_KB"
     fi
 }
 

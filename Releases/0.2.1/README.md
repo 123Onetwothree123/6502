@@ -165,6 +165,9 @@ question: "What is the best ReadyOS shape for this storage environment?"
 
 - `precog-easyflash` is the cartridge-plus-disk option for setups that can boot
   an EasyFlash image and still keep drive `8` online.
+  Its app snapshots are preloaded from the cartridge during cold boot only; if
+  one is unloaded from REU, ReadyOS cannot load it again from the cartridge
+  until you restart ReadyOS.
 - `precog-dual-d71` is the broadest "mainline" profile when two `1571`-class
   drives are available. It remains the primary local verification target.
 - `precog-d81` is the cleanest single-image full-content option when `1581`

@@ -15,3 +15,5 @@ The filename flags request C64, PAL, and 16 MB REU:
 - `RM` = 16 MB REU
 
 The CJM repeats the same baseline with `X:64,pal,reu16384` and adds explicit joystick mappings so THEC64 controllers remain active. `readyos_data.d64` is included beside the cartridge for runtime app data access; the CJM cannot auto-mount it.
+
+If an app snapshot preloaded from the cartridge is unloaded from REU, ReadyOS cannot load it again from the cartridge until you restart ReadyOS.

@@ -30,7 +30,7 @@ PROFILE ?= precog-dual-d71
 PROFILE_CATALOG_SRC = $(shell $(PYTHON) $(BUILD_SUPPORT_DIR)/readyos_profiles.py catalog-source --profile $(PROFILE))
 READYOS_VERSION_CURRENT = $(shell $(PYTHON) $(BUILD_SUPPORT_DIR)/update_build_version.py --current)
 READYOS_PUBLIC_VERSION = $(shell $(PYTHON) $(BUILD_SUPPORT_DIR)/update_build_version.py --current | sed 's/[A-Za-z]$$//')
-EASYFLASH_OUTPUT_DIR = releases/$(READYOS_PUBLIC_VERSION)/precog-easyflash
+EASYFLASH_OUTPUT_DIR = Releases/$(READYOS_PUBLIC_VERSION)/precog-easyflash
 
 # Flags for standard C64 programs (load at $0801)
 # Note: -Osir causes cc65 optimizer crashes, disabled for now
@@ -950,7 +950,7 @@ easyflash: prepare-version programs $(LAUNCHER_EASYFLASH) $(READYSHELL_EASYFLASH
 	@VERSION_TEXT=$$($(PYTHON) $(BUILD_SUPPORT_DIR)/update_build_version.py --current); \
 	PUBLIC_VERSION="$$VERSION_TEXT"; \
 	case "$$PUBLIC_VERSION" in *[A-Za-z]) PUBLIC_VERSION=$${PUBLIC_VERSION%?} ;; esac; \
-	OUT_DIR="releases/$$PUBLIC_VERSION/precog-easyflash"; \
+	OUT_DIR="Releases/$$PUBLIC_VERSION/precog-easyflash"; \
 	$(PYTHON) $(BUILD_SUPPORT_DIR)/readyos_easyflash.py build-release \
 		--catalog "$(EASYFLASH_CATALOG_SRC)" \
 		--layout "$(EASYFLASH_LAYOUT_JSON)" \
@@ -1199,7 +1199,7 @@ help:
 	@echo "Targets:"
 	@echo "  all         - Build the selected profile release package (default)"
 	@echo "  profiles    - List available build/run profiles"
-	@echo "  profile     - Build one profile under releases/<version>/<profile>"
+	@echo "  profile     - Build one profile under Releases/<version>/<profile>"
 	@echo "                Use PROFILE=<id> (default: $(PROFILE))"
 	@echo "  release-all - Build every disk profile and EasyFlash SKU with one version stamp"
 	@echo "  clean       - Remove built files"
@@ -1256,12 +1256,12 @@ help:
 	@echo "  $(READMEAPP) - Project README app (loads at \$$1000)"
 	@echo "  $(READYSHELL) - ReadyShell app (loads at \$$1000, overlays rsparser/rsvm/rsdrvilst/rsldv/rsstv on disk 1)"
 	@echo "  $(XFILECHK) - Standalone IEC file-operation harness (loads at \$$0801)"
-	@echo "  releases/<version>/<profile>/readyos-v<version>-<kind>[_n].<ext>"
+	@echo "  Releases/<version>/<profile>/readyos-v<version>-<kind>[_n].<ext>"
 	@echo "              - Versioned disk images for the selected profile"
-	@echo "  releases/<version>/<profile>/helpme.md"
+	@echo "  Releases/<version>/<profile>/helpme.md"
 	@echo "              - Profile-specific run instructions"
-	@echo "  releases/<version>/precog-easyflash/readyos_easyflash.crt"
-	@echo "  releases/<version>/precog-easyflash/readyos_data.d64"
+	@echo "  Releases/<version>/precog-easyflash/readyos_easyflash.crt"
+	@echo "  Releases/<version>/precog-easyflash/readyos_data.d64"
 	@echo "              - EasyFlash cartridge flavor and runtime-data disk"
 	@echo "  $(XFILECHK_DISK1) - Standalone harness drive 8 disk (boot+harness+src fixture)"
 	@echo "  $(XFILECHK_DISK2) - Standalone harness drive 9 disk (test fixture)"

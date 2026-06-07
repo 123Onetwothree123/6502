@@ -4,7 +4,7 @@ Artifact-backed report generated from the current local ReadyShell build, linker
 
 ## Executive Summary
 
-- Profile / disk source: `precog-dual-d71` using `releases/0.2.4/precog-dual-d71/readyos-v0.2.4m-dual-d71_1.d71` (disk label `readyos`, `29` blocks free).
+- Profile / disk source: `precog-dual-d71` using `Releases/0.2.4/precog-dual-d71/readyos-v0.2.4m-dual-d71_1.d71` (disk label `readyos`, `29` blocks free).
 - Resident ReadyShell PRG: `readyshell.prg` on disk as `readyshell`, `27983` bytes and `111` D71 blocks.
 - Overlay execution window: `$8E00-$C5FF` for `14336` bytes, with PRG load-address bytes at `$8DFE-$8DFF`.
 - Resident BSS / heap below overlays: BSS `$7D4D-$7EF6` (`426` bytes), heap `$7EF8-$8DFD` (`3846` bytes).

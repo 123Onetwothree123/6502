@@ -8,7 +8,7 @@ Current snapshot:
 - Base release: **0.2.4**
 - Runtime target: clean behavior from stock-speed C64 use up through
   Ultimate turbo workflows
-- Media layout: profile-based release media under `releases/<version>/<profile>/` with external `helpme.md`
+- Media layout: profile-based release media under `Releases/<version>/<profile>/` with external `helpme.md`
   instructions for the selected build
 - Development artifacts use the plain **0.2.4** version stamp.
   Local development builds may still include an internal trailing letter.
@@ -177,6 +177,8 @@ Cold boot notes:
   then reset.
 - The long preload is normal. The cartridge is filling launcher, app,
   and overlay snapshots into the REU before the launcher appears.
+- If an app snapshot preloaded from the cartridge is unloaded from REU,
+  ReadyOS cannot load it again from the cartridge until you restart ReadyOS.
 - Yellow border means the current launcher, app, or overlay payload is
   being copied from cartridge into RAM.
 - Brown or orange border means that staged RAM image is being copied

@@ -5,10 +5,10 @@
   "version_text": "0.2.3",
   "catalog_source": "cfg/flavors/readyos_easyflash.ini",
   "artifacts": {
-    "crt": "releases/0.2.3/precog-easyflash/readyos_easyflash.crt",
-    "data_disk": "releases/0.2.3/precog-easyflash/readyos_data.d64",
-    "raw_bin": "releases/0.2.3/precog-easyflash/readyos_easyflash.bin",
-    "layout": "releases/0.2.3/precog-easyflash/layout.json"
+    "crt": "Releases/0.2.3/precog-easyflash/readyos_easyflash.crt",
+    "data_disk": "Releases/0.2.3/precog-easyflash/readyos_data.d64",
+    "raw_bin": "Releases/0.2.3/precog-easyflash/readyos_easyflash.bin",
+    "layout": "Releases/0.2.3/precog-easyflash/layout.json"
   },
   "apps": [
     {

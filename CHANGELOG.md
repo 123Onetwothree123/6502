@@ -106,7 +106,7 @@
 
 - Promoted the public release line to `0.2` and rebuilt the full profile
   matrix, including regenerated `help.md`, `helpme.md`, manifests, boot-chain
-  artifacts, and release media under `releases/0.2/`.
+  artifacts, and release media under `Releases/0.2/`.
 - Expanded ReadyShell’s documented command set to include the new file
   commands `CAT`, `PUT`, `ADD`, `DEL`, `REN`, and `COPY`, alongside the
   already-shipping `MORE`, `TOP`, and `SEL` pipeline helpers.
@@ -249,7 +249,7 @@
   the selected profile identity reaches boot-time messaging.
 - Shifted packaging to profile-driven release builds with
   `cfg/profiles/*.ini` and `cfg/profiles/*.json`, and emitted versioned outputs
-  under `releases/<version>/<profile>/` instead of assuming a single dual-d71
+  under `Releases/<version>/<profile>/` instead of assuming a single dual-d71
   artifact layout.
 - Moved editable shipped `SEQ` and `REL` payloads into `cfg/authoritative/`
   and taught the profile builder to preserve and place them consistently.

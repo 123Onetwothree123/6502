@@ -46,15 +46,16 @@ Project links:
 
 The canonical release layout is:
 
-- `releases/<version>/precog-easyflash/`
-- `releases/<version>/precog-dual-d71/`
-- `releases/<version>/precog-d81/`
-- `releases/<version>/precog-dual-d64/`
-- `releases/<version>/precog-solo-d64-a/`
-- `releases/<version>/precog-solo-d64-b/`
-- `releases/<version>/precog-solo-d64-c/`
-- `releases/<version>/precog-solo-d64-d/`
-- `releases/<version>/precog-solo-d64-e/`
+- `Releases/<version>/precog-easyflash/`
+- `Releases/<version>/precog-dual-d71/`
+- `Releases/<version>/precog-d81/`
+- `Releases/<version>/precog-kung-fu-flash-2-d81/`
+- `Releases/<version>/precog-dual-d64/`
+- `Releases/<version>/precog-solo-d64-a/`
+- `Releases/<version>/precog-solo-d64-b/`
+- `Releases/<version>/precog-solo-d64-c/`
+- `Releases/<version>/precog-solo-d64-d/`
+- `Releases/<version>/precog-solo-d64-e/`
 
 Targets:
 
@@ -69,7 +70,7 @@ Recommended baseline:
 
 - enable the REU
 - set REU size to `16MB`
-- follow the `helpme.md` inside the selected `releases/<version>/<profile>/` directory
+- follow the `helpme.md` inside the selected `Releases/<version>/<profile>/` directory
 
 Boot note:
 
@@ -120,7 +121,7 @@ Boot note:
 
 ## Release Variants
 
-ReadyOS now ships the same runtime in `9` public media variants because the
+ReadyOS now ships the same runtime in `10` public media variants because the
 target drive types, disk capacities, and cartridge support are different.
 
 | Profile | Media | Why It Exists | Boot Flow | App Set |
@@ -128,6 +129,7 @@ target drive types, disk capacities, and cartridge support are different.
 | `precog-easyflash` | `CRT` cartridge plus companion `D64` on drive `8` | full cartridge cold-boot path for VICE and Ultimate-family setups that can keep a disk mounted | reset into cartridge boot | full current app catalog |
 | `precog-dual-d71` | two `D71` images on drives `8` and `9` | default full-content profile for `1571` setups and the main local verification target | `PREBOOT -> SETD71 -> BOOT` | current app catalog except `readme`, which is omitted to preserve D71 space |
 | `precog-d81` | one `D81` image on drive `8` | full-content single-disk profile for `1581`/`D81` setups | `PREBOOT -> BOOT` | full current app catalog |
+| `precog-kung-fu-flash-2-d81` | one `D81` image on drive `8` | full-content Kung Fu Flash 2 disk-loading profile with `1MB` REU and no skipped REU banks | `PREBOOT -> BOOT` | full current app catalog |
 | `precog-dual-d64` | two `D64` images on drives `8` and `9` | reduced profile for `1541`-compatible capacity limits | `PREBOOT -> BOOT` | curated subset of the current app catalog |
 | `precog-solo-d64-a` | one `D64` image on drive `8` | standalone single-disk subset with editor, reference, and dizzy | `PREBOOT -> BOOT` | `editor`, `hexview`, `readme`, `dizzy` |
 | `precog-solo-d64-b` | one `D64` image on drive `8` | standalone single-disk productivity subset with quicknotes, calculator, clipboard, and files | `PREBOOT -> BOOT` | `quicknotes`, `calcplus`, `clipmgr`, `simplefiles` |
@@ -140,9 +142,21 @@ the expected runtime. The cartridge contains the EasyFlash boot code and the
 preloaded payloads, while drive `8` remains the normal disk-backed place for
 runtime files, help content, and app data.
 
+Those cartridge-preloaded app snapshots are a cold-boot preload only. If one is
+unloaded from REU, ReadyOS cannot load it again from the cartridge until you
+restart ReadyOS.
+
 The cartridge SKU also now performs an explicit early REU check. If REU is not
 present, the boot loader shows a clear error, waits for a keypress, and returns
 to BASIC cold start instead of trying to continue.
+
+The Kung Fu Flash 2 D81 SKU is intentionally separate from the EasyFlash CRT
+SKU. It is a disk-image path for KFF2 setups where CRT cartridge mode would
+disable KFF2 REU emulation. It targets KFF2's `1MB` REU mode and starts at
+physical REU bank `0` instead of skipping the lower bank range used by the
+normal test profiles. If the 1MB REU fills up, launching another app may simply
+do nothing instead of showing an error. Unload one or more apps to free REU
+banks, then launch the app again.
 
 The dual-D64 profile is intentionally smaller. Right now it keeps the core
 productivity path that fits on two `D64`s: `editor`, `quicknotes`,
@@ -444,7 +458,7 @@ present on the dual-D71 source images are removed so later rebuilds stop
 reinserting them.
 
 Normal profile rebuilds preserve non-managed user files from the prior
-profile build while replacing build-owned artifacts in `releases/<version>/<profile>/`.
+profile build while replacing build-owned artifacts in `Releases/<version>/<profile>/`.
 
 The packaged release audit extracts those internal `SEQ` and `REL` files from
 the built images and checks them byte-for-byte against `cfg/authoritative/`
