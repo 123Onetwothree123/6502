@@ -22,7 +22,6 @@
         { "artifact": "boot.prg", "name": "boot", "type": "prg" },
         { "artifact": "launcher.prg", "name": "launcher", "type": "prg" },
         { "artifact": "quicknotes.prg", "name": "quicknotes", "type": "prg" },
-        { "artifact": "clipmgr.prg", "name": "clipmgr", "type": "prg" },
         { "artifact": "cal26.prg", "name": "cal26", "type": "prg" },
         { "artifact": "obj/rbtest1.prg", "name": "rbtest1", "type": "prg" },
         { "artifact": "obj/apps_cfg_petscii.seq", "name": "apps.cfg", "type": "seq" }
@@ -42,9 +41,8 @@
         { "artifact": "editor.prg", "name": "editor", "type": "prg" },
         { "artifact": "calcplus.prg", "name": "calcplus", "type": "prg" },
         { "artifact": "tasklist.prg", "name": "tasklist", "type": "prg" },
-        { "artifact": "simplefiles.prg", "name": "simplefiles", "type": "prg" },
-        { "artifact": "readyirc.prg", "name": "readyirc", "type": "prg" },
-        { "artifact": "rirc-rrnet.prg", "name": "rirc-rrnet", "type": "prg" }
+        { "artifact": "clipmgr.prg", "name": "clipmgr", "type": "prg" },
+        { "artifact": "simplefiles.prg", "name": "simplefiles", "type": "prg" }
       ]
     }
   ]
