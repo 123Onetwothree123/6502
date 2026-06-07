@@ -241,14 +241,11 @@
           and <span class="mono">Start+2</span> for the future launcher overlay bank.
         </p>
         <p>
-          Only after those three ReadyOS/launcher banks do the catalog app slots
-          begin. App-visible logical app slots are still numbered
-          <span class="mono">1..23</span>, but their physical backing starts at
-          <span class="mono">Start+3</span>: app slot <span class="mono">1</span>
-          is <span class="mono">Start+3</span>, app slot <span class="mono">2</span>
-          is <span class="mono">Start+4</span>, and app slot
-          <span class="mono">23</span> is <span class="mono">Start+25</span>.
-          Dynamic allocation begins after that at <span class="mono">Start+26</span>.
+          The old fixed app-slot gap has been superseded. App snapshot banks are
+          now assigned by the launcher/cartridge loader and the token-to-physical
+          mapping is published in logical REU bank 0. The resident shim keeps its
+          512-byte size by fetching one physical-bank byte from that lookup page
+          when switching to a non-launcher app token.
         </p>
         <p>
           The shim now performs that mapping in <span class="mono">$C960-$C99F</span>
@@ -603,11 +600,10 @@ jt_fetch_bank   = $C815     ; Helper: fetch from bank in A
 ;-----------------------------------------------------------------------------
 ; $C960: reu_setup_logical - Map logical bank to physical, then setup REU regs
 ;
-; Physical ReadyOS region layout:
-;   Start+0: system/global bank
-;   Start+1: launcher snapshot/resume bank
-;   Start+2: reserved launcher overlay bank
-;   Start+3..Start+25: physical backing banks for app slots 1..23
+; Current note:
+;   this older listing's fixed Start+3..Start+25 app-slot description has
+;   been superseded by logical REU bank 0 token -> physical-bank lookup.
+;   See ReadyOSREUenhancementrefactor.html for the current commented shim.
 ;-----------------------------------------------------------------------------
 .byte $C9, $00              ; CMP #0 (select launcher bank at Start+1?)
 .byte $D0, $09              ; BNE app_bank

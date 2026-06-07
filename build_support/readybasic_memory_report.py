@@ -305,12 +305,12 @@ def render(ctx: dict[str, object]) -> str:
 
     cold_basic_blocks = [
         Block("Sentinel/pad", basic_start - 1, cmdpack_start - (basic_start - 1), "sentinel", "Cold padding before command seed bytes."),
-        Block("CMDPACK seed window", cmdpack_start, cmdpack_size, "seed", "Built-in module payload seed; prestashed into REU $45 before BASIC owns this RAM."),
+        Block("CMDPACK seed window", cmdpack_start, cmdpack_size, "seed", "Built-in module payload seed; prestashed into the assigned code bank before BASIC owns this RAM."),
         Block("HIDLOAD helper seed", hidload_start, seg["HIDDEN"].size, "seed2", "Copied to $A000 and $C280 shadow."),
         Block("HIDLOAD reserved tail", hidload_start + seg["HIDDEN"].size, hidload_size - seg["HIDDEN"].size, "free", "Reserved load window tail."),
         Block("BRLOAD bridge seed", brload_start, seg["BRIDGE"].size, "bridge", "Copied to $C000 bridge state."),
         Block("BRLOAD reserved tail", brload_start + seg["BRIDGE"].size, brload_size - seg["BRIDGE"].size, "free", "Reserved load window tail."),
-        Block("REGSEED registry", regseed_start, seg["REGSEED"].size, "registry", "Header plus 128 command descriptors; prestashed into REU $44."),
+        Block("REGSEED registry", regseed_start, seg["REGSEED"].size, "registry", "Header plus 128 command descriptors; prestashed into the assigned core bank."),
         Block("REGSEED reserved tail", regseed_start + seg["REGSEED"].size, regseed_size - seg["REGSEED"].size, "free", "Reserved load window tail."),
         Block("Future BASIC bytes", regseed_start + regseed_size, basic_limit - (regseed_start + regseed_size), "basic", "Also reclaimed by BASIC after cold setup."),
     ]
@@ -328,7 +328,7 @@ def render(ctx: dict[str, object]) -> str:
     post_blocks = [
         Block("Resident ReadyBASIC", seg["RESIDENT"].start, seg["RESIDENT"].size, "resident", "Still live in visible RAM."),
         Block("BASIC workspace", basic_start, basic_limit - basic_start, "basic", "Former seed bytes are user BASIC memory now."),
-        Block("Under-ROM command slots", 0xA000, 0x2000, "underrom", "Fetched from REU $45 on demand."),
+        Block("Under-ROM command slots", 0xA000, 0x2000, "underrom", "Fetched from the assigned code bank on demand."),
         Block("Bridge/frames", 0xC000, 0x0600, "bridge", "Bridge and shared command frames."),
     ]
 
@@ -370,7 +370,7 @@ def render(ctx: dict[str, object]) -> str:
 
     reu_overview_blocks = [
         Block("Launcher/system", 0x000000, 0x010000, "readyos", "Bank 0 logical launcher/system state."),
-        Block("App snapshots", 0x020000, 24 * 0x10000, "entry", "Banks 2-25 logical app-slot snapshots."),
+        Block("App snapshots", 0x020000, 24 * 0x10000, "entry", "Historical low-bank snapshot capacity; current snapshots are launcher-assigned and resolved through logical bank 0."),
         Block("Legacy high-bank gap", 0x430000, 0x60000, "underrom", "No current ReadyOS fixed resource assignment here; ReadyBASIC banks and ReadyShell diagnostics/scratch are no longer fixed in this range."),
         Block("Dynamic resources / free", 0x490000, (reu["REU_TOTAL_BANKS"] - 0x49) * 0x10000, "free", "Remaining 16MB REU space, including launcher-assigned ReadyBASIC core/code resource banks."),
     ]
@@ -605,7 +605,7 @@ def render(ctx: dict[str, object]) -> str:
       ])}
     </tbody></table>
     <h3>Disk Module Proof Storage</h3>
-    <table><thead><tr><th>REU $45 offset</th><th>Item</th><th>Display size</th><th>Exact bytes</th><th>Detail</th><th>Commands</th></tr></thead><tbody>{table_rows(disk_blocks)}</tbody></table>
+    <table><thead><tr><th>Assigned code-bank offset</th><th>Item</th><th>Display size</th><th>Exact bytes</th><th>Detail</th><th>Commands</th></tr></thead><tbody>{table_rows(disk_blocks)}</tbody></table>
   </section>
 </main>
 <footer><div class="page">Generated from <code>obj/readybasic.map</code>, <code>cfg/ready_app_readybasic.cfg</code>, <code>src/apps/readybasic/readybasic.s</code>, and <code>src/lib/reu_mgr.h</code>.</div></footer>

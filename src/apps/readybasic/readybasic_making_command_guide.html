@@ -154,13 +154,13 @@
 
   <section class="teaching">
     <h2>Current Module/Submodule Authoring Model</h2>
-    <p>The detailed examples below are preserved because they explain parser signatures, frames, string staging, arrays, REU handles, and expression returns. The current placement model is now module/submodule based: descriptors identify the payload in REU bank <code>$45</code> and the under-ROM slot or span where it must run.</p>
+    <p>The detailed examples below are preserved because they explain parser signatures, frames, string staging, arrays, REU handles, and expression returns. The current placement model is now module/submodule based: descriptors identify the payload in the assigned code bank and the under-ROM slot or span where it must run.</p>
     <div class="flow">
       <div class="card lesson"><h3>Descriptor</h3><p>32 bytes: command id, module id, payload offset/size, submodule, overlay, slot mask, generation, runtime destination, entry, signature, name.</p></div>
       <div class="card lesson"><h3>Common</h3><p><code>$A000-$A7FF</code> is shared helper space, not a normal pageable command slot.</p></div>
       <div class="card lesson"><h3>Slot 0</h3><p><code>$A800-$AFFF</code> is the default/system module slot for common commands.</p></div>
       <div class="card lesson"><h3>Slot 1/2</h3><p><code>$B000-$B7FF</code> and <code>$B800-$BFFF</code> can hold swappable submodules, spans, and overlays.</p></div>
-      <div class="card lesson"><h3>Disk Modules</h3><p><code>ZMODLD(name$)</code> lives in module 2 and opens ReadyBasicModule SEQ packages named <code>rbm.&lt;name&gt;</code>. <code>$C500</code> is only a streaming page buffer; descriptors land in REU <code>$44</code> and payloads in <code>$45</code>.</p></div>
+      <div class="card lesson"><h3>Disk Modules</h3><p><code>ZMODLD(name$)</code> lives in module 2 and opens ReadyBasicModule SEQ packages named <code>rbm.&lt;name&gt;</code>. <code>$C500</code> is only a streaming page buffer; descriptors land in the assigned core bank and payloads in the assigned code bank.</p></div>
     </div>
     <p>A module is the logical command family. A module package is the disk container. A submodule is the runtime payload family that claims a slot mask. An overlay is a replaceable payload image for the same submodule, so repeated submodule ids are normal when overlay ids differ.</p>
     <div class="card warn"><p>Older references below to <code>LOWPACK</code>, <code>HIDDENPACK</code>, and <code>LOW/HIDDEN</code> flags remain as useful pre-module examples. For new commands, emit the module-aware descriptor fields and choose an explicit slot mask.</p></div>
@@ -179,9 +179,9 @@
 		    </div>
 		    <div class="flow">
       <div class="card lesson"><h3>1. User Types</h3><p><code>ZADD16(4,5,A%)</code> is visible BASIC text. The command name must survive C64 tokenization.</p></div>
-      <div class="card lesson"><h3>2. Lookup</h3><p>ReadyBASIC pages descriptor records from REU bank <code>$44</code> and finds the matching command name.</p></div>
+      <div class="card lesson"><h3>2. Lookup</h3><p>ReadyBASIC pages descriptor records from the assigned core bank and finds the matching command name.</p></div>
       <div class="card lesson"><h3>3. Parse</h3><p>The descriptor's signature id selects resident parser code, which fills <code>CF_*</code> call-frame fields.</p></div>
-      <div class="card lesson"><h3>4. Execute</h3><p>The descriptor tells ReadyBASIC which packed code bytes to copy from REU bank <code>$45</code> and where to call them.</p></div>
+      <div class="card lesson"><h3>4. Execute</h3><p>The descriptor tells ReadyBASIC which packed code bytes to copy from the assigned code bank and where to call them.</p></div>
       <div class="card lesson"><h3>5. Commit</h3><p>The worker writes <code>RF_*</code> result-frame fields. Resident code commits the result to BASIC only on success.</p></div>
     </div>
 	  </section>
@@ -226,10 +226,10 @@
 
   <section>
     <h2>Descriptor Shape</h2>
-    <p>Descriptors are cold-seeded into REU bank <code>$44:$1000-$1FFF</code>. Runtime lookup fetches one 256-byte page, scans eight descriptors, then copies the match to <code>RB_DESC_BUF</code>.</p>
+    <p>Descriptors are cold-seeded into assigned core-bank offsets <code>$1000-$1FFF</code>. Runtime lookup fetches one 256-byte page, scans eight descriptors, then copies the match to <code>RB_DESC_BUF</code>.</p>
 <pre><code>.macro CMD_LOW id, sig, label, endlabel, name
         .byte id, RB_MODULE_SYSTEM
-        .word 0                       ; payload offset in REU bank $45
+        .word 0                       ; payload offset in assigned code bank
         .word __LOWPACK_SIZE__        ; slot-0 payload size
         .byte RB_SUBMOD_LEGACY_LOW
         .byte 0                       ; overlay id
@@ -634,7 +634,7 @@ CMD_LOW CMD_ZRANGENUMARRAY, SIG_ZRANGENUMARRAY,
 
   <section>
     <h2>REU Handle Commands</h2>
-    <p>BASIC sees a small integer handle. Canonical descriptors live in REU bank <code>$44:$0800-$09FF</code>, the bitmap at <code>$44:$0C00</code>, and data in the 48KB typed heap at <code>$44:$4000-$FFFF</code>.</p>
+    <p>BASIC sees a small integer handle. Canonical descriptors live in assigned core-bank offsets <code>$0800-$09FF</code>, the bitmap at <code>$0C00</code>, and data in the 48KB typed heap at <code>$4000-$FFFF</code>.</p>
 <pre><code>10 BUFNEW(64,H%)
 20 BUFFILL(H%,170)
 30 BUFFREE(H%)
@@ -756,7 +756,7 @@ CMD_LOW_ALL CMD_SCRPUT, SIG_SCRPUT, cmd_scrput_low, "SCRPUT"</code></pre>
       <tbody>
         <tr><td><code>REGSEED</code></td><td>Cold-load descriptor image. It is copied to REU and then reclaimed so BASIC free bytes do not shrink.</td></tr>
         <tr><td><code>RB_CMD_DESC_COUNT</code></td><td>Registry capacity, currently 128 command descriptors.</td></tr>
-        <tr><td><code>$44:$1000-$1FFF</code></td><td>REU location of the descriptor table. Lookup pages through this range.</td></tr>
+        <tr><td><code>core+$1000-$1FFF</code></td><td>REU location of the descriptor table. Lookup pages through this range.</td></tr>
         <tr><td><code>RB_PAGEBUF</code></td><td>RAM page buffer used to fetch one 256-byte descriptor page, eight descriptors at a time.</td></tr>
         <tr><td><code>RB_DESC_BUF</code></td><td>Resident copy of the single matched descriptor.</td></tr>
         <tr><td><code>__LOWPACK_LOAD__</code> / <code>__LOWPACK_RUN__</code></td><td>Historical symbol names for the current built-in slot-0 payload seed and runtime image. Runtime slot 0 is <code>$A800-$AFFF</code>.</td></tr>

@@ -219,9 +219,9 @@ Current registry regions:
 
 | Region | Range | Purpose |
 | --- | --- | --- |
-| Command registry header | `$488010-$488017` | magic, version, counts |
-| Command descriptor table | `$488020-$48807F` | fixed-capacity external command descriptors |
-| Overlay state table | `$488080-$4880EB` | fixed-capacity state records for external overlays |
+| Command registry header | state bank `+$8010-+$8017` | magic, version, counts |
+| Command descriptor table | state bank `+$8020-+$807F` | fixed-capacity external command descriptors |
+| Overlay state table | state bank `+$8080-+$80EB` | fixed-capacity state records for external overlays |
 
 Each descriptor identifies:
 

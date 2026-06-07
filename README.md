@@ -83,7 +83,12 @@ Boot note:
 - Base release: `0.2.4`
 - Local builds use the existing rolling suffix flow for artifact filenames only
 - Builds release media per profile
-- Currently includes `17` apps with `24` app slots reserved in the REU
+- Full-content profiles currently include about `20` launcher-visible entries
+  depending on media capacity; the catalog table below is the current app-token
+  union across profiles.
+- App snapshots and app-owned resource banks are allocated on demand and
+  recorded in logical REU bank `0`; ReadyOS no longer pre-reserves a fixed
+  24-bank app-slot gap.
 
 ## What's New In 0.2.4
 
@@ -107,6 +112,11 @@ Boot note:
   Ultimate UCI status, and drive status for devices `8` through `11`; on the
   C64 Ultimate it shows a variety of Ultimate machine details, including
   networking information and IP addresses.
+- The launcher and cartridge loaders now use logical REU bank `0` as the
+  ReadyOS control bank for app snapshot lookup, resource-bank relationships,
+  app catalog metadata, and REU Viewer ownership details. ReadyShell overlays,
+  ReadyShell state/scratch, and ReadyBASIC core/code banks are loader-assigned
+  resources rather than fixed physical banks.
 
 ## Release Variants
 
@@ -265,6 +275,10 @@ Real C64 versus emulator key forms:
 | 9 | `readme` | read.me | In-system ReadyOS guide viewer |
 | 8 | `readyshell` | ready shell | A command line language for the c64, with many file commands, but also a robust object pipeline programing language shell with wildcard directory queries, and text/file commands including `cat`, `put`, `add`, `del`, `ren`, and `copy` |
 | 8 | `deminer` | deminer | Minesweeper-style puzzle with suspend/resume |
+| 9 | `readybasic` | ready basic (alpha) | BASIC V2 bridge with ReadyBASIC commands, native `PROC`/`FUNC`, REU-backed command modules, and suspend/resume |
+| 9 | `readyirc` | readyirc | Experimental Ultimate TCP IRC client; cataloged but not yet a complete working IRC app |
+| 9 | `ucitest` | uci tester | Ultimate command interface lab and diagnostics surface |
+| 9 | `rirc-rrnet` | readyirc rrnet | Experimental RR-Net TCP IRC client; cataloged but not yet a complete working IRC app |
 
 Notes:
 
@@ -274,9 +288,10 @@ Notes:
 - ReadyShell overlay inventory: [docs/readyshell_overlay_inventory.md](docs/readyshell_overlay_inventory.md)
 - ReadyShell now ships eight overlays allowing language and command functionality that otherwise couldn't fit into the memory of a c64: `rsparser`, `rsvm`, `rsdrvilst`,
   `rsldv`, `rsstv`, `rsfops`, `rscat`, and `rscopy`.
-- ReadyShell preloads and REU-caches all eight overlays at startup. Bank `$40`
-  holds overlays `1`, `2`, `3`, and `5`; bank `$41` holds overlays `4`, `6`,
-  `7`, and `8`.
+- ReadyShell overlays are loader-assigned resources. The profile
+  `rsovl+` line records which overlay PRGs are packed into each resource bank
+  and at which bank-relative offset, while logical REU bank `0` records the
+  runtime owner/resource relationship for REU Viewer, unload, and diagnostics.
 - Current ReadyShell command set: `PRT`, `MORE`, `TOP`, `SEL`, `GEN`, `TAP`,
   `DRVI`, `LST`, `LDV`, `STV`, `CAT`, `PUT`, `ADD`, `DEL`, `REN`, and `COPY`.
 - `LST` accepts wildcard patterns, optional drive selection, and optional
@@ -309,15 +324,22 @@ Runtime model:
 
 REU layout:
 
-- bank `0`: launcher/system state
-- clipboard payload banks: dynamic allocation pool, with legacy bank `1`
-  wording retained only in parts of the older contract surface
-- banks `2-25`: app slots (`24` total)
-- higher banks: dynamic allocation pool
-- bank `$40`: ReadyShell overlay cache bank for overlays `1`, `2`, `3`, and `5`
-- bank `$41`: ReadyShell overlay cache bank for overlays `4`, `6`, `7`, and `8`
-- bank `$43`: ReadyShell debug/probe ring
-- bank `$48`: ReadyShell scratch, metadata, command registry, and REU value arena
+- logical bank `0`: ReadyOS control/global bank, including the compact bank
+  type mirror, 64-entry app registry, app/catalog metadata, resource records,
+  copied dependency/source lines, and the shim token-to-physical-bank lookup
+  page
+- launcher snapshot and launcher overlay/state banks: loader-owned system
+  resources
+- app snapshots: allocated on demand by the launcher, then resolved by token
+  through logical REU bank `0`
+- clipboard payload banks: allocated from the dynamic pool
+- ReadyShell overlay banks: loader-assigned resources described by the profile
+  overlay list and mirrored into bank `0` rich resource records
+- ReadyShell state/scratch/value/CAT/diagnostic bank: one loader-assigned
+  resource bank with fixed relative subranges inside that bank
+- ReadyBASIC core/code banks: loader-assigned resources, not fixed `$44/$45`
+  physical banks
+- remaining banks: dynamic allocation pool
 
 Disk layout:
 

@@ -89,9 +89,11 @@
 - Cartridge/EasyFlash dynamic banks must be generated, not guessed. The boot
   assembly can still preload ReadyShell overlays, but its cache bank constants
   now come from generated layout artifacts.
-- The ReadyShell `$48` scratch/state/value bank intentionally stayed fixed in
-  this phase. Moving overlay cache banks first kept the resource refactor small
-  enough to verify with host tests, disk VICE probes, and EasyFlash smoke.
+- Historical phase note: the ReadyShell `$48` scratch/state/value bank
+  intentionally stayed fixed while only overlay cache banks moved. That kept
+  the first resource refactor small enough to verify. This was later superseded:
+  ReadyShell scratch/state/value/CAT/diagnostics now live in a loader-assigned
+  state bank.
 - ReadyBASIC core/code banks can be made dynamic without adding shim ABI bytes:
   the launcher marks two assigned physical banks as `REU_RB_CORE` and
   `REU_RB_CODE` in `$C600`, and ReadyBASIC resolves those types at startup.

@@ -2,10 +2,69 @@
 
 ## 0.2.4
 
-### Development Line
+### ReadyBASIC, REU Control Bank, Dynamic Resources, Cartridge, Apps
 
 - Started the `0.2.4` development line from the `0.2.3` release-candidate
-  baseline.
+  baseline and continued the PRECOG direction toward a larger REU-backed
+  workspace that still preserves the fixed `$1000-$C5FF` app memory contract.
+- Added `readybasic`, an alpha BASIC V2 bridge app. It keeps normal BASIC text
+  readable while adding ReadyBASIC commands, direct and stored-program command
+  dispatch, expression-returning commands, native `PROC` / `FUNC` / `RET`
+  routines, `REPEAT` / `UNTIL`, `LABEL` / `JUMP`, error-introspection helpers,
+  and a visible free-BASIC-bytes header.
+- Expanded ReadyBASIC into an REU-backed command-module model: built-in command
+  payloads and disk-loaded `rbm.*` module packages are packed into loader-owned
+  REU banks, fetched into small under-ROM slots only when needed, and verified
+  with a broad headless/visual VICE suite.
+- Added ReadyBASIC REU handle commands and screen/buffer proofs, including a
+  128-handle directory, typed 48 KB REU heap, screen capture/restore handles,
+  and heap edge-case verification without consuming BASIC workspace for large
+  buffers.
+- Reworked the ReadyOS REU model around logical REU bank `0` as the ReadyOS
+  control bank. It now mirrors compact bank state, a 64-entry app registry,
+  app/catalog metadata, dependency/source lines, rich resource records, and the
+  shim token-to-physical-bank lookup page used during app switching.
+- Changed launcher app snapshots from fixed reserved slots to dynamic
+  allocation. Apps are assigned banks when loaded or preloaded, and the launcher
+  owns unload policy so app snapshots and app-owned resource banks can be
+  returned to the free pool together.
+- Added app-config and manifest dependency/resource syntax for loader-owned
+  overlays and modules. ReadyShell `rsovl+` and ReadyBASIC `rbcore+` resource
+  sets are now described by profile/manifest data rather than being baked into
+  fixed physical bank constants.
+- Made ReadyShell overlay banks dynamic. The launcher/cartridge loaders assign
+  resource banks, copy the overlay PRGs to their configured bank-relative
+  offsets, and publish the relationship into bank `0`; ReadyShell reads the
+  small assigned-bank metadata block instead of knowing physical cache banks.
+- Made ReadyShell's state/scratch/value/CAT/diagnostic arena dynamic as well.
+  The former fixed debug/CAT bank was retired; CAT staging, command scratch,
+  value storage, and the diagnostic/probe tail now share the loader-assigned
+  ReadyShell state bank at fixed relative offsets.
+- Updated REU Viewer to use the bank `0` metadata so it can show dynamic app
+  snapshots, loader-owned resources, ReadyShell overlay/state ownership, and
+  ReadyBASIC resource ownership rather than only a flat fixed-bank map.
+- Added and hardened EasyFlash cartridge support for the refactored resource
+  model. The cartridge SKU now preloads launcher/app/resource payloads into the
+  same logical bank `0` registry shape as disk builds, has REU-required boot
+  handling, and has dedicated launcher/ReadyBASIC/ReadyShell VICE automation.
+- Added `system info`, a read-only machine/status app that reports system,
+  ROM/video, REU, cartridge visibility, Ultimate UCI status, network details
+  where available, and drive status for devices `8` through `11`.
+- Added experimental networking apps and diagnostics surfaces: `readyirc`
+  (Ultimate TCP path), `rirc-rrnet` (RR-Net/IP65 path), and `ucitest`
+  (Ultimate command-interface lab). The IRC apps are cataloged experiments and
+  are not yet complete working IRC clients.
+- Added or refreshed full VICE automation around ReadyBASIC, ReadyShell,
+  cartridge/EasyFlash launcher flows, dynamic REU bank `0` registry validation,
+  app/resource unload behavior, and cross-app suspend/resume after the REU
+  refactor.
+- Tightened build and release behavior around size and memory contracts:
+  launchers are built with size optimization, launcher buffers/catalog text were
+  moved into the global REU control-bank path where appropriate, and app
+  BSS/heap/headroom comparisons are kept as part of the refactor verification.
+- Refreshed architecture, ReadyShell, ReadyBASIC, REU-control-bank, EasyFlash,
+  and generated HTML documentation to describe the dynamic allocator/resource
+  model instead of the older fixed-bank assumptions.
 
 ## 0.2.3
 

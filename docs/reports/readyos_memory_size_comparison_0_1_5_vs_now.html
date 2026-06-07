@@ -139,11 +139,11 @@
       <li>REU metadata/system RAM: <code>0xC600-0xC7FF</code>.</li>
       <li>Shared hotkey bindings: <code>0xC7E0-0xC7E8</code>.</li>
       <li>Shim resident window: <code>0xC800-0xC9FF</code>.</li>
-      <li>Logical bank <code>0</code> split: snapshot <code>0x0000-0xB5FF</code>, resume tail <code>0xB600-0xFFFF</code>; physical storage is <code>Start+1</code>.</li>
+      <li>Logical REU bank <code>0</code> is now the ReadyOS control/global bank: compact bank mirror, app registry, resource records, catalog metadata, dependency/source lines, and shim token lookup live there.</li>
       <li>Clipboard metadata lives in RAM; active clipboard payloads allocate one dynamic REU bank per item rather than using one packed shared bank.</li>
-      <li>Bitmap-tracked namespace: logical banks <code>0-23</code>; logical apps <code>1-23</code> map to physical <code>Start+3..Start+25</code>.</li>
-      <li>Dynamic allocator start: physical <code>Start+26</code>.</li>
-      <li>ReadyShell shared cache banks: <code>0x40</code> for overlays 1, 2, 3, and 5; <code>0x41</code> for overlays 4, 6, 7, and 8; <code>0x42</code> for overlay 9 (<code>rsedit.prg</code> prompt editor).</li>
+      <li>App snapshots are launcher-assigned on demand and resolved through the logical bank <code>0</code> token lookup instead of a fixed <code>Start+3..Start+25</code> app-slot gap.</li>
+      <li>Dynamic allocator start is profile/runtime dependent after the loader-owned system resources are reserved.</li>
+      <li>ReadyShell overlay cache banks are loader-assigned resources described by the <code>rsovl+</code> profile/manifest data and mirrored into bank <code>0</code> resource records.</li>
       <li>Historical note: this report originally listed ReadyShell REU debug bank <code>0x43</code> and scratch/registry/value bank <code>0x48</code>.</li>
       <li>Current ReadyShell contract: overlay cache banks and the state/scratch/value bank are loader assigned; diagnostics live in the state bank at relative <code>+$7DE0..+$7FFF</code>, and CAT uses the shared command scratch front while active.</li>
       <li>Shipped media is profile-driven: <code>cfg/profiles/*.ini</code> generates the selected profile’s <code>apps.cfg</code> on drive <code>8</code>.</li>

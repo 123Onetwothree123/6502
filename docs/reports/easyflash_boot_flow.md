@@ -47,15 +47,15 @@ The generated layout currently defines:
 - bank `0`: boot bank
 - banks `1-2`: launcher payload
 - banks `3-34`: application payloads
-- banks `35-42`: ReadyShell overlay payloads
-- banks `43-63`: unused
+- later banks: ReadyShell overlay/state/resource payloads and unused capacity,
+  according to the generated EasyFlash layout
 
 Current generated constants:
 
 - `EASYFLASH_LAUNCHER_BANK = 1`
 - `EASYFLASH_LAUNCHER_BANK_SPAN = 2`
 - `EASYFLASH_APP_COUNT = 16`
-- `EASYFLASH_OVERLAY_COUNT = 8`
+- overlay/resource counts are generated from the profile resource metadata
 
 Each EasyFlash bank is treated as one 16 KiB payload slot, split across:
 
@@ -292,7 +292,10 @@ Why:
 
 ## Stage 7: Preload Launcher Snapshot
 
-The launcher payload is copied from EasyFlash into the app window and then stashed into REU bank `0`.
+The launcher payload is copied from EasyFlash into the app window and then
+stashed into its assigned launcher snapshot bank. The current runtime also
+publishes logical REU bank `0` as the ReadyOS control/global bank rather than
+treating it as only the launcher image.
 
 Current launcher layout:
 
@@ -306,7 +309,8 @@ Detailed flow:
 1. Clear `$1000-$C5FF`.
 2. Set current cart bank to launcher start bank.
 3. Copy launcher payload from cart to RAM at `$1000`.
-4. Stash the full app window `$1000-$C5FF` (`$B600` bytes) into REU bank `0`, offset `0`.
+4. Stash the full app window `$1000-$C5FF` (`$B600` bytes) into the assigned
+   launcher snapshot bank.
 
 Important nuance:
 
@@ -326,9 +330,12 @@ Per app, it does:
 3. Select the app's EasyFlash start bank by writing `$DE00`.
 4. Copy the app payload from cart to RAM at the specified load address, normally `$1000`.
 5. Stash the full `$B600` app window to the app's assigned REU bank.
-6. Mark that REU bank in the shim bitmap at `$C836-$C838`.
+6. Publish the app token to physical-bank lookup into logical REU bank `0` so
+   the shim can resolve the app token without a fixed app-slot gap.
 
-Current app REU banks are `1..16`.
+Current app REU banks are loader-assigned. The cartridge SKU preloads the
+profile's app payloads up front, but the steady-state metadata shape matches
+the disk launcher: app token -> assigned snapshot bank in bank `0`.
 
 Important nuances:
 
@@ -346,50 +353,58 @@ During this loop, the border repeatedly alternates:
 - yellow while the selected EasyFlash bank is being copied into RAM
 - orange while the completed RAM window is being stashed to REU
 
-## Stage 9: Preload ReadyShell Overlays
+## Stage 9: Preload ReadyShell Resources
 
-After apps, the loader walks the overlay table.
+After apps, the loader walks the generated ReadyShell resource table.
 
-Per overlay, it does:
+Per resource chunk, it does:
 
 1. Clear the overlay staging region beginning at `$1000`.
-2. Select the overlay's EasyFlash bank.
-3. Copy overlay payload from cart to RAM.
-4. Stash `$3800` bytes of staged overlay data to the target REU bank and offset.
+2. Select the resource payload's EasyFlash bank.
+3. Copy resource payload from cart to RAM.
+4. Stash the staged bytes to the assigned REU bank and bank-relative offset.
 
-Current overlay layout:
+Current resource layout:
 
-- cart banks `35..42`
-- target REU banks `64` and `65`
-- fixed offsets:
-  - `$0000`
-  - `$3800`
-  - `$7000`
-  - `$A800`
+- cart placement is generated from `cfg/flavors/readyos_easyflash.ini`
+- ReadyShell overlays are grouped by the `rsovl+` dependency/resource line
+- target REU banks are loader-assigned, not fixed physical `$40/$41`
+- offsets such as `$0000`, `$3800`, `$7000`, and `$A800` remain
+  bank-relative placement values so several overlay PRGs can share one 64K
+  resource bank
+- the ReadyShell state/scratch/value/CAT/diagnostic arena is also a
+  loader-assigned resource bank
 
 Important nuance:
 
-- Overlays are not executed during boot.
+- Overlays and resource banks are not executed during boot.
 - They are staged and cached into REU for later ReadyShell runtime use.
 - The loader uses `$1000` as a temporary staging region for this work.
+- Logical REU bank `0` records the owner/resource relationships so REU Viewer
+  and launcher unload logic can see which banks belong to ReadyShell.
 - The same yellow-then-orange border pattern is used here too.
 
-## Stage 10: Overlay Metadata Write
+## Stage 10: Resource Metadata Write
 
-The loader writes a small overlay metadata block to RAM at `$C7F0`, then stashes it to:
+The loader writes compact runtime metadata for assigned ReadyShell resources and
+mirrors the richer relationship records into logical REU bank `0`.
 
-- REU bank `$48`
-- REU offset `$80F0`
+The small runtime block is still deliberately tiny so ReadyShell does not need
+to parse the full control bank. ReadyShell consumes the assigned overlay/state
+bank ids and bank-relative offsets; launcher and REU Viewer consume the richer
+bank `0` records.
 
 Metadata includes:
 
 - `"OV"` signature
 - metadata version
 - valid-mask
-- overlay cache bank ids
+- assigned overlay/cache bank ids
+- assigned state/scratch bank id
 - overlay stage length
 
-This lets the runtime know how the overlay cache has been organized.
+This lets the runtime know how the overlay cache has been organized without
+reintroducing fixed physical bank constants.
 
 ## Stage 11: "Verify" Stage
 

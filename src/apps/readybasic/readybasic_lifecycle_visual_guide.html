@@ -676,14 +676,14 @@
       <div class="eyebrow">ReadyBASIC deep architecture guide</div>
       <h1>Lifecycle, Memory Ownership, REU Plugin Spine</h1>
       <p class="lead">
-        A visual map of how ReadyBASIC loads, relocates BASIC, seeds fixed REU
-        banks, dispatches bare <code>COMMAND(...)</code> statements, survives
+        A visual map of how ReadyBASIC loads, relocates BASIC, seeds assigned REU
+        resource banks, dispatches bare <code>COMMAND(...)</code> statements, survives
         ReadyOS suspend/resume, and keeps command workers lean.
       </p>
       <div class="hero-grid">
         <div class="metric"><b>$2AC1</b><span>BASIC start. The byte at $2AC0 must stay zero.</span></div>
-        <div class="metric"><b>$44</b><span>ReadyBASIC common/system REU bank.</span></div>
-        <div class="metric"><b>$45</b><span>Command/module payload REU bank.</span></div>
+        <div class="metric"><b>core</b><span>Loader-assigned ReadyBASIC common/system REU bank.</span></div>
+        <div class="metric"><b>code</b><span>Loader-assigned command/module payload REU bank.</span></div>
         <div class="metric"><b>181/181</b><span>Latest module-loader visual suite pass recorded for this design.</span></div>
       </div>
     </div>
@@ -718,7 +718,7 @@
         <tr><td><code>$C000-$C5FF</code></td><td><strong>Bridge and frames.</strong> Bridge through <code>$C1F6</code>; call/result/descriptor/name/page buffers through <code>$C5FF</code>.</td><td><span class="tag">frames</span></td></tr>
         <tr><td><code>$C600-$C9FF</code></td><td><strong>ReadyOS-owned area.</strong> REU metadata and shim ABI; not ReadyBASIC scratch.</td><td><span class="tag">reserved</span></td></tr>
       </table>
-      <div class="callout good"><strong>REU model:</strong> bank <code>$44</code> holds registry/runtime state, descriptors, handles, snapshots, and typed heap. Bank <code>$45</code> holds built-in and disk-loaded command/module payload bytes. Disk proof packages <code>rbm.sample1</code>, <code>rbm.sample2</code>, and <code>rbm.sample3</code> are SEQ files streamed by <code>ZMODLD</code>, which lives in module 2 rather than resident code.</div>
+      <div class="callout good"><strong>REU model:</strong> the assigned core bank holds registry/runtime state, descriptors, handles, snapshots, and typed heap. The assigned code bank holds built-in and disk-loaded command/module payload bytes. Disk proof packages <code>rbm.sample1</code>, <code>rbm.sample2</code>, and <code>rbm.sample3</code> are SEQ files streamed by <code>ZMODLD</code>, which lives in module 2 rather than resident code.</div>
       <div class="callout good"><strong>Generated visual companion:</strong> <a href="../../../docs/readybasic_memory_diagrams.html">ReadyBASIC Memory Diagrams</a> is the proportional special report for the current RAM, REU, cold-load, and module/submodule pictures. Regenerate it with <code>make readybasic-memory-report</code> after layout changes.</div>
     </section>
 
@@ -814,8 +814,8 @@
         <div class="addr">$4800+</div>
         <div class="region r-bridge"><span><b>BRLOAD IMAGE</b><small>Bridge seed copied to $C000.</small></span><strong>$01F7<br>503B</strong></div>
         <div class="addr">$5000-$600F</div>
-        <div class="region r-pack"><span><b>REGSEED IMAGE</b><small>Header and 128 descriptors copied to REU $44:$1000.</small></span><strong>$1010<br>4.0K</strong></div>
-        <div class="addr">REU $44:$0A00-$0BFF</div>
+        <div class="region r-pack"><span><b>REGSEED IMAGE</b><small>Header and 128 descriptors copied to assigned core-bank offset $1000.</small></span><strong>$1010<br>4.0K</strong></div>
+        <div class="addr">Core bank $0A00-$0BFF</div>
         <div class="region r-save"><span><b>RUNTIME SNAPSHOT</b><small>Zero page, stack, saved SP, mode, line-chain guards.</small></span><strong>$0200<br>0.5K</strong></div>
         <div class="addr">$A000-$A364</div>
         <div class="region r-hidden"><span><b>COMMON HELPER</b><small>Runs with RAM mapped under BASIC ROM.</small></span><strong>$0365<br>869B</strong></div>
@@ -918,7 +918,7 @@
             </div>
             <p class="stage-note">
               `CMDPACK` growth up to the current reserved space changes the cold
-              load image and REU bank $45 content. It still does not keep
+              load image and assigned code-bank content. It still does not keep
               `$2B00-$3FFF` resident inside BASIC workspace after the Ready
               prompt.
             </p>
@@ -929,7 +929,7 @@
               </div>
               <div class="capacity-card">
                 <b>64.0K current REU bank</b>
-                <p>Descriptors use 16-bit offsets/sizes into REU bank <code>$45</code>. Current built-in packed code uses <code>$085C</code> / 2.1K, leaving <code>$F7A4</code> / 61.9K.</p>
+                <p>Descriptors use 16-bit offsets/sizes into the assigned code bank. Current built-in packed code uses <code>$085C</code> / 2.1K, leaving <code>$F7A4</code> / 61.9K.</p>
               </div>
               <div class="capacity-card">
                 <b>More than 64K later</b>
@@ -944,14 +944,14 @@
     <section id="reu" class="band">
       <h2>REU Suballocation</h2>
       <p>
-        ReadyBASIC uses fixed banks for the spine and packed commands, then
+        ReadyBASIC uses loader-assigned banks for the spine and packed commands, then
         suballocates inside those banks. This keeps the design leaner than
         command-per-bank storage.
       </p>
 
       <div class="reu-layout">
         <div class="bank core">
-          <div class="bank-title">REU Bank $44: Core/System</div>
+          <div class="bank-title">Assigned Core Bank: Core/System</div>
           <div class="slice"><span>$0000-$000F</span><span>Header: <strong>RBPL</strong>, version, descriptor count, frame offsets. <span class="size-pill">$0010 / 16B</span></span></div>
           <div class="slice"><span>$0010-$03FF</span><span>Reserved common/system metadata space before frames. <span class="size-pill">$03F0 / 1.0K / 1008 exact bytes</span></span></div>
           <div class="slice"><span>$0400-$04FF</span><span>Call frame snapshot from `$C200`. <span class="size-pill">$0100 / 256B</span></span></div>
@@ -967,14 +967,14 @@
         </div>
 
         <div class="bank code">
-          <div class="bank-title">REU Bank $45: Packed Command Code</div>
+          <div class="bank-title">Assigned Code Bank: Packed Command Code</div>
           <div class="slice"><span>$0000-$06C6</span><span>Built-in module 1 slot-0 payload fetched into `$A800-$AEC6`. <span class="size-pill">$06C7 / 1.7K / 1735 exact bytes</span></span></div>
           <div class="slice"><span>$06C7-$08FF</span><span>Built-in module 2 slot-1 proof and streaming ZMODLD loader payload fetched into `$B000-$B238`. <span class="size-pill">$0239 / 569B</span></span></div>
           <div class="slice"><span>$0900-$0953</span><span>Built-in slot-2, span, and overlay proof slices. <span class="size-pill">$0054 / 84B</span></span></div>
           <div class="slice"><span>$1500-$1ABF</span><span>SEQ package descriptors for rbm.sample1, rbm.sample2, and rbm.sample3.</span></div>
           <div class="slice"><span>$3000+</span><span>Disk-loaded proof payloads for ZDM1, ZDM2S, ZDOV1, ZDOV2, and ZSAA-ZUEB.</span></div>
-          <div class="slice"><span>descriptor</span><span>Each descriptor stores payload offset/size, slot mask, runtime destination, entry offset, signature, and name. Descriptor table lives in bank `$44`, not here.</span></div>
-          <div class="slice"><span>$C600</span><span>ReadyOS allocation table marks `$44` as type 14 and `$45` as type 15. This is C64 metadata, not REU bank `$45` content.</span></div>
+          <div class="slice"><span>descriptor</span><span>Each descriptor stores payload offset/size, slot mask, runtime destination, entry offset, signature, and name. Descriptor table lives in the assigned core bank, not here.</span></div>
+          <div class="slice"><span>$C600</span><span>ReadyOS allocation table marks the assigned core/code banks as types 14 and 15. This is C64 metadata, not assigned code-bank content.</span></div>
         </div>
       </div>
     </section>
@@ -991,7 +991,7 @@
         <div class="step"><span class="num">2</span><h3>Copy Hidden</h3><p>Entry maps RAM under BASIC ROM and copies the hidden helper seed to `$A000`, then keeps a visible shadow at `$C280`.</p></div>
         <div class="step"><span class="num">3</span><h3>Copy Bridge</h3><p>Bridge seed becomes live state at `$C000-$C1F4`.</p></div>
         <div class="step"><span class="num">4</span><h3>Initialize BASIC</h3><p>Resident sets `$2AC1` workspace, `$A000` top, and clears `$2AC0-$2AC2`.</p></div>
-        <div class="step"><span class="num">5</span><h3>Seed REU</h3><p>Hidden helper prestashes registry to `$44` and code pack to `$45`, then enters READY.</p></div>
+        <div class="step"><span class="num">5</span><h3>Seed REU</h3><p>Hidden helper prestashes registry to the assigned core bank and code pack to the assigned code bank, then enters READY.</p></div>
       </div>
       <div class="callout">
         <strong>Cold-only behavior:</strong> registry and code are copied from
@@ -1009,14 +1009,14 @@
           <p>
             The execute hook recognizes <code>EXIT</code>. Manual prompt
             <code>EXIT</code> is the proven V1 path. It stores READY-mode magic,
-            saves BASIC runtime state to REU bank `$44`, restores page-3 vectors,
+            saves BASIC runtime state to the assigned core bank, restores page-3 vectors,
             and jumps to the ReadyOS shim at `$C80C`.
           </p>
           <table>
             <thead><tr><th>Range</th><th>Saved data</th></tr></thead>
             <tbody>
-              <tr><td><code>REU $44:$0A00</code></td><td>Zero page snapshot.</td></tr>
-              <tr><td><code>REU $44:$0B00</code></td><td>Hardware stack snapshot.</td></tr>
+              <tr><td><code>Core bank $0A00</code></td><td>Zero page snapshot.</td></tr>
+              <tr><td><code>Core bank $0B00</code></td><td>Hardware stack snapshot.</td></tr>
               <tr><td><code>Bridge metadata</code></td><td>Magic, saved SP, mode, line-chain guards.</td></tr>
               <tr><td><code>$C280-$C5B6</code></td><td>Hidden helper shadow refreshed during <code>EXIT</code>.</td></tr>
             </tbody>
@@ -1055,13 +1055,13 @@
         <div class="pipe-card">
           <h3><span class="dot green"></span> 2. Parse</h3>
           <p>Normalize command name into `$C4A0`, fetch descriptor pages from
-          REU bank `$44`, scan eight descriptors per page, then parse parameters with BASIC ROM helpers.</p>
+          the assigned core bank, scan eight descriptors per page, then parse parameters with BASIC ROM helpers.</p>
         </div>
         <div class="pipe-card">
           <h3><span class="dot cyan"></span> 3. Execute</h3>
-          <p>Copy command code from REU bank `$45` into the `$A800`, `$B000`,
+          <p>Copy command code from the assigned code bank into the `$A800`, `$B000`,
           and/or `$B800` submodule slots, call
-          it, and stash call/result frames back into bank `$44` for inspection.</p>
+          it, and stash call/result frames back into the assigned core bank for inspection.</p>
         </div>
         <div class="pipe-card">
           <h3><span class="dot amber"></span> 4. Commit</h3>
@@ -1076,7 +1076,7 @@
         <tbody>
           <tr><td>Call frame</td><td><code>$C200</code></td><td>Command id, parameter count, numeric slots, pointer/count slots, string buffer.</td></tr>
           <tr><td>Result frame</td><td><code>$C300</code></td><td>Status, error, tag, scalar value, string buffer, array buffer.</td></tr>
-          <tr><td>Descriptor buffer</td><td><code>$C480</code></td><td>One 32-byte descriptor fetched from REU bank `$44`.</td></tr>
+          <tr><td>Descriptor buffer</td><td><code>$C480</code></td><td>One 32-byte descriptor fetched from the assigned core bank.</td></tr>
           <tr><td>Command buffer</td><td><code>$C4A0</code></td><td>Uppercase normalized command name.</td></tr>
           <tr><td>Page buffer</td><td><code>$C500</code></td><td>256-byte scratch page for descriptor-page scans, handle data, and warm-resume stack staging.</td></tr>
         </tbody>
@@ -1130,7 +1130,7 @@
         <div class="command">
           <h3>BUFNEW(LEN,H%) / BUFNEW(LEN)</h3>
           <div class="command-meta"><span class="chip low">slot 0 $A800</span><span class="chip reu">REU handle</span><span class="chip">copy $06C7 / 1.7K</span></div>
-          <p>Allocates contiguous 256-byte buffer pages inside bank `$44` and returns a one-based handle.</p>
+          <p>Allocates contiguous 256-byte buffer pages inside the assigned core bank and returns a one-based handle.</p>
         </div>
         <div class="command">
           <h3>BUFFILL(H%,BYTE)</h3>

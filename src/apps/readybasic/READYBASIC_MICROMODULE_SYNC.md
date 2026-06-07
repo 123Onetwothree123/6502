@@ -105,7 +105,7 @@ Command lookup fetches one 256-byte descriptor page at a time into `$C500`,
 scans eight descriptors locally, and copies the matched descriptor into
 `$C480`. Zero-filled descriptors are filler/empty slots.
 
-## Bank `$45` Command Code Layout
+## Assigned Code Bank Command Code Layout
 
 - `$0000-$06C6`: built-in module 1/default slot-0 payload, fetched to `$A800-$AEC6`.
 - `$06C7-$08FF`: built-in module 2 slot-1 proof and streaming `ZMODLD` loader payload, fetched to `$B000-$B238`.
@@ -123,7 +123,7 @@ Cold entry prestashes these bytes once. Warm resume reuses the REU copies and
 must not reread `CMDPACK`, `HIDLOAD`, `BRLOAD`, or `REGSEED` from BASIC-owned
 load-image addresses.
 
-Native `PROC`/`FUNC` routines are deliberately absent from bank `$45`: their
+Native `PROC`/`FUNC` routines are deliberately absent from the assigned code bank: their
 bodies are BASIC program text, found by scanning the stored program during
 `EXEC`. They add no descriptor slots and no command-code bank bytes.
 

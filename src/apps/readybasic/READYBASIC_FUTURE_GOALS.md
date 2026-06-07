@@ -13,8 +13,8 @@ descriptor at a time; the canonical descriptor directory and allocator bitmap
 live in REU so the larger handle count does not consume scarce resident or
 bridge RAM.
 
-The implemented heap is a fixed 48KB typed area in ReadyBASIC core bank `$44`.
-Future growth should keep this REU-first shape while adding richer descriptors,
+The implemented heap is a 48KB typed area in ReadyBASIC's loader-assigned core
+bank. Future growth should keep this REU-first shape while adding richer descriptors,
 optional extra banks for very large resources, and stale-handle protection.
 
 Handles should be typed from the start rather than treated as generic memory
@@ -88,14 +88,14 @@ while allowing richer graphics, text, storage, and tool workflows.
 The current module/submodule design proves fixed-address assembler payloads,
 three 2KB under-ROM submodule slots, two built-in modules, overlay rotation, and
 a disk-module loader command that lives in module 2 rather than resident code.
-Future work should fill in the richer REU bank `$44:$2000-$3FFF` catalog that
+Future work should fill in the richer assigned core-bank `$2000-$3FFF` catalog that
 the current implementation reserves:
 
 - per-slot live records with module id, submodule id, overlay id, generation or
   checksum, slot mask, payload bank, and payload offset;
 - command-name collision policy for disk-loaded modules;
 - optional unload/replace policy for disk modules;
-- additional payload banks when REU bank `$45` does not have enough free space;
+- additional payload banks when the assigned ReadyBASIC code bank does not have enough free space;
 - a compact way to enumerate loaded modules from BASIC for diagnostics.
 
 The design should keep the resident rule intact: resident code dispatches and

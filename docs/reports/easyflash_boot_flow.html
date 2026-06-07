@@ -1,493 +1,693 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ReadyOS EasyFlash Boot Flow</title>
-  <style>
-    :root {
-      --bg: #0b1117;
-      --bg2: #101b25;
-      --panel: #122231;
-      --panel2: #162b3b;
-      --ink: #e9f3fb;
-      --muted: #9fb7c9;
-      --line: #32546d;
-      --accent: #79d0c2;
-      --accent2: #f3be6b;
-      --warn: #ff9c72;
-      --ok: #8ee0a4;
-      --blue: #8ab9ff;
-      --mono: "Menlo", "Consolas", monospace;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      color: var(--ink);
-      font-family: "Avenir Next", "Segoe UI", Arial, sans-serif;
-      background:
-        radial-gradient(900px 600px at 0% -10%, rgba(122, 208, 194, 0.14), transparent 55%),
-        radial-gradient(1000px 700px at 100% 0%, rgba(138, 185, 255, 0.12), transparent 45%),
-        linear-gradient(180deg, var(--bg), var(--bg2));
-    }
-    header {
-      padding: 28px 24px 18px;
-      border-bottom: 1px solid var(--line);
-      background: linear-gradient(180deg, rgba(121,208,194,0.08), rgba(0,0,0,0));
-    }
-    h1 {
-      margin: 0;
-      font-size: clamp(1.6rem, 4vw, 2.4rem);
-      letter-spacing: .02em;
-    }
-    .sub {
-      max-width: 96ch;
-      margin: 10px 0 0;
-      color: var(--muted);
-      line-height: 1.55;
-    }
-    main {
-      padding: 16px;
-      display: grid;
-      gap: 12px;
-    }
-    section {
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      padding: 14px;
-      background: linear-gradient(180deg, var(--panel), var(--panel2));
-      box-shadow: 0 12px 26px rgba(0,0,0,0.22);
-    }
-    h2 {
-      margin: 0 0 10px;
-      font-size: 1.08rem;
-      color: #dff1ff;
-    }
-    h3 {
-      margin: 14px 0 8px;
-      font-size: .97rem;
-      color: #d7edff;
-    }
-    p, li {
-      line-height: 1.52;
-    }
-    code, pre {
-      font-family: var(--mono);
-    }
-    code {
-      padding: 1px 5px;
-      border-radius: 5px;
-      background: rgba(7, 16, 24, 0.45);
-      color: #dff2ff;
-    }
-    pre {
-      margin: 0;
-      padding: 12px;
-      overflow: auto;
-      border: 1px solid #355b77;
-      border-radius: 10px;
-      background: #09131c;
-      color: #dbecfb;
-      line-height: 1.35;
-      font-size: .82rem;
-    }
-    .cards {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(160px, 1fr));
-      gap: 10px;
-    }
-    .card {
-      border: 1px solid #3a5d77;
-      border-radius: 12px;
-      padding: 10px 11px;
-      background: rgba(7, 15, 23, 0.30);
-    }
-    .k {
-      color: var(--muted);
-      text-transform: uppercase;
-      font-size: .73rem;
-      letter-spacing: .05em;
-    }
-    .v {
-      margin-top: 4px;
-      font-size: 1.02rem;
-      font-weight: 700;
-    }
-    .note, .warn, .ok {
-      margin-top: 10px;
-      padding: 10px 12px;
-      border-radius: 10px;
-    }
-    .note {
-      border-left: 4px solid var(--blue);
-      background: rgba(138,185,255,0.10);
-    }
-    .warn {
-      border-left: 4px solid var(--accent2);
-      background: rgba(243,190,107,0.10);
-    }
-    .ok {
-      border-left: 4px solid var(--ok);
-      background: rgba(142,224,164,0.10);
-    }
-    .flow {
-      display: grid;
-      gap: 8px;
-    }
-    .step {
-      border: 1px solid #365975;
-      border-radius: 12px;
-      padding: 10px 11px;
-      background: rgba(8, 17, 24, 0.32);
-    }
-    .step h3 {
-      margin-top: 0;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: .86rem;
-    }
-    th, td {
-      border: 1px solid #31526a;
-      padding: 7px 8px;
-      text-align: left;
-      vertical-align: top;
-    }
-    th {
-      background: #12283a;
-      color: #dcf0ff;
-    }
-    .grid-2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-    .chip {
-      display: inline-block;
-      min-width: 7.5em;
-      padding: 4px 9px;
-      border-radius: 999px;
-      font-weight: 700;
-      text-align: center;
-      border: 1px solid rgba(255,255,255,0.16);
-    }
-    .chip-bg { background: #3557c7; color: #f2f7ff; }
-    .chip-loader { background: #84d3ff; color: #082234; }
-    .chip-shim { background: #6fcc70; color: #08210d; }
-    .chip-cart { background: #f0c865; color: #2f2200; }
-    .chip-reu { background: #f19a55; color: #311400; }
-    .chip-handoff { background: #9deb8d; color: #103000; }
-    .chip-error { background: #db6a6a; color: #300707; }
-    @media (max-width: 960px) {
-      .cards, .grid-2 {
-        grid-template-columns: 1fr;
-      }
-    }
-  </style>
-</head>
-<body>
-  <header>
-    <h1>ReadyOS EasyFlash Boot Flow</h1>
-    <p class="sub">
-      Current-source walkthrough of the EasyFlash cartridge boot path: what executes where,
-      when cartridge banking happens, how REU preload is built, and why the user sees a long
-      blue-screen pause before the launcher appears.
-    </p>
-  </header>
-  <main>
-    <section>
-      <h2>Overview</h2>
-      <div class="cards">
-        <div class="card"><div class="k">Boot Model</div><div class="v">Cart stub -> RAM loader -> REU snapshots -> launcher</div></div>
-        <div class="card"><div class="k">Cart Size</div><div class="v">64 banks x 16 KiB</div></div>
-        <div class="card"><div class="k">App Window</div><div class="v">$1000-$C5FF</div></div>
-        <div class="card"><div class="k">Shim</div><div class="v">$C800-$C9FF resident RAM</div></div>
-      </div>
-      <div class="note">
-        This EasyFlash flavor is not a permanent execute-from-cartridge design. The cartridge is primarily a cold-boot
-        source. After preload, the launcher and apps are restored from REU into RAM and run from RAM.
-      </div>
-      <div class="note">
-        On screen, this SKU now identifies itself during boot as <code>precog cartridge (beta)</code>. The release
-        folder and artifact names still remain <code>precog-easyflash</code>.
-      </div>
-
-      <div class="note">
-        <strong>ReadyOS REU physical placement:</strong> <code>Start</code> is
-        <code>READYOS_REU_BANK_SKIP</code>. <code>Start+0</code> is system/global,
-        <code>Start+1</code> is launcher logical bank 0, <code>Start+2</code> is
-        reserved for future launcher overlays, app logical bank <code>N</code> maps
-        to <code>Start+2+N</code>, and dynamic allocation begins at <code>Start+26</code>.
-      </div>
-    </section>
-
-    <section>
-      <h2>Current Cartridge Layout</h2>
-      <table>
-        <thead>
-          <tr><th>Bank Range</th><th>Purpose</th><th>Notes</th></tr>
-        </thead>
-        <tbody>
-          <tr><td><code>0</code></td><td>Boot bank</td><td>ROMH stub starts here and pulls in the main loader</td></tr>
-          <tr><td><code>1-2</code></td><td>Launcher payload</td><td>Copied to <code>$1000</code>, then stashed to logical launcher bank <code>0</code> (physical <code>Start+1</code>)</td></tr>
-          <tr><td><code>3-34</code></td><td>16 application payloads</td><td>Copied one at a time to RAM, then snapshotted to logical app banks 1-16 (physical <code>Start+3..Start+18</code>)</td></tr>
-          <tr><td><code>35-42</code></td><td>8 ReadyShell overlays</td><td>Staged through RAM, then stashed to REU banks 64 and 65 at fixed offsets</td></tr>
-          <tr><td><code>43-63</code></td><td>Unused</td><td>Free in the current image</td></tr>
-        </tbody>
-      </table>
-      <div class="warn">
-        Each EasyFlash bank is treated as a 16 KiB payload slot split across <code>$8000-$9FFF</code> and <code>$A000-$BFFF</code>.
-      </div>
-    </section>
-
-    <section>
-      <h2>Memory Regions Used During Boot</h2>
-      <div class="grid-2">
-        <div>
-          <h3>RAM Execution / Staging</h3>
-          <ul>
-            <li><code>$0800-$27FF</code>: EasyFlash loader copied into RAM and executed there</li>
-            <li><code>$1000-$C5FF</code>: full app / launcher runtime window</li>
-            <li><code>$C600-$C7FF</code>: REU bookkeeping and boot state</li>
-            <li><code>$C7F0-$C7FB</code>: overlay metadata staging block</li>
-            <li><code>$C800-$C9FF</code>: historical shim resident in RAM</li>
-            <li><code>$CC00-$CC8F</code>: copied app layout table</li>
-            <li><code>$CC90-...</code>: copied overlay layout table</li>
-          </ul>
-        </div>
-        <div>
-          <h3>Hardware / Mapped Areas</h3>
-          <ul>
-            <li><code>$8000-$9FFF</code>: current cart ROML half</li>
-            <li><code>$A000-$BFFF</code>: current cart ROMH half</li>
-            <li><code>$DE00</code>: EasyFlash bank register</li>
-            <li><code>$DE01</code>, <code>$DE02</code>: cart control registers</li>
-            <li><code>$DF01-$DF08</code>: REU DMA registers</li>
-            <li><code>$0400</code>: expected visible text screen RAM</li>
-            <li><code>$D020</code>, <code>$D021</code>: border / background color</li>
-          </ul>
-        </div>
-      </div>
-    </section>
-
-    <section>
-      <h2>Boot Color Guide</h2>
-      <table>
-        <thead>
-          <tr><th>Visible Color</th><th>Register</th><th>Meaning</th><th>Typical Time</th></tr>
-        </thead>
-        <tbody>
-          <tr><td><span class="chip chip-bg">blue background</span></td><td><code>$D021</code></td><td>Baseline boot background</td><td>Entire boot</td></tr>
-          <tr><td><span class="chip chip-loader">light blue border</span></td><td><code>$D020</code></td><td>Loader setup and general control flow</td><td>Early setup, table copy, verify label</td></tr>
-          <tr><td><span class="chip chip-shim">green border</span></td><td><code>$D020</code></td><td>Shim install and shim-related setup</td><td>Shim copy and shared-state setup</td></tr>
-          <tr><td><span class="chip chip-cart">yellow border</span></td><td><code>$D020</code></td><td>Copying payload from cartridge into RAM</td><td>Launcher, app, and overlay payload reads</td></tr>
-          <tr><td><span class="chip chip-reu">orange border</span></td><td><code>$D020</code></td><td>Moving staged RAM into REU or restoring from REU</td><td>Snapshot stash and final launcher restore</td></tr>
-          <tr><td><span class="chip chip-handoff">light green border</span></td><td><code>$D020</code></td><td>Final handoff into the launcher</td><td>Just before <code>jmp $1000</code></td></tr>
-          <tr><td><span class="chip chip-error">red border</span></td><td><code>$D020</code></td><td>REU-missing error path</td><td>REU check failed, waiting for keypress</td></tr>
-        </tbody>
-      </table>
-      <div class="note">
-        The background intentionally stays blue. The border is the progress indicator. Long yellow or orange periods are normal and mean the machine is actively preloading, not frozen.
-      </div>
-    </section>
-
-    <section>
-      <h2>Boot Flow</h2>
-      <div class="flow">
-        <div class="step">
-          <h3>Stage 0: Power-on cartridge stub</h3>
-          <p>The first code is the ROMH stub. It selects cart bank <code>0</code>, copies 8 KiB from cartridge
-          <code>$8000</code> to RAM <code>$0800</code>, then jumps to <code>$0800</code>.</p>
-          <p><strong>Executing:</strong> cartridge ROM. <strong>Copy destination:</strong> RAM.</p>
-        </div>
-
-        <div class="step">
-          <h3>Stage 1: Real loader starts from RAM</h3>
-          <p>The main EasyFlash loader runs from RAM at <code>$0800</code>. It initializes CPU state, normalizes
-          the CPU port, sets cart control registers, and prepares for preload work.</p>
-        </div>
-
-        <div class="step">
-          <h3>Stage 2: Loader tail refresh</h3>
-          <p>The loader pulls in more of its own image from cart bank <code>0</code>, copying from cartridge
-          <code>$8800</code> to RAM <code>$1000</code> for <code>$1800</code> bytes. This finishes assembling the full
-          RAM-resident boot loader.</p>
-        </div>
-
-        <div class="step">
-          <h3>Stage 3: Boot screen prep</h3>
-          <p>The loader clears screen RAM at <code>$0400</code>, writes boot text, and updates colors. However,
-          the VIC may not yet be pointed at that screen RAM, so messages may exist logically without being visible.</p>
-          <p>The user-visible progress signal at this point is mainly the border-color change, not the screen text.</p>
-        </div>
-
-        <div class="step">
-          <h3>Stage 3A: Early REU requirement probe</h3>
-          <p>Before shim install or any preload work, the loader performs a one-byte REU stash/fetch probe using
-          RAM scratch at <code>$CA11-$CA12</code> and REU bank <code>$FE</code>. If the byte comes back correctly,
-          boot continues normally.</p>
-          <p>If the probe fails, the border switches to red, the loader reinitializes the machine into a stable text
-          state, shows <code>REU NOT DETECTED</code>, <code>EASYFLASH REQUIRES REU</code>, and
-          <code>PRESS ANY KEY TO RETURN TO BASIC</code>, then waits in a KERNAL <code>GETIN</code> loop and jumps
-          to BASIC cold start at <code>$FCE2</code> after keypress.</p>
-        </div>
-
-        <div class="step">
-          <h3>Stage 4: Historical shim install</h3>
-          <p>The canonical 512-byte shim image is copied into RAM <code>$C800-$C9FF</code>. This becomes the runtime
-          jump-table contract used by the launcher and later app switching.</p>
-          <pre>$C800  load from disk and run
-$C803  fetch from REU and run
-$C806  just run $1000
-$C809  preload to REU and return
-$C80C  return to launcher
-$C80F  switch app</pre>
-          <p>The border switches to the shim color for this phase.</p>
-        </div>
-
-        <div class="step">
-          <h3>Stage 5: REU state init</h3>
-          <p>The loader initializes bookkeeping in RAM around <code>$C600-$C7FF</code>, writes the REU magic marker,
-          sets shim default drive state at <code>$C839</code>, and seeds the shared status bytes.</p>
-        </div>
-
-        <div class="step">
-          <h3>Stage 6: Copy generated layout tables to RAM</h3>
-          <p>The app table is copied to <code>$CC00</code> and the overlay table to <code>$CC90</code>. The preload loops
-          then walk those RAM copies instead of repeatedly reading static metadata from cartridge-visible space.</p>
-        </div>
-
-        <div class="step">
-          <h3>Stage 7: Preload launcher snapshot</h3>
-          <p>The launcher payload is copied from cart banks <code>1-2</code> into RAM at <code>$1000</code>, then the
-          full app window <code>$1000-$C5FF</code> is stashed into logical launcher bank <code>0</code> (physical <code>Start+1</code>).</p>
-          <p>The key nuance is that the cart payload is much smaller than the REU snapshot. The system stores a full
-          runtime RAM image shape, not just the raw on-cartridge bytes.</p>
-          <p>The border switches to yellow for cart-to-RAM copy, then orange for the REU stash.</p>
-        </div>
-
-        <div class="step">
-          <h3>Stage 8: Preload 16 application snapshots</h3>
-          <p>For each app, the loader clears <code>$1000-$C5FF</code>, selects that app's cart bank, copies the app
-          payload into RAM, then stashes the full <code>$B600</code>-byte window to the assigned logical app REU bank, which maps to physical <code>Start+2+N</code>. It also marks
-          the app as present in the shim bitmap at <code>$C836-$C838</code>.</p>
-          <p>During this loop, the border repeatedly alternates between yellow for cart reads and orange for REU stash work.</p>
-        </div>
-
-        <div class="step">
-          <h3>Stage 9: Preload 8 ReadyShell overlays</h3>
-          <p>Overlays are staged through RAM starting at <code>$1000</code>, then stashed as <code>$3800</code>-byte blocks
-          into REU banks <code>64</code> and <code>65</code> at fixed offsets. They are cached for later ReadyShell runtime use,
-          not executed during boot.</p>
-          <p>The same yellow-then-orange border pattern is used here too.</p>
-        </div>
-
-        <div class="step">
-          <h3>Stage 10: Overlay metadata write</h3>
-          <p>The loader builds a small overlay metadata block at <code>$C7F0</code> and stashes it to REU bank
-          <code>$48</code> at offset <code>$80F0</code>.</p>
-        </div>
-
-        <div class="step">
-          <h3>Stage 11: Verify label</h3>
-          <p>The screen says <code>VERIFYING PRELOADS</code>, but the current source does not perform a large late validation
-          pass here. The label exists; the time cost is dominated by the earlier preload loops.</p>
-        </div>
-
-        <div class="step">
-          <h3>Stage 12: KERNAL and VIC normalization</h3>
-          <p>The loader re-runs core KERNAL init, forces expected VIC banking and text-mode state, restores keyboard/editor state,
-          and clears pending interrupts. This is necessary because EasyFlash startup may leave the machine in a nonstandard visual
-          and channel state.</p>
-        </div>
-
-        <div class="step">
-          <h3>Stage 13: Restore launcher and hand off</h3>
-          <p>The loader fetches logical launcher bank <code>0</code> (physical <code>Start+1</code>) back into <code>$1000-$C5FF</code> and finally jumps to
-          <code>$1000</code>. That is the handoff from boot asm to the C launcher.</p>
-          <p>The border switches to orange for the final restore, then light green for the last handoff into launcher code.</p>
-        </div>
-      </div>
-    </section>
-
-    <section>
-      <h2>What Runs Where</h2>
-      <table>
-        <thead>
-          <tr><th>Region</th><th>Type</th><th>What runs there</th></tr>
-        </thead>
-        <tbody>
-          <tr><td><code>$E000</code></td><td>asm in cartridge ROM</td><td>ROMH reset stub</td></tr>
-          <tr><td><code>$0800-$27FF</code></td><td>asm in RAM</td><td>Main EasyFlash loader</td></tr>
-          <tr><td><code>$C800-$C9FF</code></td><td>asm in RAM</td><td>Resident shim jump table and helpers</td></tr>
-          <tr><td><code>$1000-$C5FF</code></td><td>C / cc65 in RAM</td><td>Launcher and later app snapshots restored from REU</td></tr>
-        </tbody>
-      </table>
-      <div class="ok">
-        After cold boot, the steady-state runtime model is REU snapshot switching, not sustained direct cartridge execution.
-      </div>
-    </section>
-
-    <section>
-      <h2>Where Cartridge Banking Happens</h2>
-      <p>Cartridge banking is concentrated in the boot preload path. The loader selects the current EasyFlash bank by writing
-      to <code>$DE00</code>, then copies from <code>$8000-$9FFF</code> and, if needed, from <code>$A000-$BFFF</code>.</p>
-      <pre>enable cart mapping
-write selected bank to $DE00
-copy ROML half from $8000-$9FFF
-copy ROMH half from $A000-$BFFF if payload still remains
-increment bank
-repeat until payload length is satisfied</pre>
-      <div class="warn">
-        Once the launcher is restored and running, cartridge banking is mostly out of the hot path. Later launches use REU fetches
-        back into RAM and shim calls from <code>$C800</code>.
-      </div>
-    </section>
-
-    <section>
-      <h2>Why The Blue Screen Pause Is So Long</h2>
-      <p>The machine is not frozen during the long pause. It is building the runtime snapshot set up front.</p>
-      <ul>
-        <li>Preloading launcher snapshot</li>
-        <li>Preloading 16 app snapshots</li>
-        <li>Preloading 8 overlay snapshots</li>
-        <li>Repeatedly clearing large RAM windows</li>
-        <li>Copying payloads from cartridge into RAM using 6502 software loops</li>
-        <li>Stashing those windows to REU</li>
-      </ul>
-      <p>Roughly:</p>
-      <ul>
-        <li>about <code>531 KiB</code> of actual payload content copied from cartridge</li>
-        <li>about <code>885 KiB</code> of snapshot / staging data stashed to REU</li>
-        <li>plus substantial repeated RAM clearing</li>
-      </ul>
-      <p>With the new stage colors, the more accurate user-facing interpretation is:</p>
-      <ul>
-        <li>blue background plus yellow border: cart payloads are being read</li>
-        <li>blue background plus orange border: snapshots are being pushed into REU</li>
-        <li>brief green border: shim-related setup work</li>
-        <li>brief light green border: launcher handoff is about to happen</li>
-      </ul>
-      <div class="note">
-        The user mostly sees a blank blue stage because the boot code writes screen text before VIC screen banking is guaranteed
-        to point at <code>$0400</code>, then later KERNAL text init rapidly clears or overwrites what becomes visible.
-      </div>
-    </section>
-
-    <section>
-      <h2>Summary</h2>
-      <pre>1. ROMH stub starts from cartridge and copies the real loader to RAM
-2. RAM loader installs the historical shim at $C800-$C9FF
-3. RAM loader preloads launcher, apps, and overlays from EasyFlash
-4. RAM loader stashes those runtime windows into REU snapshots
-5. Machine state is normalized for normal text-mode execution
-6. Launcher snapshot is restored from logical bank 0 (physical Start+1) into $1000-$C5FF
-7. Control jumps to $1000 and the C launcher begins</pre>
-      <div class="ok">
-        The large cold-boot delay is the price paid to make later launches effectively instant.
-      </div>
-    </section>
-  </main>
-</body>
-</html>
+<h1 id="readyos-easyflash-boot-flow">ReadyOS EasyFlash Boot Flow</h1>
+<p>This document describes how the current ReadyOS EasyFlash cartridge
+flavor boots, what executes where, when cartridge banking happens, when
+it does not, how REU preload works, how the early REU-required guard
+behaves, and why the machine appears to sit on a blue screen for a long
+time before the launcher appears.</p>
+<p>The description is based on the current source and generated layout
+in this repository, not on a hypothetical design.</p>
+<p>On screen, this SKU now identifies itself during boot as
+<code>precog cartridge (beta)</code>. The release folder, artifact
+names, and flavor name still remain <code>precog-easyflash</code> for
+packaging and build purposes.</p>
+<h2 id="scope">Scope</h2>
+<p>This is the boot path for the EasyFlash flavor that builds:</p>
+<ul>
+<li><code>bin/boot_easyflash_roml.bin</code></li>
+<li><code>bin/boot_easyflash_romh.bin</code></li>
+<li><code>bin/easyflash_shim.bin</code></li>
+<li><code>bin/launcher_easyflash.prg</code></li>
+<li><code>obj/easyflash_layout.json</code></li>
+<li><code>src/generated/easyflash_layout.inc</code></li>
+</ul>
+<p>Primary sources:</p>
+<ul>
+<li><code>src/boot/easyflash_stub.s</code></li>
+<li><code>src/boot/boot_easyflash_asm.s</code></li>
+<li><code>src/boot/readyos_shim.inc</code></li>
+<li><code>src/apps/launcher/launcher_easyflash.c</code></li>
+<li><code>src/apps/launcher/launcher.c</code></li>
+<li><code>src/generated/easyflash_layout.inc</code></li>
+</ul>
+<h2 id="high-level-model">High-Level Model</h2>
+<p>The EasyFlash flavor is not a “run directly from cartridge forever”
+design.</p>
+<p>It is a two-stage system:</p>
+<ol type="1">
+<li>Small cartridge boot code starts first.</li>
+<li>That boot code preloads launcher, apps, and overlays into REU
+snapshots.</li>
+<li>Normal user-facing execution after boot is mostly REU-driven, not
+cartridge-driven.</li>
+</ol>
+<p>In practice, the cartridge is mainly a fast cold-boot source for the
+initial payloads. Once the preload pass is complete, the launcher and
+apps are restored from REU into RAM and run from RAM.</p>
+<h2 id="current-cartridge-layout">Current Cartridge Layout</h2>
+<p>The generated layout currently defines:</p>
+<ul>
+<li>bank <code>0</code>: boot bank</li>
+<li>banks <code>1-2</code>: launcher payload</li>
+<li>banks <code>3-34</code>: application payloads</li>
+<li>later banks: ReadyShell overlay/state/resource payloads and unused
+capacity, according to the generated EasyFlash layout</li>
+</ul>
+<p>Current generated constants:</p>
+<ul>
+<li><code>EASYFLASH_LAUNCHER_BANK = 1</code></li>
+<li><code>EASYFLASH_LAUNCHER_BANK_SPAN = 2</code></li>
+<li><code>EASYFLASH_APP_COUNT = 16</code></li>
+<li>overlay/resource counts are generated from the profile resource
+metadata</li>
+</ul>
+<p>Each EasyFlash bank is treated as one 16 KiB payload slot, split
+across:</p>
+<ul>
+<li><code>$8000-$9FFF</code> (ROML half, 8 KiB)</li>
+<li><code>$A000-$BFFF</code> (ROMH half, 8 KiB)</li>
+</ul>
+<h2 id="memory-regions-used-during-boot">Memory Regions Used During
+Boot</h2>
+<h3 id="cartridge-visible-areas">Cartridge-visible areas</h3>
+<ul>
+<li><code>$8000-$9FFF</code>: cart ROML half for the selected EasyFlash
+bank</li>
+<li><code>$A000-$BFFF</code>: cart ROMH half for the selected EasyFlash
+bank</li>
+<li><code>$DE00</code>: cart bank register</li>
+<li><code>$DE01</code>, <code>$DE02</code>: cart control registers</li>
+</ul>
+<h3 id="ram-execution-staging-areas">RAM execution / staging areas</h3>
+<ul>
+<li><code>$0800-$27FF</code>: EasyFlash loader copied from cartridge and
+executed from RAM</li>
+<li><code>$1000-$C5FF</code>: app working window and launcher restore
+window</li>
+<li><code>$1000-$47FF</code>: upper part of loader tail refresh</li>
+<li><code>$1000-$47FF</code> / full window: temporary staging during
+preload</li>
+<li><code>$C600-$C7FF</code>: REU bookkeeping and loader state</li>
+<li><code>$C7F0-$C7FB</code>: overlay metadata staging block</li>
+<li><code>$C800-$C9FF</code>: historical shim copied into RAM</li>
+<li><code>$CA00+</code>: diagnostic/debug scratch</li>
+<li><code>$CC00-$CC8F</code>: copied app layout table</li>
+<li><code>$CC90-...</code>: copied overlay layout table</li>
+</ul>
+<h3 id="screen-vic-visible-areas">Screen / VIC visible areas</h3>
+<ul>
+<li><code>$0400</code>: expected text screen RAM</li>
+<li><code>$D020</code>: border color</li>
+<li><code>$D021</code>: background color</li>
+</ul>
+<h3 id="reu-registers">REU registers</h3>
+<ul>
+<li><code>$DF01-$DF08</code>: REU DMA control registers</li>
+</ul>
+<h2 id="boot-color-guide">Boot Color Guide</h2>
+<p>The current EasyFlash loader now uses a stable background plus
+stage-specific border colors so the machine is visibly doing work during
+the long cold-boot preload.</p>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>Visible color</th>
+<th>Register</th>
+<th>Meaning</th>
+<th>Typical time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>blue background</td>
+<td><code>$D021</code></td>
+<td>baseline boot background</td>
+<td>entire boot</td>
+</tr>
+<tr>
+<td>light blue border</td>
+<td><code>$D020</code></td>
+<td>loader setup and general control flow</td>
+<td>early setup, table copy, verify label</td>
+</tr>
+<tr>
+<td>green border</td>
+<td><code>$D020</code></td>
+<td>shim install and shim-related setup</td>
+<td>shim copy and shared-state setup</td>
+</tr>
+<tr>
+<td>yellow border</td>
+<td><code>$D020</code></td>
+<td>copying payload from cartridge into RAM</td>
+<td>launcher, app, and overlay payload reads</td>
+</tr>
+<tr>
+<td>orange border</td>
+<td><code>$D020</code></td>
+<td>moving staged RAM into REU or restoring from REU</td>
+<td>snapshot stash and final launcher restore</td>
+</tr>
+<tr>
+<td>light green border</td>
+<td><code>$D020</code></td>
+<td>final handoff into the launcher</td>
+<td>just before <code>jmp $1000</code></td>
+</tr>
+<tr>
+<td>red border</td>
+<td><code>$D020</code></td>
+<td>REU-missing error path</td>
+<td>REU check failed, waiting for keypress</td>
+</tr>
+</tbody>
+</table>
+<p>Important nuance:</p>
+<ul>
+<li>The background intentionally stays blue.</li>
+<li>The border is the progress indicator.</li>
+<li>Long yellow or orange periods are normal and mean the machine is
+actively preloading, not frozen.</li>
+<li>During the app and overlay loops, the border repeatedly alternates
+between yellow and orange because each item is copied from cartridge and
+then stashed to REU.</li>
+</ul>
+<h2 id="stage-0-power-on-cartridge-stub">Stage 0: Power-On Cartridge
+Stub</h2>
+<p>The first code that runs is the ROMH stub in
+<code>src/boot/easyflash_stub.s</code>.</p>
+<p>What it does:</p>
+<ol type="1">
+<li>Disables interrupts.</li>
+<li>Selects cartridge bank <code>0</code> by writing
+<code>$DE00 = 0</code>.</li>
+<li>Copies <code>32</code> pages (<code>$2000</code> bytes, 8 KiB) from
+cartridge <code>$8000</code> to RAM <code>$0800</code>.</li>
+<li>Jumps to <code>$0800</code>.</li>
+</ol>
+<p>Important nuance:</p>
+<ul>
+<li>This stub is tiny.</li>
+<li>It does not preload the system.</li>
+<li>Its only job is to get the real loader into normal RAM and transfer
+control there.</li>
+</ul>
+<p>Execution at this stage:</p>
+<ul>
+<li>executing: cartridge ROM</li>
+<li>copying from: cartridge ROM bank <code>0</code>,
+<code>$8000-$9FFF</code></li>
+<li>copying to: RAM <code>$0800-$27FF</code></li>
+</ul>
+<h2 id="stage-1-real-loader-starts-from-ram">Stage 1: Real Loader Starts
+From RAM</h2>
+<p>The main loader lives in <code>src/boot/boot_easyflash_asm.s</code>
+and is linked to run at <code>$0800</code> through
+<code>cfg/easyflash_loader.cfg</code>.</p>
+<p>This is the real cold-boot engine.</p>
+<p>Early setup includes:</p>
+<ul>
+<li><code>SEI</code>, <code>CLD</code>, stack init</li>
+<li>CPU port normalization via <code>$00/$01</code></li>
+<li>EasyFlash control register setup</li>
+<li>cart disable for REU-safe operations</li>
+</ul>
+<p>Important nuance:</p>
+<ul>
+<li>From here on, the boot logic is executing from RAM at
+<code>$0800</code>, not directly from cartridge ROM.</li>
+</ul>
+<h2 id="stage-2-loader-tail-refresh">Stage 2: Loader Tail Refresh</h2>
+<p>Very early in the loader, <code>copy_loader_tail_from_cart</code>
+copies more bytes from cartridge bank <code>0</code> into RAM.</p>
+<p>What it copies:</p>
+<ul>
+<li>source: cartridge bank <code>0</code>, starting at
+<code>$8800</code></li>
+<li>destination: RAM starting at <code>$1000</code></li>
+<li>length: <code>$1800</code> bytes</li>
+</ul>
+<p>Why this exists:</p>
+<ul>
+<li>The loader itself is larger than the first 8 KiB copied by the ROMH
+stub.</li>
+<li>The stub only gets the first chunk into RAM.</li>
+<li>The loader then pulls in its own remaining code/data from cart bank
+<code>0</code>.</li>
+</ul>
+<p>This is still pure asm.</p>
+<h2 id="stage-3-boot-screen-prep">Stage 3: Boot Screen Prep</h2>
+<p>The loader:</p>
+<ul>
+<li>clears screen RAM at <code>$0400</code></li>
+<li>writes a boot banner</li>
+<li>writes stage text</li>
+<li>changes border/background colors</li>
+</ul>
+<p>Important nuance:</p>
+<ul>
+<li>At this point the code is writing to <code>$0400</code>.</li>
+<li>But the VIC may not yet be looking at <code>$0400</code>.</li>
+<li>So those messages can exist in RAM without being visible on the real
+screen.</li>
+</ul>
+<p>This explains why the user can see a long blue pause with no readable
+text even though status text is already being written.</p>
+<p>At this stage the user-visible progress signal is mainly the
+border-color changes, not the screen text.</p>
+<h2 id="stage-3a-early-reu-requirement-probe">Stage 3A: Early REU
+Requirement Probe</h2>
+<p>Before shim install or any preload work, the loader now does a
+minimal REU presence test.</p>
+<p>How it works:</p>
+<ol type="1">
+<li>It writes a known byte to RAM scratch at <code>$CA11</code>.</li>
+<li>It clears RAM scratch at <code>$CA12</code>.</li>
+<li>It performs a one-byte REU stash to REU bank <code>$FE</code>.</li>
+<li>It immediately fetches that byte back into <code>$CA12</code>.</li>
+<li>It compares <code>$CA12</code> to the original source byte.</li>
+</ol>
+<p>If the compare succeeds:</p>
+<ul>
+<li>boot continues normally into shim install and preload.</li>
+</ul>
+<p>If the compare fails:</p>
+<ul>
+<li>the border switches to the error color</li>
+<li>the loader reinitializes the machine into a stable text-screen
+state</li>
+<li>it shows:
+<ul>
+<li><code>REU NOT DETECTED</code></li>
+<li><code>EASYFLASH REQUIRES REU</code></li>
+<li><code>PRESS ANY KEY TO RETURN TO BASIC</code></li>
+</ul></li>
+<li>it waits in a KERNAL <code>GETIN</code> loop for any key</li>
+<li>after keypress, it jumps to BASIC cold start at
+<code>$FCE2</code></li>
+</ul>
+<p>Important nuance:</p>
+<ul>
+<li>this is no longer a silent failure or a lock-up path</li>
+<li>the cartridge SKU now makes the REU requirement explicit before any
+expensive preload work begins</li>
+<li>the failure path still runs entirely in early boot asm</li>
+</ul>
+<h2 id="stage-4-historical-shim-install">Stage 4: Historical Shim
+Install</h2>
+<p>The loader copies the historical shim byte image into
+<code>$C800-$C9FF</code>.</p>
+<p>Source:</p>
+<ul>
+<li><code>shim_data</code> in
+<code>src/boot/boot_easyflash_asm.s</code></li>
+<li>produced from <code>bin/easyflash_shim.bin</code></li>
+<li>canonical byte layout defined by
+<code>src/boot/readyos_shim.inc</code></li>
+</ul>
+<p>Destination:</p>
+<ul>
+<li>RAM <code>$C800-$C9FF</code></li>
+</ul>
+<p>What the shim is:</p>
+<ul>
+<li>a resident 512-byte helper layer</li>
+<li>common contract between launcher/apps and the boot/runtime handoff
+model</li>
+</ul>
+<p>Key shim jump table entries:</p>
+<ul>
+<li><code>$C800</code>: load from disk and run</li>
+<li><code>$C803</code>: fetch from REU and run</li>
+<li><code>$C806</code>: just run <code>$1000</code></li>
+<li><code>$C809</code>: preload to REU and return</li>
+<li><code>$C80C</code>: return to launcher</li>
+<li><code>$C80F</code>: switch app</li>
+</ul>
+<p>Important nuance:</p>
+<ul>
+<li>The shim is not executed directly from cartridge.</li>
+<li>It is always copied into resident RAM first.</li>
+<li>The border switches to the shim color for this phase.</li>
+</ul>
+<h2 id="stage-5-reu-state-init">Stage 5: REU State Init</h2>
+<p>The loader initializes REU-side bookkeeping in RAM, including:</p>
+<ul>
+<li>zeroing tables around <code>$C600-$C7FF</code></li>
+<li>writing magic at <code>$C700</code></li>
+<li>setting shim default storage drive at <code>$C839</code></li>
+<li>setting <code>last_saved</code> at <code>$C835</code></li>
+</ul>
+<p>This is RAM bookkeeping, not yet the app preload pass itself.</p>
+<h2 id="stage-6-copy-generated-layout-tables-to-ram">Stage 6: Copy
+Generated Layout Tables To RAM</h2>
+<p>The generated tables from
+<code>src/generated/easyflash_layout.inc</code> are copied into normal
+RAM:</p>
+<ul>
+<li>app table -&gt; <code>$CC00</code></li>
+<li>overlay table -&gt; <code>$CC90</code></li>
+</ul>
+<p>Why:</p>
+<ul>
+<li>The loader wants a simple, mutable RAM-side table while iterating
+preload steps.</li>
+<li>It avoids repeatedly reading metadata from cartridge during the
+control path.</li>
+</ul>
+<h2 id="stage-7-preload-launcher-snapshot">Stage 7: Preload Launcher
+Snapshot</h2>
+<p>The launcher payload is copied from EasyFlash into the app window and
+then stashed into its assigned launcher snapshot bank. The current
+runtime also publishes logical REU bank <code>0</code> as the ReadyOS
+control/global bank rather than treating it as only the launcher
+image.</p>
+<p>Current launcher layout:</p>
+<ul>
+<li>cart start bank: <code>1</code></li>
+<li>span: <code>2</code> banks</li>
+<li>load address: <code>$1000</code></li>
+<li>payload length: <code>$78B0</code></li>
+</ul>
+<p>Detailed flow:</p>
+<ol type="1">
+<li>Clear <code>$1000-$C5FF</code>.</li>
+<li>Set current cart bank to launcher start bank.</li>
+<li>Copy launcher payload from cart to RAM at <code>$1000</code>.</li>
+<li>Stash the full app window <code>$1000-$C5FF</code>
+(<code>$B600</code> bytes) into the assigned launcher snapshot
+bank.</li>
+</ol>
+<p>Important nuance:</p>
+<ul>
+<li>The payload itself is about <code>30.2 KiB</code>.</li>
+<li>The stash is the full <code>46 KiB</code> app window.</li>
+<li>That means the REU snapshot stores the complete runtime RAM image
+shape expected by the launcher, not just the compressed-on-cart payload
+bytes.</li>
+<li>The border switches to yellow for cart-to-RAM copy, then orange for
+the REU stash.</li>
+</ul>
+<h2 id="stage-8-preload-application-snapshots">Stage 8: Preload
+Application Snapshots</h2>
+<p>The loader then walks every app entry in the app table.</p>
+<p>Per app, it does:</p>
+<ol type="1">
+<li>Clear the full app window <code>$1000-$C5FF</code>.</li>
+<li>Read app metadata from the copied RAM table at
+<code>$CC00</code>.</li>
+<li>Select the app’s EasyFlash start bank by writing
+<code>$DE00</code>.</li>
+<li>Copy the app payload from cart to RAM at the specified load address,
+normally <code>$1000</code>.</li>
+<li>Stash the full <code>$B600</code> app window to the app’s assigned
+REU bank.</li>
+<li>Publish the app token to physical-bank lookup into logical REU bank
+<code>0</code> so the shim can resolve the app token without a fixed
+app-slot gap.</li>
+</ol>
+<p>Current app REU banks are loader-assigned. The cartridge SKU preloads
+the profile’s app payloads up front, but the steady-state metadata shape
+matches the disk launcher: app token -&gt; assigned snapshot bank in
+bank <code>0</code>.</p>
+<p>Important nuances:</p>
+<ul>
+<li>This is where most of the long cold-boot time goes.</li>
+<li>The expensive part is not only REU DMA.</li>
+<li>It also repeatedly:
+<ul>
+<li>clears a large RAM window</li>
+<li>copies software data from EasyFlash to RAM in 6502 loops</li>
+<li>stashes a large full-window snapshot to REU</li>
+</ul></li>
+</ul>
+<p>So the long “blue screen pause” is mostly a batch build of all app
+snapshots.</p>
+<p>During this loop, the border repeatedly alternates:</p>
+<ul>
+<li>yellow while the selected EasyFlash bank is being copied into
+RAM</li>
+<li>orange while the completed RAM window is being stashed to REU</li>
+</ul>
+<h2 id="stage-9-preload-readyshell-resources">Stage 9: Preload
+ReadyShell Resources</h2>
+<p>After apps, the loader walks the generated ReadyShell resource
+table.</p>
+<p>Per resource chunk, it does:</p>
+<ol type="1">
+<li>Clear the overlay staging region beginning at
+<code>$1000</code>.</li>
+<li>Select the resource payload’s EasyFlash bank.</li>
+<li>Copy resource payload from cart to RAM.</li>
+<li>Stash the staged bytes to the assigned REU bank and bank-relative
+offset.</li>
+</ol>
+<p>Current resource layout:</p>
+<ul>
+<li>cart placement is generated from
+<code>cfg/flavors/readyos_easyflash.ini</code></li>
+<li>ReadyShell overlays are grouped by the <code>rsovl+</code>
+dependency/resource line</li>
+<li>target REU banks are loader-assigned, not fixed physical
+<code>$40/$41</code></li>
+<li>offsets such as <code>$0000</code>, <code>$3800</code>,
+<code>$7000</code>, and <code>$A800</code> remain bank-relative
+placement values so several overlay PRGs can share one 64K resource
+bank</li>
+<li>the ReadyShell state/scratch/value/CAT/diagnostic arena is also a
+loader-assigned resource bank</li>
+</ul>
+<p>Important nuance:</p>
+<ul>
+<li>Overlays and resource banks are not executed during boot.</li>
+<li>They are staged and cached into REU for later ReadyShell runtime
+use.</li>
+<li>The loader uses <code>$1000</code> as a temporary staging region for
+this work.</li>
+<li>Logical REU bank <code>0</code> records the owner/resource
+relationships so REU Viewer and launcher unload logic can see which
+banks belong to ReadyShell.</li>
+<li>The same yellow-then-orange border pattern is used here too.</li>
+</ul>
+<h2 id="stage-10-resource-metadata-write">Stage 10: Resource Metadata
+Write</h2>
+<p>The loader writes compact runtime metadata for assigned ReadyShell
+resources and mirrors the richer relationship records into logical REU
+bank <code>0</code>.</p>
+<p>The small runtime block is still deliberately tiny so ReadyShell does
+not need to parse the full control bank. ReadyShell consumes the
+assigned overlay/state bank ids and bank-relative offsets; launcher and
+REU Viewer consume the richer bank <code>0</code> records.</p>
+<p>Metadata includes:</p>
+<ul>
+<li><code>"OV"</code> signature</li>
+<li>metadata version</li>
+<li>valid-mask</li>
+<li>assigned overlay/cache bank ids</li>
+<li>assigned state/scratch bank id</li>
+<li>overlay stage length</li>
+</ul>
+<p>This lets the runtime know how the overlay cache has been organized
+without reintroducing fixed physical bank constants.</p>
+<h2 id="stage-11-verify-stage">Stage 11: “Verify” Stage</h2>
+<p>The boot banner includes a <code>"VERIFYING PRELOADS"</code> stage
+label.</p>
+<p>Important nuance:</p>
+<ul>
+<li>In the current source, there is no substantial extra
+checksum/validation pass after that label is shown.</li>
+<li>The label exists, but the current code path goes straight into final
+machine normalization and launcher restore.</li>
+</ul>
+<p>So the long boot time is not coming from a late verification sweep.
+It is overwhelmingly coming from the earlier preload loops.</p>
+<h2 id="stage-12-kernal-and-vic-normalization">Stage 12: KERNAL and VIC
+Normalization</h2>
+<p>Before handing off to the launcher, the loader re-normalizes the
+machine:</p>
+<ul>
+<li>disables cart for REU-safe state</li>
+<li>restores expected CPU port values</li>
+<li>runs <code>IOINIT</code> and <code>RESTOR</code></li>
+<li>forces VIC banking and screen setup back to the normal text
+baseline</li>
+<li>calls <code>CINT</code> and <code>CLRCHN</code></li>
+<li>forces lowercase charset mapping</li>
+<li>restores keyboard/editor state</li>
+<li>clears pending CIA and VIC interrupt state</li>
+</ul>
+<p>Why this matters:</p>
+<ul>
+<li>Cartridge startup may leave VIC banking or channels in a nonstandard
+state.</li>
+<li>If that is not repaired, the launcher can start with invisible text,
+broken channels, or stray interrupts.</li>
+</ul>
+<p>This is also the reason you may briefly see text/color flashes late
+in boot:</p>
+<ul>
+<li>once VIC is pointed back at the expected screen,</li>
+<li>some previously written screen content becomes visible,</li>
+<li>then KERNAL text-mode init clears/changes it very quickly,</li>
+<li>and then the launcher appears.</li>
+</ul>
+<h2 id="current-reu-physical-placement">Current REU Physical
+Placement</h2>
+<p><code>Start</code> means physical REU bank
+<code>READYOS_REU_BANK_SKIP</code>. <code>Start+0</code> is
+system/global, <code>Start+1</code> is launcher logical bank
+<code>0</code>, <code>Start+2</code> is reserved for future launcher
+overlays, logical app bank <code>N</code> maps to
+<code>Start+2+N</code>, and dynamic allocation begins at
+<code>Start+26</code>.</p>
+<h2 id="stage-13-restore-launcher-snapshot-and-handoff">Stage 13:
+Restore Launcher Snapshot and Handoff</h2>
+<p>At the end of boot:</p>
+<ol type="1">
+<li>The loader fetches logical launcher bank <code>0</code> (physical
+<code>Start+1</code>) back into <code>$1000-$C5FF</code>.</li>
+<li>It disables unwanted interrupt sources.</li>
+<li>It jumps to <code>$1000</code>.</li>
+</ol>
+<p>That jump is the handoff from boot asm to the launcher program
+image.</p>
+<p>Important nuance:</p>
+<ul>
+<li>The launcher is not starting directly from cartridge data.</li>
+<li>It is starting from a RAM image restored out of REU bank
+<code>0</code>.</li>
+<li>The border switches to orange for the final restore, then light
+green for the last handoff into launcher code.</li>
+</ul>
+<h2 id="what-runs-where">What Runs Where</h2>
+<h3 id="pure-asm-cartridge-first-stage">Pure asm, cartridge-first
+stage</h3>
+<ul>
+<li>ROMH reset stub at <code>$E000</code>:
+<code>src/boot/easyflash_stub.s</code></li>
+</ul>
+<h3 id="pure-asm-ram-resident-boot-stage">Pure asm, RAM-resident boot
+stage</h3>
+<ul>
+<li>main loader at <code>$0800</code>:
+<code>src/boot/boot_easyflash_asm.s</code></li>
+</ul>
+<h3 id="pure-asm-resident-shim">Pure asm, resident shim</h3>
+<ul>
+<li>shim image at <code>$C800-$C9FF</code>:
+<code>src/boot/readyos_shim.inc</code></li>
+</ul>
+<h3 id="c-cc65-launcher-stage">C / cc65 launcher stage</h3>
+<ul>
+<li>launcher program in <code>$1000-$C5FF</code></li>
+<li>source entry:
+<ul>
+<li><code>src/apps/launcher/launcher_easyflash.c</code></li>
+<li><code>src/apps/launcher/launcher.c</code></li>
+</ul></li>
+</ul>
+<h3 id="later-app-launches">Later app launches</h3>
+<p>After boot, app launches are usually:</p>
+<ol type="1">
+<li>launcher saves itself back to REU bank <code>0</code></li>
+<li>shim fetches target app snapshot from REU</li>
+<li>control jumps to <code>$1000</code></li>
+</ol>
+<p>So the steady-state runtime model is REU snapshot switching, not
+cartridge bank execution.</p>
+<h2 id="where-cartridge-banking-happens">Where Cartridge Banking
+Happens</h2>
+<p>Cartridge banking is concentrated in the boot asm preload
+routines.</p>
+<p>Main register:</p>
+<ul>
+<li><code>$DE00</code> = selected EasyFlash bank</li>
+</ul>
+<p>Main routine:</p>
+<ul>
+<li><code>copy_payload_from_cart</code></li>
+</ul>
+<p>What it does:</p>
+<ol type="1">
+<li>enables cartridge mapping</li>
+<li>selects current cart bank</li>
+<li>copies from <code>$8000-$9FFF</code></li>
+<li>if more remains, copies from <code>$A000-$BFFF</code></li>
+<li>increments cart bank</li>
+<li>repeats until payload length is satisfied</li>
+</ol>
+<p>This is the core “read from cartridge” loop used by
+launcher/app/overlay preload.</p>
+<h2 id="where-cartridge-banking-does-not-matter-anymore">Where Cartridge
+Banking Does Not Matter Anymore</h2>
+<p>Once the launcher has been restored and entered:</p>
+<ul>
+<li>normal launcher execution is from RAM</li>
+<li>fast app launches are from REU back into RAM</li>
+<li>shim helper calls are from resident RAM at <code>$C800</code></li>
+</ul>
+<p>So after cold boot, the cartridge is mostly no longer part of the hot
+path.</p>
+<h2 id="why-the-blue-screen-pause-is-so-long">Why the Blue Screen Pause
+Is So Long</h2>
+<p>The long pause at 100 percent speed is expected from the current
+design.</p>
+<p>What boot is doing during that pause:</p>
+<ul>
+<li>preloading launcher snapshot</li>
+<li>preloading 16 application snapshots</li>
+<li>preloading 8 overlay snapshots</li>
+<li>clearing large RAM windows before each preload</li>
+<li>copying payloads from cartridge into RAM in software loops</li>
+<li>stashing large windows into REU</li>
+</ul>
+<p>Roughly:</p>
+<ul>
+<li>about <code>531 KiB</code> of actual payload content gets copied
+from cartridge</li>
+<li>about <code>885 KiB</code> of snapshot/stage data gets stashed into
+REU</li>
+<li>plus a large amount of repeated RAM clearing</li>
+</ul>
+<p>The visible effect is “nothing happening”, but the machine is
+actually building all of the runtime REU state up front.</p>
+<p>With the new stage colors, the more accurate user-facing
+interpretation is:</p>
+<ul>
+<li>blue background plus yellow border: cart payloads are being
+read</li>
+<li>blue background plus orange border: snapshots are being pushed into
+REU</li>
+<li>brief green border: shim-related setup work</li>
+<li>brief light green border: launcher handoff is about to happen</li>
+</ul>
+<h2 id="why-you-usually-do-not-see-the-boot-messages">Why You Usually Do
+Not See The Boot Messages</h2>
+<p>Two separate reasons:</p>
+<ol type="1">
+<li>The loader writes text to <code>$0400</code> before VIC screen
+banking is guaranteed to be normal.</li>
+<li>Near the end of boot, KERNAL init and screen/editor setup rapidly
+clear or overwrite what was there.</li>
+</ol>
+<p>So the status system mostly works as an internal/logical status
+layer, but not as a reliable user-visible progress display in the
+current order of operations.</p>
+<h2 id="summary">Summary</h2>
+<p>The EasyFlash boot process is a preload-and-snapshot pipeline:</p>
+<ol type="1">
+<li>cartridge stub copies loader to RAM</li>
+<li>RAM loader installs shim</li>
+<li>RAM loader preloads launcher/apps/overlays from EasyFlash</li>
+<li>RAM loader stashes them into REU snapshots</li>
+<li>machine state is normalized</li>
+<li>launcher snapshot is restored from REU bank <code>0</code></li>
+<li>launcher starts in C at <code>$1000</code></li>
+</ol>
+<p>The large cold-boot delay is mostly the price of making later
+launches effectively instant.</p>
