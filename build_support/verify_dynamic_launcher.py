@@ -83,6 +83,10 @@ def main() -> int:
           "app_sizes[i] = APP_SAVE_SIZE;" in launcher)
     check("launcher has unload command",
           "unload_selected_from_reu" in launcher and "case TUI_KEY_F7" in launcher)
+    check("launcher invalidates stale last-saved bank on unload",
+          "*SHIM_LAST_SAVED == bank" in launcher and
+          "*SHIM_LAST_SAVED = 0xFFu;" in launcher and
+          "last_saved < 24 && launcher_catalog_uses_bank(last_saved, 0xFFu)" in launcher)
     check("launcher owns ReadyShell overlay resource banks",
           "APP_RESOURCE_READYSHELL_OVL" in launcher and
           "launcher_load_readyshell_resources" in launcher and

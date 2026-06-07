@@ -684,6 +684,9 @@ readybasic-program-vice: $(BUILD_SUPPORT_DIR)/run_readybasic_program_probe.sh
 readybasic-rbtest1-vice: $(BUILD_SUPPORT_DIR)/run_readybasic_rbtest1_probe.sh
 	$(BUILD_SUPPORT_DIR)/run_readybasic_rbtest1_probe.sh
 
+launcher-reu-state-vice: $(BUILD_SUPPORT_DIR)/run_launcher_reu_state_probe.sh
+	$(BUILD_SUPPORT_DIR)/run_launcher_reu_state_probe.sh
+
 readybasic-second-entry-editor-vice: $(BUILD_SUPPORT_DIR)/run_readybasic_second_entry_editor_probe.sh
 	$(BUILD_SUPPORT_DIR)/run_readybasic_second_entry_editor_probe.sh
 
@@ -1216,6 +1219,7 @@ help:
 	@echo "  readyshell-vm-smoke-host - Run ReadyShell VM/pipeline host smoke checks"
 	@echo "  readyshell-reu-tests-host - Run ReadyShell REU heap/value host tests"
 	@echo "  readyshell-overlay-report - Generate ReadyShell overlay Markdown + HTML docs"
+	@echo "  launcher-reu-state-vice - Run focused launcher unload/reload REU-state VICE probe"
 	@echo "  readybasic-vice-plans - Regenerate tracked ReadyBASIC VICE YAML plans"
 	@echo "  readybasic-vice-suites - Run all repo-owned ReadyBASIC VICE suites"
 	@echo "  readybasic-full-vice - Run the full ReadyBASIC VICE visual suite"
@@ -1276,5 +1280,5 @@ probe-rel:
 launcher-verbose:
 	$(MAKE) LAUNCHER_CFG_VERBOSE=1 $(LAUNCHER)
 
-.PHONY: all clean verify verify-resume shim-verify fullcheck help run run-test seed-cal26 probe-rel launcher-verbose readybasic-plugin-static-check readybasic-demo-vice readybasic-repeat-label-vice readybasic-full-vice readybasic-cross-app-resume-vice readybasic-large-vars-vice readybasic-lifecycle-vice readybasic-module-overlay-vice readybasic-plugin-command-vice readybasic-program-vice readybasic-rbtest1-vice readybasic-second-entry-editor-vice readybasic-state-vice readybasic-vice-plans readybasic-vice-suites readybasic-memory-report readyshell-host-tests readyshell-parse-smoke-host readyshell-vm-smoke-host readyshell-reu-tests-host editor-smoke-host tasklist-smoke-host programs prepare-version profile profiles release-all easyflash easyflash-verify easyflash-smoke easyflash-smoke-long easyflash-preload-verify easyflash-clean FORCE
+.PHONY: all clean verify verify-resume shim-verify fullcheck help run run-test seed-cal26 probe-rel launcher-verbose readybasic-plugin-static-check launcher-reu-state-vice readybasic-demo-vice readybasic-repeat-label-vice readybasic-full-vice readybasic-cross-app-resume-vice readybasic-large-vars-vice readybasic-lifecycle-vice readybasic-module-overlay-vice readybasic-plugin-command-vice readybasic-program-vice readybasic-rbtest1-vice readybasic-second-entry-editor-vice readybasic-state-vice readybasic-vice-plans readybasic-vice-suites readybasic-memory-report readyshell-host-tests readyshell-parse-smoke-host readyshell-vm-smoke-host readyshell-reu-tests-host editor-smoke-host tasklist-smoke-host programs prepare-version profile profiles release-all easyflash easyflash-verify easyflash-smoke easyflash-smoke-long easyflash-preload-verify easyflash-clean FORCE
 EASYFLASH_LAUNCHER_CPPFLAGS ?=

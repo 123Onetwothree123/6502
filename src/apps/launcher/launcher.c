@@ -534,6 +534,9 @@ static void launcher_free_snapshot_bank(unsigned char index) {
         return;
     }
     shim_bitmap_clear_bank(bank);
+    if (*SHIM_LAST_SAVED == bank) {
+        *SHIM_LAST_SAVED = 0xFFu;
+    }
     physical = launcher_logical_to_physical(bank);
     if (physical != 0xFFu) {
         REU_ALLOC_TABLE[physical] = REU_FREE;
@@ -559,7 +562,7 @@ static void sync_from_reu_bitmap(void) {
     /* Resilience: if return_to_launcher recorded a saved bank but bitmap
      * wasn't updated (e.g., interrupted path), heal bitmap from last_saved. */
     last_saved = *SHIM_LAST_SAVED;
-    if (last_saved < 24) {
+    if (last_saved < 24 && launcher_catalog_uses_bank(last_saved, 0xFFu)) {
         if (last_saved < 8) {
             *SHIM_REU_BITMAP_LO |= (unsigned char)(1U << last_saved);
         } else if (last_saved < 16) {
