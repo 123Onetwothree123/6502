@@ -28,6 +28,88 @@ tracker for the REU enhancement refactor. Completed implementation status is
 recorded explicitly; future design notes remain design notes until marked
 implemented here.
 
+## Current Plan Status 2026-06-06
+
+This is the current source-of-truth checkpoint after the physical REU-size
+authority work, full disk VICE regression, and full EasyFlash/cartridge VICE
+regression.
+
+Implemented and verified:
+
+- logical REU bank `0` is the ReadyOS control bank (`RCB0` schema version `4`);
+- the resident `$C600-$C9FF` shim-adjacent region remains the same `1KB`
+  shape:
+  - `$C600-$C6FF`: hot 256-byte bank allocation/type table;
+  - `$C700-$C7FF`: existing resident system metadata/reserved area;
+  - `$C800-$C9FF`: 512-byte resident shim;
+- the resident shim remains exactly `512` bytes;
+- shim app-token lookup uses the bounded bank `0` byte lookup page instead of
+  fixed reserved app slots;
+- app snapshots are allocated lazily/dynamically instead of being preallocated
+  into fixed reserved `R` banks;
+- the launcher supports 64-entry catalogs without keeping full catalog text in
+  C64 RAM;
+- disk `apps.cfg` and `app.*` manifests support explicit dependency/resource
+  lines for the concrete known resource sets currently implemented;
+- ReadyShell overlay cache banks, state/scratch bank, CAT staging, and
+  diagnostic/probe bytes are loader-owned dynamic resources rather than fixed
+  `$40/$41/$42/$43/$48` banks;
+- ReadyShell consumes small generated runtime metadata for overlay bank/offset
+  lookup instead of linking the full registry machinery;
+- ReadyBASIC core/code/module resource banks are launcher/cartridge-assigned
+  resources rather than fixed slots;
+- launcher-owned unload frees app snapshots and launcher-owned resource banks;
+- REU Viewer reads bank `0` relationship metadata and can describe app
+  snapshots, resource owners, overlays/modules, and unavailable physical banks;
+- physical REU size is launcher-owned:
+  - launcher probes once at startup;
+  - unavailable physical tail banks are marked `REU_UNAVAIL` in `$C600-$C6FF`;
+  - bank `0` header publishes encoded physical bank count and first
+    unavailable bank;
+  - REU Viewer consumes the launcher-published physical size and no longer
+    reports impossible totals such as `211/128`;
+- EasyFlash/cartridge metadata is generated from the same effective resource
+  layout and passed the cartridge-specific loader/preload regression paths.
+
+Most recent verification pass:
+
+- `python3 build_support/verify_reu_control_bank.py`;
+- `python3 build_support/verify_dynamic_launcher.py`;
+- `git diff --check`;
+- regular ReadyBASIC VICE suites:
+  `READYBASIC_VISIBLE=0 READYBASIC_KEEP_VICE=0 make readybasic-vice-suites`;
+- regular ReadyShell VICE:
+  `READYSHELL_VISIBLE=0 build_support/run_readyshell_cross_app_resume_probe.sh`;
+- full EasyFlash/cartridge VICE suites:
+  `READYBASIC_VISIBLE=0 READYBASIC_KEEP_VICE=0 READYSHELL_VISIBLE=0 make easyflash-vice-suites`.
+
+Current memory discipline result:
+
+- normal apps do not link the bank `0` writer or the physical REU alias probe;
+- launcher and REU Viewer intentionally pay the registry/display cost;
+- physical-size detection adds one launcher BSS byte and no REU Viewer BSS;
+- ReadyBASIC remains the tightest app-window contract and must continue to be
+  protected from shared-library growth.
+
+Still left in the plan:
+
+- generic arbitrary dependency loading for unknown app-specific overlays or
+  modules beyond the concrete `rsovl` and `rbcore` resource contracts;
+- ownership records and unload/free integration for arbitrary app-requested
+  banks allocated after app launch;
+- a checked-in REU Viewer VICE regression that navigates selected banks and
+  asserts visible owner/detail text, beyond the focused screenshot probes and
+  static schema checks already run;
+- a C64-side or otherwise reliable runtime bank `0` validator that reads the
+  `RCB0` header/table/resource records directly from REU during VICE
+  automation;
+- headless app/service invocation records and dispatcher;
+- modal UI service invocation, including the future shared file open/save
+  service path;
+- service-temp resource cleanup semantics for those future service flows;
+- possible future schema cleanup of historical reserved/overlapping areas once
+  the current v4 layout has stayed stable across more feature work.
+
 ## Implementation Status 2026-06-04
 
 Completed in branch `codex/reu-control-bank-refactor` after the v2 registry
