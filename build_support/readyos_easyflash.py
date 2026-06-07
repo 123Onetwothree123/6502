@@ -514,7 +514,7 @@ def build_help_text(output_dir: Path) -> str:
         "",
         "- attach `readyos_easyflash.crt` as an easyflash cartridge",
         "- mount `readyos_data.d64` on drive `8`",
-        "- enable reu `16mb`",
+        "- enable REU with at least `1MB`; `8MB` or `16MB` is recommended where available",
         "- if an app snapshot preloaded from the cartridge is unloaded from REU, ReadyOS cannot load it again from the cartridge until you restart ReadyOS",
         "",
         "## vice example",

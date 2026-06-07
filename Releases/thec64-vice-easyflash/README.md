@@ -8,7 +8,9 @@ Files:
 - `readyos_easyflash_M6TPRM.cjm`
 - `readyos_data.d64`
 
-The filename flags request C64, PAL, and 16 MB REU:
+ReadyOS requires at least 1 MB REU; 8 MB or 16 MB is recommended where
+available. This experimental staging copy deliberately requests C64, PAL, and
+16 MB REU through its filename flags:
 
 - `M6` = C64
 - `TP` = PAL

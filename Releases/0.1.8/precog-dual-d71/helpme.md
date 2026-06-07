@@ -36,7 +36,7 @@
 
 ## VICE Setup
 
-- Enable REU with `16MB`.
+- Enable REU with at least `1MB`; `8MB` or `16MB` is recommended where available.
 - The host-side boot PRGs are convenience autostart files. The disk copy of `PREBOOT` is still the normal disk-side bootstrap.
 - Configure drive 8 as `1571` with true drive enabled and attach `readyos-v0.1.8f-dual-d71_1.d71`.
 - Configure drive 9 as `1571` with true drive enabled and attach `readyos-v0.1.8f-dual-d71_2.d71`.
@@ -59,7 +59,7 @@ x64sc -reu -reusize 16384 -drive8type 1571 -drive8truedrive -devicebackend8 0 +b
 ## C64 Ultimate
 
 - Copy the listed disk image files to the target storage.
-- Enable the REU and set it to `16MB`.
+- Enable the REU with at least `1MB`; use `8MB` or `16MB` where available.
 - The host-side boot PRGs are optional convenience files for emulator launching; the disk-side `PREBOOT` entry is the standard hardware boot path.
 - Attach both disk images before boot and use `1571`-compatible drive assignments for the two-disk set.
 - Boot with `LOAD "PREBOOT",8` then `RUN`; this variant then chains through `SETD71` before loading `BOOT`.

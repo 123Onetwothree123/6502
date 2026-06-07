@@ -22,7 +22,7 @@ workflow where READY means responsive, reliable, and repeatable.
 
 At a glance:
 
-- requires an REU-backed modern C64 path and is tested at `16MB` REU
+- requires an REU-backed modern C64 path; `1MB` is the minimum REU target, with `8MB` or `16MB` recommended where available
 - main product direction: new Commodore 64 Ultimate and Ultimate-family workflows
 - practical secondary path today: VICE with REU enabled
 - still intended to support other C64 setups with a decent-sized REU
@@ -69,7 +69,7 @@ So far tested in VICE and the Commodore 64 Ultimate.
 Recommended baseline:
 
 - enable the REU
-- set REU size to `16MB`
+- set REU size to at least `1MB`; use `8MB` or `16MB` where available
 - follow the `helpme.md` inside the selected `Releases/<version>/<profile>/` directory
 
 Boot note:

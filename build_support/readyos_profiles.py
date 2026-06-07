@@ -1123,6 +1123,12 @@ def build_help_text(profile: Dict[str, object],
     reu_size_kb = int(resolved.get("reu_size_kb", profile.get("reu_size_kb", 16384)))
     reu_size_mb = reu_size_kb // 1024 if reu_size_kb % 1024 == 0 else 0
     reu_size_label = f"{reu_size_mb}MB" if reu_size_mb else f"{reu_size_kb}KB"
+    if reu_size_kb <= 1024:
+        reu_setup_line = "- Enable REU with at least `1MB`; this SKU targets KFF2's 1MB REU mode."
+        c64_ultimate_reu_line = "- Enable the REU with at least `1MB`; this SKU targets KFF2's 1MB REU mode."
+    else:
+        reu_setup_line = "- Enable REU with at least `1MB`; `8MB` or `16MB` is recommended where available."
+        c64_ultimate_reu_line = "- Enable the REU with at least `1MB`; use `8MB` or `16MB` where available."
     vice_parts: List[str] = ["x64sc", "-reu", "-reusize", str(reu_size_kb)]
     for disk in resolved["disks"]:
         drive = str(disk["drive"])
@@ -1173,7 +1179,7 @@ def build_help_text(profile: Dict[str, object],
         "",
         "## VICE Setup",
         "",
-        f"- Enable REU with `{reu_size_label}`.",
+        reu_setup_line,
         "- The host-side boot PRGs are convenience autostart files. The disk copy of `PREBOOT` is still the normal disk-side bootstrap.",
     ])
     for disk in resolved["disks"]:
@@ -1232,7 +1238,7 @@ def build_help_text(profile: Dict[str, object],
         "## C64 Ultimate",
         "",
         "- Copy the listed disk image files to the target storage.",
-        f"- Enable the REU and set it to `{reu_size_label}`.",
+        c64_ultimate_reu_line,
         "- The host-side boot PRGs are optional convenience files for emulator launching; the disk-side `PREBOOT` entry is the standard hardware boot path.",
     ])
     if preboot_mode == "setd71":

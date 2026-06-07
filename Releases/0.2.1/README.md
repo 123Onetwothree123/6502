@@ -192,7 +192,7 @@ shape, not the absence of an REU-capable path.
 Recommended baseline:
 
 - enable the REU
-- use `16MB` where the environment supports it
+- use at least `1MB`; use `8MB` or `16MB` where the environment supports it
 - treat VICE and Ultimate-family hardware as the smoothest targets today
 
 On real C64 hardware, the exact cartridge or expansion path can vary. The main
