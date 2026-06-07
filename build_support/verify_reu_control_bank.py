@@ -143,8 +143,9 @@ def main() -> int:
             "launcher disk path writes resolved bank to shim current bank")
     require("reu_control_bank_sync_and_mirror(REUCB_WRITER_REUVIEWER)" in reuviewer,
             "reuviewer refreshes control mirror")
-    require("reuviewer_read_control_bank_header" in reuviewer and "CBGEN:" in reuviewer,
-            "reuviewer displays control-bank header status")
+    require("reuviewer_read_control_bank_header" in reuviewer and '"CB:"' in reuviewer and
+            "control_bank_generation" in reuviewer,
+            "reuviewer displays compact control-bank header status")
     require("reuviewer_find_resource_for_bank" in reuviewer and "OWNER:" in reuviewer,
             "reuviewer decodes rich app/resource ownership records")
 

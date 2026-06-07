@@ -208,22 +208,8 @@ static void draw_header(void) {
 
 static void draw_summary(void) {
     unsigned char free_count;
-    unsigned char app_count;
-    unsigned char clip_count;
-    unsigned char alloc_count;
-    unsigned char rsv_count;
-    unsigned char rsc_count;
-    unsigned char rst_count;
-    unsigned char rs_count;
 
     free_count = reu_count_free();
-    app_count = reu_count_type(REU_APP_STATE);
-    clip_count = reu_count_type(REU_CLIPBOARD);
-    alloc_count = reu_count_type(REU_APP_ALLOC);
-    rsv_count = reu_count_type(REU_RESERVED);
-    rsc_count = reu_count_type(REU_RS_CACHE);
-    rst_count = reu_count_type(REU_RS_SCRATCH);
-    rs_count = (unsigned char)(rsc_count + rst_count);
 
     tui_puts(1, TITLE_Y + 1, "PHYS:", TUI_COLOR_WHITE);
     tui_print_uint(6, TITLE_Y + 1, reu_physical_banks, TUI_COLOR_WHITE);
@@ -231,35 +217,14 @@ static void draw_summary(void) {
     tui_puts(12, TITLE_Y + 1, "SK:", TUI_COLOR_ORANGE);
     tui_print_uint(15, TITLE_Y + 1, *SHIM_REU_BANK_SKIP, TUI_COLOR_ORANGE);
 
-    tui_puts(20, TITLE_Y + 1, "F:", TUI_COLOR_GRAY2);
-    tui_print_uint(22, TITLE_Y + 1, free_count, TUI_COLOR_GRAY2);
+    tui_puts(20, TITLE_Y + 1, "FREE:", TUI_COLOR_GRAY2);
+    tui_print_uint(25, TITLE_Y + 1, free_count, TUI_COLOR_GRAY2);
 
-    tui_puts(27, TITLE_Y + 1, "A:", TUI_COLOR_CYAN);
-    tui_print_uint(29, TITLE_Y + 1, app_count, TUI_COLOR_CYAN);
-
-    tui_puts(34, TITLE_Y + 1, "U:", TUI_COLOR_LIGHTGREEN);
-    tui_print_uint(36, TITLE_Y + 1, alloc_count, TUI_COLOR_LIGHTGREEN);
-
-    tui_clear_line(TITLE_Y + 2, 0, 40, TUI_COLOR_WHITE);
-    tui_puts(1, TITLE_Y + 2, "RS:", TUI_COLOR_GRAY2);
-    tui_print_uint(4, TITLE_Y + 2, rs_count, TUI_COLOR_WHITE);
-    tui_puts(8, TITLE_Y + 2, "R:", TUI_COLOR_LIGHTRED);
-    tui_print_uint(10, TITLE_Y + 2, rsv_count, TUI_COLOR_LIGHTRED);
-    tui_puts(15, TITLE_Y + 2, "C:", TUI_COLOR_YELLOW);
-    tui_print_uint(17, TITLE_Y + 2, clip_count, TUI_COLOR_YELLOW);
-    tui_puts(22, TITLE_Y + 2, "S:", TUI_COLOR_LIGHTBLUE);
-    tui_print_uint(24, TITLE_Y + 2, rsc_count, TUI_COLOR_LIGHTBLUE);
-    tui_puts(29, TITLE_Y + 2, "T:", TUI_COLOR_ORANGE);
-    tui_print_uint(31, TITLE_Y + 2, rst_count, TUI_COLOR_ORANGE);
-    tui_puts(34, TITLE_Y + 2, "CB:", TUI_COLOR_LIGHTGREEN);
-    tui_puts(37, TITLE_Y + 2, control_bank_ok ? "OK" : "--",
+    tui_puts(31, TITLE_Y + 1, "CB:", TUI_COLOR_LIGHTGREEN);
+    tui_puts(34, TITLE_Y + 1, control_bank_ok ? "OK" : "--",
              control_bank_ok ? TUI_COLOR_LIGHTGREEN : TUI_COLOR_LIGHTRED);
-}
-
-static void draw_legend(void) {
-    tui_clear_line(3, 0, 40, TUI_COLOR_GRAY3);
-
-    tui_puts(0, 3, ".F A C U R L G X - S T", TUI_COLOR_GRAY3);
+    tui_puts(37, TITLE_Y + 1, "G", TUI_COLOR_GRAY3);
+    tui_print_uint(38, TITLE_Y + 1, control_bank_generation, TUI_COLOR_WHITE);
 }
 
 static void draw_grid(void) {
@@ -448,7 +413,6 @@ static void reuviewer_draw(void) {
     tui_clear(TUI_COLOR_BLUE);
     draw_header();
     draw_summary();
-    draw_legend();
     draw_grid();
     draw_detail();
     draw_help();
