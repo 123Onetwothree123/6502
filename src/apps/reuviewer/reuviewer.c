@@ -8,6 +8,7 @@
 #include "../../lib/tui.h"
 #include "../../lib/reu_mgr.h"
 #include "../../lib/reu_control_bank.h"
+#include "../../lib/reu_phys.h"
 #include "../../lib/resume_state.h"
 #include <c64.h>
 #include <conio.h>
@@ -38,7 +39,6 @@
 #define CHAR_RST    0x14  /* 'T' screen code */
 
 #define SHIM_CURRENT_BANK ((unsigned char*)0xC834)
-#define REU_TEST_OFF 0xFFF0u
 
 /*---------------------------------------------------------------------------
  * Static variables
@@ -47,7 +47,7 @@
 static unsigned char running;
 static unsigned char cursor_x;  /* 0-15 in grid */
 static unsigned char cursor_y_pos;  /* 0-15 in grid */
-static unsigned int reu_physical_banks;
+static unsigned char reu_physical_banks;
 static unsigned char control_header[8];
 static unsigned char control_bank_ok;
 static unsigned char control_bank_generation;
@@ -61,7 +61,6 @@ typedef struct {
 
 static ReuViewerResumeV1 resume_blob;
 static unsigned char resume_ready;
-static unsigned char probe_value;
 
 static void resume_save_state(void) {
     if (!resume_ready) {
@@ -93,46 +92,8 @@ static unsigned char resume_restore_state(void) {
     return 1;
 }
 
-static void reu_stash_probe_byte(unsigned char bank, unsigned char value) {
-    probe_value = value;
-    reu_dma_stash((unsigned int)&probe_value, bank, REU_TEST_OFF, 1u);
-}
-
-static unsigned char reu_fetch_probe_byte(unsigned char bank) {
-    probe_value = 0u;
-    reu_dma_fetch((unsigned int)&probe_value, bank, REU_TEST_OFF, 1u);
-    return probe_value;
-}
-
-static unsigned int reu_detect_physical_banks(void) {
-    unsigned char base_bank;
-    unsigned char base_orig;
-    unsigned char cand_orig;
-    unsigned char got;
-    unsigned int bank;
-
-    base_bank = *SHIM_REU_BANK_SKIP;
-    base_orig = reu_fetch_probe_byte(base_bank);
-    reu_stash_probe_byte(base_bank, 0x5Au);
-
-    for (bank = (unsigned int)base_bank + 1u; bank < 256u; ++bank) {
-        cand_orig = reu_fetch_probe_byte((unsigned char)bank);
-        reu_stash_probe_byte((unsigned char)bank, 0xC3u);
-        got = reu_fetch_probe_byte(base_bank);
-        reu_stash_probe_byte((unsigned char)bank, cand_orig);
-        if (got == 0xC3u) {
-            reu_stash_probe_byte(base_bank, base_orig);
-            return (unsigned int)(bank - base_bank);
-        }
-    }
-
-    reu_stash_probe_byte(base_bank, base_orig);
-    return 256u;
-}
-
 static unsigned char bank_is_unavailable(unsigned char bank) {
-    return (unsigned char)(reu_physical_banks < 256u &&
-                           (unsigned int)bank >= reu_physical_banks);
+    return reu_phys_is_unavailable(reu_physical_banks, bank);
 }
 
 static void reuviewer_read_control_bank_header(void) {
@@ -145,6 +106,13 @@ static void reuviewer_read_control_bank_header(void) {
         control_header[3] == REUCB_MAGIC3 &&
         control_header[4] == REUCB_SCHEMA_VERSION);
     control_bank_generation = control_header[6];
+    if (control_bank_ok) {
+        reu_dma_fetch((unsigned int)&reu_physical_banks,
+                      REU_READYOS_GLOBAL_PHYSICAL(),
+                      REUCB_HEADER_PHYS_BANKS, 1u);
+    } else {
+        reu_physical_banks = reu_phys_count_from_alloc_table();
+    }
 }
 
 static void reuviewer_fetch_app_name(unsigned char app_index) {
@@ -212,7 +180,8 @@ static void draw_summary(void) {
     free_count = reu_count_free();
 
     tui_puts(1, TITLE_Y + 1, "PHYS:", TUI_COLOR_WHITE);
-    tui_print_uint(6, TITLE_Y + 1, reu_physical_banks, TUI_COLOR_WHITE);
+    tui_print_uint(6, TITLE_Y + 1,
+                   reu_phys_display_count(reu_physical_banks), TUI_COLOR_WHITE);
 
     tui_puts(12, TITLE_Y + 1, "SK:", TUI_COLOR_ORANGE);
     tui_print_uint(15, TITLE_Y + 1, *SHIM_REU_BANK_SKIP, TUI_COLOR_ORANGE);
@@ -404,7 +373,8 @@ static void draw_status(void) {
     tui_puts_n(0, STATUS_Y, "FREE: ", 6, TUI_COLOR_GRAY3);
     tui_print_uint(6, STATUS_Y, free_count, TUI_COLOR_WHITE);
     tui_puts(10, STATUS_Y, "/ PHYS ", TUI_COLOR_GRAY3);
-    tui_print_uint(17, STATUS_Y, reu_physical_banks, TUI_COLOR_GRAY3);
+    tui_print_uint(17, STATUS_Y,
+                   reu_phys_display_count(reu_physical_banks), TUI_COLOR_GRAY3);
     tui_puts(25, STATUS_Y, "CBGEN:", TUI_COLOR_GRAY3);
     tui_print_uint(31, STATUS_Y, control_bank_generation, TUI_COLOR_WHITE);
 }
@@ -498,7 +468,6 @@ int main(void) {
     reu_mgr_init();
     reu_control_bank_sync_and_mirror(REUCB_WRITER_REUVIEWER);
     reuviewer_read_control_bank_header();
-    reu_physical_banks = reu_detect_physical_banks();
 
     resume_ready = 0;
     bank = *SHIM_CURRENT_BANK;

@@ -31,6 +31,9 @@ static void reu_mark_bitmap_slot(unsigned char logical_bank, unsigned char is_lo
 
     phys = REU_LOGICAL_TO_PHYSICAL(logical_bank);
     type = REU_ALLOC_TABLE[phys];
+    if (type == REU_UNAVAIL) {
+        return;
+    }
     if (is_loaded) {
         REU_ALLOC_TABLE[phys] = REU_APP_STATE;
     } else if (type == REU_RESERVED) {

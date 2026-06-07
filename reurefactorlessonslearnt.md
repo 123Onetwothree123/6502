@@ -185,3 +185,17 @@
   region as LST/LDV/STV/PUT/ADD without a distinct ownership type, while unload
   stays simple because all ReadyShell scratch/diagnostic state belongs to the
   ReadyShell state resource.
+- Physical REU size must be launcher/system-owned, not viewer-local. The
+  launcher should probe once at startup, mark the unavailable physical tail in
+  `$C600-$C6FF`, mirror that to logical bank `0`, and publish the encoded count
+  in the `RCB0` header. REU Viewer should only consume those facts; otherwise a
+  smaller REU can show impossible totals or let display logic drift from
+  allocation policy.
+- Keep the destructive alias probe out of diagnostic apps. Splitting
+  `reu_phys.c` table helpers from launcher-only `reu_phys_probe.c` made the
+  shared cost small: launcher pays one BSS byte for the probe scratch, while
+  REU Viewer avoids probe BSS and only links display/table helpers.
+- Physical-size work is not verified by REU Viewer screenshots alone. The
+  final confidence point is disk plus EasyFlash VICE coverage, because the
+  cartridge SKU has a generated preload path and static resource metadata that
+  can drift from the disk launcher if it is not exercised.

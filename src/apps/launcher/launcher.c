@@ -8,6 +8,7 @@
 #include "../../lib/tui.h"
 #include "../../lib/resume_state.h"
 #include "../../lib/reu_control_bank.h"
+#include "../../lib/reu_phys.h"
 #include "../../generated/build_version.h"
 #ifndef READYOS_LAUNCHER_VARIANT_EASYFLASH
 #define READYOS_LAUNCHER_VARIANT_EASYFLASH 0
@@ -396,8 +397,19 @@ static unsigned char launcher_logical_to_physical(unsigned char logical_bank) {
     if (physical > 255u) {
         return 0xFFu;
     }
+    if (REU_ALLOC_TABLE[physical] == REU_UNAVAIL) {
+        return 0xFFu;
+    }
     return (unsigned char)physical;
 }
+
+#if READYOS_LAUNCHER_VARIANT_EASYFLASH
+static void launcher_mark_bank_if_available(unsigned char bank, unsigned char type) {
+    if (REU_ALLOC_TABLE[bank] != REU_UNAVAIL) {
+        REU_ALLOC_TABLE[bank] = type;
+    }
+}
+#endif
 
 static unsigned char launcher_catalog_uses_bank(unsigned char bank,
                                                 unsigned char except_index) {
@@ -2903,18 +2915,18 @@ static void launcher_mark_embedded_preloads_loaded(void) {
             app_rs_bank2[i] = READYOS_EASYFLASH_RS_CACHE_BANK2;
             app_rs_bank3[i] = READYOS_EASYFLASH_RS_CACHE_BANK3;
             app_rs_bank4[i] = READYOS_EASYFLASH_RS_STATE_BANK;
-            REU_ALLOC_TABLE[app_rs_bank1[i]] = REU_RS_CACHE;
-            REU_ALLOC_TABLE[app_rs_bank2[i]] = REU_RS_CACHE;
-            REU_ALLOC_TABLE[app_rs_bank3[i]] = REU_RS_CACHE;
-            REU_ALLOC_TABLE[app_rs_bank4[i]] = REU_RS_SCRATCH;
+            launcher_mark_bank_if_available(app_rs_bank1[i], REU_RS_CACHE);
+            launcher_mark_bank_if_available(app_rs_bank2[i], REU_RS_CACHE);
+            launcher_mark_bank_if_available(app_rs_bank3[i], REU_RS_CACHE);
+            launcher_mark_bank_if_available(app_rs_bank4[i], REU_RS_SCRATCH);
             app_resource_loaded[i] = 1u;
             launcher_write_easyflash_readyshell_records(i);
         } else if (app_resource_sets[i] == APP_RESOURCE_READYBASIC_CORE) {
             app_rs_bank1[i] = READYOS_EASYFLASH_RB_CORE_BANK;
             app_rs_bank2[i] = READYOS_EASYFLASH_RB_CODE_BANK;
             app_rs_bank3[i] = 0u;
-            REU_ALLOC_TABLE[app_rs_bank1[i]] = REU_RB_CORE;
-            REU_ALLOC_TABLE[app_rs_bank2[i]] = REU_RB_CODE;
+            launcher_mark_bank_if_available(app_rs_bank1[i], REU_RB_CORE);
+            launcher_mark_bank_if_available(app_rs_bank2[i], REU_RB_CODE);
             app_resource_loaded[i] = 1u;
             launcher_write_easyflash_readybasic_records(i);
         }
@@ -3806,6 +3818,7 @@ static void launcher_init(void) {
     unsigned char detail_c;
 
     tui_init();
+    reu_phys_apply_to_alloc_table(reu_phys_detect_bank_count());
     shim_suppress_startup_once =
         (unsigned char)((*SHIM_LAUNCHER_FLAGS & SHIM_LAUNCHER_FLAG_SUPPRESS_STARTUP) != 0u);
     *SHIM_LAUNCHER_FLAGS =

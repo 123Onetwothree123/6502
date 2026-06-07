@@ -48,7 +48,7 @@ def main() -> int:
     reuviewer = read("src/apps/reuviewer/reuviewer.c")
     makefile = read("Makefile")
 
-    require(define_int(hdr, "REUCB_SCHEMA_VERSION") == 3, "schema version is 3")
+    require(define_int(hdr, "REUCB_SCHEMA_VERSION") == 4, "schema version is 4")
     require(define_int(hdr, "REUCB_HEADER_OFF") == 0x0000, "header starts at $0000")
     require(define_int(hdr, "REUCB_HEADER_SIZE") == 0x0040, "header is 64 bytes")
     require(define_int(hdr, "REUCB_BANK_TYPE_OFF") == 0x0100, "bank table mirror starts at $0100")
@@ -75,6 +75,8 @@ def main() -> int:
     require(define_int(hdr, "REUCB_CATALOG_DESC_SIZE") == 39, "catalog description records are 39 bytes")
     require(define_int(hdr, "REUCB_CATALOG_FILE_OFF") == 0x4200, "catalog file tokens start at $4200")
     require(define_int(hdr, "REUCB_CATALOG_FILE_SIZE") == 13, "catalog file token records are 13 bytes")
+    require(define_int(hdr, "REUCB_HEADER_PHYS_BANKS") == 44, "header records physical bank count")
+    require(define_int(hdr, "REUCB_HEADER_FIRST_UNAVAIL") == 45, "header records first unavailable bank")
 
     require("REU_READYOS_GLOBAL_PHYSICAL()" in src, "control mirror records ReadyOS global bank")
     require("REU_LAUNCHER_PHYSICAL()" in src, "control mirror records launcher bank")
@@ -85,6 +87,9 @@ def main() -> int:
             "control mirror must not record fixed ReadyBASIC core/code banks")
     require("reu_dma_stash((unsigned int)REU_ALLOC_TABLE" in src,
             "control mirror stashes resident bank table")
+    require("reu_phys_count_from_alloc_table()" in src and
+            "REUCB_HEADER_PHYS_BANKS" in src,
+            "control mirror publishes physical REU size")
     require("reu_control_bank_write_launcher_registry" in registry,
             "control mirror writes launcher 64-app registry")
     require("app_rs_bank1 + first_app_index" in registry and
@@ -96,12 +101,21 @@ def main() -> int:
             "Makefile defines REU_CONTROL_BANK_SRC")
     require("REU_CONTROL_REGISTRY_SRC = $(LIB_DIR)/reu_control_registry.c" in makefile,
             "Makefile defines launcher-only control registry source")
+    require("REU_PHYS_SRC = $(LIB_DIR)/reu_phys.c" in makefile and
+            "REU_PHYS_PROBE_SRC = $(LIB_DIR)/reu_phys_probe.c" in makefile,
+            "Makefile defines physical REU modules")
     require("$(REU_CONTROL_BANK_SRC)" in make_var(makefile, "LIB_LAUNCHER"),
             "launcher links control bank module")
+    require("$(REU_PHYS_SRC)" in make_var(makefile, "LIB_LAUNCHER") and
+            "$(REU_PHYS_PROBE_SRC)" in make_var(makefile, "LIB_LAUNCHER"),
+            "launcher links physical REU probe and table module")
     require("$(REU_CONTROL_REGISTRY_SRC)" in make_var(makefile, "LIB_LAUNCHER"),
             "launcher links control registry module")
     require("$(REU_CONTROL_BANK_SRC)" in make_var(makefile, "LIB_REUVIEWER"),
             "reuviewer links control bank module")
+    require("$(REU_PHYS_SRC)" in make_var(makefile, "LIB_REUVIEWER") and
+            "$(REU_PHYS_PROBE_SRC)" not in make_var(makefile, "LIB_REUVIEWER"),
+            "reuviewer links physical table helpers without probe")
     require("$(REU_CONTROL_REGISTRY_SRC)" not in make_var(makefile, "LIB_REUVIEWER"),
             "reuviewer does not link launcher registry writer")
     require("$(REU_CONTROL_BANK_SRC)" not in make_var(makefile, "LIB_REU_DMA"),
@@ -111,6 +125,8 @@ def main() -> int:
 
     require("launcher_mirror_reu_control();" in launcher,
             "launcher refreshes control mirror")
+    require("reu_phys_apply_to_alloc_table(reu_phys_detect_bank_count())" in launcher,
+            "launcher probes physical REU size before allocation")
     require("reu_control_bank_write_launcher_registry(" in launcher,
             "launcher mirrors app registry into control bank")
     require("catalog_store_entry" in launcher and
@@ -146,6 +162,10 @@ def main() -> int:
     require("reuviewer_read_control_bank_header" in reuviewer and '"CB:"' in reuviewer and
             "control_bank_generation" in reuviewer,
             "reuviewer displays compact control-bank header status")
+    require("REUCB_HEADER_PHYS_BANKS" in reuviewer and
+            "reu_phys_display_count" in reuviewer and
+            "reu_phys_detect_bank_count" not in reuviewer,
+            "reuviewer displays launcher-published physical REU size")
     require("reuviewer_find_resource_for_bank" in reuviewer and "OWNER:" in reuviewer,
             "reuviewer decodes rich app/resource ownership records")
 

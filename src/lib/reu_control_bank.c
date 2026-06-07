@@ -3,6 +3,7 @@
  */
 
 #include "reu_control_bank.h"
+#include "reu_phys.h"
 
 static unsigned char reucb_header[REUCB_HEADER_SIZE];
 static unsigned char reucb_zero[REUCB_HEADER_SIZE];
@@ -23,6 +24,9 @@ static void reucb_mark_bitmap_slot(unsigned char logical_bank, unsigned char is_
 
     phys = REU_LOGICAL_TO_PHYSICAL(logical_bank);
     type = REU_ALLOC_TABLE[phys];
+    if (type == REU_UNAVAIL) {
+        return;
+    }
     if (is_loaded) {
         REU_ALLOC_TABLE[phys] = REU_APP_STATE;
     } else if (type == REU_RESERVED) {
@@ -66,7 +70,10 @@ static void reucb_sync_from_bitmap(void) {
 }
 
 static void reucb_write_header(unsigned char control_bank, unsigned char writer_id) {
+    unsigned char physical_banks;
+
     reucb_zero_buf(reucb_header, REUCB_HEADER_SIZE);
+    physical_banks = reu_phys_count_from_alloc_table();
 
     reucb_header[0] = REUCB_MAGIC0;
     reucb_header[1] = REUCB_MAGIC1;
@@ -76,12 +83,12 @@ static void reucb_write_header(unsigned char control_bank, unsigned char writer_
     reucb_header[5] = REUCB_HEADER_SIZE;
     reucb_header[6] = ++reucb_generation;
     reucb_header[7] = writer_id;
-    reucb_header[8] = *SHIM_REU_BANK_SKIP;
-    reucb_header[9] = control_bank;
-    reucb_header[10] = REU_LAUNCHER_PHYSICAL();
-    reucb_header[11] = REU_LAUNCHER_OVERLAY_PHYSICAL();
-    reucb_header[12] = REU_FIRST_DYNAMIC_PHYSICAL();
-    reucb_header[13] = REU_TOTAL_BANKS & 0xFFu; /* 0 means 256 banks. */
+    reucb_header[REUCB_HEADER_REU_SKIP] = *SHIM_REU_BANK_SKIP;
+    reucb_header[REUCB_HEADER_CONTROL_BANK] = control_bank;
+    reucb_header[REUCB_HEADER_LAUNCHER_BANK] = REU_LAUNCHER_PHYSICAL();
+    reucb_header[REUCB_HEADER_LAUNCHER_OVL] = REU_LAUNCHER_OVERLAY_PHYSICAL();
+    reucb_header[REUCB_HEADER_FIRST_DYNAMIC] = REU_FIRST_DYNAMIC_PHYSICAL();
+    reucb_header[REUCB_HEADER_LOGICAL_BANKS] = REU_TOTAL_BANKS & 0xFFu; /* 0 means 256 banks. */
     reucb_header[14] = (unsigned char)(REUCB_BANK_TYPE_OFF & 0xFFu);
     reucb_header[15] = (unsigned char)(REUCB_BANK_TYPE_OFF >> 8);
     reucb_header[16] = (unsigned char)(REUCB_BANK_TYPE_SIZE & 0xFFu);
@@ -112,6 +119,9 @@ static void reucb_write_header(unsigned char control_bank, unsigned char writer_
     reucb_header[41] = (unsigned char)(REUCB_DEP_LINE_OFF >> 8);
     reucb_header[42] = REUCB_DEP_LINE_COUNT;
     reucb_header[43] = REUCB_DEP_LINE_SIZE;
+    reucb_header[REUCB_HEADER_PHYS_BANKS] = physical_banks;
+    reucb_header[REUCB_HEADER_FIRST_UNAVAIL] = physical_banks;
+    reucb_header[REUCB_HEADER_FLAGS] = REUCB_HEADER_FLAG_PHYS_SIZE;
 
     reu_dma_stash((unsigned int)reucb_header, control_bank,
                   REUCB_HEADER_OFF, REUCB_HEADER_SIZE);

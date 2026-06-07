@@ -122,6 +122,100 @@ ReadyBASIC headless VICE suite status for this checkpoint is tracked in
 `agentworking/reu_rich_registry_working_notes.md` and should be kept current
 with the final command result before the branch is merged.
 
+## Physical REU Size Authority Checkpoint 2026-06-06
+
+This checkpoint makes physical REU size a launcher-owned system fact instead
+of a REU Viewer local probe. The practical bug it fixes is the 8MB case where
+the resident table correctly had unavailable banks but REU Viewer still counted
+past the physical end and could report impossible totals such as `211/128`
+free banks.
+
+Implemented:
+
+- logical REU bank `0` mirror schema advanced to `RCB0`, version `4`;
+- the resident `$C600-$C6FF` allocation table remains the hot 256-byte bank
+  classification table, but the launcher now probes physical REU size during
+  `launcher_init()` before app/resource allocation;
+- banks beyond the detected physical end are marked `REU_UNAVAIL` (`0x0A`) in
+  `$C600-$C6FF`;
+- the existing bank `0` mirror at `$0100-$01FF` receives those unavailable
+  markers just like any other hot table state;
+- the `RCB0` header publishes the encoded physical bank count at byte `44`,
+  the first unavailable bank at byte `45`, and feature flags at byte `46`;
+- the encoding remains one byte: `0` means `256` physical banks, otherwise the
+  byte value is the physical bank count and first unavailable bank;
+- REU Viewer no longer probes or writes REU just to discover size. It reads the
+  launcher-published header byte when bank `0` is valid, with a table-derived
+  fallback only for broken/missing control-bank state;
+- EasyFlash static preload marking now respects `REU_UNAVAIL`, so cartridge
+  generated resource banks cannot accidentally overwrite unavailable physical
+  slots in smaller REU configurations.
+
+Shim and resident-memory status:
+
+- no shim code or shim ABI byte changed in this checkpoint;
+- the `$C800-$C9FF` resident shim remains exactly `512` bytes;
+- the full shim-adjacent resident region remains the same `1KB`:
+  - `$C600-$C6FF`: 256-byte bank allocation/type table;
+  - `$C700-$C7FF`: existing system metadata/reserved bytes;
+  - `$C800-$C9FF`: 512-byte resident shim;
+- no new resident table was added. The physical-size fact is represented by
+  existing `REU_UNAVAIL` entries in `$C600-$C6FF` plus three header bytes in
+  logical REU bank `0`.
+
+Micromodule split:
+
+- `src/lib/reu_phys.c` is the tiny shared table-policy helper linked by the
+  launcher, REU Viewer, and control-bank writer;
+- `src/lib/reu_phys_probe.c` is linked by the launcher only. This keeps the
+  alias-probe code and its one-byte BSS scratch out of REU Viewer and normal
+  apps;
+- `src/lib/reu_control_bank.c` derives the published physical count from the
+  allocation table when writing the `RCB0` header.
+
+Measured app-window impact against the pre-checkpoint snapshots in
+`agentworking/reu_physical_size_headroom_before.json` and
+`agentworking/reu_physical_size_easyflash_headroom_before.json`:
+
+| App | Before | Final | Delta | CODE | RODATA | DATA | BSS |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| launcher | 5861 | 5374 | -487 | +486 | 0 | 0 | +1 |
+| launcher_easyflash | 18209 | 17757 | -452 | +451 | 0 | 0 | +1 |
+| reuviewer | 29540 | 29411 | -129 | +131 | 0 | 0 | -2 |
+
+Interpretation: the only BSS cost is the launcher probe byte. REU Viewer pays
+small CODE for displaying the system-owned size but drops its local probe
+scratch. Normal apps do not link either physical-size module.
+
+Focused verification/screenshot evidence before full slow regression:
+
+- static control-bank verifier updated for schema `4` and the physical-size
+  module split;
+- 8MB VICE run `logs/vice_auto_20260606_193409` showed
+  `PHYS:128`, `FREE:83`, `CB:OK`, and banks `$80-$FF` displayed as
+  unavailable;
+- 16MB VICE run `logs/vice_auto_20260606_193505` showed
+  `PHYS:256`, `FREE:211`, and no unavailable physical tail.
+
+Full regression verification completed after the checkpoint:
+
+- `python3 build_support/verify_reu_control_bank.py`;
+- `python3 build_support/verify_dynamic_launcher.py`;
+- `git diff --check`;
+- regular ReadyBASIC VICE suites via `READYBASIC_VISIBLE=0
+  READYBASIC_KEEP_VICE=0 make readybasic-vice-suites`;
+- regular ReadyShell VICE probe via
+  `READYSHELL_VISIBLE=0 build_support/run_readyshell_cross_app_resume_probe.sh`;
+- full EasyFlash/cartridge VICE suites via `READYBASIC_VISIBLE=0
+  READYBASIC_KEEP_VICE=0 READYSHELL_VISIBLE=0 make easyflash-vice-suites`.
+
+The cartridge run generated EasyFlash plans from the regular plans and passed
+the ReadyBASIC demo, repeat/label, lifecycle, module overlay, plugin command,
+program, `rbtest1`, minimal resume, screen REU temp, state, large-vars,
+cross-app resume, second-entry/editor, full visual verification, and ReadyShell
+cross-app/CAT probes. This is the current proof point that both disk and
+cartridge SKUs honor the same physical-size/unavailable-tail contract.
+
 ## REU Bank-0 Lookup Checkpoint 2026-06-06
 
 This checkpoint removes the remaining false "reserved app slot" pool from the
@@ -351,7 +445,7 @@ the cartridge launcher, verifies `PRINT 6*7` produces `42`, and verifies
 `ZADD16(1,2)` produces `SUM 3`. The ReadyShell probe enters ReadyShell from the
 cartridge launcher and verifies `VER` plus `LST "RSHELP"`.
 
-## Current v3 Architecture Detail
+## Current v4 Architecture Detail
 
 This section is the current implemented contract for logical REU bank `0`.
 Older sections in this document preserve the design history and earlier
@@ -360,7 +454,7 @@ implementation status above describe the current branch behavior.
 
 ### Shim Change Status
 
-The final v3 rich-registry commit did not change `src/shim/*`. Across the full
+The v4 physical-size checkpoint did not change `src/shim/*`. Across the full
 `codex/reu-control-bank-refactor` branch, however, the resident shim contract
 did change in a small and deliberate way:
 
@@ -692,17 +786,19 @@ jt_fetch_bank   = $C815     ; Helper: fetch from bank in A
 
 ### Implemented Logical Bank 0 Layout
 
-The implemented v3 layout deliberately separates "hot, cheap to copy" state
+The implemented v4 layout deliberately separates "hot, cheap to copy" state
 from richer loader-owned relationship metadata.
 
 ```text
 $0000-$003F  RCB0 header
-             magic/version, generation, writer id, skip, section offsets
+             magic/version, generation, writer id, skip, section offsets,
+             encoded physical bank count, first unavailable bank, flags
 
 $0040-$00FF  reserved zero-filled header extension area
 
 $0100-$01FF  bank-type table mirror
-             256 bytes copied from resident $C600-style REU allocation state
+             256 bytes copied from resident $C600-style REU allocation state;
+             physical banks beyond detected REU size are REU_UNAVAIL ($0A)
 
 $0200-$024F  compact fixed-resource records
              10 records * 8 bytes for system/launcher/fixed subsystem roots
@@ -745,8 +841,8 @@ $4200-$453F  launcher cold catalog file tokens
 $4540+       reserved future expansion
 ```
 
-The overlap between the older `$0900` reserved dependency area and the v3
-`$0A00` rich record area is historical debt from the v2 reservation. The v3
+The overlap between the older `$0900` reserved dependency area and the v4
+`$0A00` rich record area is historical debt from the v2 reservation. The v4
 code treats `$0A00` and `$0E00` as the rich-resource authority and keeps the
 hot copy paths bounded. A future schema cleanup may retire or repack the v2
 reserved range, but this branch does not need that churn to satisfy the current
@@ -757,8 +853,8 @@ behavior.
 ```mermaid
 flowchart TB
     subgraph B0["Logical REU bank 0 / physical READYOS_REU_BANK_SKIP + 0"]
-        H["$0000 header\nRCB0 v3, generation, writer, skip, section offsets"]
-        R["$0100 bank type mirror\nfast 256-byte image of live REU use"]
+        H["$0000 header\nRCB0 v4, generation, writer, skip,\nsection offsets, physical bank count"]
+        R["$0100 bank type mirror\nfast 256-byte image of live REU use\nREU_UNAVAIL marks physical tail beyond REU size"]
         F["$0200 fixed roots\nsystem, launcher snapshot, launcher overlay\n(no fixed ReadyShell debug/scratch bank)"]
         A["$0300 hot app registry\n64 app ids, snapshot banks, flags,\nresource set, resource-loaded flag, drive/hotkey"]
         M["$0500 app metadata\nshort file/app token table"]
@@ -773,6 +869,8 @@ flowchart TB
     end
 
     C600["$C600-$C7FF resident hot state"] -->|"mirrored by launcher/control-bank writer"| R
+    LAUNCH -->|"probes once at launch and marks unavailable tail"| C600
+    H -->|"publishes encoded physical bank count"| VIEW
     CFG["apps.cfg / app.* manifest"] -->|"bounded dependency line"| L
     CFG -->|"catalog text stored cold"| N
     CFG --> DS
@@ -1277,8 +1375,9 @@ and small.
 ## Historical Pre-Refactor Baseline Summary
 
 This section preserves the baseline understanding from the start of the
-refactor. It is historical context, not the current v3 contract. The implemented
-v3 contract is described in "Implementation Status 2026-06-04" and "Current v3
+refactor. It is historical context, not the current v4 contract. The implemented
+v4 contract is described in "Implementation Status 2026-06-04",
+"Physical REU Size Authority Checkpoint 2026-06-06", and "Current v4
 Architecture Detail" above.
 
 Pre-refactor effective REU model:
