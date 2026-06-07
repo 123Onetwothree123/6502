@@ -328,8 +328,9 @@ REU layout:
   type mirror, 64-entry app registry, app/catalog metadata, resource records,
   copied dependency/source lines, and the shim token-to-physical-bank lookup
   page
-- launcher snapshot and launcher overlay/state banks: loader-owned system
-  resources
+- launcher snapshot/resume bank at `Start+1`: loader-owned system resource
+- `Start+2` and above: available to dynamic allocation; no launcher overlay
+  bank is reserved there
 - app snapshots: allocated on demand by the launcher, then resolved by token
   through logical REU bank `0`
 - clipboard payload banks: allocated from the dynamic pool

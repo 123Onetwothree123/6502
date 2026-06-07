@@ -175,9 +175,11 @@
   allocations until unload/free, and let resource/app ownership records in
   bank `0` explain who owns a bank.
 - `skip+26` is retired as a resource/dynamic allocation base. Start scanning at
-  `skip+3` and trust the allocation table to skip system banks, app snapshots,
-  and resources already in use. This recovered app-side code in the split REU
-  manager while costing launcher only 112 bytes for the lookup-page mirror.
+  `skip+2`; the old `skip+3` start only existed while the retired launcher
+  overlay reserve occupied `skip+2`. Trust the allocation table to skip system banks,
+  app snapshots, and resources already in use. This recovered app-side code in
+  the split REU manager while costing launcher only 112 bytes for the
+  lookup-page mirror.
 - ReadyShell diagnostics and CAT did not need a separate fixed support bank.
   The better shape is a small reserved tail inside the loader-assigned
   ReadyShell state bank (`+$7DE0-+$7FFF`) plus shared command scratch in the

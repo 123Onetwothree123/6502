@@ -229,7 +229,7 @@ void reu_dma_stash(unsigned int c64_addr, unsigned char bank,
 #define REU_LAUNCHER_PHYSICAL() ((unsigned char)(*SHIM_REU_BANK_SKIP + 1u))
 #define REU_LOGICAL_TO_PHYSICAL(bank) \
     ((unsigned char)(*SHIM_REU_BANK_SKIP + \
-     (((unsigned char)(bank) == 0u) ? 1u : (2u + (unsigned char)(bank)))))
+     (((unsigned char)(bank) == 0u) ? 1u : (1u + (unsigned char)(bank)))))
 #define LAUNCHER_RESUME_SCHEMA 8
 
 /* App save size - must include code + data + BSS */
@@ -393,7 +393,7 @@ static void launcher_set_startup_suppressed(void) {
 static unsigned char launcher_logical_to_physical(unsigned char logical_bank) {
     unsigned int physical;
 
-    physical = (unsigned int)(*SHIM_REU_BANK_SKIP) + 2u + logical_bank;
+    physical = (unsigned int)(*SHIM_REU_BANK_SKIP) + 1u + logical_bank;
     if (physical > 255u) {
         return 0xFFu;
     }
@@ -2089,7 +2089,7 @@ static unsigned char launcher_alloc_physical_resource_bank(unsigned char type) {
     unsigned int bank;
     unsigned int first;
 
-    first = (unsigned int)(*SHIM_REU_BANK_SKIP) + 3u;
+    first = (unsigned int)(*SHIM_REU_BANK_SKIP) + 2u;
     if (first >= REU_TOTAL_BANKS) {
         return 0u;
     }

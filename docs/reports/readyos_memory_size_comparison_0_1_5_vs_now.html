@@ -118,10 +118,11 @@
     <div class="note">
       <strong>Current REU physical placement:</strong> <code>Start</code> is
       <code>READYOS_REU_BANK_SKIP</code>; <code>Start+0</code> is system/global,
-      <code>Start+1</code> is launcher logical bank <code>0</code>,
-      <code>Start+2</code> is reserved for future launcher overlays, app logical
-      bank <code>N</code> maps to <code>Start+2+N</code>, and dynamic allocation begins
-      at <code>Start+26</code>.
+      <code>Start+1</code> is the launcher snapshot/resume bank for launcher token
+      <code>0</code>, <code>Start+2</code> is the first dynamic allocation bank,
+      app/resource logical bank <code>N &gt; 0</code> maps to
+      <code>Start+1+N</code>, and dynamic allocation begins at
+      <code>Start+2</code>.
     </div>
     <div class="note">
       <strong>Comparison scope correction:</strong> the historical 0.1.5 table
@@ -141,7 +142,7 @@
       <li>Shim resident window: <code>0xC800-0xC9FF</code>.</li>
       <li>Logical REU bank <code>0</code> is now the ReadyOS control/global bank: compact bank mirror, app registry, resource records, catalog metadata, dependency/source lines, and shim token lookup live there.</li>
       <li>Clipboard metadata lives in RAM; active clipboard payloads allocate one dynamic REU bank per item rather than using one packed shared bank.</li>
-      <li>App snapshots are launcher-assigned on demand and resolved through the logical bank <code>0</code> token lookup instead of a fixed <code>Start+3..Start+25</code> app-slot gap.</li>
+      <li>App snapshots are launcher-assigned on demand and resolved through the logical bank <code>0</code> token lookup; logical app/resource bank <code>1</code> can map to <code>Start+2</code> instead of sitting behind a fixed app-slot gap.</li>
       <li>Dynamic allocator start is profile/runtime dependent after the loader-owned system resources are reserved.</li>
       <li>ReadyShell overlay cache banks are loader-assigned resources described by the <code>rsovl+</code> profile/manifest data and mirrored into bank <code>0</code> resource records.</li>
       <li>Historical note: this report originally listed ReadyShell REU debug bank <code>0x43</code> and scratch/registry/value bank <code>0x48</code>.</li>

@@ -18,8 +18,7 @@
 /* REU bank allocation */
 #define REU_BANK_SYSTEM           0
 #define REU_BANK_LAUNCHER         1
-#define REU_BANK_LAUNCHER_OVERLAY 2
-#define REU_BANK_APP_BASE         3
+#define REU_BANK_APP_BASE         2
 
 /*---------------------------------------------------------------------------
  * Registry Data Structures

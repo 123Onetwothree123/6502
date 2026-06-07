@@ -10,8 +10,7 @@
 ; REU Banks are physical = READYOS_REU_BANK_SKIP + offset.
 ;   Start:   ReadyOS global bank
 ;   Start+1: logical launcher bank 0
-;   Start+2: reserved future launcher overlay bank
-;   Start+3: logical app bank 1
+;   Start+2: logical app/resource bank 1
 ;-----------------------------------------------------------------------------
 
 .segment "LOADADDR"

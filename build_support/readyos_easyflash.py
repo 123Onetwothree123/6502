@@ -279,10 +279,10 @@ def catalog_needs_readybasic_resources(catalog: Dict[str, object]) -> bool:
 
 def catalog_resource_banks(catalog: Dict[str, object]) -> Dict[str, List[int]]:
     reu_bank_skip = reu_bank_skip_from_system(catalog["system"])
-    used = {reu_bank_skip, reu_bank_skip + 1, reu_bank_skip + 2}
+    used = {reu_bank_skip, reu_bank_skip + 1}
     for entry in list(catalog["apps"]):
-        used.add(reu_bank_skip + 2 + int(entry["bank"]))
-    first_resource_bank = reu_bank_skip + 3
+        used.add(reu_bank_skip + 1 + int(entry["bank"]))
+    first_resource_bank = reu_bank_skip + 2
     rs_banks = [0, 0, 0, 0]
     rb_banks = [0, 0]
     if catalog_needs_readyshell_resources(catalog):
@@ -314,7 +314,7 @@ def catalog_readybasic_banks(catalog: Dict[str, object]) -> List[int]:
 def build_layout(catalog: Dict[str, object]) -> Dict[str, object]:
     next_bank = 1
     reu_bank_skip = reu_bank_skip_from_system(catalog["system"])
-    used_reu_banks = {reu_bank_skip, reu_bank_skip + 1, reu_bank_skip + 2}
+    used_reu_banks = {reu_bank_skip, reu_bank_skip + 1}
     needs_readyshell_resources = catalog_needs_readyshell_resources(catalog)
     resource_banks = catalog_resource_banks(catalog)
 
@@ -362,7 +362,7 @@ def build_layout(catalog: Dict[str, object]) -> Dict[str, object]:
             "default_slot": int(entry["default_slot"]),
             "resource_set": int(entry.get("resource_set", RESOURCE_NONE)),
         })
-        used_reu_banks.add(reu_bank_skip + 2 + int(entry["bank"]))
+        used_reu_banks.add(reu_bank_skip + 1 + int(entry["bank"]))
         next_bank += bank_span
 
     for name, rel_path, reu_slot, reu_off, valid_bit in OVERLAY_SPECS:

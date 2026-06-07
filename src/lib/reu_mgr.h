@@ -28,7 +28,7 @@
 #define REU_TOTAL_BANKS  256
 
 /* Logical app snapshot tokens start at 1. Physical dynamic allocation starts
- * immediately after ReadyOS global, launcher, and launcher overlay banks. */
+ * immediately after the ReadyOS global/control bank and launcher snapshot. */
 #define REU_FIRST_DYNAMIC 1
 
 /* Shim bitmap at $C836-$C838 (tracks which app banks are loaded) */
@@ -39,11 +39,10 @@
 
 #define REU_READYOS_GLOBAL_PHYSICAL() ((unsigned char)(*SHIM_REU_BANK_SKIP))
 #define REU_LAUNCHER_PHYSICAL()       ((unsigned char)(*SHIM_REU_BANK_SKIP + 1u))
-#define REU_LAUNCHER_OVERLAY_PHYSICAL() ((unsigned char)(*SHIM_REU_BANK_SKIP + 2u))
 #define REU_LOGICAL_TO_PHYSICAL(bank) \
     ((unsigned char)(*SHIM_REU_BANK_SKIP + \
-     (((unsigned char)(bank) == 0u) ? 1u : (2u + (unsigned char)(bank)))))
-#define REU_FIRST_DYNAMIC_PHYSICAL()  ((unsigned char)(*SHIM_REU_BANK_SKIP + 3u))
+     (((unsigned char)(bank) == 0u) ? 1u : (1u + (unsigned char)(bank)))))
+#define REU_FIRST_DYNAMIC_PHYSICAL()  ((unsigned char)(*SHIM_REU_BANK_SKIP + 2u))
 
 /* Initialize REU manager (safe to call multiple times) */
 void reu_mgr_init(void);

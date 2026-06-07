@@ -62,7 +62,7 @@ def main() -> int:
     )
     check("allocator dynamic pool starts after ReadyOS system banks",
           "#define REU_FIRST_DYNAMIC 1" in reu_mgr and
-          "*SHIM_REU_BANK_SKIP + 3u" in reu_mgr)
+          "*SHIM_REU_BANK_SKIP + 2u" in reu_mgr)
     check("REU bank 0 publishes shim token lookup page",
           "REUCB_SHIM_LOOKUP_OFF" in reu_control and
           "REUCB_SHIM_LOOKUP_SIZE" in reu_control and

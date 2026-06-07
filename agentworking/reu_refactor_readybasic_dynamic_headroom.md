@@ -5,11 +5,11 @@ launcher-assigned `rbcore` resources instead of fixed `$44/$45` banks.
 
 Before snapshot:
 
-- `agentworkijg/reu_refactor_headroom_before_readybasic_dynamic.json`
+- `agentworking/reu_refactor_headroom_before_readybasic_dynamic.json`
 
 After snapshot:
 
-- `agentworkijg/reu_refactor_headroom_after_readybasic_dynamic.json`
+- `agentworking/reu_refactor_headroom_after_readybasic_dynamic.json`
 
 | App | Before | After | Delta |
 | --- | ---: | ---: | ---: |

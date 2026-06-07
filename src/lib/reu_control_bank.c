@@ -48,7 +48,6 @@ static void reucb_sync_from_bitmap(void) {
 
     REU_ALLOC_TABLE[REU_READYOS_GLOBAL_PHYSICAL()] = REU_GLOBAL;
     REU_ALLOC_TABLE[REU_LAUNCHER_PHYSICAL()] = REU_LAUNCHER;
-    REU_ALLOC_TABLE[REU_LAUNCHER_OVERLAY_PHYSICAL()] = REU_LAUNCHER;
 
     for (bank = 1; bank < 8; ++bank) {
         mask = (unsigned char)(1u << bank);
@@ -86,7 +85,7 @@ static void reucb_write_header(unsigned char control_bank, unsigned char writer_
     reucb_header[REUCB_HEADER_REU_SKIP] = *SHIM_REU_BANK_SKIP;
     reucb_header[REUCB_HEADER_CONTROL_BANK] = control_bank;
     reucb_header[REUCB_HEADER_LAUNCHER_BANK] = REU_LAUNCHER_PHYSICAL();
-    reucb_header[REUCB_HEADER_LAUNCHER_OVL] = REU_LAUNCHER_OVERLAY_PHYSICAL();
+    reucb_header[REUCB_HEADER_LAUNCHER_OVL] = 0u;
     reucb_header[REUCB_HEADER_FIRST_DYNAMIC] = REU_FIRST_DYNAMIC_PHYSICAL();
     reucb_header[REUCB_HEADER_LOGICAL_BANKS] = REU_TOTAL_BANKS & 0xFFu; /* 0 means 256 banks. */
     reucb_header[14] = (unsigned char)(REUCB_BANK_TYPE_OFF & 0xFFu);
@@ -154,8 +153,8 @@ static void reucb_write_resources(unsigned char control_bank) {
                          REU_GLOBAL, REUCB_OWNER_SYSTEM, REUCB_ROLE_GLOBAL);
     reucb_write_resource(control_bank, 1, REU_LAUNCHER_PHYSICAL(),
                          REU_LAUNCHER, REUCB_OWNER_LAUNCHER, REUCB_ROLE_SNAPSHOT);
-    reucb_write_resource(control_bank, 2, REU_LAUNCHER_OVERLAY_PHYSICAL(),
-                         REU_LAUNCHER, REUCB_OWNER_LAUNCHER, REUCB_ROLE_OVERLAY);
+    reucb_write_resource(control_bank, 2, 0,
+                         REU_FREE, 0, 0);
     reucb_write_resource(control_bank, 6, 0,
                          REU_FREE, 0, 0);
     reucb_write_resource(control_bank, 7, 0,
@@ -177,7 +176,7 @@ static void reucb_write_shim_lookup(unsigned char control_bank) {
             if (start == 0u && i == 0u) {
                 reucb_zero[i] = 0u;
             } else {
-                physical = (unsigned int)skip + 2u + start + i;
+                physical = (unsigned int)skip + 1u + start + i;
                 reucb_zero[i] = (physical > 255u) ? 0u : (unsigned char)physical;
             }
         }

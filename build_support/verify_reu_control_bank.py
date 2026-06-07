@@ -80,6 +80,8 @@ def main() -> int:
 
     require("REU_READYOS_GLOBAL_PHYSICAL()" in src, "control mirror records ReadyOS global bank")
     require("REU_LAUNCHER_PHYSICAL()" in src, "control mirror records launcher bank")
+    require("REU_LAUNCHER_OVERLAY_PHYSICAL()" not in src,
+            "control mirror does not reserve a launcher overlay bank")
     require("REU_BANK_RS_CACHE" not in src, "control mirror no longer records fixed ReadyShell cache banks")
     require("REU_BANK_RS_SCRATCH" not in src, "control mirror no longer records fixed ReadyShell scratch bank")
     require("REU_BANK_RS_DEBUG" not in src, "control mirror no longer records fixed ReadyShell debug bank")

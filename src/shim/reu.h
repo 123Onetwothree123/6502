@@ -15,10 +15,9 @@
 /* REU Bank Allocation for Ready OS */
 #define REU_BANK_SYSTEM           0   /* System/global state */
 #define REU_BANK_LAUNCHER         1   /* Launcher snapshot */
-#define REU_BANK_LAUNCHER_OVERLAY 2   /* Reserved launcher overlay bank */
-#define REU_BANK_APP_BASE         3   /* Dynamic app/resource pool starts here */
+#define REU_BANK_APP_BASE         2   /* Dynamic app/resource pool starts here */
 #define REU_BANK_APP_COUNT        0   /* No fixed reserved app slots */
-#define REU_BANK_FREE_BASE        3   /* Free pool starts after system banks */
+#define REU_BANK_FREE_BASE        2   /* Free pool starts after system banks */
 
 /* Detect if REU is present */
 unsigned char reu_detect(void);

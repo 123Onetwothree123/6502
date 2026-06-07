@@ -1,4 +1,19 @@
-# ReadyOS REU Enhancement Refactor Plan
+# ReadyOS REU Enhancement Refactor - Phase 1 Completed
+
+## Phase 1 Completion Note
+
+This document is the completed Phase 1 implementation record for the REU
+control-bank and dynamic-resource refactor. Phase 1 is complete as of the
+`codex/reu-control-bank-refactor` branch checkpoints through 2026-06-06:
+logical REU bank `0` is active, app snapshots are dynamically allocated,
+ReadyShell and ReadyBASIC loader-owned resources are dynamically assigned,
+REU Viewer consumes bank `0` metadata, physical REU size is launcher-owned,
+and both regular plus EasyFlash/cartridge VICE suites passed.
+
+The active future plan has moved to `futureREUrefactor.md`. The historical
+future-design sections below are preserved for context, but they are no longer
+the primary source of truth for pending work. When this document conflicts with
+`futureREUrefactor.md`, use `futureREUrefactor.md` for future work.
 
 ## Purpose
 
@@ -306,9 +321,13 @@ bank `0`.
 
 Implemented:
 
+- 2026-06-07 update: the unused launcher overlay bank reservation was
+  removed. `skip+2` is now the first dynamic/resource allocation bank, logical
+  bank `1` can map to `skip+2`, and the launcher keeps only its `skip+1`
+  snapshot/resume bank.
 - logical app snapshot tokens still use the same one-byte ABI passed through
   `$C820`, `$C834`, and the hotkey/suspend/resume paths;
-- the resident shim no longer computes app physical banks as `skip + 2 +
+- the resident shim no longer computes app physical banks as `skip + 1 +
   token`. For non-zero tokens, `reu_setup_logical` fetches one byte from
   logical bank `0` at `$2F00 + token` into `$C83D`, then jumps to the existing
   physical-bank setup helper at `$C9A0`;
@@ -316,18 +335,18 @@ Implemented:
   `skip + 1`, so boot/preload launcher restore does not depend on the lookup
   page;
 - the control-bank writer publishes the 256-byte shim lookup page at
-  `$2F00-$2FFF`. Current entries preserve the existing physical formula
-  (`token 1 -> skip + 3`, etc.) as a compatibility step, but the authority is
+  `$2F00-$2FFF`. Current entries use the compact physical formula
+  (`token 1 -> skip + 2`, etc.) when no explicit override is present, but the authority is
   now in REU bank `0`;
-- `REU_FIRST_DYNAMIC_PHYSICAL()` now starts at `skip + 3`, immediately after
-  ReadyOS global, launcher snapshot, and launcher overlay banks;
+- `REU_FIRST_DYNAMIC_PHYSICAL()` now starts at `skip + 2`, immediately after
+  ReadyOS global and launcher snapshot banks;
 - bitmap sync no longer repopulates `REU_RESERVED` placeholders for clear
   low-token app bits. Existing old `REU_RESERVED` entries are collapsed to
   `REU_FREE`, while explicit launcher-owned `REU_APP_STATE` allocations are
   preserved until launcher unload/free clears them;
 - disk and EasyFlash resource-bank allocation now starts at the same dynamic
   base and skips banks already marked used, rather than preserving a hidden
-  `skip+3..skip+25` gap;
+  `skip+2..skip+25` gap;
 - the shim remains exactly `512` bytes. `$C83D` is now the one-byte lookup
   scratch byte; `$C83E-$C83F` remain reserved.
 
@@ -937,7 +956,7 @@ flowchart TB
     subgraph B0["Logical REU bank 0 / physical READYOS_REU_BANK_SKIP + 0"]
         H["$0000 header\nRCB0 v4, generation, writer, skip,\nsection offsets, physical bank count"]
         R["$0100 bank type mirror\nfast 256-byte image of live REU use\nREU_UNAVAIL marks physical tail beyond REU size"]
-        F["$0200 fixed roots\nsystem, launcher snapshot, launcher overlay\n(no fixed ReadyShell debug/scratch bank)"]
+        F["$0200 fixed roots\nsystem, launcher snapshot\n(no fixed ReadyShell debug/scratch bank)"]
         A["$0300 hot app registry\n64 app ids, snapshot banks, flags,\nresource set, resource-loaded flag, drive/hotkey"]
         M["$0500 app metadata\nshort file/app token table"]
         D["$0900 hot resource-bank arrays\nsmall per-app bank slots for loader use"]
@@ -1298,7 +1317,7 @@ Static/build verification passed for this milestone:
 - `python3 build_support/verify_reu_control_bank.py`;
 - `python3 build_support/verify_dynamic_launcher.py`;
 - `python3 build_support/verify_memory_map.py`;
-- `python3 build_support/report_app_headroom.py --output agentworkijg/reu_refactor_headroom_after_readybasic_dynamic.json`.
+- `python3 build_support/report_app_headroom.py --output agentworking/reu_refactor_headroom_after_readybasic_dynamic.json`.
 
 VICE verification passed for this milestone:
 
@@ -1468,7 +1487,7 @@ Pre-refactor effective REU model:
 - current generated config uses a skip value of `32`;
 - `REU_READYOS_GLOBAL_PHYSICAL()` maps to `skip + 0`;
 - launcher snapshot maps to `skip + 1`;
-- launcher overlay reserve maps to `skip + 2`;
+- no launcher overlay reserve is held; `skip + 2` is the first dynamic bank;
 - current app slots map through fixed logical-to-physical assumptions;
 - `$C600-$C7FF` contains a 256-byte bank type table and system metadata;
 - `$C836-$C838` contains the shim loaded-bank bitmap for current app-slot
@@ -2955,7 +2974,7 @@ Implemented:
 - wrote compact fixed-resource records at `$0200` for:
   - ReadyOS global/control bank;
   - launcher snapshot;
-  - launcher overlay;
+  - launcher overlay reserve (retired 2026-06-07; current builds free this bank);
   - ReadyShell debug bank `$43`;
   - ReadyShell scratch bank `$48`;
   - ReadyBASIC core/code banks `$44`, `$45`;
@@ -2969,7 +2988,7 @@ Implemented:
 - added `build_support/verify_reu_control_bank.py`;
 - added `build_support/report_app_headroom.py`;
 - captured the current app-window report at
-  `agentworkijg/reu_refactor_headroom_current.json`;
+  `agentworking/reu_refactor_headroom_current.json`;
 - wired the new static verifier into `make verify`.
 
 That list is intentionally historical. Later ReadyShell checkpoints superseded
@@ -2982,7 +3001,7 @@ Verification passed after implementation:
 
 - `make bin/launcher.prg bin/launcher_easyflash.prg bin/reuviewer.prg`;
 - `python3 build_support/verify_reu_control_bank.py`;
-- `python3 build_support/report_app_headroom.py --output agentworkijg/reu_refactor_headroom_current.json`;
+- `python3 build_support/report_app_headroom.py --output agentworking/reu_refactor_headroom_current.json`;
 - `python3 build_support/verify_memory_map.py`;
 - `python3 build_support/verify_readyos_shim.py --check-easyflash-bin`;
 - `make verify`;
@@ -3005,7 +3024,7 @@ Observed memory-contract result:
 Open work for the next branch or milestone:
 
 - capture a clean pre-change/mainline report and compare it against
-  `agentworkijg/reu_refactor_headroom_current.json` before making authority or
+  `agentworking/reu_refactor_headroom_current.json` before making authority or
   allocator changes;
 - add a VICE probe that reads logical bank `0` and validates the `RCB0` header,
   generation, bank-type mirror, and fixed-resource records at runtime;

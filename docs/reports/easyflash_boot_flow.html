@@ -540,11 +540,11 @@ in boot:</p>
 Placement</h2>
 <p><code>Start</code> means physical REU bank
 <code>READYOS_REU_BANK_SKIP</code>. <code>Start+0</code> is
-system/global, <code>Start+1</code> is launcher logical bank
-<code>0</code>, <code>Start+2</code> is reserved for future launcher
-overlays, logical app bank <code>N</code> maps to
-<code>Start+2+N</code>, and dynamic allocation begins at
-<code>Start+26</code>.</p>
+system/global, <code>Start+1</code> is the launcher snapshot/resume
+bank for launcher token <code>0</code>, <code>Start+2</code> is the
+first dynamic allocation bank, logical app/resource bank
+<code>N &gt; 0</code> maps to <code>Start+1+N</code>, and dynamic
+allocation begins at <code>Start+2</code>.</p>
 <h2 id="stage-13-restore-launcher-snapshot-and-handoff">Stage 13:
 Restore Launcher Snapshot and Handoff</h2>
 <p>At the end of boot:</p>

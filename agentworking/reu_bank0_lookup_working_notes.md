@@ -14,10 +14,10 @@ showing false reserved app slots in the live REU allocation table.
   `$2F00 + token`.
 - `$C83D` is the shim scratch byte for the fetched physical bank.
 - `$C83E-$C83F` remain reserved.
-- Current lookup entries still use the old physical formula (`skip + 2 +
-  token`) so this checkpoint changes authority without also changing every
-  caller's token model.
-- Dynamic/resource scanning now starts at `skip + 3`.
+- Current lookup entries use the compact physical formula (`skip + 1 + token`)
+  unless a specific bank-0 record overrides the token mapping. Token `1` can
+  therefore resolve to `skip + 2`.
+- Dynamic/resource scanning now starts at `skip + 2`.
 - Clear shim bitmap bits no longer imply `REU_RESERVED`; old reserved entries
   collapse to `REU_FREE`.
 

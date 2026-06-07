@@ -14,9 +14,6 @@ static unsigned char reu_fixed_bank_type(unsigned char bank) {
     if (bank == REU_LAUNCHER_PHYSICAL()) {
         return REU_LAUNCHER;
     }
-    if (bank == REU_LAUNCHER_OVERLAY_PHYSICAL()) {
-        return REU_LAUNCHER;
-    }
     return 0xFF;
 }
 

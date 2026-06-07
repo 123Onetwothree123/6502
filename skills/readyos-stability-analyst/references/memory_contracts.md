@@ -19,10 +19,10 @@ Canonical sources:
 ## REU physical/logical bank contract
 - `Start` means physical REU bank `READYOS_REU_BANK_SKIP`.
 - `Start+0` is the system/global bank.
-- `Start+1` is the launcher snapshot/resume bank; app-visible logical bank `0`.
-- `Start+2` is reserved for future launcher overlays and is typed as launcher-owned.
-- `Start+3..Start+25` hold logical app banks `1..23`.
-- `Start+26+` is the dynamic allocation pool.
+- `Start+1` is the launcher snapshot/resume bank for launcher token `0`.
+- `Start+2` is the first dynamic allocation bank; no launcher overlay owns that bank.
+- Logical app/resource bank `N > 0` maps to physical `Start+1+N` when no explicit bank-0 lookup override is present, so logical bank `1` starts at `Start+2`.
+- The dynamic allocation pool begins at `Start+2`; allocation tables skip any bank already marked in use.
 - The shim bitmap width remains 24 logical bits; app ABI-visible bank numbers are unchanged.
 
 ## ReadyShell overlay contract

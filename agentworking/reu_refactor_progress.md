@@ -41,7 +41,7 @@
   - launcher and reuviewer refresh the mirror.
 - Fixed-resource records now describe:
   - ReadyOS global/control bank;
-  - launcher snapshot and launcher overlay;
+  - launcher snapshot/resume bank;
   - ReadyShell debug `$43` and scratch/state/value bank `$48`;
   - ReadyBASIC core/code `$44/$45`.
 - Launcher now supports dynamic app snapshot allocation:
@@ -50,7 +50,7 @@
   - `apps.cfg` entries start with `app_banks[idx] = 0`;
   - snapshot banks are allocated lazily when an app is loaded or launched;
   - the allocator scans logical banks `1..223`, skips duplicates, converts to
-    physical with `skip + 2 + logical`, and skips physical banks that the
+    physical with `skip + 1 + logical`, and skips physical banks that the
     resident `$C600` table marks non-free;
   - low banks still use the shim bitmap, while high banks are tracked through
     launcher state and the mirrored resident table.
@@ -84,7 +84,7 @@
 - Added `build_support/verify_reu_control_bank.py` and wired it into
   `make verify`.
 - Added `build_support/report_app_headroom.py` and generated
-  `agentworkijg/reu_refactor_headroom_current.json`.
+  `agentworking/reu_refactor_headroom_current.json`.
 
 ## ReadyShell `rsovl` Milestone
 
@@ -143,7 +143,7 @@
     disk-only paths excluded by the cartridge variant.
 - `python3 build_support/verify_reu_control_bank.py`
   - passed with 10 fixed-resource records.
-- `python3 build_support/report_app_headroom.py --output agentworkijg/reu_refactor_headroom_current.json`
+- `python3 build_support/report_app_headroom.py --output agentworking/reu_refactor_headroom_current.json`
   - passed;
   - current tightest app-window case is ReadyBASIC with 1031 bytes of headroom.
   - ReadyShell now has 18660 bytes of headroom after removing the old overlay

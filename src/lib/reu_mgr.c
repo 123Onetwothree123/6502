@@ -55,7 +55,6 @@ static void reu_sync_from_bitmap(void) {
 
     REU_ALLOC_TABLE[REU_READYOS_GLOBAL_PHYSICAL()] = REU_GLOBAL;
     REU_ALLOC_TABLE[REU_LAUNCHER_PHYSICAL()] = REU_LAUNCHER;
-    REU_ALLOC_TABLE[REU_LAUNCHER_OVERLAY_PHYSICAL()] = REU_LAUNCHER;
 
     for (bank = 1; bank < 8; ++bank) {
         mask = (unsigned char)(1 << bank);
@@ -83,9 +82,6 @@ static unsigned char reu_fixed_bank_type(unsigned char bank) {
         return REU_GLOBAL;
     }
     if (bank == REU_LAUNCHER_PHYSICAL()) {
-        return REU_LAUNCHER;
-    }
-    if (bank == REU_LAUNCHER_OVERLAY_PHYSICAL()) {
         return REU_LAUNCHER;
     }
     return 0xFF;

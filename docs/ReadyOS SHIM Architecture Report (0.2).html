@@ -235,10 +235,10 @@
         <p>
           ReadyOS has a physical REU start bank called <span class="mono">Start</span>
           (<span class="mono">READYOS_REU_BANK_SKIP</span>). The fixed ReadyOS
-          region now uses the first three banks relative to that start point:
-          <span class="mono">Start+0</span> for system/global state,
-          <span class="mono">Start+1</span> for the launcher snapshot/resume bank,
-          and <span class="mono">Start+2</span> for the future launcher overlay bank.
+          region now uses two banks relative to that start point:
+          <span class="mono">Start+0</span> for system/global state and
+          <span class="mono">Start+1</span> for the launcher snapshot/resume bank.
+          <span class="mono">Start+2</span> is the first dynamic allocation bank.
         </p>
         <p>
           The old fixed app-slot gap has been superseded. App snapshot banks are
@@ -601,9 +601,9 @@ jt_fetch_bank   = $C815     ; Helper: fetch from bank in A
 ; $C960: reu_setup_logical - Map logical bank to physical, then setup REU regs
 ;
 ; Current note:
-;   this older listing's fixed Start+3..Start+25 app-slot description has
+;   this older listing's retired fixed app-slot description has
 ;   been superseded by logical REU bank 0 token -> physical-bank lookup.
-;   See ReadyOSREUenhancementrefactor.html for the current commented shim.
+;   See ReadyOSREUPhase1Completed.html for the completed Phase 1 shim contract.
 ;-----------------------------------------------------------------------------
 .byte $C9, $00              ; CMP #0 (select launcher bank at Start+1?)
 .byte $D0, $09              ; BNE app_bank
@@ -614,7 +614,7 @@ jt_fetch_bank   = $C815     ; Helper: fetch from bank in A
 .byte $18                   ; app_bank: CLC
 .byte $6D, $3B, $C8         ; ADC $C83B (logical app bank + skip)
 .byte $18                   ; CLC
-.byte $69, $02              ; ADC #$02 (global + launcher overlay reserve)
+.byte $69, $01              ; ADC #$01 (global + launcher snapshot only)
 .byte $8D, $06, $DF         ; STA $DF06 (physical bank)
 .byte $A9, $00              ; LDA #$00
 .byte $8D, $02, $DF         ; STA $DF02 (C64 addr lo = $00)
@@ -701,8 +701,8 @@ jt_fetch_bank   = $C815     ; Helper: fetch from bank in A
             <tbody>
               <tr><td class="mono">Start+0</td><td>ReadyOS system/global bank</td></tr>
               <tr><td class="mono">Start+1</td><td>launcher snapshot/resume bank</td></tr>
-              <tr><td class="mono">Start+2</td><td>launcher overlay reserve bank</td></tr>
-              <tr><td class="mono">Start+3+</td><td>current dynamic allocator pool; logical app tokens resolve through logical REU bank 0 rather than a fixed reserved app-slot gap</td></tr>
+              <tr><td class="mono">Start+2</td><td>first dynamic allocation bank; logical app/resource bank 1 can map here</td></tr>
+              <tr><td class="mono">Start+2 onward</td><td>current dynamic allocator pool; logical app tokens resolve through logical REU bank 0 rather than a fixed app-slot gap</td></tr>
               <tr><td class="mono">loader assigned</td><td>ReadyShell overlay cache banks; bank 0 rich-resource records describe which overlays live in each bank/offset</td></tr>
               <tr><td class="mono">loader assigned</td><td>ReadyShell state/scratch/value bank; CAT and diagnostics share this bank at fixed relative offsets</td></tr>
               <tr><td class="mono">state+$7DE0..$7FFF</td><td>ReadyShell REU debug/probe tail; this supersedes the retired fixed $43 debug bank</td></tr>
@@ -711,9 +711,9 @@ jt_fetch_bank   = $C815     ; Helper: fetch from bank in A
           <h3>Logical bank 0 split</h3>
           <p class="small">
             <strong>Updated REU refactor note:</strong> this older shim report
-            predates the v3 logical bank 0 control-bank registry. For the full
-            current contract, see
-            <a href="reports/ReadyOSREUenhancementrefactor.html">ReadyOS REU Enhancement Refactor Plan</a>.
+            predates the v4 logical bank 0 control-bank registry. For the
+            completed Phase 1 contract, see
+            <a href="reports/ReadyOSREUPhase1Completed.html">ReadyOS REU Phase 1 Completed Record</a>.
           </p>
           <table>
             <thead><tr><th>Offset</th><th>Meaning</th></tr></thead>
@@ -734,7 +734,7 @@ jt_fetch_bank   = $C815     ; Helper: fetch from bank in A
           <ul class="small">
             <li><strong>Clipboard metadata in RAM:</strong> <span class="mono">$C702</span> count, <span class="mono">$C710</span> table.</li>
             <li><strong>Per-item table layout:</strong> each item stores REU bank id, type, and size.</li>
-            <li><strong>Allocator behavior:</strong> <span class="mono">clip_copy()</span> calls <span class="mono">reu_alloc_bank(REU_CLIPBOARD)</span>, so payload banks come from the dynamic pool starting at <span class="mono">Start+26</span>.</li>
+            <li><strong>Allocator behavior:</strong> <span class="mono">clip_copy()</span> calls <span class="mono">reu_alloc_bank(REU_CLIPBOARD)</span>, so payload banks come from the dynamic pool starting at <span class="mono">Start+2</span>, with already-used banks skipped by the allocation table.</li>
             <li><strong>Legacy symbolic contract:</strong> some older headers/spec fields still name bank <span class="mono">1</span> as a clipboard bank, but active payload storage is not single-bank packed there.</li>
           </ul>
         </div>

@@ -444,7 +444,7 @@ This is also the reason you may briefly see text/color flashes late in boot:
 
 ## Current REU Physical Placement
 
-`Start` means physical REU bank `READYOS_REU_BANK_SKIP`. `Start+0` is system/global, `Start+1` is launcher logical bank `0`, `Start+2` is reserved for future launcher overlays, logical app bank `N` maps to `Start+2+N`, and dynamic allocation begins at `Start+26`.
+`Start` means physical REU bank `READYOS_REU_BANK_SKIP`. `Start+0` is system/global, `Start+1` is the launcher snapshot/resume bank for launcher token `0`, `Start+2` is the first dynamic allocation bank, logical app/resource bank `N > 0` maps to `Start+1+N`, and dynamic allocation begins at `Start+2`.
 
 ## Stage 13: Restore Launcher Snapshot and Handoff
 
