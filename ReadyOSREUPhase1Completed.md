@@ -4,9 +4,10 @@
 
 This document is the completed Phase 1 implementation record for the REU
 control-bank and dynamic-resource refactor. Phase 1 is complete as of the
-`codex/reu-control-bank-refactor` branch checkpoints through 2026-06-06:
+`codex/reu-control-bank-refactor` branch checkpoints through 2026-06-07:
 logical REU bank `0` is active, app snapshots are dynamically allocated,
 ReadyShell and ReadyBASIC loader-owned resources are dynamically assigned,
+app-owned runtime REU allocations can be owner-recorded without shim growth,
 REU Viewer consumes bank `0` metadata, physical REU size is launcher-owned,
 and both regular plus EasyFlash/cartridge VICE suites passed.
 
@@ -74,6 +75,9 @@ Implemented and verified:
 - ReadyBASIC core/code/module resource banks are launcher/cartridge-assigned
   resources rather than fixed slots;
 - launcher-owned unload frees app snapshots and launcher-owned resource banks;
+- launcher-owned unload also frees owner-recorded app-owned runtime allocation
+  banks (`REU_APP_ALLOC`) for apps that opt into the owned-allocation
+  micromodule;
 - REU Viewer reads bank `0` relationship metadata and can describe app
   snapshots, resource owners, overlays/modules, and unavailable physical banks;
 - physical REU size is launcher-owned:
@@ -110,8 +114,8 @@ Still left in the plan:
 
 - generic arbitrary dependency loading for unknown app-specific overlays or
   modules beyond the concrete `rsovl` and `rbcore` resource contracts;
-- ownership records and unload/free integration for arbitrary app-requested
-  banks allocated after app launch;
+- generic future resource-set ownership records for arbitrary plugin/module
+  systems beyond the implemented owner-recorded `REU_APP_ALLOC` path;
 - a checked-in REU Viewer VICE regression that navigates selected banks and
   asserts visible owner/detail text, beyond the focused screenshot probes and
   static schema checks already run;
@@ -154,6 +158,18 @@ rsparser@0:0000,rsvm@0:3800,rsdrvilst@0:7000,rsldv@1:0000,rsstv@0:a800,rsfops@1:
 - the launcher still owns allocation/unload policy. On load it writes rich
   resource records for ReadyShell overlays and ReadyBASIC module banks; on
   unload it clears records for the app before freeing those banks;
+- apps that need runtime `REU_APP_ALLOC` banks can opt into the separate
+  `reu_owned_alloc` micromodule. It writes strict
+  `REUCB_DEP_KIND_APP_ALLOC` records in the `$0A00` rich-resource table with
+  owner app id, slot id, physical bank, and a four-character tag. The primitive
+  `reu_mgr_alloc.c` allocator remains small for apps that do not need owner
+  metadata;
+- launcher unload now also frees owner-recorded `REU_APP_ALLOC` banks when the
+  selected app is unloaded. The resident shim remains unchanged; this is
+  launcher plus global REU bank `0` policy;
+- REU Viewer displays app-owned runtime banks as `APP ALLOC` and uses the
+  owner record to show the owning app plus tag, for example QuickNotes note
+  banks tagged `NOTE`;
 - ReadyShell consumes only the small v4 `OV` metadata block with nine
   `(bank, offset)` records. That keeps ReadyShell from linking the larger
   registry machinery;
@@ -312,6 +328,76 @@ program, `rbtest1`, minimal resume, screen REU temp, state, large-vars,
 cross-app resume, second-entry/editor, full visual verification, and ReadyShell
 cross-app/CAT probes. This is the current proof point that both disk and
 cartridge SKUs honor the same physical-size/unavailable-tail contract.
+
+## App-Owned Runtime Allocation Checkpoint 2026-06-07
+
+This checkpoint adds ownership tracking for app-requested `REU_APP_ALLOC`
+banks without adding shim code and without making the primitive allocator
+heavier for apps that do not need ownership records.
+
+Implemented:
+
+- added `src/lib/reu_owned_alloc.c` / `src/lib/reu_owned_alloc.h` as an
+  optional micromodule layered over `reu_mgr_alloc.c`;
+- the primitive allocator remains the small common implementation. Apps link
+  the owned allocator only when they need bank `0` ownership records;
+- QuickNotes now records its two note-storage banks with slot ids `1` and `2`
+  and tag `NOTE`;
+- ReadyIRC and rirc-rrnet now record their scrollback banks with slot id `1`
+  and tag `SCRL`;
+- owner records use `REUCB_DEP_KIND_APP_ALLOC` in the `$0A00` rich-resource
+  table and carry app id, slot id, physical bank, and a four-character tag;
+- allocation is strict: if the owner record cannot be written, the newly
+  allocated bank is immediately freed and allocation fails;
+- launcher unload scans the rich-resource table for the selected app and frees
+  matching banks only when the hot allocation table still marks the bank as
+  `REU_APP_ALLOC`, preventing stale metadata from freeing the wrong type;
+- REU Viewer displays owner-recorded runtime banks as `APP ALLOC` with the
+  owning app and tag.
+
+Shim and resident-memory status:
+
+- no shim code or shim ABI byte changed;
+- the `$C800-$C9FF` resident shim remains exactly `512` bytes;
+- the `$C600-$C9FF` shim-adjacent resident region remains the same `1KB`;
+- all relationship detail lives in logical REU bank `0`, not in new resident
+  tables.
+
+Measured app-window impact against
+`agentworking/reu_owned_alloc_headroom_before.json`:
+
+| App | Before | After | Delta | Notes |
+| --- | ---: | ---: | ---: | --- |
+| launcher | 5387 | 5242 | -145 | unload scan for owner-recorded app allocations |
+| quicknotes | 9851 | 9164 | -687 | links owned allocator for note banks |
+| readyirc | 29339 | 28657 | -682 | links owned allocator for scrollback |
+| rirc-rrnet | 18553 | 17871 | -682 | links owned allocator for scrollback |
+| reuviewer | 29523 | 29454 | -69 | displays app-allocation tag details |
+| editor | 11768 | 11768 | 0 | no link impact |
+| readybasic | 1029 | 1029 | 0 | no link impact |
+| readyshell | 18185 | 18185 | 0 | no link impact |
+
+Verification completed:
+
+- `make verify`;
+- `READYBASIC_VISIBLE=0 READYBASIC_KEEP_VICE=0 make readybasic-vice-suites`;
+- `QUICKNOTES_OWNED_REU_VISIBLE=0 QUICKNOTES_OWNED_REU_KEEP_VICE=0 make
+  quicknotes-owned-reu-vice`;
+- `LAUNCHER_REU_STATE_SKIP_BUILD=1 LAUNCHER_REU_STATE_VISIBLE=0
+  build_support/run_launcher_reu_state_probe.sh`;
+- `READYSHELL_VISIBLE=0 build_support/run_readyshell_cross_app_resume_probe.sh`;
+- `make easyflash-smoke`;
+- `READYSHELL_VISIBLE=0 make easyflash-readyshell-vice-suites`;
+- `git diff --check`.
+
+Focused QuickNotes evidence:
+
+- before unload run: `logs/vice_auto_20260607_173802`;
+- after unload run: `logs/vice_auto_20260607_173831`;
+- the before run asserted QuickNotes-owned banks in the hot allocation table
+  and REU Viewer displayed `APP ALLOC`, `OWNER: QUICKNOTES`, and `TAG NOTE`;
+- the after run unloaded QuickNotes, asserted those hot-table entries were
+  free, and REU Viewer displayed the former bank as `TYPE: FREE`.
 
 ## REU Bank-0 Lookup Checkpoint 2026-06-06
 
@@ -917,6 +1003,7 @@ $0900-$0BFF  hot per-app resource-bank arrays
 $0A00-$0DFF  rich resource/file records
              64 records * 16 bytes; owner app, resource set, kind, physical
              bank, offset, length, flags, next index, slot id, drive, name tag
+             kinds include loader resources and app-owned runtime allocations
 
 $0E00-$2DFF  dependency/source lines
              64 records * 128 bytes copied from apps.cfg or app.* manifests
@@ -2647,7 +2734,8 @@ Goals:
 
 Tasks:
 
-- implement unload by owner;
+- unload by owner is implemented for snapshots, loader-owned resources, and
+  owner-recorded app-owned runtime allocations;
 - implement service-temp cleanup;
 - optionally implement resource-only unload;
 - add dirty/pinned/evictable policy;

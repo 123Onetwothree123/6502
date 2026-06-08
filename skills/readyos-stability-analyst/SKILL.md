@@ -20,7 +20,10 @@ Use this skill when the user asks to diagnose ReadyOS crashes/hangs, REU DMA reg
 - Keep ReadyShell overlay profile explicit in reports:
   - release/default: `READYSHELL_PARSE_TRACE_DEBUG=0` (`READYSHELL_OVERLAYSIZE=0x3800`, `__OVERLAYSTART__=0x8E00`)
   - debug trace: `READYSHELL_PARSE_TRACE_DEBUG=1` (`READYSHELL_OVERLAYSIZE=0x3B00`, `__OVERLAYSTART__=0x8B00`)
-- Treat REU banks `0x40`, `0x41`, `0x43`, and `0x48` as ReadyShell-owned fixed banks (overlay caches, debug/probe, scratch/registry/value arena), not dynamic pool.
+- Treat ReadyShell REU ownership as loader-assigned. Do not assume fixed
+  physical banks `0x40`, `0x41`, `0x43`, or `0x48`; use logical REU bank `0`
+  records, the resident `$C600-$C6FF` type table, and generated ReadyShell
+  overlay/state metadata to interpret ownership.
 - For CAL26 REL debugging, use `xrelchk` harness discipline.
 - Do not use `src/apps/dizzy/dizzy.c` as REL behavior reference.
 

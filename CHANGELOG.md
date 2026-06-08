@@ -43,6 +43,13 @@
 - Updated REU Viewer to use the bank `0` metadata so it can show dynamic app
   snapshots, loader-owned resources, ReadyShell overlay/state ownership, and
   ReadyBASIC resource ownership rather than only a flat fixed-bank map.
+- Added owner-recorded runtime REU allocation as an opt-in micromodule. Apps
+  such as QuickNotes and the IRC experiments can allocate `REU_APP_ALLOC` banks
+  while publishing compact bank `0` ownership/tag records, allowing REU Viewer
+  to show the owner and launcher unload to reclaim those banks.
+- Fixed the launcher REU-state VICE probe so its first ReadyBASIC wait matches
+  the actual ReadyBASIC screen instead of the preboot `READY.` line, making the
+  unload/reload stability check reliable under fast boot timing.
 - Added and hardened EasyFlash cartridge support for the refactored resource
   model. The cartridge SKU now preloads launcher/app/resource payloads into the
   same logical bank `0` registry shape as disk builds, has REU-required boot

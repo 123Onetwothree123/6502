@@ -17,6 +17,7 @@
 #include "../../lib/clipboard.h"
 #include "../../lib/file_dialog.h"
 #include "../../lib/reu_mgr.h"
+#include "../../lib/reu_owned_alloc.h"
 #include "../../lib/resume_state.h"
 #include "../../lib/storage_device.h"
 
@@ -581,7 +582,7 @@ static unsigned char allocate_note_banks(void) {
     }
 
     for (i = 0u; i < NOTE_BANK_COUNT; ++i) {
-        note_banks[i] = reu_alloc_bank(REU_APP_ALLOC);
+        note_banks[i] = reu_alloc_owned_bank((unsigned char)(i + 1u), "note");
         if (note_banks[i] == 0xFFu) {
             free_note_banks();
             return 0u;
@@ -596,7 +597,7 @@ static void free_note_banks(void) {
 
     for (i = 0u; i < NOTE_BANK_COUNT; ++i) {
         if (note_banks[i] != 0xFFu) {
-            reu_free_bank(note_banks[i]);
+            reu_free_owned_bank(note_banks[i]);
             note_banks[i] = 0xFFu;
         }
     }

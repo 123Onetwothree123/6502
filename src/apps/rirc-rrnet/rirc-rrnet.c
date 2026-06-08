@@ -4,6 +4,7 @@
 
 #include "../../lib/resume_state.h"
 #include "../../lib/reu_mgr.h"
+#include "../../lib/reu_owned_alloc.h"
 #include "../../lib/tui.h"
 #include "rirc_rrnet.h"
 
@@ -824,7 +825,7 @@ int main(void) {
     running = 1u;
     connected = 0u;
     socket_id = 0u;
-    scroll_bank = reu_alloc_bank(REU_APP_ALLOC);
+    scroll_bank = reu_alloc_owned_bank(1u, "scrl");
     reu_scroll = (unsigned char)(scroll_bank != 0xFFu);
     max_lines = reu_scroll ? REU_MAX_LINES : RAM_MAX_LINES;
     first_line = 0u;
@@ -854,7 +855,7 @@ int main(void) {
     }
 
     if (scroll_bank != 0xFFu) {
-        reu_free_bank(scroll_bank);
+        reu_free_owned_bank(scroll_bank);
     }
     __asm__("jmp $FCE2");
     return 0;

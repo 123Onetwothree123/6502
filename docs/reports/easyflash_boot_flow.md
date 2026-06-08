@@ -444,7 +444,11 @@ This is also the reason you may briefly see text/color flashes late in boot:
 
 ## Current REU Physical Placement
 
-`Start` means physical REU bank `READYOS_REU_BANK_SKIP`. `Start+0` is system/global, `Start+1` is the launcher snapshot/resume bank for launcher token `0`, `Start+2` is the first dynamic allocation bank, logical app/resource bank `N > 0` maps to `Start+1+N`, and dynamic allocation begins at `Start+2`.
+`Start` means physical REU bank `READYOS_REU_BANK_SKIP`. `Start+0` is logical
+REU bank `0`, the ReadyOS control/global bank. `Start+1` is the launcher
+snapshot/resume bank for launcher token `0`. `Start+2` is the first dynamic
+allocation bank. Shim-facing app tokens are resolved through logical REU bank
+`0`'s lookup page; the current default writer maps token `1` to `Start+2`.
 
 ## Stage 13: Restore Launcher Snapshot and Handoff
 
@@ -459,7 +463,8 @@ That jump is the handoff from boot asm to the launcher program image.
 Important nuance:
 
 - The launcher is not starting directly from cartridge data.
-- It is starting from a RAM image restored out of REU bank `0`.
+- It is starting from a RAM image restored from the launcher snapshot bank
+  (`Start+1`, launcher token `0`), not from logical REU bank `0`.
 - The border switches to orange for the final restore, then light green for the last handoff into launcher code.
 
 ## What Runs Where
@@ -487,7 +492,7 @@ Important nuance:
 
 After boot, app launches are usually:
 
-1. launcher saves itself back to REU bank `0`
+1. launcher saves itself back to the launcher snapshot bank (`Start+1`)
 2. shim fetches target app snapshot from REU
 3. control jumps to `$1000`
 
@@ -572,7 +577,7 @@ The EasyFlash boot process is a preload-and-snapshot pipeline:
 3. RAM loader preloads launcher/apps/overlays from EasyFlash
 4. RAM loader stashes them into REU snapshots
 5. machine state is normalized
-6. launcher snapshot is restored from REU bank `0`
+6. launcher snapshot is restored from `Start+1`
 7. launcher starts in C at `$1000`
 
 The large cold-boot delay is mostly the price of making later launches effectively instant.

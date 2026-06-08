@@ -21,27 +21,44 @@ Canonical sources:
 - `Start+0` is the system/global bank.
 - `Start+1` is the launcher snapshot/resume bank for launcher token `0`.
 - `Start+2` is the first dynamic allocation bank; no launcher overlay owns that bank.
-- Logical app/resource bank `N > 0` maps to physical `Start+1+N` when no explicit bank-0 lookup override is present, so logical bank `1` starts at `Start+2`.
+- Logical app/resource bank `N > 0` maps through logical REU bank `0`'s
+  `$2F00-$2FFF` lookup page. The default writer currently maps token `1` to
+  `Start+2`, but the lookup page is authoritative for shim-facing app tokens.
 - The dynamic allocation pool begins at `Start+2`; allocation tables skip any bank already marked in use.
 - The shim bitmap width remains 24 logical bits; app ABI-visible bank numbers are unchanged.
+- Physical REU size is launcher-owned. Banks beyond the detected physical end
+  are marked `REU_UNAVAIL` in `$C600-$C6FF`, mirrored to logical REU bank `0`,
+  and consumed by REU Viewer.
 
-## ReadyShell overlay contract
+## ReadyShell overlay/resource contract
 - `__HIMEM__ = $C600`
 - Overlay size is profile-based:
 - release/default (`READYSHELL_PARSE_TRACE_DEBUG=0`): `READYSHELL_OVERLAYSIZE = $3800`, `__OVERLAYSTART__ = $8E00`
 - debug trace (`READYSHELL_PARSE_TRACE_DEBUG=1`): `READYSHELL_OVERLAYSIZE = $3B00`, `__OVERLAYSTART__ = $8B00`
-- ReadyShell fixed REU bank ownership:
-- `0x40` -> ReadyShell overlay cache bank for overlays 1, 2, 3, and 5
-- `0x41` -> ReadyShell overlay cache bank for overlays 4, 6, 7, and 8
-- `0x43` -> `REU_RS_DEBUG` (debug/probe region `0x43F000+`)
-- `0x48` -> ReadyShell scratch, registry, metadata, and value arena
-- These banks must not be handed out by dynamic allocation.
-- Overlay REU cache offsets:
-- `0x400000+` overlays cached in bank `0x40`
-- `0x410000+` overlays cached in bank `0x41`
-- `0x43F000` debug head
-- `0x43F010` debug ring data
-- `0x480000+` ReadyShell shared scratch/registry/value arena
+- ReadyShell overlay cache banks are loader-assigned resources, not fixed
+  physical `0x40/0x41` banks.
+- ReadyShell's state/scratch/CAT/value/diagnostic arena is one loader-assigned
+  resource bank, not fixed physical `0x43` or `0x48`.
+- ReadyShell consumes a tiny generated runtime metadata block containing
+  overlay `(bank, offset)` pairs. Use that metadata or logical REU bank `0`
+  rich resource records when interpreting dumps.
+- Current state-bank-relative layout:
+- `$0000-$7DDF`: shared transient command scratch; CAT uses the front while active
+- `$7DE0-$7FFF`: diagnostics/probe tail
+- `$8000-$80FF`: heap metadata / command registry block
+- `$80F0-$8113`: shared ReadyShell overlay metadata
+- `$8120-$FEFF`: persistent REU value arena
+
+## App-owned runtime allocation contract
+- Apps that need runtime `REU_APP_ALLOC` banks may opt into
+  `src/lib/reu_owned_alloc.c`.
+- The primitive allocator remains `src/lib/reu_mgr_alloc.c`; apps that do not
+  need ownership records do not pay for the owner-record writer.
+- Owner-recorded runtime banks create `REUCB_DEP_KIND_APP_ALLOC` records in
+  logical REU bank `0` at `$0A00`, carrying owner app id, slot id, physical
+  bank, and a four-character tag.
+- Launcher unload frees owner-recorded `REU_APP_ALLOC` banks for the selected
+  app; the shim does not participate.
 
 Profile control commands:
 - build release/default: `make -j1 READYSHELL_PARSE_TRACE_DEBUG=0`

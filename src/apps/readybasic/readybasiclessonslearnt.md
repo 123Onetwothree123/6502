@@ -13,25 +13,28 @@ actual C64/ReadyOS evidence trail rather than a pile of confident guesses.
   `$2AC1-$9FFF`, with `30013` formula empty free bytes (29.3K); ReadyBASIC
   extension lines are left as readable text rather than crunched into private
   tokens.
-- ReadyBASIC suspend state keeps zero-page and stack snapshots in REU bank `$44`
-  at offsets `$0A00/$0B00`; saved SP, mode, and line-chain guards live in bridge metadata.
+- ReadyBASIC suspend state keeps zero-page and stack snapshots in the
+  launcher-assigned ReadyBASIC core bank at offsets `$0A00/$0B00`; saved SP,
+  mode, and line-chain guards live in bridge metadata.
 - Hidden services live under BASIC ROM RAM at `$A000-$BFFF` and visible
   trampolines/state/mailbox live at `$C000-$C5FF`.
 - A refreshed visible shadow copy of the hidden helper image lives at `$C280-$C5F6`,
   inside the ReadyOS app snapshot window. Warm
   entry restores `$A000` from that shadow before using hidden helpers.
 - The plugin spine keeps visible resident code at `$1200-$2AB9`, command
-  overlays under BASIC ROM at `$A900-$AF3C`, shared frames at `$C200-$C5FF`, and fixed
-  ReadyBASIC REU banks `$44/$45`.
+  overlays under BASIC ROM, shared frames at `$C200-$C5FF`, and
+  launcher-assigned ReadyBASIC core/code REU banks. Older entries below may
+  mention `$44/$45`; treat those as historical fixed-bank examples, not the
+  current contract.
 - Module/submodule branch update: the current visible resident range is
   `$1200-$2ABB`, the bridge is `$C000-$C1F6`, and command payloads now use a
   common under-ROM helper area `$A000-$A7FF` plus three 2KB submodule slots:
   `$A800-$AFFF`, `$B000-$B7FF`, and `$B800-$BFFF`.
 - Current command descriptors are module-aware 32-byte records: command id,
-  module id, payload offset/size in REU bank `$45`, submodule id, overlay id,
-  slot mask, generation/check byte, runtime destination, entry offset,
-  signature id, and name.
-- Built-in payload bytes are prestashed into REU bank `$45`: module 1 slot 0 at
+  module id, payload offset/size in the assigned code bank, submodule id,
+  overlay id, slot mask, generation/check byte, runtime destination, entry
+  offset, signature id, and name.
+- Built-in payload bytes are prestashed into the assigned code bank: module 1 slot 0 at
   `$0000-$06C6`, module 2 slot 1 at `$06C7-$0807`, slot 2/span/overlay proofs
   through `$085B`, and disk sample payloads currently starting at `$3000`.
 - The current registry has 128 descriptor slots in REU bank `$44` at

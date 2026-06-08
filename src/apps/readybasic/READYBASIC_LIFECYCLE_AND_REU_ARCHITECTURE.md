@@ -81,7 +81,7 @@ pre-module plugin-spine snapshot. The current post-BASIC runtime map is:
 | `$B800-$BFFF` | RAM behind BASIC ROM | Submodule slot 2 and overlay target. |
 | `$C000-$C1F6` | ReadyBASIC bridge | Small state below shared frames. |
 | `$C200-$C5FF` | ReadyBASIC frames/buffers | Call frame, result frame, descriptor/name/page buffers, disk-module load page. |
-| `$C600-$C7FF` | ReadyOS REU metadata | Not ReadyBASIC scratch; only bank ownership marks are intentional. |
+| `$C600-$C7FF` | ReadyOS REU metadata | Not ReadyBASIC scratch; ReadyBASIC may only observe/re-mark assigned bank ownership through the defined ReadyOS type-table contract. |
 | `$C800-$C9FF` | ReadyOS shim ABI | Not ReadyBASIC scratch. |
 | `$D000-$DFFF` | I/O or character ROM | REU registers are in I/O space. |
 | `$E000-$FFFF` | KERNAL ROM normally visible | KERNAL calls remain available after normal banking is restored. |
@@ -153,7 +153,7 @@ flowchart TB
   O["$B000-$B140 SLOT 1 PAYLOAD<br/>module 2 proof and ZMODLD loader"]
   P["$B800-$B83E SLOT 2 / OVERLAYS<br/>proof and overlay slices"]
   L["$C000-$C1F6 BRIDGE STATE<br/>magic, saved vectors, overlay vars, handle scratch, PROC/FUNC stack"]
-  M["$C600-$C7FF READYOS REU METADATA<br/>only bank ownership tags here"]
+  M["$C600-$C7FF READYOS REU METADATA<br/>hot bank table/system metadata, not app scratch"]
   N["$C800-$C9FF SHIM ABI<br/>ReadyOS jump table/data, not app RAM"]
 
   A --> B --> C --> D --> G

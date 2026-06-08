@@ -359,8 +359,14 @@ static void draw_detail(void) {
         tui_puts_n(7, HELP_Y, detail_app_name, 10, TUI_COLOR_YELLOW);
         tui_puts(18, HELP_Y, "SLOT", TUI_COLOR_GRAY3);
         tui_print_uint(23, HELP_Y, detail_rec[10], TUI_COLOR_WHITE);
-        tui_puts(27, HELP_Y, "OFF", TUI_COLOR_GRAY3);
-        tui_print_hex16(31, HELP_Y, rec_off, TUI_COLOR_CYAN);
+        if (detail_rec[2] == REUCB_DEP_KIND_APP_ALLOC) {
+            tui_puts(27, HELP_Y, "TAG", TUI_COLOR_GRAY3);
+            tui_puts_n(31, HELP_Y, (const char *)&detail_rec[12], 4u,
+                       TUI_COLOR_CYAN);
+        } else {
+            tui_puts(27, HELP_Y, "OFF", TUI_COLOR_GRAY3);
+            tui_print_hex16(31, HELP_Y, rec_off, TUI_COLOR_CYAN);
+        }
     }
 }
 

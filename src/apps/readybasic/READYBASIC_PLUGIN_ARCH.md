@@ -12,8 +12,11 @@ same ReadyOS and REU discipline.
 - `BRIDGE` is `$C000-$C1F8` (`$01F9`, 505B), still below `$C200`.
 - Under BASIC ROM, `$A000-$A7FF` is the common helper area; `$A800-$AFFF`,
   `$B000-$B7FF`, and `$B800-$BFFF` are three 2KB submodule slots.
-- REU bank `$44` is the registry/runtime bank; REU bank `$45` is the built-in
-  and disk-loaded module payload bank.
+- ReadyBASIC uses two launcher-assigned REU resource banks. The core bank is
+  registry/runtime storage; the code bank is built-in and disk-loaded module
+  payload storage. Current code resolves physical banks at startup from
+  `REU_RB_CORE` and `REU_RB_CODE` ownership/type metadata instead of assuming
+  fixed `$44/$45` banks.
 - Descriptors remain 32 bytes but now carry module id, submodule id, overlay
   id, slot mask, payload REU offset/size, runtime destination, and entry offset.
 - The disk-loader proof command is `ZMODLD(name$)` in module 2/slot 1. It opens
@@ -35,20 +38,22 @@ same ReadyOS and REU discipline.
 
 ## REU Banks
 
-- Bank `$44` is ReadyBASIC common/system storage.
-- Bank `$45` is packed command code storage.
+- Assigned core bank is ReadyBASIC common/system storage.
+- Assigned code bank is packed command code storage.
 - ReadyOS REU type constants are mirrored as `REU_RB_CORE = 14` and `REU_RB_CODE = 15`.
-- ReadyBASIC marks `$C600+$44` and `$C600+$45` during boot so REU viewer and allocator state know those banks are owned.
+- The launcher marks the assigned physical banks in `$C600-$C6FF`, and
+  ReadyBASIC re-marks the resolved banks during startup/resume so REU Viewer
+  and allocator state know those banks are owned.
 - Full registry/code prestash runs only on cold ReadyBASIC entry. Warm resume
   re-marks ownership but does not reread `CMDPACK`, hidden/bridge load images,
   or `REGSEED`, because those load-image addresses become normal BASIC
   workspace after launch.
 - Native `PROC`/`FUNC` definitions are ordinary BASIC program text. They do not
-  use descriptors, `LOWPACK`, `HIDDENPACK`, or bank `$45` command-code storage.
+  use descriptors, `LOWPACK`, `HIDDENPACK`, or assigned command-code storage.
 - Native `REPEAT`/`UNTIL` and `LABEL`/`JUMP` markers are also visible BASIC text
   handled by resident parser code; they do not allocate descriptor slots.
 
-## Bank `$44` Regions
+## Assigned Core Bank Regions
 
 - `$0000`: registry header (`RBPL`, version, descriptor count, descriptor size, frame offsets).
 - `$0400`: current call-frame snapshot.
@@ -62,7 +67,7 @@ same ReadyOS and REU discipline.
 - `$2000-$3FFF`: reserved common/system expansion space.
 - `$4000-$FFFF`: typed 48KB heap for buffer and screen handles.
 
-## Bank `$45` Regions
+## Assigned Code Bank Regions
 
 - `$0000-$06C6`: built-in module 1 slot-0 payload, fetched into
   `$A800-$AEC6` (`$06C7`, 1735B). The linker symbol is still named
@@ -92,7 +97,7 @@ Each descriptor is 32 bytes:
 
 - `0`: command id.
 - `1`: module id.
-- `2-3`: payload offset in REU bank `$45`.
+- `2-3`: payload offset in the assigned code bank.
 - `4-5`: payload size.
 - `6`: submodule id.
 - `7`: overlay id.

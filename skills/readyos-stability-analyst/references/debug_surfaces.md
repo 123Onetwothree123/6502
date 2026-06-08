@@ -19,11 +19,15 @@ Primary runtime capture source:
 - debug trace (`READYSHELL_PARSE_TRACE_DEBUG=1`): `$8B00`
 
 ## REU debug surfaces
-- ReadyShell REU ring head: `0x43F000`
-- ReadyShell REU ring payload: `0x43F010`, length `0x0200`
-- Overlay cache previews: `0x400000`, `0x410000`
-- Fixed ReadyShell-owned REU banks: `0x40`, `0x41`, `0x43`, `0x48`
-  (overlay caches, debug/probe, scratch/registry/value arena)
+- ReadyShell state-bank-relative diagnostic head: `state_bank:$7DE0`
+- ReadyShell state-bank-relative diagnostic payload:
+  `state_bank:$7DF0-$7FEF`
+- ReadyShell state-bank-relative probe byte: `state_bank:$7FFF`
+- ReadyShell overlay cache previews must be resolved from logical REU bank `0`
+  rich resource records or the generated ReadyShell overlay metadata. Do not
+  assume fixed physical banks `0x40`, `0x41`, `0x43`, or `0x48`.
+- Logical REU bank `0` contains the ReadyOS control-bank mirror, app/resource
+  ownership records, and the shim token-to-physical-bank lookup page.
 
 ## Existing probes/tools
 - `tools/vice_readyshell_automation.py` (captures manifest/trace/state)

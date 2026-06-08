@@ -32,10 +32,14 @@
 - `__OVERLAYSTART__=0x8B00`
 
 When sampling RAM for overlay-window sanity, use profile-specific base (`0x8E00` or `0x8B00`) rather than assuming a fixed start.
-For REU interpretation, treat banks `0x40`, `0x41`, and `0x43` as ReadyShell-owned fixed banks:
-- `0x40` overlay1 cache (`0x400000`)
-- `0x41` overlay2 cache (`0x410000`)
-- `0x43` debug/probe (`0x43F000+`)
+For REU interpretation, resolve ReadyShell banks dynamically:
+- overlay cache banks come from logical REU bank `0` rich resource records or
+  generated ReadyShell overlay metadata;
+- state/scratch/CAT/value/diagnostic data lives in the loader-assigned
+  ReadyShell state bank;
+- diagnostic head/payload/probe are at state-bank-relative
+  `$7DE0`, `$7DF0-$7FEF`, and `$7FFF`;
+- do not assume physical `0x40`, `0x41`, or `0x43` are ReadyShell-owned.
 
 ## Notes
 - Some REU sampled dumps may be text-monitor fallback; use them as secondary evidence unless corroborated.

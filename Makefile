@@ -204,6 +204,7 @@ TUI_SPLIT_SRC = $(LIB_DIR)/tui_split.c
 TUI_OUTPUT_SRC = $(LIB_DIR)/tui_output.c
 REU_INIT_SRC = $(LIB_DIR)/reu_mgr_init.c
 REU_ALLOC_SRC = $(LIB_DIR)/reu_mgr_alloc.c
+REU_OWNED_ALLOC_SRC = $(LIB_DIR)/reu_owned_alloc.c
 REU_DMA_SRC = $(LIB_DIR)/reu_mgr_dma.c
 REU_STATS_SRC = $(LIB_DIR)/reu_mgr_stats.c
 REU_PHYS_SRC = $(LIB_DIR)/reu_phys.c
@@ -364,7 +365,7 @@ LIB_CLIP_COUNT = $(CLIP_COUNT_SRC)
 LIB_CLIP_PASTE_COUNT = $(CLIP_PASTE_SRC) $(CLIP_COUNT_SRC)
 LIB_CLIP_COPY_PASTE_COUNT = $(CLIP_COPY_SRC) $(CLIP_PASTE_SRC) $(CLIP_COUNT_SRC)
 LIB_EDITOR = $(TUI_BASE_MENU_INPUT_NAV_MISC) $(TUI_HOTKEY_SRC) $(LIB_REU_DMA) $(LIB_CLIP_COPY_PASTE_COUNT) $(RESUME_STATE_SEGMENT_SRCS) $(STORAGE_DEVICE_SRC) $(DIR_PAGE_SRC) $(FILE_DIALOG_SRC)
-LIB_QUICKNOTES = $(TUI_BASE_MENU_INPUT_NAV_MISC) $(TUI_HOTKEY_SRC) $(LIB_REU_DMA_STATS) $(LIB_CLIP_COPY_PASTE_COUNT) $(RESUME_STATE_ALL_SRCS) $(STORAGE_DEVICE_SRC) $(DIR_PAGE_SRC) $(FILE_DIALOG_SRC)
+LIB_QUICKNOTES = $(TUI_BASE_MENU_INPUT_NAV_MISC) $(TUI_HOTKEY_SRC) $(LIB_REU_DMA_STATS) $(REU_OWNED_ALLOC_SRC) $(LIB_CLIP_COPY_PASTE_COUNT) $(RESUME_STATE_ALL_SRCS) $(STORAGE_DEVICE_SRC) $(DIR_PAGE_SRC) $(FILE_DIALOG_SRC)
 LIB_CALCPLUS = $(TUI_BASE_NAV) $(TUI_HOTKEY_SRC) $(LIB_REU_DMA) $(LIB_CLIP_COPY_PASTE_COUNT) $(RESUME_STATE_SEGMENT_SRCS)
 LIB_HEXVIEW = $(TUI_BASE_NAV_MISC) $(TUI_HOTKEY_SRC) $(LIB_REU_DMA) $(LIB_CLIP_COPY) $(RESUME_STATE_SIMPLE_SRCS)
 LIB_CLIPMGR = $(TUI_BASE_MENU_INPUT_NAV_MISC) $(TUI_HOTKEY_SRC) $(LIB_REU_DMA_STATS) $(LIB_CLIP_PASTE_COUNT) $(CLIP_ADMIN_SRC) $(RESUME_STATE_SIMPLE_SRCS) $(STORAGE_DEVICE_SRC) $(DIR_PAGE_SRC)
@@ -380,8 +381,8 @@ LIB_CAL26 = $(TUI_BASE_INPUT_NAV_MISC) $(TUI_HOTKEY_SRC) $(LIB_REU_DMA) $(LIB_CL
 LIB_DIZZY = $(TUI_BASE_INPUT_NAV) $(TUI_HOTKEY_SRC) $(REU_DMA_SRC) $(RESUME_STATE_SEGMENT_SRCS)
 LIB_README = $(TUI_BASE_NAV_MISC) $(TUI_HOTKEY_SRC) $(REU_DMA_SRC) $(RESUME_STATE_SIMPLE_SRCS)
 LIB_READYSHELL = $(REU_DMA_SRC) $(RESUME_STATE_SIMPLE_SRCS)
-LIB_READYIRC = $(TUI_BASE_NAV_MISC) $(TUI_HOTKEY_SRC) $(LIB_REU_DMA) $(RESUME_STATE_SIMPLE_SRCS)
-LIB_RIRC_RRNET = $(TUI_BASE_NAV_MISC) $(TUI_HOTKEY_SRC) $(LIB_REU_DMA) $(RESUME_STATE_SIMPLE_SRCS) $(IP65_TCP_LIB) $(IP65_C64_LIB)
+LIB_READYIRC = $(TUI_BASE_NAV_MISC) $(TUI_HOTKEY_SRC) $(LIB_REU_DMA) $(REU_OWNED_ALLOC_SRC) $(RESUME_STATE_SIMPLE_SRCS)
+LIB_RIRC_RRNET = $(TUI_BASE_NAV_MISC) $(TUI_HOTKEY_SRC) $(LIB_REU_DMA) $(REU_OWNED_ALLOC_SRC) $(RESUME_STATE_SIMPLE_SRCS) $(IP65_TCP_LIB) $(IP65_C64_LIB)
 LIB_UCITEST = $(TUI_UCITEST) $(TUI_HOTKEY_SRC)
 EASYFLASH_PAYLOADS = $(LAUNCHER_EASYFLASH) $(READYSHELL_EASYFLASH) $(EDITOR) $(QUICKNOTES) $(CALCPLUS) $(HEXVIEW) $(CLIPMGR) $(REUVIEWER) $(SYSINFO) $(TASKLIST) $(SIMPLEFILES) $(SIMPLECELLS) $(GAME2048) $(DEMINER) $(SIDETRIS) $(CAL26) $(DIZZY) $(READYIRC) $(RIRC_RRNET) $(READYBASIC) $(UCITEST) $(READMEAPP) $(READYSHELL_OVL1_PRG) $(READYSHELL_OVL2_PRG) $(READYSHELL_OVL3_PRG) $(READYSHELL_OVL4_PRG) $(READYSHELL_OVL5_PRG) $(READYSHELL_OVL6_PRG) $(READYSHELL_OVL7_PRG) $(READYSHELL_OVL8_PRG) $(READYSHELL_OVL9_PRG)
 
@@ -686,6 +687,9 @@ readybasic-rbtest1-vice: $(BUILD_SUPPORT_DIR)/run_readybasic_rbtest1_probe.sh
 
 launcher-reu-state-vice: $(BUILD_SUPPORT_DIR)/run_launcher_reu_state_probe.sh
 	$(BUILD_SUPPORT_DIR)/run_launcher_reu_state_probe.sh
+
+quicknotes-owned-reu-vice: $(BUILD_SUPPORT_DIR)/run_quicknotes_owned_reu_probe.sh
+	$(BUILD_SUPPORT_DIR)/run_quicknotes_owned_reu_probe.sh
 
 readybasic-second-entry-editor-vice: $(BUILD_SUPPORT_DIR)/run_readybasic_second_entry_editor_probe.sh
 	$(BUILD_SUPPORT_DIR)/run_readybasic_second_entry_editor_probe.sh
@@ -1220,6 +1224,7 @@ help:
 	@echo "  readyshell-reu-tests-host - Run ReadyShell REU heap/value host tests"
 	@echo "  readyshell-overlay-report - Generate ReadyShell overlay Markdown + HTML docs"
 	@echo "  launcher-reu-state-vice - Run focused launcher unload/reload REU-state VICE probe"
+	@echo "  quicknotes-owned-reu-vice - Run QuickNotes app-owned REU unload/viewer VICE probe"
 	@echo "  readybasic-vice-plans - Regenerate tracked ReadyBASIC VICE YAML plans"
 	@echo "  readybasic-vice-suites - Run all repo-owned ReadyBASIC VICE suites"
 	@echo "  readybasic-full-vice - Run the full ReadyBASIC VICE visual suite"
@@ -1280,5 +1285,5 @@ probe-rel:
 launcher-verbose:
 	$(MAKE) LAUNCHER_CFG_VERBOSE=1 $(LAUNCHER)
 
-.PHONY: all clean verify verify-resume shim-verify fullcheck help run run-test seed-cal26 probe-rel launcher-verbose readybasic-plugin-static-check launcher-reu-state-vice readybasic-demo-vice readybasic-repeat-label-vice readybasic-full-vice readybasic-cross-app-resume-vice readybasic-large-vars-vice readybasic-lifecycle-vice readybasic-module-overlay-vice readybasic-plugin-command-vice readybasic-program-vice readybasic-rbtest1-vice readybasic-second-entry-editor-vice readybasic-state-vice readybasic-vice-plans readybasic-vice-suites readybasic-memory-report readyshell-host-tests readyshell-parse-smoke-host readyshell-vm-smoke-host readyshell-reu-tests-host editor-smoke-host tasklist-smoke-host programs prepare-version profile profiles release-all easyflash easyflash-verify easyflash-smoke easyflash-smoke-long easyflash-preload-verify easyflash-clean FORCE
+.PHONY: all clean verify verify-resume shim-verify fullcheck help run run-test seed-cal26 probe-rel launcher-verbose readybasic-plugin-static-check launcher-reu-state-vice quicknotes-owned-reu-vice readybasic-demo-vice readybasic-repeat-label-vice readybasic-full-vice readybasic-cross-app-resume-vice readybasic-large-vars-vice readybasic-lifecycle-vice readybasic-module-overlay-vice readybasic-plugin-command-vice readybasic-program-vice readybasic-rbtest1-vice readybasic-second-entry-editor-vice readybasic-state-vice readybasic-vice-plans readybasic-vice-suites readybasic-memory-report readyshell-host-tests readyshell-parse-smoke-host readyshell-vm-smoke-host readyshell-reu-tests-host editor-smoke-host tasklist-smoke-host programs prepare-version profile profiles release-all easyflash easyflash-verify easyflash-smoke easyflash-smoke-long easyflash-preload-verify easyflash-clean FORCE
 EASYFLASH_LAUNCHER_CPPFLAGS ?=

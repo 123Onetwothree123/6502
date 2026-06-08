@@ -150,6 +150,10 @@ def main() -> int:
     require("launcher_control_write_resource_record" in launcher and
             "launcher_control_write_dep_line" in launcher,
             "launcher writes rich resource/dependency metadata")
+    require("launcher_free_app_owned_alloc_records" in launcher and
+            "REUCB_DEP_KIND_APP_ALLOC" in launcher and
+            "REU_ALLOC_TABLE[bank] == REU_APP_ALLOC" in launcher,
+            "launcher unload frees owner-recorded app allocation banks")
     require("readyshell_overlay_names" not in launcher and
             "readyshell_overlay_offsets" not in launcher,
             "disk launcher does not carry hard-coded ReadyShell overlay placement tables")
@@ -170,6 +174,8 @@ def main() -> int:
             "reuviewer displays launcher-published physical REU size")
     require("reuviewer_find_resource_for_bank" in reuviewer and "OWNER:" in reuviewer,
             "reuviewer decodes rich app/resource ownership records")
+    require("REUCB_DEP_KIND_APP_ALLOC" in reuviewer and '"TAG"' in reuviewer,
+            "reuviewer displays app-owned allocation record tags")
 
     print("REU control bank static checks passed.")
     return 0

@@ -89,7 +89,7 @@ steps:
   - id: wait_readybasic_prompt
     type: screen.wait_contains
     params:
-      text: "READY."
+      text: "readybasic"
       wait_timeout_s: 180
       capture_on_success: true
       capture_label: readybasic_initial_prompt

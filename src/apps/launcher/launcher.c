@@ -1951,6 +1951,31 @@ static void launcher_control_clear_app_resource_records(unsigned char index) {
     }
 }
 
+static void launcher_free_app_owned_alloc_records(unsigned char index) {
+    unsigned char i;
+    unsigned char app_id;
+    unsigned char bank;
+    unsigned char control_bank;
+
+    app_id = launcher_control_app_id(index);
+    if (app_id == REUCB_NULL_REC) {
+        return;
+    }
+
+    control_bank = REU_READYOS_GLOBAL_PHYSICAL();
+    for (i = 0u; i < REUCB_RSRC_REC_COUNT; ++i) {
+        reu_dma_fetch((unsigned int)launcher_rsrc_rec_buf, control_bank,
+                      launcher_control_rsrc_rec_off(i), REUCB_RSRC_REC_SIZE);
+        if (launcher_rsrc_rec_buf[0] == app_id &&
+            launcher_rsrc_rec_buf[2] == REUCB_DEP_KIND_APP_ALLOC) {
+            bank = launcher_rsrc_rec_buf[3];
+            if (bank != 0u && REU_ALLOC_TABLE[bank] == REU_APP_ALLOC) {
+                REU_ALLOC_TABLE[bank] = REU_FREE;
+            }
+        }
+    }
+}
+
 static unsigned char launcher_control_alloc_resource_record(void) {
     unsigned char i;
     unsigned char control_bank;
@@ -2444,6 +2469,7 @@ static void launcher_free_app_resources(unsigned char index) {
     if (app_resource_sets[index] == APP_RESOURCE_READYSHELL_OVL) {
         launcher_zero_readyshell_meta(index);
     }
+    launcher_free_app_owned_alloc_records(index);
     launcher_control_clear_app_resource_records(index);
     if (app_rs_bank1[index] != 0u) {
         REU_ALLOC_TABLE[app_rs_bank1[index]] = REU_FREE;

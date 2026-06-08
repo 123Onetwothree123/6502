@@ -118,6 +118,11 @@ Boot note:
   app catalog metadata, and REU Viewer ownership details. ReadyShell overlays,
   ReadyShell state/scratch, and ReadyBASIC core/code banks are loader-assigned
   resources rather than fixed physical banks.
+- Apps can opt into owner-recorded runtime REU allocation without growing the
+  primitive allocator or shim. QuickNotes note banks and the IRC scrollback
+  banks now publish compact ownership records in logical REU bank `0`, so REU
+  Viewer can identify the owner and launcher unload can free those banks with
+  the app.
 
 ## Release Variants
 
@@ -348,12 +353,18 @@ REU layout:
 - app snapshots: allocated on demand by the launcher, then resolved by token
   through logical REU bank `0`
 - clipboard payload banks: allocated from the dynamic pool
+- app-owned runtime banks: allocated from the dynamic pool by apps that opt into
+  the owned-allocation micromodule, recorded in bank `0`, and reclaimed by
+  launcher unload
 - ReadyShell overlay banks: loader-assigned resources described by the profile
   overlay list and mirrored into bank `0` rich resource records
 - ReadyShell state/scratch/value/CAT/diagnostic bank: one loader-assigned
   resource bank with fixed relative subranges inside that bank
 - ReadyBASIC core/code banks: loader-assigned resources, not fixed `$44/$45`
   physical banks
+- unavailable physical tail banks: detected by the launcher once at startup and
+  marked as `REU_UNAVAIL` in the resident table plus bank `0` header, so REU
+  Viewer reports correct totals on smaller REU sizes
 - remaining banks: dynamic allocation pool
 
 Disk layout:
@@ -392,6 +403,9 @@ Main entry points:
 - `bash ./run.sh --vice-fast`
   launch with VICE drive traps enabled, true drive emulation disabled, and the
   emulator starting in warp mode
+- `bash ./run.sh --profile precog-d81 --vice-fast`
+  build and launch the full D81 profile interactively in the same VICE fast-disk
+  mode
 - `bash ./run.sh --skipbuild`
   launch using the latest built artifacts for the selected profile
 - `make`

@@ -32,7 +32,10 @@ Phase 1 completed:
   bytes are loader-owned dynamic resources;
 - ReadyBASIC core/code resources are launcher/cartridge-assigned rather than
   fixed physical banks;
-- launcher-owned unload frees app snapshots and launcher-owned resources;
+- app-requested runtime banks can be recorded as app-owned resources with a
+  tiny optional micromodule instead of growing the primitive allocator;
+- launcher-owned unload frees app snapshots, launcher-owned resources, and
+  recorded app-owned runtime banks;
 - REU Viewer reads bank `0` relationship metadata;
 - physical REU size is launcher-owned and mirrored into bank `0`;
 - regular ReadyBASIC, regular ReadyShell, and full EasyFlash/cartridge VICE
@@ -42,11 +45,14 @@ Current important headroom snapshot:
 
 | App | Headroom |
 | --- | ---: |
-| launcher | `5374` bytes |
+| launcher | `5242` bytes |
 | launcher_easyflash | `17757` bytes |
 | readybasic | `1029` bytes |
 | readyshell | `18185` bytes |
-| reuviewer | `29411` bytes |
+| quicknotes | `9164` bytes |
+| readyirc | `28657` bytes |
+| rirc-rrnet | `17871` bytes |
+| reuviewer | `29454` bytes |
 
 ReadyBASIC remains the tightest memory contract. Future shared helpers must not
 quietly make ReadyBASIC pay for launcher/registry features.
@@ -76,10 +82,19 @@ micromodules, not by linking the launcher parser into apps.
 The current v4 records are sufficient for Phase 1:
 
 - REU Viewer display of current app/resource ownership;
-- launcher-owned unload of snapshots and loader-owned resources;
+- launcher-owned unload of snapshots, loader-owned resources, and recorded
+  app-owned runtime allocations;
 - ReadyShell and ReadyBASIC fixed-contract resource loading;
+- simple app-requested resource ownership via `REUCB_DEP_KIND_APP_ALLOC`
+  records containing owner app id, slot id, physical bank, and a short tag;
 - debugging which physical banks were assigned;
 - physical REU size and unavailable-tail reporting.
+
+The current owner-recorded app allocation shape is intentionally small. It is
+sufficient for banks like QuickNotes note storage and IRC scrollback, where the
+app asks for one or a few banks and only needs ownership/unload visibility. It
+is not a plugin/resource-set schema; future plugin apps still need the resource
+set layer described below.
 
 They are not yet sufficient for a future optional plugin manager because they
 do not fully represent:
@@ -237,8 +252,9 @@ C64 runtime parsing must stay positional and bounded.
    - required/optional;
    - selected/loaded/failed;
    - bank ordinal and physical bank.
-10. Add checked-in REU Viewer VICE tests that navigate selected resource banks
-    and assert owner/detail text.
+10. Extend checked-in REU Viewer VICE tests beyond the current QuickNotes
+    owned-allocation before/after probe so they also navigate loader resource
+    banks and assert owner/detail text.
 11. Add a C64-side or otherwise reliable bank `0` runtime validator.
 12. Add future optional plugin pilot only after the schema is proven by
     ReadyShell/ReadyBASIC parity.
@@ -249,10 +265,9 @@ These items were still open at the end of Phase 1 and remain in scope here:
 
 - generic arbitrary dependency loading for unknown app-specific overlays or
   modules beyond current concrete contracts;
-- ownership records and unload/free integration for arbitrary app-requested
-  banks allocated after app launch;
-- checked-in REU Viewer VICE regression that validates visible owner/detail
-  text;
+- broader REU Viewer VICE regression coverage for visible owner/detail text;
+  the QuickNotes app-owned allocation path now has a checked-in before/after
+  unload probe, but loader-resource display should get equivalent assertions;
 - runtime bank `0` validator for `RCB0` header/table/resource records;
 - headless app/service invocation records and dispatcher;
 - modal UI service invocation, including shared file open/save;

@@ -87,6 +87,10 @@ def main() -> int:
           "*SHIM_LAST_SAVED == bank" in launcher and
           "*SHIM_LAST_SAVED = 0xFFu;" in launcher and
           "last_saved < 24 && launcher_catalog_uses_bank(last_saved, 0xFFu)" in launcher)
+    check("launcher unload frees owner-recorded app allocations",
+          "launcher_free_app_owned_alloc_records" in launcher and
+          "REUCB_DEP_KIND_APP_ALLOC" in launcher and
+          "REU_ALLOC_TABLE[bank] == REU_APP_ALLOC" in launcher)
     check("launcher owns ReadyShell overlay resource banks",
           "APP_RESOURCE_READYSHELL_OVL" in launcher and
           "launcher_load_readyshell_resources" in launcher and
