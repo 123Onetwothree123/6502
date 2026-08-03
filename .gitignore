@@ -1,0 +1,10 @@
+# 构建产物
+build/
+tools/kconfig/build/
+tools/build/
+
+# kconfig 生成文件
+.config
+.config.old
+include/config/
+include/generated/

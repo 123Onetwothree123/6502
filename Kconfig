@@ -1,0 +1,211 @@
+mainmenu "6502模拟器配置菜单"
+
+menu "工具链"
+
+choice
+  prompt "编译器"
+  default CC_GPP
+config CC_GPP
+  bool "g++"
+config CC_CLANG
+  bool "clang++"
+endchoice
+
+config CC
+  string
+  default "g++" if CC_GPP
+  default "clang++" if CC_CLANG
+  default "g++"
+
+choice
+  prompt "C++标准库"
+  default STDLIB_LIBSTDCXX
+config STDLIB_LIBSTDCXX
+  bool "libstdc++（GNU）"
+config STDLIB_LIBCXX
+  bool "libc++（LLVM）"
+endchoice
+
+config STDLIB_FLAG
+  string
+  default "-stdlib=libstdc++" if STDLIB_LIBSTDCXX
+  default "-stdlib=libc++" if STDLIB_LIBCXX
+  default "-stdlib=libstdc++"
+
+endmenu
+
+menu "优化"
+
+menu "性能优化"
+
+choice
+  prompt "优化级别"
+  default CC_O3
+config CC_O0
+  bool "O0"
+config CC_O1
+  bool "O1"
+config CC_O2
+  bool "O2"
+config CC_O3
+  bool "O3"
+config CC_OFAST
+  bool "Ofast"
+  help
+    等同于-O3加上-ffast-math
+    放宽IEEE浮点标准合规性换取速度
+    可能导致浮点计算结果与标准不一致
+endchoice
+
+config CC_OPT
+  string
+  default "-O0" if CC_O0
+  default "-O1" if CC_O1
+  default "-O2" if CC_O2
+  default "-O3" if CC_O3
+  default "-Ofast" if CC_OFAST
+  default "-O3"
+
+config CC_LTO
+  bool "启用链接时优化-flto"
+  default n
+
+choice
+  prompt "PGO配置引导优化"
+  default PGO_OFF
+  help
+    Profile-Guided Optimization，基于实际运行数据优化
+config PGO_OFF
+  bool "关闭"
+config PGO_GENERATE
+  bool "手动：生成profile数据"
+  help
+    添加-fprofile-generate，编译后运行产生profile文件
+    之后切到"使用"选项重新编译
+config PGO_USE
+  bool "手动：使用profile数据优化"
+  help
+    添加-fprofile-use，读取之前运行产生的profile文件优化
+    使用前不要clean，否则profile数据丢失
+endchoice
+
+choice
+  prompt "架构优化-march"
+  default MARCH_OFF
+config MARCH_OFF
+  bool "不指定"
+config MARCH_NATIVE
+  bool "native（本机CPU）"
+config MARCH_CUSTOM
+  bool "手动指定"
+endchoice
+
+config MARCH_CUSTOM_VALUE
+  string "架构名称"
+  default "x86-64-v3"
+  depends on MARCH_CUSTOM
+  help
+    输入GCC/Clang支持的架构名，例如：
+    alderlake, raptorlake, znver4, skylake, x86-64-v3
+
+config CC_IPA_PTA
+  bool "跨过程指针分析-fipa-pta"
+  default n
+  depends on CC_GPP
+  help
+    允许编译器跨函数分析指针别名，发现更多优化机会
+    会显著增加编译时间（仅GCC支持）
+
+config CC_PREFETCH
+  bool "软件预取大数组-fprefetch-loop-arrays"
+  default n
+  depends on CC_GPP
+  help
+    在循环中插入prefetch指令提前加载数据到缓存
+    对遍历大数组的场景有效，对小数据量可能反而变慢（仅GCC支持）
+
+config CC_PIPE
+  bool "使用管道加速编译-pipe"
+  default n
+  help
+    编译阶段间用管道代替临时文件，减少磁盘IO
+
+config CC_SPLIT_DWARF
+  bool "拆分调试信息加速链接-gsplit-dwarf"
+  default n
+  help
+    将调试信息拆分到.dwo文件，减少链接器处理量
+    需配合-g使用
+
+endmenu
+
+menu "大小优化"
+
+config CC_GC_SECTIONS
+  bool "删除未使用代码和数据-ffunction-sections -fdata-sections"
+  default n
+  help
+    将每个函数和数据放入独立section
+    链接时通过--gc-sections丢弃未引用的section
+
+config CC_STRIP
+  bool "剥离符号表-s"
+  default n
+  help
+    链接时删除所有符号信息，减小二进制体积
+    启用后无法用gdb调试
+
+config CC_VISIBILITY_HIDDEN
+  bool "默认隐藏符号-fvisibility=hidden"
+  default n
+  help
+    所有符号默认不导出，减少动态链接开销
+    对可执行文件无副作用
+
+endmenu
+
+endmenu
+
+menu "调试器"
+
+config SDB
+  bool "启用SDB调试器"
+  default y
+
+config WATCHPOINT
+  bool "启用监视点"
+  default n
+
+endmenu
+
+menu "目标体系结构"
+
+config MEMORY_SIZE
+  hex "内存大小"
+  default 0x10000
+  help
+    6502 CPU 有16位地址总线，最大寻址空间为64KB (0x10000)
+
+config RESET_PC
+  hex "复位PC地址"
+  default 0xFFFC
+  help
+    6502复位向量位于 $FFFC-$FFFD（小端序）
+
+config STACK_BASE
+  hex "栈基地址"
+  default 0x0100
+  help
+    6502 的栈固定在 $0100-$01FF，通过S寄存器索引
+
+endmenu
+
+menu "外设"
+
+config UART
+  bool "启用UART串口输出"
+  default y
+  help
+    将 $F001 地址映射为UART，写入的字符输出到终端
+
+endmenu
