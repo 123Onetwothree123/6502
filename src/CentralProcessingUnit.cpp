@@ -187,6 +187,18 @@ std::uint8_t CentralProcessingUnit::pop()
     Registers[S]++;
     return Memory.read(static_cast<std::uint16_t>(CONFIG_STACK_BASE + Registers[S]));
 }
+void CentralProcessingUnit::HandleIrq()
+{
+    // 6502 IRQ 序列：压 PC、压 P（B 位清零）、置 I、跳 $FFFE 向量
+    push(static_cast<std::uint8_t>(RegisterPC >> 8));
+    push(static_cast<std::uint8_t>(RegisterPC & 0xFF));
+    push(static_cast<std::uint8_t>(Registers[P] & ~0x10)); // B 标志压栈时清除
+    Registers[P] |= 0x04;                                 // 置 I 标志
+    auto LowByte{Memory.read(0xFFFE)};
+    auto HighByte{Memory.read(0xFFFF)};
+    RegisterPC = static_cast<std::uint16_t>(LowByte | (HighByte << 8));
+    IrqLine = false;
+}
 void CentralProcessingUnit::reset()
 {
     Registers[A] = 0;
@@ -199,10 +211,34 @@ void CentralProcessingUnit::reset()
     auto HighByte{Memory.read(CONFIG_RESET_PC + 1)};
     RegisterPC = static_cast<std::uint16_t>(LowByte | (HighByte << 8)); // 从复位向量装PC
 }
+void CentralProcessingUnit::SetIrqLine(bool asserted)
+{
+    IrqLine = asserted;
+}
+void CentralProcessingUnit::SetIrqInterval(std::size_t instructions)
+{
+    IrqInterval = instructions;
+    IrqCounter = 0;
+}
 void CentralProcessingUnit::step()
 {
     if (halted)
     {
+        return;
+    }
+    // 周期定时器：每 IrqInterval 条指令拉一次 IRQ 线
+    if (IrqInterval > 0)
+    {
+        if (++IrqCounter >= IrqInterval)
+        {
+            IrqCounter = 0;
+            IrqLine = true;
+        }
+    }
+    // 若 IRQ 线上有请求且 I 标志未置位，进入中断序列
+    if (IrqLine && (Registers[P] & 0x04) == 0)
+    {
+        HandleIrq();
         return;
     }
     auto Opcode{Decoder.decode(Memory.read(RegisterPC))};

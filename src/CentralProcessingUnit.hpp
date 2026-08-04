@@ -13,6 +13,9 @@ private:
     std::array<std::uint8_t, RegisterCount> Registers{};
     std::uint16_t RegisterPC;
     bool halted;
+    bool IrqLine{false};
+    std::size_t IrqCounter{0};
+    std::size_t IrqInterval{0};
     memory &Memory;
     decoder Decoder;
     std::uint16_t ResolveAddress(mode Mode, const operand &Operand);
@@ -23,6 +26,7 @@ private:
     void SetFlagsZ(bool set);
     void SetFlagsC(bool set);
     void SetFlagsV(bool set);
+    void HandleIrq();
 
 public:
     ~CentralProcessingUnit() = default;
@@ -33,5 +37,7 @@ public:
     bool IsHalted() const;
     void reset();
     void step();
+    void SetIrqLine(bool asserted);
+    void SetIrqInterval(std::size_t instructions);
 };
 #endif

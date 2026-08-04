@@ -1,0 +1,3 @@
+[submodule "OS/GeckOS"]
+	path = OS/GeckOS
+	url = https://github.com/fachat/GeckOS-V2

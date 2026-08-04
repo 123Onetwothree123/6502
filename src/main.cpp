@@ -1,4 +1,5 @@
 #include <print>
+#include <cstdlib>
 #include "memory.hpp"
 #include "ProgramLoader.hpp"
 #include "CentralProcessingUnit.hpp"
@@ -44,6 +45,11 @@ int main(int argc, char const *argv[])
     }
     CentralProcessingUnit CPU(MemoryObject);
     CPU.reset();
+    // 周期定时器（RTOS 用，如 GeckOS）：IRQ_INTERVAL=<指令数> 环境变量启用
+    if (const char *IrqIntervalEnv = std::getenv("IRQ_INTERVAL"))
+    {
+        CPU.SetIrqInterval(std::stoull(IrqIntervalEnv));
+    }
     std::size_t steps{0};
     while (!CPU.IsHalted())
     {
