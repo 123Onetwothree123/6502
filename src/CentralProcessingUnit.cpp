@@ -151,6 +151,7 @@ operand CentralProcessingUnit::FetchOperand(const instruction &Instruction)
     case mode::ZeroPageX:
     case mode::ZeroPageY:
     case mode::IndexedIndirect:
+    case mode::IndirectIndexed:
     case mode::Relative:
     {
         auto address{static_cast<std::uint16_t>(Memory.read(RegisterPC))};
@@ -162,7 +163,6 @@ operand CentralProcessingUnit::FetchOperand(const instruction &Instruction)
     case mode::AbsoluteX:
     case mode::AbsoluteY:
     case mode::Indirect:
-    case mode::IndirectIndexed:
     {
         auto address{static_cast<std::uint16_t>(Memory.read(RegisterPC))};
         address |= static_cast<std::uint16_t>(Memory.read(RegisterPC + 1)) << 8;

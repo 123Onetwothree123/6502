@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <iostream>
 #include <print>
 #include "sdb_command_registry.hpp"

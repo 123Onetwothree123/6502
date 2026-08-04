@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <format>
 #include <print>
 #include "watchpoint_pool.hpp"

@@ -17,9 +17,19 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # ---------- 工具链 ----------
-# -stdlib 是 clang 专用选项，g++ 不识别
-if(KCONFIG_STDLIB_FLAG AND NOT KCONFIG_CC STREQUAL "g++")
-  string(APPEND _CXX_KCONFIG_FLAGS " ${KCONFIG_STDLIB_FLAG}")
+if(KCONFIG_CC STREQUAL "g++")
+  # g++ 没有 -stdlib 标志：用 libc++ 时手动指定头文件和库
+  if(KCONFIG_STDLIB_LIBCXX)
+    string(APPEND _CXX_KCONFIG_FLAGS " -nostdinc++ -isystem ${KCONFIG_LIBCXX_INCLUDE_DIR}")
+    string(APPEND _LINK_KCONFIG_FLAGS " -Wno-alloc-size-larger-than -Wno-stringop-overflow")
+    string(APPEND _LINK_KCONFIG_FLAGS " -lc++ -lc++abi")
+  endif()
+else()
+  # -stdlib 是 clang 专用选项，编译和链接都要传
+  if(KCONFIG_STDLIB_FLAG)
+    string(APPEND _CXX_KCONFIG_FLAGS " ${KCONFIG_STDLIB_FLAG}")
+    string(APPEND _LINK_KCONFIG_FLAGS " ${KCONFIG_STDLIB_FLAG}")
+  endif()
 endif()
 
 # ---------- 性能优化 ----------
@@ -70,7 +80,8 @@ separate_arguments(_LINK_KCONFIG_FLAGS)
 
 file(GLOB_RECURSE SIM_SOURCES src/*.cpp)
 add_executable(6502 ${SIM_SOURCES} third_party/linenoise/linenoise.c)
-target_compile_options(6502 PRIVATE ${_CXX_KCONFIG_FLAGS})
+# 仅对 C++ 文件应用 Kconfig 编译选项（如 -nostdinc++ 对 C 无效）
+target_compile_options(6502 PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${_CXX_KCONFIG_FLAGS}>)
 target_link_options(6502 PRIVATE ${_LINK_KCONFIG_FLAGS})
 target_include_directories(6502 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/third_party/linenoise)
 add_dependencies(6502 syncconfig)

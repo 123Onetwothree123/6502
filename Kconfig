@@ -32,6 +32,14 @@ config STDLIB_FLAG
   default "-stdlib=libc++" if STDLIB_LIBCXX
   default ""
 
+config LIBCXX_INCLUDE_DIR
+  string "libc++头文件目录"
+  default "/usr/include/c++/v1"
+  depends on STDLIB_LIBCXX
+  help
+    g++没有-stdlib标志，只能手动指定libc++头文件路径
+    若头文件装在别处（如/usr/local/include/c++/v1），请改成实际路径
+
 endmenu
 
 menu "优化"
