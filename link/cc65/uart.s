@@ -13,32 +13,39 @@
 ;
 
         .export         _write
-        .importzp       c_sp
         .importzp       ptr1, ptr2
+        .include        "zeropage.inc"
+
+; 软栈指针符号：cc65 2.19+ 叫 c_sp，2.18 叫 sp
+.ifdef c_sp
+.define STACKPTR c_sp
+.else
+.define STACKPTR sp
+.endif
 
         .segment        "CODE"
 
 _write:
         ldy     #$03
-        lda     (c_sp),y            ; fd 高字节
+        lda     (STACKPTR),y            ; fd 高字节
         bne     @bad
         dey
-        lda     (c_sp),y            ; fd 低字节
+        lda     (STACKPTR),y            ; fd 低字节
         cmp     #$01
         bne     @bad
 
         ldy     #$01
-        lda     (c_sp),y            ; buf 高字节
+        lda     (STACKPTR),y            ; buf 高字节
         sta     ptr1+1
         dey
-        lda     (c_sp),y            ; buf 低字节
+        lda     (STACKPTR),y            ; buf 低字节
         sta     ptr1
 
         ldy     #$05
-        lda     (c_sp),y            ; count 高字节
+        lda     (STACKPTR),y            ; count 高字节
         sta     ptr2+1
         dey
-        lda     (c_sp),y            ; count 低字节
+        lda     (STACKPTR),y            ; count 低字节
         sta     ptr2
 
         lda     ptr2+1
@@ -68,10 +75,10 @@ _write:
 
 @ret:
         ldy     #$05
-        lda     (c_sp),y
+
         tax
         dey
-        lda     (c_sp),y            ; A/X = count
+        lda     (STACKPTR),y            ; A/X = count
         rts
 @bad:
         ldx     #$FF

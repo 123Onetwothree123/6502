@@ -9,7 +9,14 @@
         .export         __STARTUP__ : absolute = 1      ; 标记为启动模块
         .import         zerobss, callmain
         .import         initlib, donelib
-        .importzp       c_sp
+        .include        "zeropage.inc"
+
+; 软栈指针符号：cc65 2.19+ 叫 c_sp，2.18 叫 sp
+.ifdef c_sp
+.define STACKPTR c_sp
+.else
+.define STACKPTR sp
+.endif
 
         .segment        "STARTUP"
 
@@ -18,8 +25,8 @@ startup:
         ldx     #$FF
         txs                             ; 硬件栈顶 $01FF
         lda     #$FF
-        sta     c_sp
-        sta     c_sp+1                  ; 软栈顶 $FFFF（向下生长）
+        sta     STACKPTR
+        sta     STACKPTR+1              ; 软栈顶 $FFFF（向下生长）
         jsr     zerobss                 ; 清零 BSS
         jsr     initlib                 ; 运行构造函数
         jsr     callmain                ; 调用 main()
