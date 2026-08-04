@@ -7,8 +7,10 @@
 #include "command/infoCommand.hpp"
 #include "command/xCommand.hpp"
 #include "command/pCommand.hpp"
+#ifdef CONFIG_WATCHPOINT
 #include "command/wCommand.hpp"
 #include "command/dCommand.hpp"
+#endif
 #include "command/helpCommand.hpp"
 #include "command/qCommand.hpp"
 
@@ -72,8 +74,10 @@ void SDBCommandRegistry::RegisterBuiltins()
     RegisterCommand(std::make_unique<infoCommand>());
     RegisterCommand(std::make_unique<xCommand>());
     RegisterCommand(std::make_unique<pCommand>());
+#ifdef CONFIG_WATCHPOINT
     RegisterCommand(std::make_unique<wCommand>());
     RegisterCommand(std::make_unique<dCommand>());
+#endif
     RegisterCommand(std::make_unique<helpCommand>(*this));
     RegisterCommand(std::make_unique<qCommand>());
 }

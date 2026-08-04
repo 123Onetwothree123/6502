@@ -3,10 +3,13 @@
 #include "ProgramLoader.hpp"
 #include "CentralProcessingUnit.hpp"
 #include "BuiltinImage.hpp"
+#ifdef CONFIG_SDB
 #include "sdb/sdb.hpp"
+#endif
 
 int main(int argc, char const *argv[])
 {
+#ifdef CONFIG_SDB
     if (argc < 2)
     {
         std::println("检测到无参数模式运行，进入SDB模式");
@@ -18,16 +21,26 @@ int main(int argc, char const *argv[])
         SDB::MainLoop(CPU, MemoryObject);
         return 0;
     }
+#endif
     memory MemoryObject;
-    ProgramLoader ProgramLoaderObject;
-    if (auto result = ProgramLoaderObject.load(argv[1], MemoryObject))
+    if (argc < 2)
     {
-        std::println("镜像加载成功: {}", argv[1]);
+        std::println("无参数且SDB已禁用，运行内置镜像");
+        BuiltinImage BuiltinImage;
+        BuiltinImage.Load(MemoryObject);
     }
     else
     {
-        std::println("加载失败: {}", result.error());
-        return 1;
+        ProgramLoader ProgramLoaderObject;
+        if (auto result = ProgramLoaderObject.load(argv[1], MemoryObject))
+        {
+            std::println("镜像加载成功: {}", argv[1]);
+        }
+        else
+        {
+            std::println("加载失败: {}", result.error());
+            return 1;
+        }
     }
     CentralProcessingUnit CPU(MemoryObject);
     CPU.reset();

@@ -179,13 +179,13 @@ operand CentralProcessingUnit::FetchOperand(const instruction &Instruction)
 }
 void CentralProcessingUnit::push(std::uint8_t value)
 {
-    Memory.write(static_cast<std::uint16_t>(0x0100 + Registers[S]), value);
+    Memory.write(static_cast<std::uint16_t>(CONFIG_STACK_BASE + Registers[S]), value);
     Registers[S]--;
 }
 std::uint8_t CentralProcessingUnit::pop()
 {
     Registers[S]++;
-    return Memory.read(0x0100 + Registers[S]);
+    return Memory.read(static_cast<std::uint16_t>(CONFIG_STACK_BASE + Registers[S]));
 }
 void CentralProcessingUnit::reset()
 {
@@ -195,8 +195,8 @@ void CentralProcessingUnit::reset()
     Registers[S] = 0xFD;
     Registers[P] = 0x20;
     halted = false;
-    auto LowByte{Memory.read(0xFFFC)};
-    auto HighByte{Memory.read(0xFFFD)};
+    auto LowByte{Memory.read(CONFIG_RESET_PC)};
+    auto HighByte{Memory.read(CONFIG_RESET_PC + 1)};
     RegisterPC = static_cast<std::uint16_t>(LowByte | (HighByte << 8)); // 从复位向量装PC
 }
 void CentralProcessingUnit::step()

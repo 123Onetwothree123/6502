@@ -1,8 +1,10 @@
 #include <format>
 #include <print>
 #include "infoCommand.hpp"
+#ifdef CONFIG_WATCHPOINT
 #include "../cpu6502_evaluation_context.hpp"
 #include "../watchpoint_pool.hpp"
+#endif
 
 namespace
 {
@@ -33,9 +35,11 @@ SDBCommandUsageList infoCommand::usage() const noexcept
 {
     static const SDBCommandUsage entries[]{
         {"r", "打印寄存器"},
+#ifdef CONFIG_WATCHPOINT
         {"w", "打印监视点状态"},
+#endif
     };
-    return {entries, entries + 2};
+    return {entries, entries + std::size(entries)};
 }
 SDBCommandResult infoCommand::execute(SDBCommandContext &context, std::string_view args)
 {
@@ -44,12 +48,14 @@ SDBCommandResult infoCommand::execute(SDBCommandContext &context, std::string_vi
         PrintRegisters(context.GetCPU());
         return SDBCommandResult::Continue;
     }
+#ifdef CONFIG_WATCHPOINT
     if (args == "w")
     {
         CPU6502EvaluationContext EvalContext{context.GetCPU(), context.GetMemory()};
         GetGlobalWatchpointPool().PrintAllWatchpoints(EvalContext);
         return SDBCommandResult::Continue;
     }
+#endif
     std::println("用法：info r 或 info w");
     return SDBCommandResult::Continue;
 }

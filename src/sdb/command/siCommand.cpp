@@ -3,8 +3,10 @@
 #include "siCommand.hpp"
 #include <charconv>
 #include "../sdb_command_utils.hpp"
+#ifdef CONFIG_WATCHPOINT
 #include "../cpu6502_evaluation_context.hpp"
 #include "../watchpoint_pool.hpp"
+#endif
 
 std::string_view siCommand::name() const noexcept
 {
@@ -50,15 +52,19 @@ SDBCommandResult siCommand::execute(SDBCommandContext &context, std::string_view
         std::println("CPU已经停止运行了");
         return SDBCommandResult::Continue;
     }
+#ifdef CONFIG_WATCHPOINT
     CPU6502EvaluationContext EvalContext{CPU, context.GetMemory()};
+#endif
     for (std::size_t index{0}; index < count && !CPU.IsHalted(); ++index)
     {
         CPU.step();
+#ifdef CONFIG_WATCHPOINT
         if (GetGlobalWatchpointPool().CheckAll(EvalContext))
         {
             std::println("因为监视点变化，程序停止");
             break;
         }
+#endif
     }
     return SDBCommandResult::Continue;
 }

@@ -4,12 +4,16 @@
 #include <cstdint>
 #include <vector>
 #include <generated/autoconf.h>
+#ifdef CONFIG_UART
 #include "peripheral/uart/uart.hpp"
+#endif
 class memory
 {
 private:
     std::array<std::uint8_t, CONFIG_MEMORY_SIZE> data{};
+#ifdef CONFIG_UART
     uart UART;
+#endif
 
 public:
     memory() = default;

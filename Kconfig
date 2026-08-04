@@ -28,9 +28,9 @@ endchoice
 
 config STDLIB_FLAG
   string
-  default "-stdlib=libstdc++" if STDLIB_LIBSTDCXX
+  default "-stdlib=libstdc++" if CC_CLANG && STDLIB_LIBSTDCXX
   default "-stdlib=libc++" if STDLIB_LIBCXX
-  default "-stdlib=libstdc++"
+  default ""
 
 endmenu
 
