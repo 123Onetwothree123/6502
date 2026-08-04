@@ -6,7 +6,7 @@
 #include "decoder.hpp"
 #include "instruction.hpp"
 #include "operand.hpp"
-#include "register_index.hpp"
+#include "RegisterIndex.hpp"
 class CentralProcessingUnit
 {
 private:

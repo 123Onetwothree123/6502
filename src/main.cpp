@@ -2,7 +2,7 @@
 #include "memory.hpp"
 #include "ProgramLoader.hpp"
 #include "CentralProcessingUnit.hpp"
-#include "builtin_image.hpp"
+#include "BuiltinImage.hpp"
 #include "sdb/sdb.hpp"
 
 int main(int argc, char const *argv[])
@@ -11,7 +11,7 @@ int main(int argc, char const *argv[])
     {
         std::println("检测到无参数模式运行，进入SDB模式");
         memory MemoryObject;
-        builtin_image BuiltinImage;
+        BuiltinImage BuiltinImage;
         BuiltinImage.Load(MemoryObject);
         CentralProcessingUnit CPU(MemoryObject);
         CPU.reset();
@@ -38,7 +38,7 @@ int main(int argc, char const *argv[])
         ++steps;
     }
     std::println("模拟结束，共执行{}条指令", steps);
-    builtin_image BuiltinImage;
+    BuiltinImage BuiltinImage;
     BuiltinImage.PrintTrapResult(CPU);
     // 特意手动对齐的
     std::println("PC = 0x{:04x}", CPU.GetRegisterPC());
