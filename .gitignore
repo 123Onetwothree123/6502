@@ -3,6 +3,14 @@ build/
 tools/kconfig/build/
 tools/build/
 
+# 6502 编译产物（cc65/llvm-mos 生成的镜像和中间文件）
+*.bin
+*.hex
+*.o
+*.elf
+*.a
+*.ihex
+
 # kconfig 生成文件
 .config
 .config.old
