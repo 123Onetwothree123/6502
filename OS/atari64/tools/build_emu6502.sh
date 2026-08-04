@@ -1,0 +1,21 @@
+#!/bin/bash
+# 构建 6502 模拟器版 atari64（C64 KERNAL 移植）
+# 依赖: dasm, python3
+set -e
+cd "$(dirname "$0")/.."
+bash build.sh >/dev/null 2>&1
+python3 - << 'PYEOF'
+img = bytearray(0x10000)
+img[0xA000:0xA000+8192] = open('rom.a000','rb').read()
+img[0xD800:0xD800+10240] = open('rom.d800','rb').read()
+img[0xFA40:0xFA46] = bytes([0xA9, 0xA0, 0x85, 0xC2, 0x4C, 0x66])
+for i in range(0xFA46, 0xFA66): img[i] = 0xEA
+img[0xF9E5:0xF9E8] = bytes([0x6C, 0x00, 0xA0])
+img[0xEAA6:0xEAA9] = bytes([0x4C, 0x1C, 0xEB])
+img[0xFFFC] = 0xD3; img[0xFFFD] = 0xF9
+img[0xFFFA] = 0x3C; img[0xFFFB] = 0xFB
+img[0xFFFE] = 0x84; img[0xFFFF] = 0xFB
+open('ATARI64_EMU.bin','wb').write(img)
+print('镜像: ATARI64_EMU.bin')
+PYEOF
+echo "运行: /home/abc/6502/build/6502 ATARI64_EMU.bin"
