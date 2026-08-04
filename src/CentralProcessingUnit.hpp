@@ -1,19 +1,17 @@
 #ifndef CENTRALPROCESSINGUNIT_HPP
 #define CENTRALPROCESSINGUNIT_HPP
+#include <array>
 #include <cstdint>
 #include "memory.hpp"
 #include "decoder.hpp"
 #include "instruction.hpp"
 #include "operand.hpp"
+#include "register_index.hpp"
 class CentralProcessingUnit
 {
 private:
-    std::uint8_t RegisterA;
-    std::uint8_t RegisterX;
-    std::uint8_t RegisterY;
-    std::uint8_t RegisterS;
+    std::array<std::uint8_t, RegisterCount> Registers{};
     std::uint16_t RegisterPC;
-    std::uint8_t RegisterP; // 这是状态寄存器
     bool halted;
     memory &Memory;
     decoder Decoder;
@@ -29,12 +27,9 @@ private:
 public:
     ~CentralProcessingUnit() = default;
     CentralProcessingUnit(memory &Memory);
-    std::uint8_t GetRegisterA() const;
-    std::uint8_t GetRegisterX() const;
-    std::uint8_t GetRegisterY() const;
-    std::uint8_t GetRegisterS() const;
+    std::uint8_t GetRegister(std::size_t index) const;
+    void SetRegister(std::size_t index, std::uint8_t value);
     std::uint16_t GetRegisterPC() const;
-    std::uint8_t GetRegisterP() const;
     bool IsHalted() const;
     void reset();
     void step();

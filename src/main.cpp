@@ -2,14 +2,21 @@
 #include "memory.hpp"
 #include "ProgramLoader.hpp"
 #include "CentralProcessingUnit.hpp"
+#include "builtin_image.hpp"
+#include "sdb/sdb.hpp"
+
 int main(int argc, char const *argv[])
 {
     if (argc < 2)
     {
         std::println("检测到无参数模式运行，进入SDB模式");
-        std::println("目前简易的基础设施还没设计出来，所以SDB还用不了");
-        std::println("用法: ./6502 <镜像文件.bin/.hex>");
-        return 1;
+        memory MemoryObject;
+        builtin_image BuiltinImage;
+        BuiltinImage.Load(MemoryObject);
+        CentralProcessingUnit CPU(MemoryObject);
+        CPU.reset();
+        SDB::MainLoop(CPU, MemoryObject);
+        return 0;
     }
     memory MemoryObject;
     ProgramLoader ProgramLoaderObject;
@@ -31,12 +38,14 @@ int main(int argc, char const *argv[])
         ++steps;
     }
     std::println("模拟结束，共执行{}条指令", steps);
+    builtin_image BuiltinImage;
+    BuiltinImage.PrintTrapResult(CPU);
     // 特意手动对齐的
     std::println("PC = 0x{:04x}", CPU.GetRegisterPC());
-    std::println("A  = 0x{:02x}", CPU.GetRegisterA());
-    std::println("X  = 0x{:02x}", CPU.GetRegisterX());
-    std::println("Y  = 0x{:02x}", CPU.GetRegisterY());
-    std::println("S  = 0x{:02x}", CPU.GetRegisterS());
-    std::println("P  = 0x{:02x}", CPU.GetRegisterP());
+    std::println("A  = 0x{:02x}", CPU.GetRegister(A));
+    std::println("X  = 0x{:02x}", CPU.GetRegister(X));
+    std::println("Y  = 0x{:02x}", CPU.GetRegister(Y));
+    std::println("S  = 0x{:02x}", CPU.GetRegister(S));
+    std::println("P  = 0x{:02x}", CPU.GetRegister(P));
     return 0;
 }

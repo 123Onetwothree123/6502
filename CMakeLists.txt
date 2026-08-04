@@ -7,9 +7,9 @@ read_kconfig()
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-file(GLOB SIM_SOURCES src/*.cpp)
-add_executable(6502 ${SIM_SOURCES})
-target_include_directories(6502 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+file(GLOB_RECURSE SIM_SOURCES src/*.cpp)
+add_executable(6502 ${SIM_SOURCES} third_party/linenoise/linenoise.c)
+target_include_directories(6502 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/third_party/linenoise)
 add_dependencies(6502 syncconfig)
 
 add_subdirectory(tools/kconfig)

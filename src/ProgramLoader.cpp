@@ -47,14 +47,11 @@ std::expected<void, std::string> ProgramLoader::load_bin(const std::filesystem::
         return std::unexpected(std::format("ProgramLoader直接无法打开{}文件了", path.string()));
     }
     std::vector<std::uint8_t> buffer(std::istreambuf_iterator<char>(file), {});
-    for (std::size_t i{0}; i < buffer.size(); ++i)
+    if (buffer.size() > static_cast<std::size_t>(0x10000) - base)
     {
-        if (base + i > 0xFFFF)
-        {
-            return std::unexpected("超出64KB地址空间了，爆内存了");
-        }
-        Memory.write(static_cast<std::uint16_t>(base + i), buffer[i]);
+        return std::unexpected("超出64KB地址空间了，爆内存了");
     }
+    Memory.write(buffer, base);
     return {};
 }
 std::expected<void, std::string> ProgramLoader::load_hex(const std::filesystem::path &path, memory &Memory, std::uint16_t base)
@@ -102,10 +99,8 @@ std::expected<void, std::string> ProgramLoader::load_hex(const std::filesystem::
         }
         if (type == 0)
         {
-            for (std::size_t i = 0; i < count; ++i)
-            {
-                Memory.write(static_cast<std::uint16_t>(base + address + i), data[i]);
-            }
+            const auto StartAddress{static_cast<std::uint16_t>(base + address)};
+            Memory.write(data, StartAddress);
         }
         else if (type == 1) // 文件结束记录
         {
