@@ -1,0 +1,121 @@
+version: 1
+kind: vice_task_plan
+plan_id: quicknotes_owned_reu_probe_before
+run_mode: gui_vice
+global_defaults:
+  monitor_host: 127.0.0.1
+  monitor_port_start: 6502
+  monitor_port_span: 40
+  retry_policy:
+    max_attempts: 2
+    backoff_ms: 250
+    jitter: false
+  timeouts:
+    launch_s: 45
+    step_s: 180
+    read_s: 2
+  artifact_policy:
+    capture_screen: true
+    capture_state: true
+    capture_dump: false
+  vice:
+    disk8: "Releases/0.2.4/precog-d81/readyos-v0.2.4a-d81.d81"
+    disk9: "Releases/0.2.4/precog-d81/readyos-v0.2.4a-d81.d81"
+    autostart_prg: "Releases/0.2.4/precog-d81/readyos-v0.2.4a-d81-preboot.prg"
+    drive8_type: 1581
+    drive9_type: 1581
+    true_drive: false
+    close_vice: true
+    headless: true
+    speed_percent: 100
+steps:
+  - id: launch_preboot
+    type: vice.launch
+    params:
+      kill_stale: true
+  - id: wait_launcher_initial
+    type: screen.wait_contains
+    params:
+      text: "READY OS"
+      wait_timeout_s: 180
+      capture_on_success: true
+      capture_label: qn_owned_launcher_initial
+  - id: launch_quicknotes
+    type: input.sequence
+    params:
+      keys: [17,17,17,17,17,17,17,17,17,17,17,13]
+      inter_key_delay_s: 0.08
+      post_delay_s: 2.0
+  - id: wait_quicknotes
+    type: screen.wait_contains
+    params:
+      text: "QUICKNOTES"
+      wait_timeout_s: 90
+      capture_on_success: true
+      capture_label: qn_owned_quicknotes_loaded
+  - id: return_quicknotes_to_launcher
+    type: input.sequence
+    params:
+      keys: [2]
+      inter_key_delay_s: 0.03
+      post_delay_s: 1.0
+  - id: wait_launcher_after_quicknotes
+    type: screen.wait_contains
+    params:
+      text: "READY OS"
+      wait_timeout_s: 45
+      capture_on_success: true
+      capture_label: qn_owned_launcher_after_quicknotes
+  - id: assert_owned_banks_before_viewer
+    type: assert.memory
+    params:
+      start: 0xC623
+      end: 0xC624
+      equals_hex: "03 03"
+  - id: dump_before_viewer_ram
+    type: dump.memory_ranges
+    params:
+      ranges: &owned_reu_ranges
+        - { label: reu_alloc_table_c600, start: 0xC600, end: 0xC67F }
+        - { label: reu_metadata_c600, start: 0xC600, end: 0xC7FF }
+  - id: open_reuviewer_before_unload
+    type: input.sequence
+    params:
+      keys: [145,145,13]
+      inter_key_delay_s: 0.08
+      post_delay_s: 2.0
+  - id: wait_reuviewer_before_unload
+    type: screen.wait_contains
+    params:
+      text: "REU MEMORY MAP"
+      wait_timeout_s: 90
+      capture_on_success: true
+      capture_label: qn_owned_reuviewer_entry_before
+  - id: move_reuviewer_to_quicknotes_owned_bank
+    type: input.sequence
+    params:
+      keys: [17,17,29,29,29]
+      inter_key_delay_s: 0.08
+      post_delay_s: 0.5
+  - id: capture_owned_bank_before_unload
+    type: screen.capture
+    params:
+      label: qn_owned_reuviewer_owned_bank_before_unload
+      note: Cursor on QuickNotes app-owned note bank before launcher unload.
+  - id: assert_reuviewer_owner_before
+    type: assert.screen
+    params:
+      contains: "OWNER:"
+  - id: assert_reuviewer_tag_before
+    type: assert.screen
+    params:
+      contains: "TAG"
+  - id: dump_before_unload_reu
+    type: dump.reu
+    params:
+      stage_tag: quicknotes_owned_before_unload
+      mode: sampled
+  - id: regs_final
+    type: monitor.command
+    params:
+      command: "r"

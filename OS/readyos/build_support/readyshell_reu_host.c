@@ -1,0 +1,47 @@
+#include "readyshell_reu_host.h"
+
+#include <string.h>
+
+#define READYSHELL_REU_HOST_SIZE 0x1000000ul
+
+static unsigned char g_readyshell_reu_host[READYSHELL_REU_HOST_SIZE];
+
+void readyshell_reu_host_reset(void) {
+  memset(g_readyshell_reu_host, 0, sizeof(g_readyshell_reu_host));
+}
+
+int rs_reu_available(void) {
+  return 1;
+}
+
+unsigned char rs_reu_state_bank(void) {
+  return 0x48u;
+}
+
+unsigned long rs_reu_state_abs(unsigned short rel_off) {
+  return ((unsigned long)rs_reu_state_bank() << 16u) + (unsigned long)rel_off;
+}
+
+int rs_reu_read(unsigned long reu_off, void* ram_dst, unsigned short len) {
+  if (len == 0u) {
+    return 0;
+  }
+  if (!ram_dst ||
+      reu_off + (unsigned long)len > (unsigned long)sizeof(g_readyshell_reu_host)) {
+    return -1;
+  }
+  memcpy(ram_dst, g_readyshell_reu_host + reu_off, len);
+  return 0;
+}
+
+int rs_reu_write(unsigned long reu_off, const void* ram_src, unsigned short len) {
+  if (len == 0u) {
+    return 0;
+  }
+  if (!ram_src ||
+      reu_off + (unsigned long)len > (unsigned long)sizeof(g_readyshell_reu_host)) {
+    return -1;
+  }
+  memcpy(g_readyshell_reu_host + reu_off, ram_src, len);
+  return 0;
+}

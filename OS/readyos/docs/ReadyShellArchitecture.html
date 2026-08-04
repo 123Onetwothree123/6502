@@ -1,0 +1,451 @@
+<h1 id="readyshell-architecture">ReadyShell Architecture</h1>
+<p>This document describes the current ReadyShell implementation in
+ReadyOS as it exists in the local build, not an aspirational future
+design.</p>
+<p>For command syntax and user-facing behavior, see <a
+href="../src/apps/readyshell/README.md">../src/apps/readyshell/README.md</a>.
+For the generated size and placement inventory, see <a
+href="./readyshell_overlay_inventory.md">./readyshell_overlay_inventory.md</a>.</p>
+<p>Keyboard note: on a C64 keyboard, users type <code>!</code> to enter
+the pipeline operator <code>|</code>.</p>
+<h2 id="end-to-end-shape">1. End-To-End Shape</h2>
+<p>ReadyShell is an overlayed C64 app with five main layers:</p>
+<ol type="1">
+<li>Resident shell/runtime code</li>
+<li>Prompt editor overlay</li>
+<li>Parse overlay</li>
+<li>Execution-core overlay</li>
+<li>External command overlays</li>
+</ol>
+<p>At runtime, the resident app owns the shell loop, prompt state, REPL
+state, resume hooks, and overlay orchestration. Parsing and most
+execution logic still run through the shared overlay window. The prompt
+editor also lives in that window now: overlay 9 is active only while
+ReadyShell is waiting for input, then parser, VM, or command overlays
+replace it. The launcher/loader preloads all nine overlays into the
+ReadyShell <code>rsovl</code> resource set before entering
+ReadyShell.</p>
+<pre class="text"><code>user types line
+    |
+    v
+resident shell loop
+    |
+    +--&gt; restore prompt editor overlay from REU
+    |       edit/read logical command line
+    |
+    +--&gt; restore parser overlay from REU if needed
+    |       parse source -&gt; AST / runtime structures
+    |
+    +--&gt; restore exec overlay (rsvm) from REU
+            execute stages
+              |
+              +--&gt; direct exec-core commands
+              |
+              `--&gt; external command overlay calls
+                        |
+                        +--&gt; restore command overlay from REU
+                        +--&gt; run command
+                        `--&gt; restore rsvm from REU</code></pre>
+<p>Normal command execution no longer reloads overlays <code>3-8</code>
+from disk on each call, and normal prompt entry no longer keeps the
+editor resident. Disk loading is now a launcher/loader preload path.
+ReadyShell itself expects the shared metadata record to contain valid
+assigned cache banks.</p>
+<h2 id="runtime-memory-model">2. Runtime Memory Model</h2>
+<p>Current release build layout:</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Region</th>
+<th>Range</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Resident app window</td>
+<td><code>$1000-$C5FF</code></td>
+<td>ReadyShell-owned app RAM</td>
+</tr>
+<tr>
+<td>Overlay load bytes</td>
+<td><code>$8DFE-$8DFF</code></td>
+<td>PRG load-address bytes for overlay sidecars</td>
+</tr>
+<tr>
+<td>Overlay execution window</td>
+<td><code>$8E00-$C5FF</code></td>
+<td>Shared live window for whichever overlay is active</td>
+</tr>
+<tr>
+<td>Resident BSS</td>
+<td><code>$7D37-$7EE0</code></td>
+<td>Resident writable state below overlays</td>
+</tr>
+<tr>
+<td>Resident heap</td>
+<td><code>$7EE2-$8DFD</code></td>
+<td>cc65 heap below overlay load address</td>
+</tr>
+<tr>
+<td>High runtime area</td>
+<td><code>$CA00-$CFFF</code></td>
+<td>ReadyShell runtime state outside app snapshot</td>
+</tr>
+</tbody>
+</table>
+<p>Important constraints:</p>
+<ul>
+<li>resident growth directly reduces heap headroom</li>
+<li>overlay growth does not reduce heap headroom, but every overlay must
+still fit the <code>0x3800</code> overlay window</li>
+<li>full-window REU snapshots are required because overlay-local
+writable data must survive phase switches</li>
+</ul>
+<h2 id="overlay-set">3. Overlay Set</h2>
+<p>Current overlays:</p>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>Overlay</th>
+<th>File</th>
+<th>Role</th>
+<th>Current loading model</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>rsparser.prg</code></td>
+<td>lexer, parser, parse support</td>
+<td><code>rsovl</code> preload, assigned bank 1</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>rsvm.prg</code></td>
+<td>values, vars, formatting, pipes, command lookup, shared execution
+paths</td>
+<td><code>rsovl</code> preload, assigned bank 1</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>rsdrvilst.prg</code></td>
+<td><code>DRVI</code>, <code>LST</code></td>
+<td><code>rsovl</code> preload, assigned bank 1</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>rsldv.prg</code></td>
+<td><code>LDV</code></td>
+<td><code>rsovl</code> preload, assigned bank 2</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>rsstv.prg</code></td>
+<td><code>STV</code></td>
+<td><code>rsovl</code> preload, assigned bank 1</td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>rsfops.prg</code></td>
+<td><code>DEL</code>, <code>REN</code>, <code>PUT</code>,
+<code>ADD</code></td>
+<td><code>rsovl</code> preload, assigned bank 2</td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>rscat.prg</code></td>
+<td><code>CAT</code></td>
+<td><code>rsovl</code> preload, assigned bank 2</td>
+</tr>
+<tr>
+<td>8</td>
+<td><code>rscopy.prg</code></td>
+<td><code>COPY</code></td>
+<td><code>rsovl</code> preload, assigned bank 2</td>
+</tr>
+<tr>
+<td>9</td>
+<td><code>rsedit.prg</code></td>
+<td>prompt drawing, cursor/edit keys, backtick continuation</td>
+<td><code>rsovl</code> preload, assigned bank 3</td>
+</tr>
+</tbody>
+</table>
+<p>REU slot layout:</p>
+<pre class="text"><code>assigned bank 1
+  overlay 1  rsparser   +$0000-+$37FF
+  overlay 2  rsvm       +$3800-+$6FFF
+  overlay 3  rsdrvilst  +$7000-+$A7FF
+  overlay 5  rsstv      +$A800-+$DFFF
+  free tail             +$E000-+$FFFF
+
+assigned bank 2
+  overlay 4  rsldv      +$0000-+$37FF
+  overlay 6  rsfops     +$3800-+$6FFF
+  overlay 7  rscat      +$7000-+$A7FF
+  overlay 8  rscopy     +$A800-+$DFFF
+  free tail             +$E000-+$FFFF
+
+assigned bank 3
+  overlay 9  rsedit     +$0000-+$37FF
+  free space            +$3800-+$FFFF</code></pre>
+<p>Each slot stores the full <code>0x3800</code> overlay window, not
+just the PRG payload bytes.</p>
+<h2 id="command-families">4. Command Families</h2>
+<p>ReadyShell commands split into two families.</p>
+<h3 id="exec-core-commands">4.1 Exec-core commands</h3>
+<p>These live in <code>OVERLAY2</code>:</p>
+<ul>
+<li><code>PRT</code></li>
+<li><code>MORE</code></li>
+<li><code>TOP</code></li>
+<li><code>SEL</code></li>
+<li><code>GEN</code></li>
+<li><code>TAP</code></li>
+</ul>
+<p>These execute directly once <code>rsvm</code> is active in the
+overlay window.</p>
+<h3 id="external-commands">4.2 External commands</h3>
+<p>These live outside <code>OVERLAY2</code>:</p>
+<ul>
+<li><code>DRVI</code></li>
+<li><code>LST</code></li>
+<li><code>LDV</code></li>
+<li><code>STV</code></li>
+<li><code>DEL</code></li>
+<li><code>REN</code></li>
+<li><code>PUT</code></li>
+<li><code>ADD</code></li>
+<li><code>CAT</code></li>
+<li><code>COPY</code></li>
+</ul>
+<p>These are driven through the REU-backed external-command registry
+plus one generic resident execution path.</p>
+<p>Current user-facing command notes that affect the overlay logic:</p>
+<ul>
+<li><code>LST</code> accepts a wildcard pattern, an optional drive
+argument, and an optional comma-separated type filter. Embedded drive
+prefixes inside the pattern such as <code>9:*.PRG</code> take precedence
+over a separate numeric drive argument.</li>
+<li><code>LDV</code> accepts either <code>LDV "9:snap"</code> or
+<code>LDV "snap", 9</code>.</li>
+<li><code>STV</code> accepts either <code>STV $A, "9:snap"</code> or
+<code>STV $A, "snap", 9</code>.</li>
+<li><code>TOP</code> accepts <code>TOP count</code> or
+<code>TOP count,skip</code>.</li>
+<li><code>CAT</code>, <code>PUT</code>, <code>ADD</code>,
+<code>DEL</code>, and <code>COPY</code> also honor embedded drive
+prefixes in their filename arguments, while <code>REN</code> still uses
+the traditional explicit drive argument form.</li>
+</ul>
+<p>The on-disk <code>RSV1</code> value format used by <code>STV</code>
+and <code>LDV</code> is documented in <a
+href="./readyshell_rsv1_format.md">./readyshell_rsv1_format.md</a>.</p>
+<h2 id="parse-and-pipeline-flow">5. Parse And Pipeline Flow</h2>
+<p>Parsing happens in overlay 1, but pipeline execution returns to
+overlay 2.</p>
+<pre class="text"><code>source line
+   |
+   v
+OVERLAY1: lexer + parser
+   |
+   v
+resident regains control
+   |
+   v
+OVERLAY2: execute pipeline stage-by-stage
+   |
+   +--&gt; expr stage
+   +--&gt; filter stage
+   +--&gt; foreach stage
+   +--&gt; exec-core command
+   `--&gt; external command</code></pre>
+<p>Execution is command-protocol driven, not just command-name driven.
+The overlay command ABI defines:</p>
+<ul>
+<li><code>BEGIN</code></li>
+<li><code>ITEM</code></li>
+<li><code>RUN</code></li>
+<li><code>PROCESS</code></li>
+<li><code>END</code></li>
+</ul>
+<p>The current shipped commands use:</p>
+<ul>
+<li>direct <code>RUN</code> for most external commands</li>
+<li><code>BEGIN</code> + repeated <code>ITEM</code> for
+<code>CAT</code></li>
+</ul>
+<p>The generic external runner in resident code uses command capability
+bits to choose the active path.</p>
+<h2 id="external-command-registry">6. External Command Registry</h2>
+<p>The external command registry lives in REU metadata space, not in
+resident heap/BSS.</p>
+<p>Current registry regions:</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Region</th>
+<th>Range</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Command registry header</td>
+<td>state bank <code>+$8010-+$8017</code></td>
+<td>magic, version, counts</td>
+</tr>
+<tr>
+<td>Command descriptor table</td>
+<td>state bank <code>+$8020-+$807F</code></td>
+<td>fixed-capacity external command descriptors</td>
+</tr>
+<tr>
+<td>Overlay state table</td>
+<td>state bank <code>+$8080-+$80EB</code></td>
+<td>fixed-capacity state records for external overlays</td>
+</tr>
+</tbody>
+</table>
+<p>Each descriptor identifies:</p>
+<ul>
+<li>command id</li>
+<li>owning external overlay index</li>
+<li>protocol capability flags</li>
+<li>overlay-local handler id</li>
+</ul>
+<p>Each overlay state record carries:</p>
+<ul>
+<li>overlay phase</li>
+<li>load-policy flags</li>
+<li>load/cache state</li>
+<li>cache bank and slot offset</li>
+<li>disk filename</li>
+</ul>
+<p>This means new external commands no longer require one resident
+wrapper per command.</p>
+<h2 id="external-command-call-flow">7. External Command Call Flow</h2>
+<p>Current external call path:</p>
+<pre class="text"><code>OVERLAY2 decides command is external
+    |
+    v
+resident vm_cmd_external()
+    |
+    v
+lookup descriptor in REU registry
+    |
+    v
+prepare external overlay from overlay-state record
+    |
+    `--&gt; restore full slot from loader-filled REU cache
+    |
+    v
+call one overlay dispatcher with handler id
+    |
+    v
+command overlay runs command body
+    |
+    v
+resident restores OVERLAY2 from REU</code></pre>
+<p>For example, repeated <code>LST</code> calls now reuse the same
+cached overlay image:</p>
+<pre class="text"><code>LST
+  restore rsdrvilst from REU
+  run LST
+  restore rsvm from REU
+
+LST again
+  restore rsdrvilst from REU
+  run LST
+  restore rsvm from REU</code></pre>
+<p>So the registry now describes both dispatch metadata and the assigned
+cache-slot placement for overlays <code>3-8</code>.</p>
+<h2 id="reu-usage">8. REU Usage</h2>
+<p>Current ReadyShell REU usage is split by purpose.</p>
+<h3 id="overlay-cache-banks">8.1 Overlay cache banks</h3>
+<pre class="text"><code>assigned bank 1
+  overlays 1, 2, 3, 5
+  free tail: 8192 bytes
+
+assigned bank 2
+  overlays 4, 6, 7, 8
+  free tail: 8192 bytes
+
+assigned bank 3
+  overlay 9
+  free space after slot: 51200 bytes</code></pre>
+<p>Important detail:</p>
+<ul>
+<li>these are full-window snapshots, not just PRG payload bytes</li>
+<li>the bank numbers are supplied by the launcher/loader through
+metadata at offset <code>$80F0</code> in the loader-assigned ReadyShell
+state bank, not by fixed ReadyShell constants</li>
+<li>writable overlay data survives phase switching because the whole
+window image is cached</li>
+</ul>
+<h3 id="statescratch-bank">8.2 State/scratch bank</h3>
+<pre class="text"><code>loader-assigned ReadyShell state bank
+  command scratch     +$0000-+$7DDF
+    CAT uses          +$0000-+$17FF while CAT is active
+  diagnostics tail    +$7DE0-+$7FFF
+    debug head        +$7DE0
+    debug data        +$7DF0-+$7FEF
+    REU probe byte    +$7FFF
+  REU heap metadata   +$8000-+$80FF
+  command registry    +$8010-+$80EB
+  shared metadata     +$80F0-+$8113
+  pause flag          +$8114
+  reserved guard      +$8100-+$811F
+  REU value arena     +$8120-+$FEFF</code></pre>
+<p>The state bank is shared but not overlaid: command scratch, CAT
+staging, diagnostics/probe bytes, registry, pause state, and the
+REU-backed value arena all live there at fixed offsets. The launcher
+owns the physical bank, mirrors it as the ReadyShell state resource in
+bank <code>0</code>, and seeds ReadyShell’s <code>$CFF2</code>
+state-bank cache before entry so the runtime does not need a large
+registry reader. CAT is safe to place in the same scratch area because
+command overlays execute serially; while CAT is active, no other command
+owns that transient handoff area.</p>
+<h2 id="responsibilities">9. Responsibilities</h2>
+<ul>
+<li>Resident code owns the shell loop, overlay boot/load/restore logic,
+generic external command dispatch, screen/platform glue, and REU
+coordination.</li>
+<li>Overlay 9 owns the interactive prompt editor while waiting for
+input.</li>
+<li>Overlay 1 owns lexing, parsing, parse support, and cleanup.</li>
+<li>Overlay 2 owns runtime values, variables, formatting, pipes, command
+lookup, capability classification, and shared execution helpers.</li>
+<li>External command overlays own command-specific disk logic,
+serialization logic, and overlay-local dispatchers.</li>
+</ul>
+<h2 id="current-constraints">10. Current Constraints</h2>
+<ul>
+<li>Resident heap below the overlay load address is <code>3868</code>
+bytes.</li>
+<li><code>OVERLAY6</code> is currently the tightest overlay, with only
+<code>11</code> bytes left in the <code>$3800</code> live window.</li>
+<li>The assigned cache layout leaves <code>8192</code> bytes free at the
+tail of assigned bank 1, <code>8192</code> bytes free at the tail of
+assigned bank 2, and most of assigned bank 3 free after the small
+prompt-editor slot.</li>
+<li>External commands now pay a launcher/loader preload cost instead of
+repeated disk loads during each command call.</li>
+</ul>

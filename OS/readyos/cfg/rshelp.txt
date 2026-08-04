@@ -1,0 +1,57 @@
+readyshell quick ref
+! types the | pipe on c64 keyboard
+use: cat "rshelp" | more
+clear - redraw shell
+  clear
+lst - list files
+  lst 9
+  lst "9:t*"
+  lst "t?",9
+  lst "t*",9,"seq,prg"
+drvi - drive info
+  drvi 9
+cat - read text
+  cat "9:notes"
+copy - copy file
+  copy "8:notes","9:notes2"
+ren - rename file
+  ren "old","new",9
+del - scratch file
+  del "9:notes"
+put - write seq file
+  put $a,"9:notes"
+add - append seq file
+  add $a,"9:notes"
+prt - print value
+  prt "hi",5
+more - page every 20 or n items
+  gen 40 | more
+  gen 40 | more 10
+sel - pick fields
+  lst | sel "name"
+  lst | sel "name","blocks"
+top - keep n items, skip m first
+  lst | top 3
+  lst | top 3,1
+gen - count 1..n
+  gen 5
+ldv - load value
+  $a=ldv "snap",9
+  $a=ldv "9:snap"
+stv - save value
+  stv $a,"snap",9
+  stv $a,"9:snap"
+help - show hint
+  help
+pipeline examples
+  lst | prt @.name
+  lst | ?[ @.type=="prg" ] | sel "name"
+  lst | ?[ @.blocks>10 ] | sel "name","blocks"
+  lst | %[ prt @.name ; @ ] | top 3
+vars and indexing
+  $a=1..10
+  $dir=lst | top 3
+  prt $dir(0).name
+  $some=$dir | top 2,1
+  $names=lst | top 3 | sel "name"
+  prt $names(1)
