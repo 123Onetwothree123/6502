@@ -86,6 +86,8 @@ void logscr(const void *msg, unsigned len);
 #endif /* WITH_SLIP */
 
 #if MTU_SIZE
+#define UIP_CONF_IPV6 0
+#define UIP_CONF_IPV6_RPL 0
 #define UIP_CONF_BUFFER_SIZE (UIP_LLH_LEN + MTU_SIZE)
 #else /* MTU_SIZE */
 #define UIP_CONF_BUFFER_SIZE (UIP_LLH_LEN + 1500)

@@ -44,34 +44,41 @@
 void
 uip_add32(uint8_t *op32, uint16_t op16)
 {
+  (void)uip_acc32[0];	/* 触发 .importzp（内联 asm 需要） */
   asm("ldy #3");
   asm("jsr ldaxysp");
   asm("sta ptr1");
   asm("stx ptr1+1");
   asm("ldy #0");
-  asm("lda (sp),y");
+  asm("lda (c_sp),y");
   asm("ldy #3");
   asm("clc");
   asm("adc (ptr1),y");
-  asm("sta _uip_acc32+3");
+  asm("sta a:_uip_acc32+3");
   asm("dey");
   asm("lda (ptr1),y");
   asm("ldy #1");
-  asm("adc (sp),y");
-  asm("sta _uip_acc32+2");
+  asm("adc (c_sp),y");
+  asm("sta a:_uip_acc32+2");
   asm("ldy #1");
   asm("lda (ptr1),y");
   asm("adc #0");
-  asm("sta _uip_acc32+1");
+  asm("sta a:_uip_acc32+1");
   asm("dey");
   asm("lda (ptr1),y");
   asm("adc #0");
-  asm("sta _uip_acc32+0");  
+  asm("sta a:_uip_acc32+0");  
 }
 #pragma optimize(pop)
 /*-----------------------------------------------------------------------------------*/
-static uint16_t chksum_ptr, chksum_len, chksum_tmp;
-static uint8_t chksum_protocol;
+uint16_t chksum_ptr, chksum_len, chksum_tmp;
+uint8_t chksum_protocol;
+/* cc65 2.19: 内联汇编用 zp 寻址，强制分配零页（须在声明后） */
+#pragma zpsym("chksum_ptr")
+#pragma zpsym("chksum_len")
+#pragma zpsym("chksum_tmp")
+#pragma zpsym("chksum_protocol")
+#pragma zpsym("uip_acc32")
 static uint16_t chksum(void);
 /*-----------------------------------------------------------------------------------*/
 #pragma optimize(push, off)
@@ -81,7 +88,7 @@ chksum(void) {
   asm("lda #0");
   asm("sta tmp1");
   asm("sta tmp1+1");
-  asm("lda _chksum_ptr");
+  asm("lda a:_chksum_ptr");
   asm("sta ptr1");
   asm("lda _chksum_ptr+1");
   asm("sta ptr1+1");

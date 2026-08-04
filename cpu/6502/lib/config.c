@@ -42,21 +42,7 @@
 
 #include "lib/config.h"
 
-struct {
-  uip_ipaddr_t hostaddr;
-  uip_ipaddr_t netmask;
-  uip_ipaddr_t draddr;
-  uip_ipaddr_t resolvaddr;
-  union {
-    struct {
-      uint16_t addr;
-#ifndef STATIC_DRIVER
-      char     name[12+1];
-#endif /* !STATIC_DRIVER */
-    }          ethernet;
-    uint8_t    slip[5];
-  };
-} config;
+struct config config;
 
 /*-----------------------------------------------------------------------------------*/
 #if LOG_CONF_ENABLED

@@ -35,7 +35,7 @@
 #ifndef CONFIG_H_
 #define CONFIG_H_
 
-extern struct {
+extern struct config {
   uip_ipaddr_t hostaddr;
   uip_ipaddr_t netmask;
   uip_ipaddr_t draddr;

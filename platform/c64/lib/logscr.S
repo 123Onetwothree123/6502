@@ -5,7 +5,6 @@
 
         .export         _logscr
 
-        .import         BSOUT
         .import         popax
         .importzp       ptr1, ptr2
 
@@ -28,7 +27,7 @@ L1:     inc     ptr2            ; count the char that will be printed
         beq     L9
 L2:     ldy     #$00
         lda     (ptr1),y
-        jsr     BSOUT
+        sta     $F001   ; 6502 模拟器 UART 输出
         inc     ptr1
         bne     L1
         inc     ptr1+1
