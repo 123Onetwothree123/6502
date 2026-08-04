@@ -1,0 +1,1911 @@
+/****************************************************************************
+   
+    OS/A65 Version 2.0.0
+    Multitasking Operating System for 6502 Computers
+
+    Copyright (C) 1989-1998 Andre Fachat 
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+****************************************************************************/
+
+/*
+ * note: uses structs and globals from env.a65
+ */
+
+/*        Struct Task Environment Entry          */
+
+
+/* we have three structs now: 
+ * TE_* 	for task environment handling - not needed for system without
+ *       	memory management
+ * TT_*		task table, contains STD streams, etc
+ *		Note that this table is divided into two tables, to accomodate
+ *		for larger entries without having to reduce the number of
+ *		potential tasks.
+ * TH_*		thread table, has stack info and state
+ */
+
+/* We have a significant change in kernel ID allocation. Task and Thread
+ * IDs now are directly pointers into the corresponding tables! 
+ * Illegal kernel parameters may do some damage now, but it is supposed to be
+ * faster.
+ * If we need consecutive task IDs (probably lower 5 bits local, upper
+ * three bits net node number), a simple lookup table should be the fastest 
+ * and shortest way.
+ *
+ * When entering the kernel, the tasks PCBUF is copied or mapped to SYSBUF
+ *
+ * The Environment number 0 is the system environment, where the kernel
+ * and all the devices operate. On simple systems (without MMU) the same
+ * environment is used for all tasks.
+ *
+ * The scheduler changed in that all the waiting threads are just 
+ * ignored. Instead the thread state must be set at, e.g. VSEM, or
+ * SEND/RECEIVE by checking for waiting threads.
+ */
+
+          .(
+
+	.zero
+tp	.word 0
+#ifdef MAP_ZERO
+#else
+	.data
+#endif
+
+div       .byt 0
+div2      .byt 0
+div3      .byt 0
+
+	  .text
+
+/******************************************************************/
+/* here are the routines to handle the task and thread tables */
+
+	.assert	TTS_FREE == 0, "free task state must be 0"
+
+&initthreads .(
+	ldx #0
+	txa
+l0	sta threadTab,x
+	inx
+	cpx #MAXNTHREADS * TH_SLEN
+	bcc l0
+
+	tax
+l1	sta taskTab,x
+	inx
+	cpx #MAXNTASKS * TT_SLEN
+	bcc l1
+	rts
+	.)
+
+getthread .(
+	ldy #0
+l0
+	lda threadTab + TH_ST,y
+	beq found
+	jsr ynextthread
+	bcc l0
+	rts
+found	
+	; lda #0
+	sta threadTab + TH_LIBSAVE,y
+	sta threadTab + TH_LIBSAVE+1,y
+	clc
+	rts
+	.)
+
+gettask	.(
+	ldx #0
+l0
+	lda taskTab + TT_NTHREADS,x
+	beq found
+	txa
+	clc
+	adc #TT_SLEN
+	tax
+	cmp #MAXNTASKS * TT_SLEN
+	bcc l0
+	rts
+found
+	; lda #0
+	sta taskTab + TT_SIGADR,x
+	sta taskTab + TT_SIGADR+1,x
+	sta taskTab + TT_SIGMASK,x
+	sta taskTab + TT_SIGPEND,x
+	sta taskTab + TT_LIBSAVE,x
+	sta taskTab + TT_LIBSAVE+1,x
+	clc
+	rts
+	.)
+
+/* 
+ * returns next thread ID in a and y. 
+ * zero flag and carry flag are set when overrun to thread no 0
+ * x is preserved
+ */ 
+ynextthread .(
+	tya
+&anextthread
+	clc
+	adc #TH_SLEN
+	cmp #MAXNTHREADS * TH_SLEN
+	bcc l0
+	lda #0
+l0	tay
+	rts
+	.)
+
+/************************************************************************/
+/* memory management related, but architecture specific parts
+ */
+
+;KENV=*
+;#print KENV
+;
+;#include "kernel/kenv.a65"
+;
+;#ifdef SPLITKENV
+;#print *
+;#print SPLITKENV
+;	.dsb SPLITKENV-*,$ff
+;#endif
+
+/************************************************************************/
+
+/* fork a new task */
+
+&fork    .(
+	  jsr memsys
+	  sty div
+
+	  MAPSYSBUF
+
+	  ldx SYSBUF+FORK_STDIN
+          jsr teststd
+          stx SYSBUF+FORK_STDIN
+          ldx SYSBUF+FORK_STDOUT
+          jsr teststd
+          stx SYSBUF+FORK_STDOUT
+          ldx SYSBUF+FORK_STDERR
+          jsr teststd
+          stx SYSBUF+FORK_STDERR
+
+	  lda SYSBUF+FORK_SIZE
+	  ldy SYSBUF+FORK_SHARED
+	  jsr kgetenv
+	  bcc env
+	  jmp noenv
+env 	  stx div3
+
+	  jsr gettask
+	  bcs notask2
+	  stx div2
+	  ; x is new task
+
+	  ldy actTask	; parent task ID
+	  cpy #<-1
+	  bne setprio
+
+	  ; initial boot (from kernel startup)
+	  lda #IRQCNT
+	  sta taskTab2 + TT_PRIORITY,x
+	  bne cin_boot
+
+setprio	  ; normal fork, inherit priority and STDCIN (if possible)
+	  lda SYSBUF+FORK_PRIORITY
+	  bne prio_ok
+	  ; inherit from parent
+	  lda taskTab2 + TT_PRIORITY,y
+prio_ok	  sta taskTab2 + TT_PRIORITY,x
+
+	  ; set paremt
+	  tya
+	  sta taskTab + TT_PARENT,x
+
+	  ; check STDCIN from parent
+	  lda taskTab + TT_STDCIN,y
+	  cmp #STDNUL	; replace STDNUL with STDIN from FORK param
+	  bne cin_ok
+cin_boot  lda SYSBUF+FORK_STDIN
+cin_ok	  sta taskTab + TT_STDCIN,x
+
+	  ; set as foreground task on stdcin
+	  ; TODO flag if this needs to be done (for bg tasks)
+	  ldy div2	  
+	  ldx taskTab + TT_STDCIN,y
+	  lda #SC_FGPID	; YR=fg task and XR=stream are already set
+	  jsr STRCMD
+
+	  jsr getthread
+	  bcc gotthread
+
+nothread2 jmp enothread
+notask2	  jmp enotask
+
+gotthread ; y has thread no
+	  sty div
+
+	  lda div2			; task id
+	  sta threadTab + TH_TASK,y	; new task id for thread
+	  tax
+	  lda #1
+	  sta taskTab + TT_NTHREADS,x	; reserve task
+
+	  ; set task status
+	  lda #TTS_RUN
+	  sta taskTab + TT_STATUS,x
+
+	  ; register CIN
+	  lda taskTab + TT_STDCIN,x
+	  tax
+	  lda #SC_REG_RD
+	  jsr STRCMD
+	  ldx div2
+
+	  lda div3 
+	  sta taskTab + TT_ENV,x	; save env
+
+          lda #TS_RDY
+          sta threadTab + TH_ST,y	; reserve thread
+	  txa
+	  sta threadTab + TH_PAR,y	; value of XR after fork
+
+	  lda SYSBUF+FORK_PAR
+	  sta threadTab + TH_PAR + 2,y	; value of AC after fork
+
+          lda SYSBUF+FORK_STDIN
+          sta taskTab+TT_STDIN,x
+          lda SYSBUF+FORK_STDOUT
+          sta taskTab+TT_STDOUT,x
+          lda SYSBUF+FORK_STDERR
+          sta taskTab+TT_STDERR,x
+
+	  lda SYSBUF+FORK_ADDR
+	  sta taskTab2 + TT_EXECADDR,x
+	  lda SYSBUF+FORK_ADDR+1
+	  sta taskTab2 + TT_EXECADDR+1,x
+
+	  txa
+	  jsr sendbufowner	; switch ownership of SEM_SENDBUF to new task
+
+	  ldy #TT_SLEN-TT_NAME-1
+loopname
+	  lda SYSBUF+FORK_NAME,y
+	  sta taskTab2 + TT_NAME,x
+	  inx
+	  dey
+	  bpl loopname
+ 
+	  ldx div		; init new threads stack
+	  jsr initsp
+
+	  lda actThread
+	  pha
+
+	  lda div
+	  jsr setthread
+
+	  lda SYSBUF+FORK_ADDR
+	  clc
+	  adc #$ff
+	  pha
+          lda SYSBUF+FORK_ADDR+1
+	  adc #$ff
+	  jsr push
+	  pla
+	  jsr push
+
+	  pla
+	  jsr setthread
+
+	  CPFORKBUF()
+
+	  ldx div2		; return task ID 
+	  lda #E_OK
+	  beq fend		; always
+
+enothread lda #E_NOTHREAD
+	  .byt $2c
+enotask	  lda #E_NOTASK
+	  pha
+	  ldx div3
+	  jsr freenv
+	  pla
+	  .byt $2c
+noenv	  lda #E_NOENV
+fend	  cmp #1
+	  jmp memtask
+          .)
+
+&forkt	  .(
+	  jsr memsys
+	  clc
+	  adc #$ff		; prepare for RTS
+	  pha
+	  tya
+	  adc #$ff
+	  pha
+
+	  lda actThread
+	  sta div
+
+	  jsr getthread
+	  bcs nothread
+	  ; y has new thread no
+	  lda actTask
+	  sta threadTab + TH_TASK,y
+	  tax
+	  inc taskTab + TT_NTHREADS,x
+
+	  tya
+	  tax
+	  jsr initsp
+
+	  txa
+	  jsr setthread
+
+	  pla
+	  jsr push
+	  pla
+	  jsr push
+
+	  ldy actThread
+
+;	  ldx actTask
+;	  txa
+;	  sta threadTab + TH_TASK,y
+;	  inc taskTab + TT_NTHREADS,x
+
+	  tya
+	  pha
+
+	  lda #TS_RDY
+	  sta threadTab + TH_ST,y
+
+	  lda div
+	  jsr setthread
+
+	  pla
+	  tax 
+	
+	  lda #E_OK
+	  clc
+	  jmp memtask
+
+nothread  pla
+	  pla
+	  lda #E_NOTHREAD
+	  sec
+	  jmp memtask
+	  .)
+&kterm    		; active thread terminates
+	  .(
+	  jsr memsys
+          ldx actTask
+	  tay
+	  lda taskTab + TT_NTHREADS,x
+	  cmp #1
+	  beq suicide
+
+	  dec taskTab + TT_NTHREADS,x
+
+	  ldy actThread
+	  lda #TS_FREE
+	  sta threadTab + TH_ST,y
+
+	  jmp nexttask
+	  .)
+
+/* TODO: setup last thread to clean up library! */
+suicide	  ldx actTask
+	  tya			; ac = return code
+	  jmp k1
+&kkill	  jsr memsys
+k1 	  .(
+	  sta taskTab2 + TT_RETCODE,x
+	  stx div2		; XR / div2 is taskID of task to be killed
+
+	  lda #TTS_DEAD
+	  sta taskTab + TT_STATUS,x
+
+	  ; if we are the foreground process, set the parent as foreground process
+	  lda taskTab + TT_PARENT,x
+	  tay
+	  lda taskTab + TT_STDCIN,x
+	  tax
+	  lda #SC_FGPID
+	  jsr STRCMD
+
+	  ldx div2
+
+	  ; free all threads with the task
+	  .(
+	  ldy #0
+k2	  txa
+	  cmp threadTab + TH_TASK,y
+	  bne kn
+	  lda #TS_FREE
+	  sta threadTab + TH_ST,y
+	  dec taskTab + TT_NTHREADS,x
+	  beq ke
+kn	  jsr ynextthread
+	  bcc k2
+ke	  .)
+	  ; check if killed task is a parent to another running task
+	  ; and set its parent to $ff instead.
+	  ; If the child is dead and just waiting for the parent to call
+	  ; CHECKCHILD (indicated by NTHREADS=$ff), then release it
+	  .(
+	  lda #0
+k3	  tax
+	  lda div2
+	  cmp taskTab + TT_PARENT,x
+	  bne k4
+	  lda #<-1
+	  sta taskTab + TT_PARENT,x
+	  cmp taskTab + TT_NTHREADS,x	; waiting for checkchld?
+	  bne k4
+
+	  inc taskTab + TT_NTHREADS,x	; release waiting child task
+	  lda #TTS_FREE	
+	  sta taskTab + TT_STATUS,x
+
+k4	  txa
+	  clc
+	  adc #TT_SLEN
+	  cmp #TT_SLEN*MAXNTASKS
+	  bcc k3
+	  .)
+	  ; clear STDIO streams
+	  .(
+	  ldy div2
+          ldx taskTab+TT_STDIN,y
+          lda #SC_NUL
+          jsr STRCMD
+          ldx taskTab+TT_STDOUT,y
+          lda #SC_EOF
+          jsr STRCMD
+          ldx taskTab+TT_STDERR,y
+          lda #SC_EOF
+          jsr STRCMD
+          ldx taskTab+TT_STDCIN,y
+          lda #SC_NUL
+          jsr STRCMD
+	  .)
+	  ; if the parent has SIG_CHLD enabled, set the pending signal,
+	  ; also mark the killed thread as waiting for CHECKCHILD
+	  .(
+	  ldy div2
+	  ldx taskTab + TT_PARENT,y
+	  cpx #<-1
+	  beq nosig
+	  ; send SIG_CHILD to parent (in XR from above)
+	  lda #SIG_CHLD
+	  jsr dosig
+	  ldy div2
+	  lda #<-1
+	  sta taskTab + TT_NTHREADS,y
+	  bne nosig1
+nosig	  .)
+	  lda #TTS_FREE
+	  sta taskTab + TT_STATUS,x
+nosig1
+	  ; clear the semaphores held by the task
+	  jsr clrsem	; y is task number to clear
+
+	  ldy div2
+	  ldx taskTab + TT_ENV,y
+	  jsr freenv
+
+          jmp nexttask
+          .)
+
+ /************************************************************************/
+/* The scheduler */
+
+
+nexttask .(			; the next thread should be scheduled
+
+#ifdef MAP_ZERO
+	.zero
+#else
+	.data
+#endif
+schedThread .byt 0	/* current scheduled thread number */
+countPaused .byt 0	/* number of paused threads */
+
+	.text
+
+          lda actThread		; schedThread
+#ifdef NEED_SLOCK
+	  bit lockfl
+	  bmi ok
+#endif
+	  jsr anextthread
+	  bcc ok
+&&pstart			; the scheduler is started here
+	  ldy #<-1
+	  tya
+psi	  iny
+	  sta Xenv,y
+	  cpy #ANZXENV-1
+	  bcc psi
+	
+	  lda #0
+#ifdef NEED_SLOCK
+	  sta lockfl
+#endif
+	  jsr setthread
+	  lda actThread
+ok	  tay
+	  sta schedThread
+	  lda #0
+	  sta countPaused
+	  cld
+          cli
+psl
+          lda threadTab + TH_ST,y
+	  beq next
+
+	  ldx threadTab + TH_TASK,y
+	  lda taskTab + TT_SIGMASK,x
+	  beq nosig
+	  sty schedThread	; signals can be sent by devices...!
+	  lda taskTab + TT_SIGPEND,x
+	  beq nosig
+	  jsr checksig
+	  ldy schedThread
+
+nosig	  ldx threadTab + TH_TASK,y
+	  lda taskTab+TT_STATUS,x
+	  ; note if we have tasks waiting for signals
+	  cmp #TTS_PAUSE
+	  bne nopause
+	  inc countPaused
+	  ; check if task is allowed to run
+nopause	  cmp #TTS_RUN
+	  bne next
+
+	  ; now check thread status
+	  lda threadTab + TH_ST,y
+
+          cmp #TS_RDY         ; thread ready
+          beq s1              ; then start
+          
+          cmp #TS_IRQ         ; thread Interrupted
+          beq s2              ; then start
+
+next                          ; check next thread
+	  jsr ynextthread
+	  cmp schedThread     ; test if we started the loop with this
+			      ; thread - if yes, none is able to run...
+          bne psl 
+
+          lda countPaused     ; check if some tasks are waiting for signal
+	  bne psl
+
+          ldx #HE_TASK        ; no task runnable - reset machine (will change!)
+          jmp HERROR
+          .)
+          
+          .(
+&s1       
+	  lda taskTab2 + TT_PRIORITY,x
+	  sta Irqcnt
+	  tya
+	  jsr setthread
+
+	  ldy actThread
+	  lda threadTab+TH_PAR+2,y
+          pha
+          ldx threadTab+TH_PAR,y
+          lda threadTab+TH_PAR+1,y
+          tay
+          pla
+          clc
+          cli             
+	  jmp memtask
+          .)
+
+          .(
+&&irqloop  			; scheduler is called in interrupt routine
+          dec Irqcnt		; simple priority counter...
+          bne s2a
+
+          ldy actThread
+          lda #TS_IRQ
+          sta threadTab+TH_ST,y
+	  jmp nexttask
+&s2	  
+	  lda taskTab2 + TT_PRIORITY,x
+	  sta Irqcnt
+	  tya
+	  jsr setthread
+
+s2a	  ;jmp endirq
+&&retirq	
+          MEMTASK2()
+
+#ifdef CMOSCPU
+          ply
+          plx
+          pla
+#else
+          pla
+          tay
+          pla
+          tax
+          pla
+#endif
+          rti
+
+          .)
+/*
+&&irqenv  .(
+	  rts
+	  .)
+*/
+
+/*********************************************************************/
+
+/* 
+	jobcmd handles sending task into background / foreground in relation
+	to their respective controlling terminal, connected via STDCIN
+
+	JC_BACKGROUND sends task in XR to background, i.e. sets it running
+	(if it isn't already), but keeps STDCIN foreground PID as it is.
+	Caller task must be parent
+
+	JC_FOREGROUND sends task in XR to foreground, i.e. sets it running
+	and sets the foreground PID on STDCIN to the task.
+	Caller task must be parent
+
+	JC_SUSPIFBG sends own task to suspend IFF it is not the
+	foreground task. This is for shells to manage tasks e.g. setting
+	up a shell pipe, and avoiding race conditions in case the FG
+	child exists before the shell is finished (for whatever reason)
+
+	JC_SUSPEND suspends the current task, so that it can only be re-started by
+	either a signal interrupt, or another JC_* call from its parent. 
+
+	JC_PAUSE pauses the current task - like suspend, but allows to wake
+	up on signals.
+*/
+  
+&jobcmd	.(
+	jsr memsys
+	sty div
+	cmp #JC_PAUSEIFBG
+	beq pauseifbg
+	cmp #JC_SUSPIFBG
+	beq susifbg
+	cmp #JC_SUSPEND
+	beq suspend
+	cmp #JC_PAUSE
+	beq pause
+	; is caller the parent?
+	tay
+	lda taskTab+TT_PARENT,x
+	cmp actTask
+	bne notask
+	tya
+	; check for JC commands
+	cmp #JC_BACKGROUND
+	beq dobg
+	cmp #JC_FOREGROUND
+	beq dofg
+	cmp #JC_INFO
+	bne illpar
+	lda taskTab + TT_NTHREADS,x
+	tay
+	lda taskTab + TT_STATUS,x
+	clc
+	jmp memtask
+dofg
+	; set foreground PID for task
+	; x is task to be changed (needs to be preserved)
+	txa
+	pha
+	tay
+	lda taskTab + TT_STDCIN,x
+	tax
+	lda #SC_FGPID
+	jsr STRCMD
+	pla
+	tax
+
+	; set task to be changed to RUN status
+dobg 	lda #TTS_RUN
+	sta taskTab + TT_STATUS,x
+
+ok	lda #E_OK
+	.byt $2c
+notask	lda #E_NOTASK
+	.byt $2c
+illpar	lda #E_ILLPAR
+	ldy div
+	cmp #1
+	jmp memtask
+
+pauseifbg
+	ldx actTask
+	lda taskTab+TT_STDCIN,x
+	tax
+	lda #SC_GETFGPID
+	jsr STRCMD
+	cpy actTask	; is fg pid our PID?
+	beq ok		; if so, return
+	bne pause	; otherwise pause
+
+susifbg
+	ldx actTask
+	lda taskTab+TT_STDCIN,x
+	tax
+	lda #SC_GETFGPID
+	jsr STRCMD
+	cpy actTask	; is fg pid our PID?
+	beq ok		; if so, return
+			; otherwise suspend
+suspend lda #TTS_SUSP
+	.byt $2c
+pause	lda #TTS_PAUSE
+	pha
+
+	; save registers X/Y
+	tya
+	ldy actThread
+	sta threadTab+TH_PAR+1,y
+	txa
+	sta threadTab+TH_PAR,y
+
+	; set the task to suspended
+	ldy actTask
+	pla
+	sta taskTab + TT_STATUS,y
+
+	cmp #TTS_PAUSE
+	beq p2
+
+	jsr sig_on_suspend
+
+p2	; set thread status to RDY, so returns after wakeup
+        ldy actThread
+	lda #TS_RDY
+	sta threadTab+TH_ST,y
+	bne wse		; always
+
+&&kyield  
+	  jsr memsys
+          sty div
+          ldy actThread
+          sta threadTab+TH_PAR+2,y
+          lda #TS_RDY
+&wsigentry
+          sta threadTab+TH_ST,y
+          txa
+          sta threadTab+TH_PAR,y
+wse       lda div
+          sta threadTab+TH_PAR+1,y
+          jmp nexttask
+          .)
+
+	; input yr is task ID to suspend
+sig_on_suspend .(
+	; set the fg task to the parent
+	lda taskTab + TT_STDCIN,y
+	tax				; real stream number
+	lda taskTab + TT_PARENT,y
+	pha
+	jsr sig_fgpid
+
+	; send SIG_CONT signal to parent
+	pla
+	tax
+	lda #SIG_CONT
+	sec
+	jmp SENDSIG
+	.)
+
+/*********************************************************************/
+
+#ifdef NEED_RENICE
+
+&renice  .(
+	  jsr memsys
+	  ldy actTask
+	  ldx taskTab2 + TT_PRIORITY,y
+	  clc
+	  adc taskTab2 + TT_PRIORITY,y
+	  sta taskTab2 + TT_PRIORITY,y
+	  txa
+	  clc
+	  jmp memtask
+	  .)
+
+#else
+
+&renice =notimp
+
+#endif
+
+/*********************************************************************/
+/* We don't really need this after making fork transfer the PCBUF! */
+
+#ifdef NEED_SLOCK
+
+&slock	  .(
+	  jsr memsys
+	  bcc unlock
+	  lda #$ff
+	  .byt $2c
+unlock	  lda #0
+	  sta lockfl
+	  clc
+	  jmp memtask
+	  .)
+
+#else
+
+&slock	=notimp
+
+#endif
+  
+/*********************************************************************/
+
+#ifdef NEED_CHECKCHLD
+
+&checkchld .(
+	jsr memsys
+	ldx #0
+	bcs killed
+	; check for suspended tasks
+sloop	; xr has PID to start search at
+	lda actTask
+	cmp taskTab + TT_PARENT,x
+	bne snext
+	lda #TTS_SUSP
+	cmp taskTab + TT_STATUS,x
+	bne snext
+	; set status to TTS_SUSP_ACK
+	inc taskTab + TT_STATUS,x
+	clc
+	bne end
+
+snext	txa
+	clc
+	adc #TT_SLEN
+	tax
+	cmp #TT_SLEN*MAXNTASKS
+	bcc sloop
+	bcs end
+
+killed
+loop	; xr has PID to start search at
+	lda actTask
+	cmp taskTab + TT_PARENT,x
+	bne next
+	lda #<-1
+	cmp taskTab + TT_NTHREADS,x
+	bne next
+	inc taskTab + TT_NTHREADS,x	; release task resources for new use
+	lda #TTS_FREE
+	sta taskTab + TT_STATUS,x
+	lda taskTab2 + TT_RETCODE,x	; return error code in AC
+	clc				; and task in XR
+	bcc end				; always
+next	txa
+	clc
+	adc #TT_SLEN
+	tax
+	cmp #TT_SLEN*MAXNTASKS
+	bcc loop
+end	jmp memtask
+	.)
+
+#else
+
+&checkchld =notimp
+
+#endif
+
+/*********************************************************************/
+
+#ifdef NEED_GETINFO
+
+	; The getinfo2 call takes X as task ID of a previously returned
+	; task (or TID_INVAL to get the info for the first task), and returns, in
+	; SYSBUF, the info for that task with the next task ID
+&getinfo2
+	.(
+	jsr memsys
+	; save C
+#ifdef MAPSYSBUFOUT
+	php	
+	; keeps X, destroys Y
+	MAPSYSBUFOUT
+	plp
+#endif
+	bcc doloop
+	; get for specific task
+	lda taskTab + TT_NTHREADS,x
+	bne found
+	sec
+done1	jmp done
+
+doloop	; iterate over all tasks
+	txa
+	cmp #TID_START
+	bne next
+	ldx #0
+	beq test
+next	clc
+	adc #TT_SLEN
+	cmp #MAXNTASKS * TT_SLEN
+	tax
+	bcs done1
+
+test	ldy taskTab + TT_NTHREADS,x
+	beq next
+found	
+	stx div		; save for later
+	; expects task ID in X 
+	; needs to preserve X
+	GETTASKMEM
+	sta SYSBUF + TN_MEM
+	txa
+	sta SYSBUF + TN_PID
+	lda taskTab + TT_STATUS,x
+	sta SYSBUF + TN_STATUS
+	lda taskTab + TT_ENV,x
+	sta SYSBUF + TN_ENV
+	lda taskTab + TT_PARENT,x
+	sta SYSBUF + TN_PARENT
+	lda taskTab + TT_NTHREADS,x
+	sta SYSBUF + TN_NTHREADS
+
+	lda taskTab + TT_STDIN,x
+	sta SYSBUF + TN_STDIN
+	lda taskTab + TT_STDOUT,x
+	sta SYSBUF + TN_STDOUT
+	lda taskTab + TT_STDERR,x
+	sta SYSBUF + TN_STDERR
+
+	lda taskTab + TT_SIGADR,x
+	sta SYSBUF + TN_SIGNAL
+	lda taskTab + TT_SIGADR + 1,x
+	sta SYSBUF + TN_SIGNAL + 1
+
+	lda taskTab + TT_SIGMASK,x
+	sta SYSBUF + TN_SIGMASK
+
+	lda taskTab2 + TT_EXECADDR,x
+	sta SYSBUF + TN_EXECADDR
+	lda taskTab2 + TT_EXECADDR + 1,x
+	sta SYSBUF + TN_EXECADDR + 1
+
+	lda taskTab2 + TT_PRIORITY,x
+	sta SYSBUF + TN_PRIO
+
+	; copy name
+#if TNAMLEN > TT_SLEN-TT_NAME
+	tocopy = TT_SLEN-TT_NAME
+	offset = 0
+#else
+	tocopy = TNAMLEN
+	offset = TT_SLEN-TT_NAME-TNAMLEN
+#endif
+	ldy #tocopy
+name
+	dey
+	lda taskTab2 + TT_NAME + offset,x
+	sta SYSBUF + TN_NAME,y
+	inx
+	tya		;cpy #0
+	bne name
+
+	; copy over thread info
+	ldx #0
+	ldy #0
+thloop	lda threadTab + TH_TASK,x
+	cmp div
+	bne next_thread
+
+	txa
+	sta SYSBUF + TN_SLEN + TNT_ID,y
+	cpx actThread
+	beq run
+	lda threadTab + TH_ST,x
+	.byt $2c
+run	lda #TS_RUN
+	sta SYSBUF + TN_SLEN + TNT_ST,y	
+	lda threadTab + TH_PAR,x
+	sta SYSBUF + TN_SLEN + TNT_PAR,y
+	lda threadTab + TH_PAR + 1,x
+	sta SYSBUF + TN_SLEN + TNT_PAR + 1,y
+	lda threadTab + TH_PAR + 2,x
+	sta SYSBUF + TN_SLEN + TNT_PAR + 2,y
+	lda threadTab + TH_SP,x
+	sta SYSBUF + TN_SLEN + TNT_SP,y
+
+	; TODO: get info from stack
+	lda #0
+	sta SYSBUF + TN_SLEN + TNT_ADDR,y
+	sta SYSBUF + TN_SLEN + TNT_ADDR + 1,y
+
+	tya
+	clc
+	adc #TNT_SLEN
+	tay
+next_thread
+	txa
+	clc
+	adc #TH_SLEN
+	tax
+	cmp #MAXNTHREADS * TH_SLEN
+	bcc thloop 
+
+	; return
+	ldx SYSBUF + TN_PID
+	clc
+done	
+#ifdef MAPSYSBUFREV
+	pha
+	MAPSYSBUFREV
+	pla
+#endif
+	jmp memtask
+
+	.)
+
+#ifdef NEED_SETINFO
+
+&setinfo
+	.(
+	jsr memsys
+	cpx #TN_EXECADDR
+	bne err
+	ldx actTask
+	sta taskTab2 + TT_EXECADDR,x
+	tya
+	sta taskTab2 + TT_EXECADDR+1,x
+	lda #E_OK
+	.byt $2c
+err	lda #E_ILLPAR
+	jmp memtask
+	.)
+
+#else
+
+&setinfo = notimp
+
+#endif
+
+#else	/* NEED_GETINFO */
+
+&getinfo = notimp
+&setinfo = notimp
+
+#endif
+
+
+/************************************************************************/
+
+#ifdef NO_SEND	/* no SEND/RECEIVE/XRECEIVE calls */
+
+&ksend		=notimp
+&xreceive	=notimp
+&kreceive	=notimp
+
+#else	/* NO_SEND */
+
+&ksend	.(
+	jsr memsys
+	cpx #SEND_SYS
+	beq serr
+	sty div
+	ldy actThread
+	sta threadTab + TH_PAR+2,y
+#ifndef NO_FSM
+	cpx #SEND_FM
+	bne send1
+	ldx actTask
+	jsr fm		; needs ac for FM_REG check
+	bcs serr2
+#endif
+send1	jsr testsystask
+	bcs serr
+	cpx actTask
+	beq serr
+	ldy actThread
+	txa		; save destination task in X
+	sta threadTab + TH_PAR,y	
+	lda div		; save message length in y
+	sta threadTab + TH_PAR+1,y
+
+	; loop through threads if one is waiting for a message
+	ldy #0
+l0	txa		; thread in target task?
+	cmp threadTab + TH_TASK,y
+	bne next	; no
+	lda threadTab + TH_ST,y
+	cmp #TS_WFTX	; waiting for a message?
+	beq copyto	; yes, y is target thread
+	cmp #TS_WXTX	; waiting for our message?
+	bne next
+	lda threadTab + TH_PAR,y
+	cmp actTask
+	beq copyto	; y is target thread
+next
+	jsr ynextthread
+	bcc l0
+	ldx actThread
+	lda #TS_WFRX
+	sta threadTab,x
+	jmp nexttask
+
+serr	lda #E_NOENV
+serr2	cmp #1
+	jmp memtask
+	
+	; y is target thread
+	; x is target task
+copyto
+#ifdef CPPCBUFTX
+	sty div
+	CPPCBUFTX()
+	ldy div
+#endif	
+	lda threadTab + TH_TASK,y
+	jsr sendbufowner
+
+	lda actTask
+	sta threadTab + TH_PAR,y
+	ldx actThread
+	lda threadTab + TH_PAR+2,x
+	sta threadTab + TH_PAR+2,y
+	lda threadTab + TH_PAR+1,x
+	sta threadTab + TH_PAR+1,y
+	lda #TS_RDY
+	sta threadTab + TH_ST,y
+
+	ldx threadTab + TH_TASK,y
+
+	lda #0
+	beq serr2
+	.)
+
+&xreceive 
+	lda #<-1
+	.byt $2c
+&kreceive .(
+	lda #0		; TS_WFTX
+	jsr memsys
+	php
+	sta div2
+
+	sty div
+	ldy actThread
+	txa
+	sta threadTab + TH_PAR,y
+	lda div
+	sta threadTab + TH_PAR+1,y
+
+	; scan all threads if one is waiting for send
+	ldy #0
+l0	lda threadTab + TH_ST,y
+	cmp #TS_WFRX	; waiting to deliver a message?
+	bne next	; no
+	lda actTask	; waiting for us to receive it?
+	cmp threadTab + TH_PAR,y
+	bne next	; no
+	bit div2
+	bpl copyfrom	; kreceive - copy, y is source thread
+	txa		; xreceive - check if we want to rx from this task?
+	cmp threadTab + TH_TASK,y
+	beq copyfrom	; yes, copy. y is source thread
+next
+	jsr ynextthread
+	bcc l0
+	plp
+	bcc nowait
+	lda #TS_WFTX
+	bit div2
+	bpl l1
+	lda #TS_WXTX
+l1	ldy actThread
+	sta threadTab + TH_ST,y
+	jmp nexttask
+
+nowait	lda #E_NOTX
+	sec
+	jmp memtask
+
+	; y is source thread
+copyfrom
+	plp
+#ifdef CPPCBUFRX
+	sty div
+	CPPCBUFRX()
+	ldy div
+#endif
+	lda actTask
+	jsr sendbufowner
+
+	; wake up waiting thread
+	lda #TS_RDY
+	sta threadTab + TH_ST,y
+	lda actTask
+	sta threadTab + TH_PAR,y
+
+	lda threadTab + TH_PAR+2,y
+	pha
+	lda threadTab + TH_TASK,y
+	tax
+	lda threadTab + TH_PAR+1,y
+	tay
+	pla
+	clc
+	jmp memtask
+	.)
+
+#endif	/* NO_SEND */
+
+/*********************************************************************/
+/* Signal handling */
+
+&setsig	.(
+	jsr memsys
+	ldx actTask
+	sty div
+	bcs setadr
+	ldy taskTab + TT_SIGMASK,x
+	sta taskTab + TT_SIGMASK,x
+	tya
+	ldy div
+	clc
+	jmp memtask
+
+setadr	php		; this address might be used in IRQ and exchange is 
+	sei 		; _not_ atomic without this SEI!
+	ldy taskTab + TT_SIGADR,x
+	sta taskTab + TT_SIGADR,x
+	tya
+	pha
+	ldy taskTab + TT_SIGADR+1,x
+	lda div
+	sta taskTab + TT_SIGADR+1,x
+	pla
+	plp
+	clc
+	jmp memtask
+	.)
+
+/* 
+ * sendsig can also be called from a device or interrupt routine,
+ * therefore we only save the signal and let the scheduler do all
+ * the resolving 
+ *
+ * Note: the actTask/actThread can not be relied on, as we may
+ * be called from an interrupt!
+ */
+
+&sendsig .(		; ac = signal mask, xr = target task
+	jsr memsys
+	sty div
+	bcs sends
+	lda #TS_WSIG
+	jmp wsigentry
+sends
+	ldy taskTab + TT_NTHREADS,x
+	beq not
+	; call subroutine
+	jsr dosig
+	; return
+	lda #E_OK
+	.byt $2c
+not	lda #E_NOTASK
+	ldy div
+	cmp #1
+	jmp memtask
+
+	; called from sendsig as well as kill (sending SIG_CHLD)
+	; requires signal mask to send in AC, task to signal in XR
+&dosig	tay
+	and taskTab + TT_SIGMASK,x
+	beq ok
+	tya
+	; make operation atomic
+	php		
+	sei
+	; set pending signal bits
+	ora taskTab + TT_SIGPEND,x
+	sta taskTab + TT_SIGPEND,x
+	; wake up paused tasks
+	lda taskTab + TT_STATUS,x
+	cmp #TTS_PAUSE
+	bne nopause
+	lda #TTS_RUN
+	sta taskTab + TT_STATUS,x
+nopause	plp
+ret	rts
+
+ok	tya			; signal mask to send
+	and #SIG_SUSPEND	; is it suspend?
+	beq ret			; no, ignore
+
+	lda #TTS_SUSP
+	sta taskTab + TT_STATUS,x
+	txa
+	tay
+	jsr sig_on_suspend
+	rts
+	.)
+
+/*
+ * checksig is called when the scheduler sees that a signal is pending
+ * when putting a thread to running again
+ */
+
+checksig .(
+	lda taskTab + TT_SIGADR,x
+	ora taskTab + TT_SIGADR+1,x
+	beq clear
+
+	lda threadTab + TH_ST,y
+	cmp #TS_RDY
+	beq sigrdy
+	cmp #TS_WSIG
+	beq sigrdy
+	cmp #TS_IRQ
+	beq sigirq
+	
+	lda taskTab + TT_SIGMASK,x
+	and #SIG_INTABLE
+	beq none
+
+	lda threadTab + TH_ST,y
+	cmp #TS_WFRX	
+	beq sigint
+	cmp #TS_WXTX
+	beq sigint
+	cmp #TS_WFTX
+	beq sigint
+	cmp #TS_WFSEM
+	beq sigintsem
+none	rts		/* TODO: check interruptable flag, interrupt */
+	
+sigrdy	.(
+	tya
+	jsr setthread
+	jsr incretadr
+	lda #0
+	jsr push			; status reg for RTI
+	ldy actThread
+	lda threadTab + TH_PAR+2,y
+	jsr push			; ac for PLA
+&sig1	ldx actTask
+	lda taskTab + TT_SIGPEND,x
+	ldy actThread		
+	sta threadTab + TH_PAR+2,y	; ac for signal routine
+	lda taskTab + TT_SIGADR,x
+	clc
+	adc #<-1
+	pha
+	lda taskTab + TT_SIGADR+1,x
+	adc #>-1
+	jsr push
+	pla
+	jsr push
+&clear	lda #0
+	ldx actTask
+	sta taskTab + TT_SIGPEND,x
+&rtsad	rts
+	.)
+
+sigirq	.(
+	tya
+	jsr setthread
+	jsr pull			; xr
+	ldy actThread
+	sta threadTab + TH_PAR,y
+	jsr pull			; yr 
+	ldy actThread
+	sta threadTab + TH_PAR+1,y	; ac and sr still on stack
+&sig2	lda #TS_RDY
+	sta threadTab + TH_ST,y
+	bne sig1			; always
+	.)
+
+sigintsem .(
+	jsr semunmap			; restore semaphore number in X
+&sigint					; interrupted system call 
+	tya
+	jsr setthread
+	jsr incretadr
+	lda #1				; status register for RTI (c=1)
+	jsr push
+	lda #E_INT
+	jsr push			; return code for kernel call
+	ldy actThread
+	jmp sig2
+	.)
+
+incretadr .(
+	jsr pull
+	clc
+	adc #1
+	bcc l1
+	pha
+	jsr pull
+	tay
+	iny
+	tya
+	jsr push
+	pla
+l1	jmp push
+	.)
+
+	.)
+
+/*********************************************************************/
+/* Semaphore handling */
+
+#ifdef NO_SEM	/* no semaphore code */
+
+&getsem	=notimp
+&fresem	=notimp
+&kpsem		=notimp
+&kvsem		=notimp
+&locksem	=notimp
+
+#else	/* NO_SEM */
+
+          .(
+#ifdef MAP_ZERO
+	.zero
+#else
+	.data
+#endif
+SEMFRE    .dsb (ANZSEM+7)/8	; bit map of un-allocated application semaphores
+SEMOWN	  .dsb ANZSEM+SYSSEM	; field with taskId+1 of task that owns the semaphore
+SEMLOCK   .dsb ANZSEM+SYSSEM	; field with taskId+1 of task that has locked sem
+
+	.text
+
+	; map semaphores from negative system to positive application sem's
+	; to all-positiv numbers
+remap	.(
+	txa
+	clc
+	adc #SYSSEM
+	tax
+	cpx #ANZSEM+SYSSEM
+	rts
+	.)
+
+	; remap the internal (all-positive) numbers back to user space numbers
+	; with negative system semaphores to recover the semaphore number
+	; on an interrupted PSEM
+&semunmap .(
+	lda threadTab+TH_PAR,y
+	sec
+	sbc #SYSSEM
+	sta threadTab+TH_PAR,y
+	rts
+	.)
+
+&&locksem .(
+	jsr memsys
+	php
+	jsr remap
+	bcs rtaskx
+	plp
+	bcc unlock
+
+	; lock owner
+	lda SEMLOCK,x
+	bne locked	; if already locked, return E_SEMSET
+	lda actTask
+	adc #0		; c=1 from above
+	sta SEMLOCK,x	; lock to owner
+	bne rtask
+
+	; unlock owner
+unlock	; TODO check that only owner can unlock
+	lda #0
+	sta SEMLOCK,x
+	lda SEMOWN,x	; is semaphore free
+	bne ok		; if no, return; if free, check if a task waits for it
+	jsr vsemint	; search for tasks to release
+ok	lda #E_OK
+	clc
+	jmp memtask
+	.)
+
+rtaskx	plp
+	lda #E_NOSEM
+	.byt $2c
+locked	lda #E_SEMSET
+	sec
+rtask	jmp memtask
+
+&&kpsem .(  
+        jsr memsys
+	php
+	; map from system sem
+	jsr remap
+	bcs rtaskx
+	plp
+	bcs ps1
+
+	; non-blocking call
+        jsr tstnset	; return success with C=0
+	jmp memtask
+
+	; blocking call
+ps1 	jsr tstnset	; test (if locked, only lock owner passes)
+	bcc rtask	; got it - then return
+
+	; setup current thread to wait for semaphore
+	sty div
+	ldy actThread
+	txa
+	sta threadTab+TH_PAR,y      ; Semaphor-Number, translated, to check for wakeup
+	lda div
+	sta threadTab+TH_PAR+1,y	; YR after wakeup
+	ldy actThread
+	lda #TS_WFSEM
+	sta threadTab+TH_ST,y
+	jmp nexttask
+	.)
+
+	; release semaphore in X and wake one thread waiting for it
+	; note destroys all registers
+vsemint	.(
+	ldy actThread
+l0	lda threadTab + TH_ST,y
+	cmp #TS_WFSEM	; wait for semaphore?
+	bne next
+	txa
+	cmp threadTab + TH_PAR,y
+	bne next	; wait for _this_ semaphore?
+
+	; check lock (if lock is set, only the lock owner may pass the semaphore)
+	lda SEMLOCK,x
+	beq gotone	; not locked
+	sec
+	sbc #1
+	cmp threadTab + TH_TASK,y
+	beq gotone	; locked by thread of same task
+
+next	jsr ynextthread
+	cpy actThread
+	bne l0
+
+	lda #0		; free the actual semaphore
+	sta SEMOWN,x
+	rts
+
+	; found a thread waiting for it
+	; semaphore stays locked
+gotone	lda threadTab + TH_TASK,y
+	clc
+	adc #1
+	sta SEMOWN,x  	; change owner of semaphore
+	lda #0
+	sta threadTab + TH_PAR+2	; AC return value
+	lda #TS_RDY
+	sta threadTab + TH_ST,y
+	rts
+	.)
+
+&&kvsem .(
+	jsr memsys
+	; x has semaphore number
+	jsr remap
+	bcc noillp
+illp	jmp illpar
+	; valid semaphore
+&noillp	tax
+	lda SEMOWN,x
+	beq ok		; ignore if it was not set
+	sec
+	sbc #1
+	cmp actTask	; only owning task may free it
+	bne illp
+	jsr vsemint
+ok
+	lda #E_OK
+	clc
+	jmp memtask
+	.)
+
+/* Semaphore administration (alloc, free) */
+
+
+&&getsem  .(
+	  jsr memsys
+          ldx #0
+l2        lda SEMFRE,x
+          beq gnext
+          ldy #0
+l3        lsr
+          bcs found
+          iny
+          cpy #8
+          bcc l3
+found     lda POT2,y
+          eor #<-1
+          and SEMFRE,x
+          sta SEMFRE,x
+          txa
+          asl
+          asl
+          asl
+          sta div
+          tya
+          clc
+          adc div
+          tax
+          lda #E_OK
+gne       cmp #1
+	  jmp memtask
+
+gnext     inx
+          cpx #(ANZSEM+7)/8
+          bcc l2
+          lda #E_NOSEM
+          bcs gne
+	  .)
+
+&&gsetxy  txa
+	  and #7
+	  tay
+	  txa
+	  lsr
+	  lsr
+	  lsr
+	  tax
+	  lda POT2,y
+	  rts
+
+&&fresem  .(
+	  jsr memsys
+          cpx #ANZSEM
+          bcs illpar
+	  jsr gsetxy
+	  ora SEMFRE,x
+	  sta SEMFRE,x
+          lda #E_OK
+          .byt $2c
+&illpar   lda #E_NOSEM
+          cmp #1
+          jmp memtask
+	  .)
+
+&&inisem  .(
+	  ldy #ANZSEM+SYSSEM-1
+          lda #0
+i1        sta SEMOWN,y
+	  sta SEMLOCK,y
+          dey
+          bpl i1
+
+	  lda #$ff
+          ldy #(ANZSEM+7)/8-1
+if1       sta SEMFRE,y
+          dey
+          bpl if1
+          clc
+          rts
+	  .)
+
+tstnset   .(
+	lda SEMLOCK,x
+	beq notlocked
+	sec
+	sbc #1
+	cmp actTask
+	bne seterr		; not locked by own task
+notlocked 	
+	lda SEMOWN,x
+	bne seterr
+	lda actTask
+	sta SEMOWN,x
+	inc SEMOWN,x
+
+	lda #E_OK
+	.byt $2c
+illpar1	lda #E_NOSEM
+	.byt $2c
+seterr	lda #E_SEMSET
+	cmp #1
+	rts
+	.)
+
+	; clear semaphores when a task is killed
+	; task ID in yr
+&clrsem	.(
+	ldx #ANZSEM+SYSSEM-1
+	iny
+	tya
+	pha
+cls1	; check if ending task has locked the ownership?
+	cmp SEMLOCK,x	
+	bne nolock
+	lda #0
+	sta SEMLOCK,x
+nolock	; check if the ending task has the semaphore (PSEM)
+	pla
+	pha
+	cmp SEMOWN,x
+	bne noown
+	jsr vsemint
+noown	; next
+	pla
+	pha
+	dex
+	bpl cls1
+	pla
+	rts
+	.)
+
+	; sets a new SEM_SENDBUF owner after a successful copying
+	; of the message
+	; needs to preserve XR, YR
+&sendbufowner .(
+	pha
+	lda SEMOWN+SYSSEM-1
+	beq notowned		; ... which is actually a bug in the caller
+	pla
+	clc
+	adc #1
+	sta SEMOWN+SYSSEM-1	; assume SEM_SENDBUF is -1
+	.byt $24
+notowned
+	pla
+	rts
+	.)
+
+	  .)
+
+#endif	/* NO_SEM */
+
+/************************************************************************/
+
+	; teststd replaces a stream number in XR with its real stream
+	; number if it is one of the defined STDxxx streams.
+	; note destroys AC
+          .(
+&&teststd php
+	  ldy actTask
+	  cpy #<-1
+	  beq stdok
+          ;cpx #STDCIN
+          ;bcc stdok
+          txa
+          sec
+          sbc #STDCIN
+          bcc stdok	; underflow means it's a normal stream
+          clc
+          adc actTask
+          tax
+          lda taskTab+TT_STDCIN,x
+          tax
+stdok     plp
+          rts
+          .)
+
+&kgetpid  .(
+	  jsr memsys
+	  ldx actTask
+	  ldy actThread
+	  jmp memtask
+	  .)
+
+          .(
+&testsystask
+	  cpx #OWNTASK
+          bne te1
+          ldx actTask
+          clc
+          rts
+te1       cpx #$fe-ANZXENV
+          bcc te2
+          cpx #$fe
+          bcs te2
+          pha
+          lda Xenv-($fe-ANZXENV),x
+          tax
+          pla
+          cpx #$fe-ANZXENV
+te2       rts            ; c=1 on error
+          .)
+
+&tdup     .(
+          jsr memsys
+          cpx #$fe-ANZXENV
+          bcc tdx
+          cpx #$fe
+          bcs tdx
+          sta Xenv-($fe-ANZXENV),x
+          clc
+          .byt $24
+tdx       sec
+          jmp memtask
+          .)
+
+/************************************************************************/
+
+          .(
+#ifdef MAP_ZERO
+	.zero
+#else
+	.data
+#endif
+d         .byt 0
+
+	.text
+
+&&kdup     jsr memsys
+          php
+          cpx #STDCIN
+          bcc duperr
+          stx d
+          tax
+          jsr teststd
+#ifdef CMOSCPU
+	  phx
+#else
+          txa
+          pha
+#endif
+          lda d
+          sec
+          sbc #STDCIN
+          clc  
+          adc actTask
+          tax
+          lda taskTab+TT_STDCIN,x
+          tay
+          pla
+          plp
+          bcc dupget
+          sta taskTab+TT_STDCIN,x
+dupget    tya
+          clc
+          jmp memtask
+
+duperr    plp
+          sec
+          lda #E_NOSTR
+          jmp memtask
+          .)
+    
+          .(
+&&pbrk    ; directly from the BRK interrupt handler
+	  jsr memsys		; before any access to kernel .data/.bss
+          lda #TS_BRK
+          ldy actThread
+          sta threadTab+TH_ST,y
+          jmp nexttask
+          .)
+
+          .) 
+
+

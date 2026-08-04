@@ -1,0 +1,281 @@
+/**************************************************************************
+  kill.a65 -- kill utility for GeckOS
+
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+ **************************************************************************/
+
+#include "kdefs.i65"
+#include "kernel.i65"
+#include "lib6502.i65"
+
+main .(
+
+	.zero
+argp      .word 0
+argv      .word 0
+
+  .data
+sigcnt    .byt 0    ;signal table counter
+sig       .byt 0    ;signal to send
+pid       .byt 0    ;PID to kill
+ysave	    .byt 0
+
+  .text
+  sta argv
+  sty argv+1
+  jsr parse
+  bcc parseok
+  lda #1
+  jmp term
+parseok
+  lda sig
+  cmp #SIG_KILL ;not implemented in kernel
+  bne sendsig
+  lda #$ff      ;return code (sent to parent with SIG_CHLD)
+  ldx pid
+  jsr KILL      ;kernel call, kills task and all threads
+  clv
+  bvc killdone
+sendsig
+  lda sig
+  ldx pid
+  sec
+  jsr SENDSIG
+  bcc killdone
+  pha
+  lda #<errmsg
+  ldy #>errmsg
+  jsr strout
+  pla
+  pha
+  jsr hexout
+  jsr spout
+  pla
+ckillsig
+  cmp #E_ILLSIG ;The docs also mention E_ILLPID, but it doesn't exist.
+  bne killdone  ;no signal description to print
+  lda #<eillsig
+  ldy #>eillsig
+  jsr strout
+killdone
+  lda #0
+  jmp term
+
+/* Parse command-line arguments. Return carry clear if OK, set otherwise. */
+parse .(
+  ldy #0
+argv0
+  lda (argv),y  ;past program name
+  beq getargs
+  iny
+  bne argv0
+getargs
+  iny
+  lda (argv),y
+  bne ckargs
+  lda #<usage   ;no arguments, abort
+  ldy #>usage
+  jsr strout
+  sec
+  rts
+ckargs
+  tya
+  clc
+  adc argv
+  sta argv      ;advance argv to first argument
+  lda argv+1
+  adc #0
+  sta argv+1
+  ldy #0
+  lda (argv),y
+  cmp #"-"      ;signal specified?
+  beq ckarg0
+  lda #$20      ;default to SIG_KILL
+  sta sig
+  bne readpid
+ckarg0
+  ldx #0
+ckarg1
+  lda (argv),y
+  beq argdone
+ckarg2
+  cmp args,x
+  bne trynext
+  iny
+  inx
+  bne ckarg1
+argdone
+  ora args,x    ;both zero?
+  beq found
+trynext
+  inc sigcnt    ;signal table counter
+trynext2
+  lda args,x    ;move .X to next in match list
+  beq cknext
+  inx
+  bne trynext2
+cknext
+  inx           ;point to next arg or zero-terminator
+  lda args,x
+  beq notfound  ;end of match list
+  ldy #0
+  beq ckarg1
+found
+  iny           ;to PID
+  tya
+  clc
+  adc argv
+  sta argv
+  lda argv+1
+  adc #0
+  sta argv+1
+  ldx sigcnt
+  lda signals,x
+  sta sig  ;which signal to send
+  bne readpid
+notfound
+  lda #<illsig
+  ldy #>illsig
+  jsr strout
+  lda argv
+  ldy argv+1
+  jsr strout
+  sec
+  rts
+.)
+
+readpid .(
+  ldy #0
+  lda (argv),y
+  bne ckdollar
+  lda #<usage   ;no PID argument, abort
+  ldy #>usage
+  jsr strout
+  sec
+  rts
+ckdollar
+  cmp #"$"
+  bne ckhex1
+  iny
+  lda (argv),y  ;ignore dollar
+ckhex1
+  jsr ckhexbyt
+  bcs badpid
+  jsr hex2bin
+  asl
+  asl
+  asl
+  asl
+  sta pid       ;temp
+ckhex2
+  iny
+  lda (argv),y
+  beq badpid    ;too short
+  jsr ckhexbyt
+  bcs badpid
+  jsr hex2bin
+  ora pid
+  sta pid
+  iny
+  lda (argv),y  ;too long?
+  bne badpid
+  jsr validpid
+  bcs badpid
+  rts
+.)
+
+badpid
+  lda #<illpid
+  ldy #>illpid
+  jsr strout
+  lda argv
+  ldy argv+1
+  jsr strout
+  sec
+  rts
+
+;binary PID in pid, check if valid PID number
+validpid .(
+  sec
+  ldx #SEM_SENDBUF
+  jsr PSEM2
+  ldx pid
+  sec
+  jsr GETINFO2
+  php
+  ldx #SEM_SENDBUF
+  jsr VSEM
+  plp
+  rts
+.)      
+
+/* Convert valid hex character in .A to binary. */
+hex2bin .(
+  cmp #"9"+1
+  bcc num
+  and #$0f      ;"A"-"F"
+  clc
+  adc #9
+  rts
+num
+  and #$0f
+  rts
+.)
+
+/* Check whether byte in .A is a hex byte. .A, .Y preserved, .X destroyed. 
+   Returns carry clear if hex byte, set otherwise. */
+ckhexbyt .(
+  tax
+  cmp #"0"
+  bcc nothex
+  cmp #"9"+1
+  bcs ckletter
+  clc
+  rts
+ckletter
+  and #$4f      ;to upper-case
+  cmp #"A"
+  bcc nothex
+  cmp #"F"+1
+  bcs nothex
+  txa
+  clc
+  rts
+nothex
+  txa
+  sec
+  rts
+.)
+
+.data
+
+usage    .asc $0a,$0d,"Usage: kill [signal] PID",$0a,$0d
+         .asc "(PID must be in hex)",$0a,$0d,0
+args     .asc "-9",0  ;kill -9
+         .asc "-KILL",0,"-BRK",0,"-USR1",0,"-USR2",0
+         .asc "-CONT",0,"-SUSPEND",0,0
+signals  .byt SIG_KILL,SIG_KILL,SIG_BRK, SIG_USR1,SIG_USR2,SIG_CONT,SIG_SUSPEND
+;               $20      $20      $10      $01      $02      $04      $08
+illsig   .asc $0a,$0d,"Illegal signal: ",0
+illpid   .asc $0a,$0d,"Illegal PID: ",0
+sending  .asc $0a,$0d,"Sending ",0
+topid    .asc " to PID ",0
+errmsg   .asc $0a,$0d,"Error $",0
+eillsig   .asc " (E_ILLSIG)",0
+
+#include "../apps/common.a65"
+
+.)

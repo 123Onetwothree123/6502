@@ -1,0 +1,236 @@
+/****************************************************************************
+   
+    OS/A65 Version 2.0.0
+    lib6502 more program
+
+    Copyright (C) 2020 Andre Fachat 
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+****************************************************************************/
+
+#include "lib6502.i65"
+
+#define	BUFLEN	128	/* single byte index, no overflow */
+
+main	.(
+	.zero
+argp	.word 0
+	.text
+
+	jsr getopts
+	bcc first
+
+	lda #<usagetxt
+	ldy #>usagetxt
+	jmp strout
+
+first   jsr fileloop
+	jmp showerr
+
+	; -----------------------------
+	; interpret the command line options
+optL	jsr parsebyte
+	sta numL
+	rts
+optC	jsr parsebyte
+	sta numC
+	rts
+
+	.data
+nfiles	.byt <-1
+numL	.byt 24
+numC	.byt 40
+	
+usagetxt
+	.asc 13,10, "Usage:"
+	.asc 13,10, "  more [opts] [file1] [file2] ... "
+	.asc 13,10, "Prints the given files (or stdin if no file given) "
+	.asc "page by page, expecting a keypress after each page"
+	.asc 13,10, "Options:"
+	.asc 13,10, " -C <n>    Assume <n> columns on screen (default: 40)"
+	.asc 13,10, " -L <n>    Assume <n> lines on screen (default: 25)"
+	.byt 13, 10, 0
+
+nextfilestr
+	.asc 13,10,"## NEXT FILE: ",0
+morestr	.asc 13, "<PRESS KEY>",0
+clrstr	.asc 13,    "           ", 13, 0
+
+	; options
+optsflg	.byt 0,0
+optslst	.byt "CL",0
+optsadl .byt <optC-1, <optL-1
+optsadh	.byt >optC-1, >optL-1
+
+	; no need to initialize as it's .data
+prev	.byt 0
+curL	.byt 0
+curC	.byt 0
+
+	.bss
+BIN	.byt 0
+fileno	.byt 0
+prevwp	.byt 0
+rdlen	.byt 0
+frdat	.word 0,0
+fwdat	.word 0,0
+inbuf	.dsb BUFLEN
+outbuf	.dsb BUFLEN
+	.text
+
+	; called from fileloop
+beforenext .(
+	inc nfiles
+	; check of other files follow
+	ldy #0
+l	lda (argp),y
+	beq endl
+	iny
+	bne l
+endl	iny
+	lda (argp),y
+	bne moreexist
+	lda nfiles
+	beq singlefile
+moreexist
+	; TODO error
+	lda #<nextfilestr
+	ldy #>nextfilestr
+	jsr strout
+	lda argp
+	ldy argp+1
+	jsr strout
+	; wait keypress
+	sec
+	ldx #STDCIN
+	jsr fgetc
+	jsr crlfout
+	lda #0
+	sta curL
+	sta curC
+	sta prev
+singlefile
+	rts
+	.)
+
+
+	; docat/docopy called from fileloop
+docat	ldx #OPEN_RD
+	jsr fopen
+	bcc docopy
+	rts
+docopy  stx fileno
+
+	jmp dataloop
+
+	; called from dataloop
+writeout
+	lda frdat+2
+	sta rdlen
+	lda #0
+	sta frdat+2
+	sta prevwp
+
+	; copy over from inbuf to outbuf
+copy	ldy #0
+cploop	lda inbuf,y
+	sta outbuf,y
+	iny
+	; reset column on CR
+	cmp #13
+	bne nocr
+	ldx #0
+	stx curC
+	beq cont
+nocr 	; detect lf
+	cmp #10
+	beq lf
+
+	inc curC
+	lda curC
+	cmp numC
+	bcc cont
+	; reached column count; assume wrap
+	lda #0
+	sta curC
+
+lf	; new line
+	inc curL
+	lda curL
+	cmp numL
+	bcc cont
+
+	lda #0
+	sta curL
+
+	; protect buf ptr
+	tya
+	pha
+	; write current fwdat up to outbuf+Y
+	jsr writebuf
+	; TODO error
+	lda #<morestr
+	ldy #>morestr
+	jsr strout
+	; wait keypress
+	sec
+	ldx #STDCIN
+	jsr fgetc
+	; go to start line
+	lda #<clrstr
+	ldy #>clrstr
+	jsr strout
+	; restore ptr
+	pla
+	tay
+
+cont	cpy rdlen
+	bne cploop
+	; write current fwdat up to outbuf+Y
+
+	; fallthrough
+writebuf .(
+	tya
+	sec
+	sbc prevwp
+	sta fwdat+2
+	lda #0
+	sta fwdat+3
+	sty prevwp
+	lda #<outbuf
+	sta fwdat
+	lda #>outbuf
+	sta fwdat+1
+wrloop	
+	lda #<fwdat
+	ldy #>fwdat
+	ldx #STDOUT
+	sec
+	jsr fwrite
+	bcs wrerr
+	lda frdat+2
+	ora frdat+3
+	bne wrloop
+	clc
+	lda #E_OK
+wrerr	ldy prevwp
+	rts
+	.)
+
+#include "loop.a65"
+#include "../common.a65"
+	.)
+

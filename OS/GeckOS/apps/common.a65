@@ -1,0 +1,769 @@
+/****************************************************************************
+   
+    OS/A65 Version 2.0.0
+    Common code for lib6502-using programs
+    Code is only included if label is defined, so include as last entry
+
+    Copyright (C) 2019 Andre Fachat 
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+****************************************************************************/
+
+/* 
+ * Exported labels are:
+ *
+ * 	getopts	- parse command line options
+ *			in: a/y pointer to cmdline options
+ *			refs: argp    - zeropage ptr
+ *			      optslst - zero-terminated string of option chars
+ *			      optsflg - list of option bytes (pre-filled with zero)
+ *					in the same order as optslst
+ *					will be set to $ff when option is set
+ *			      optsadl/optsdh - list of low/hi address-1 of a long option handlers
+ *					(this is optional, use see below)
+ *			out: c=0	no error
+ *			     y 		on c=0, (argp),y points to either next arg or zerobyte
+ *			     c=1 ac="?"	print help
+ *			     c=1 	other unknown option
+ *
+ *	parsebyte - parse a decimal int command line parameter into a byte
+ *			in: argp      - pointer to string
+ *			    y         - pointer in string where value starts
+ *			out: c=1      - parse error
+ *			     c=0      - parse ok
+ *			     Y        - pointer to non-digit char or terminating zerobyte after arg
+ *			     AC	      - value
+ *			ref: BIN      - temporary value
+ *			keep: X	      - X is not modified
+ *
+ *	parseword - parse a decimal int command line parameter into a word
+ *			in: argp      - pointer to string
+ *			    y         - pointer in string where value starts
+ *			out: c=1      - parse error
+ *			     c=0      - parse ok
+ *			     Y        - pointer to non-digit char or terminating zerobyte after arg
+ *			     AC/XR    - value
+ *			ref: BIN      - temporary value
+ *
+ *	strout - print a string on stdout
+ *			in: a/y pointer to zero-terminated string
+ *			refs: strp    - zeropage ptr (will be defined if not def'd)
+ *
+ *	hexwout - print a hex addr (2 byte into 4 hex chars)
+ *			in: a/y  value
+ *	hexout - print a hex byte
+ *			in: a value
+ * 	crlfout - print cr/lf on stdout
+ *	spout - print a space on stdout
+ *
+ *	chrout - print a character on stdout
+ *			in: a value to be printed
+ *			preserves: xr,yr
+ *
+ * 	NOTE: 	if chrout is already defined, it will not create an error,
+ *		instead the given chrout will be used. So it can be overwritten
+ *		and the library used for non-lib6502 programs
+ *
+ *	wordout - print integer value in a/y (using word2bcd, bcdout)
+ *			(print with variable length, i.e. without filler)
+ *			in: a/y	      - 16 bit integer (unsigned)
+ *			
+ *	bcdout - print out value from BCD, using space as filler
+ *			in: BCD       - Address of BCD value
+ *			    y         - number of decimal digits to print up to
+ *	bcd0out - print out value from BCD, using "0" as filler
+ *		(same as bcdout)
+ *
+ *	long2bcd - convert a long value to BCD
+ *			in: BIN       - Address of 4 byte integer value
+ *			    BCD	      - Address of 5 byte BCD buffer for output
+ *			out: value in BCD
+ *			preserves YR, uses XR
+ *
+ *	word2bcd - convert a 2-byte value to BCD
+ *			in: BIN       - Address of 2 byte integer value
+ *			    BCD	      - Address of 3 byte BCD buffer for output
+ *			out: value in BCD
+ *			preserves YR, uses XR
+ *
+ *	byte2bcd - convert a byte value to BCD
+ *			in: AC	      - byte to convert
+ *			out: BCD      - address of 2 byte BCD buffer for output
+ *			preserves YR, uses XR
+ *
+ *	iswhite	- check if character in AC is whitespace
+ *			in: AC	      - byte to check
+ *			out: Z	      - beq is whitespace
+ *
+ * 	strerror - returns a pointer to a readable error message
+ *			in: AC	      - error number (E_*)
+ *			out: A/Y      - error text
+ *			   C=0	      - error number found
+ *			   C=1        - error number of found, should be printed
+ */
+
+	.text
+
+#iflused getopts
+
+	; parse command line options
+	; uses argp/+1
+getopts	.(
+	sta argp
+	sty argp+1
+
+	ldy #0
+skip	lda (argp),y
+	beq opts
+	iny
+	bne skip
+opts	iny
+argloop	lda (argp),y
+	beq argend
+	cmp #"-"
+	bne argend	; arg must start with "-"
+nexto	iny
+	lda (argp),y	
+	bne check	; only "-" means next arg is not an option
+	iny 		; point to either next arg or zerobyte
+	bne argloop	; always
+check 	; check option
+#ifldef optslst
+	cmp #"?"
+	beq help
+	ldx #0
+optchk	lda optslst,x
+	beq argerr	; end of list - not found, thus error
+	cmp (argp),y
+	beq found
+	inx
+	bne optchk
+found	dec optsflg,x
+#ifldef optsadh
+	lda optsadh,x
+	beq nexto	; loop when no callback
+	iny		; point to param
+	lda (argp),y
+	bne c
+	iny
+	lda (argp),y
+	beq argerr	; long parameter expected, but none provided
+c	jsr chklong
+	bcc opts
+#else
+	bne nexto	; always
+#endif /* optsadh */
+#endif /* optslst */
+help	
+argerr 	sec		; acc contains "?" for help, zero for error
+	rts
+argend	clc
+	rts
+
+#ifldef optsadh
+chklong	; optsadl/-adh contains the address of a check routine -1
+	; (argp),y points to the parameter to be checked
+	; must return c=1 for error or c=0 for ok
+	; when c=0, (argp),y must point to zero terminator
+	; after the parameter
+	; 
+	lda optsadh,x
+	pha
+	lda optsadl,x
+	pha
+	rts
+#endif
+
+	.)
+
+#if 0
+	; sample code how to check a long parameter
+pa     tya 
+       pha
+       ldy #0
+pa1    lda partxt,y
+       beq pa2
+       jsr chrout
+       iny
+       bne pa1
+pa2    pla
+       tay
+pa4    lda (argp),y
+       beq pa3
+       jsr chrout
+       iny
+       bne pa4
+pa3    jsr crlfout
+       clc
+       rts
+
+partxt 	.asc 13,10,"Parameter A:",0
+optslst .asc "abc",0
+optsflg .byt 0,0,0
+optsadh .byt >pa-1,0,0
+optsadl .byt <pa-1,0,0
+#endif 
+
+#endif	/* getopts */
+
+
+/***********************************************************/
+
+#iflused long2bcd
+
+; algorithm adapted from http://www.6502.org/source/integers/hex2dec-more.htm
+
+	; uses BIN, .., BIN+3
+	; uses BCD, .., BCD+4
+	; magically allocate required memory if not defined
+#ifldef BIN
+#else
+	.bss
+BIN	.dsb 4
+#endif
+#ifldef BCD
+#else
+	.bss
+BCD	.dsb 5
+#endif
+	.text
+
+long2bcd .(
+	SED		; Switch to decimal mode
+	LDA #0		; Ensure the result is clear
+	STA BCD+0
+	STA BCD+1
+	STA BCD+2
+	STA BCD+3
+	STA BCD+4
+
+	LDX #32		; The number of source bits
+CNVBIT:	ASL BIN+0	; Shift out one bit
+	ROL BIN+1
+	ROL BIN+2
+	ROL BIN+3
+	LDA BCD+0	; And add into result
+	ADC BCD+0
+	STA BCD+0
+	LDA BCD+1	; propagating any carry
+	ADC BCD+1
+	STA BCD+1
+	LDA BCD+2	; ... thru whole result
+	ADC BCD+2
+	STA BCD+2
+	LDA BCD+3	; ... thru whole result
+	ADC BCD+3
+	STA BCD+3
+	LDA BCD+4	; ... thru whole result
+	ADC BCD+4
+	STA BCD+4
+	DEX		; And repeat for next bit
+	BNE CNVBIT
+	CLD		; Back to binary
+	RTS
+	.)
+#endif
+
+/***********************************************************/
+
+#iflused wordout
+
+	; uses BIN, BIN+1
+	; uses BCD, .., BCD+2
+	; magically allocate required memory if not defined
+#ifldef BIN
+#else
+	.bss
+BIN	.dsb 2
+#endif
+#ifldef BCD
+#else
+	.bss
+BCD	.dsb 3
+#endif
+	.text
+
+wordout	.(
+	sta BIN
+	sty BIN+1
+	jsr word2bcd
+	ldx #5
+	lda BCD+2
+	bne out 
+	dex
+	lda BCD+1
+	and #$f0
+	bne out
+	dex
+	lda BCD+1
+	bne out
+	dex
+	lda BCD
+	and #$f0
+	bne out
+	dex
+out	jmp bcdout
+	.)
+
+#endif
+
+#iflused word2bcd
+
+	; uses BIN, BIN+1
+	; uses BCD, .., BCD+2
+#ifldef BIN
+#else
+	.bss
+BIN	.dsb 2
+#endif
+#ifldef BCD
+#else
+	.bss
+BCD	.dsb 3
+#endif
+	.text
+
+word2bcd .(
+	SED		; Switch to decimal mode
+	LDA #0		; Ensure the result is clear
+	STA BCD+0
+	STA BCD+1
+	STA BCD+2
+
+	LDX #16		; The number of source bits
+CNVBIT:	ASL BIN+0	; Shift out one bit
+	ROL BIN+1
+	LDA BCD+0	; And add into result
+	ADC BCD+0
+	STA BCD+0
+	LDA BCD+1	; propagating any carry
+	ADC BCD+1
+	STA BCD+1
+	LDA BCD+2	; ... thru whole result
+	ADC BCD+2
+	STA BCD+2
+	DEX		; And repeat for next bit
+	BNE CNVBIT
+	CLD		; Back to binary
+	RTS
+	.)
+
+#endif	/* wordbin2bcd */
+
+#iflused byte2bcd
+
+	; uses BCD, BCD+1
+#ifldef BCD
+#else
+	.bss
+BCD	.dsb 2
+#endif
+	.text
+
+byte2bcd .(
+	sed
+	ldx #0
+	stx BCD
+	stx BCD+1
+	ldx #8
+cnvbit	asl
+	pha
+	lda BCD
+	adc BCD
+	sta BCD
+	lda BCD+1
+	adc BCD+1
+	sta BCD+1
+	pla
+	dex
+	bne cnvbit
+	cld
+	rts
+	.)
+#endif
+
+/***********************************************************/
+
+#iflused parseword
+
+	; uses BIN, BIN+1
+#ifldef BIN
+#else
+	.bss
+BIN	.dsb 2
+#endif
+	.text
+
+parseword .(
+	lda #0
+	sta BIN
+	sta BIN+1
+nextb
+	lda (argp),y
+	beq end
+	cmp #$30
+	bcc end
+	cmp #$3a
+	bcs end
+	; multiply BIN by 10
+	asl BIN
+	rol BIN+1
+	bcs overflow
+	lda BIN
+	ldx BIN+1
+	asl BIN
+	rol BIN+1
+	bcs overflow
+	asl BIN
+	rol BIN+1
+	bcs overflow
+	adc BIN
+	sta BIN
+	txa
+	adc BIN+1
+	bcs overflow
+	sta BIN+1
+	lda (argp),y
+	and #$0f
+	adc BIN
+	sta BIN
+	bcc next
+	inc BIN+1	; inc does not set C, so it stays set
+	beq overflow
+next	iny
+	bne nextb
+overflow
+end
+	ldx BIN+1
+	lda BIN
+	rts
+	.)
+
+#endif
+
+/***********************************************************/
+
+#iflused parsebyte
+
+	; uses BIN
+#ifldef BIN
+#else
+	.bss
+BIN	.dsb 1
+#endif
+	.text
+
+parsebyte .(
+	lda #0
+	sta BIN
+nextb
+	lda (argp),y
+	beq end
+	cmp #$30
+	bcc end
+	cmp #$3a
+	bcs end
+	; multiply BIN by 10
+	asl BIN
+	bcs overflow
+	lda BIN
+	asl BIN
+	bcs overflow
+	asl BIN
+	bcs overflow
+	adc BIN
+	bcs overflow
+	sta BIN
+	lda (argp),y
+	and #$0f
+	adc BIN
+	bcs overflow
+	sta BIN
+	iny
+	bne nextb
+overflow
+end
+	lda BIN
+	rts
+	.)
+
+#endif
+
+/***********************************************************/
+
+#iflused bcdout
+
+; own algorithm. could probably be optimized using http://6502org.wikidot.com/software-output-decimal
+; y is number of decimal digits to print up to
+
+	; uses unknown number of BCD bytes, so must be defined by app
+
+bcd0out .(
+	lda #"0"
+	.byt $2c
+&bcdout 
+	lda #" "
+	sta fill
+	txa
+	lsr
+	tax
+	bcs nextd
+	bcc decy
+loop 	lda BCD,x
+	lsr
+	lsr
+	lsr
+	lsr
+	jsr digit
+nextd	txa
+	bne show
+	lda #"0"
+	sta fill
+show 	lda BCD,x
+	jsr digit
+decy	dex
+	bpl loop
+	rts
+
+digit	and #15
+	bne print
+	lda fill
+	jmp chrout
+print 	ora #"0"
+	jsr chrout
+	lda #"0"
+	sta fill
+	rts
+
+	.bss
+fill	.byt 0
+	.text	
+	.)
+#endif
+
+/***********************************************************/
+; string functions
+
+#iflused strout
+
+#ifldef strp
+#else
+	.zero
+strp	.word
+	.text
+#endif /* strp */
+
+strout	.(
+	sta strp
+	sty strp+1
+	ldy #0
+loop	lda (strp),y
+	beq end
+	jsr chrout
+	iny
+	bne loop
+	inc strp+1
+	bne loop
+end	rts
+	.)
+
+#endif
+
+#iflused hexwout
+hexwout	pha
+	tya
+	jsr hexout
+	pla
+	; fall-through
+#endif
+#iflused hexout
+
+hexout	.(
+	pha
+	lsr
+	lsr
+	lsr
+	lsr
+	jsr nibble
+	pla
+nibble	and #$0f
+	clc
+	adc #"0"
+	cmp #"9"+1
+	bcc nibok
+	adc #6
+nibok	jmp chrout
+	.)
+
+#endif
+
+#iflused crlfout
+
+crlfout .(
+
+	lda #13
+	jsr chrout
+	lda #10
+#iflused spout		/* if spout is used, skip following lda */
+	.byt $2c
+#endif	/* spout */
+	.)
+#endif	/* crlfout */
+
+#iflused spout
+	.(
+&spout	lda #" "
+	.)
+#endif	/* spout */
+	; fall through
+#iflused chrout
+
+#ifldef chrout
+	jmp chrout
+#else
+chrout	.(
+	stx tx
+	ldx #STDOUT
+	sec
+	jsr fputc
+	ldx tx
+	rts
+	.data
+tx	.byt 0
+	.text
+	.)
+#endif
+ 
+#endif
+
+/***********************************************************/
+
+#iflused iswhite
+
+iswhite	.(		; return Z set when char in AC is whitespace
+	cmp #" "
+	beq r
+	cmp #9		; tab
+	beq r
+	cmp #13		; cr
+	beq r
+	cmp #10		; lf
+r	rts
+	.)
+
+#endif
+
+/***********************************************************/
+
+
+#iflused strerror
+
+strerror .(
+	ldy #0
+idxloop	cmp stre_idx,y
+	beq errfound
+	iny
+	cpy #stre_idx_end-stre_idx
+	bcc idxloop
+	lda #<stre_unknown
+	ldy #>stre_unknown
+	rts
+errfound
+	tya
+	asl
+	tay
+	lda stre_addr,y
+	pha
+	lda stre_addr+1,y
+	tay
+	pla
+	clc
+	rts
+
+stre_idx	
+	.byt E_OK, E_NOTIMP, E_CONFIG, E_ILLPAR, E_NOMEM
+	.byt E_NOSTR, E_SFULL, E_SEMPTY, E_SLWM, E_SHWM, E_EOF, E_NUL
+	.byt E_NODEV, E_DON, E_DOFF, E_NOTX
+	.byt E_NOENV, E_NOSEM, E_SEMSET, E_NOIRQ, E_VERSION, E_NOTASK
+	.byt E_INT, E_ILLSIG, E_TRYAGAIN, E_NOPAR, E_NOTHREAD
+	.byt E_FNODRV, E_FNOPATH, E_FILLNAM, E_FNAMLEN, E_FNOFIL, E_FWPROT, E_FILEXIST
+	.byt E_FDISKFULL, E_FDNEMPTY, E_FLOCKED, E_FMEDIA, E_FLOGICAL, E_FINTERNAL
+	.byt E_ILLADDR, E_NOFILE, E_NOSEEK, E_NOREAD, E_NOWRITE, E_FVERSION
+	.byt E_FILETYPE, E_DISKTYPE
+stre_idx_end
+stre_addr
+	.word se_ok, se_notimp, se_config, se_illpar, se_nomem
+	.word se_nostr, se_sfull, se_sempty, se_slwm, se_shwm, se_eof, se_nul
+	.word se_nodev, se_don, se_doff, se_notx
+	.word se_noenv, se_nosem, se_semset, se_noirq, se_version, se_notask
+	.word se_int, se_illsig, se_tryagain, se_nopar, se_nothread
+	.word se_fnodrv, se_fnopath, se_fillnam, se_fnamlen, se_fnofil, se_fwprot, se_filexist
+	.word se_fdiskfull, se_fdnempty, se_flocked, se_fmedia, se_flogical, se_finternal
+	.word se_illaddr, se_nofile, se_noseek, se_noread, se_nowrite, se_fversion
+	.word se_filetype, se_disktype
+
+stre_unknown	.asc "UNKNOWN",0
+se_ok		.asc "OK",0
+se_notimp 	.asc "NOT IMPLEMENTED",0
+se_config 	.asc "NOT IN THIS CONFIG",0
+se_illpar	.asc "ILLEGAL PARAMETER",0
+se_nomem	.asc "OUT OF MEMORY",0
+se_nostr	.asc "NO STREAM AVAILABLE",0
+se_sfull	.asc "STREAM FULL",0
+se_sempty	.asc "STREAM EMPTY",0
+se_slwm		.asc "STREAM LOW",0
+se_shwm		.asc "STREAM HIGH",0
+se_eof		.asc "STREAM EOF",0
+se_nul		.asc "STREAM NO LISTENER",0
+se_nodev	.asc "ILLEGAL DEVICE NUMBER",0
+se_noenv	.asc "NO ENVIRONMENT",0
+se_don		.asc "DEVICE IN USE",0
+se_doff		.asc "DEVICE NOT IS USE",0
+se_notx		.asc "DEVICE DOES NOT SEND",0
+se_nosem	.asc "NO FREE SEMAPHORE",0
+se_semset	.asc "SEMAPHORE ALREADY SET",0
+se_noirq	.asc "IRQ NOT CLEARED",0
+se_version	.asc "WRONG EXEC FILE VERSION",0
+se_notask	.asc "NO FREE TASK",0
+se_int		.asc "INTERRUPTED",0
+se_illsig	.asc "ILLEGAL SIGNAL",0
+se_tryagain	.asc "TRY AGAIN",0
+se_nopar	.asc "MISSING PARAMETER",0
+se_nothread	.asc "NO FREE THREAD",0
+se_fnodrv	.asc "ILLEGAL DRIVE NUMBER",0
+se_fnopath	.asc "ILLEGAL PATH",0
+se_fillnam	.asc "ILLEGAL FILE NAME",0
+se_fnamlen	.asc "FILE NAME TOO LONG",0
+se_fnofil	.asc "FILE NOT FOUND",0
+se_fwprot	.asc "WRITE PROTECTED",0
+se_filexist	.asc "FILE EXISTS",0
+se_fdiskfull	.asc "DISK FULL",0
+se_fdnempty	.asc "DIRECTORY NOT EMPTY",0
+se_flocked	.asc "FILE LOCKED",0
+se_fmedia	.asc "MEDIA ERROR",0
+se_flogical	.asc "BAD LOGICAL STRUCTS",0
+se_finternal	.asc "FS INTERNAL",0
+se_illaddr	.asc "ILLEGAL MEM ADDRESS",0
+se_nofile	.asc "ILLEGAL FILE NUMBER",0
+se_noseek	.asc "NOT SEEKABLE",0
+se_noread	.asc "READ WOULD BLOCK",0
+se_nowrite	.asc "WRITE WOULD BLOCK",0
+se_fversion	.asc "FILE VERSION NOT SUPPORTED",0
+se_filetype	.asc "FILE TYPE",0
+se_disktype	.asc "DISK TYPE",0
+	.)
+#endif
+

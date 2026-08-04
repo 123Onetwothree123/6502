@@ -1,0 +1,85 @@
+/****************************************************************************
+   
+    OS/A65 Version 2.0.0
+    lib6502 cat program
+
+    Copyright (C) 2020 Andre Fachat 
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+****************************************************************************/
+
+#include "lib6502.i65"
+
+#define	BUFLEN	1024
+
+main	.(
+	.zero
+argp	.word 0
+	.text
+
+	jsr getopts
+	bcc first
+
+	lda #<usagetxt
+	ldy #>usagetxt
+	jmp strout
+
+first	jsr fileloop
+	jmp showerr
+
+	.data
+usagetxt
+	.asc 13,10, "Usage:"
+	.asc 13,10, "  cat [file1] [file2] ... "
+	.asc 13,10, "Prints the given files (or stdin if no file given) "
+	.asc "to stdout"
+	.byt 13, 10, 0
+
+	; no options (so far)
+optsflg
+optslst	.byt 0
+
+	.bss
+fileno	.byt 0
+frdat	.word 0,0
+inbuf	.dsb BUFLEN
+	.text
+
+	; called from dataloop
+writeout .(
+	; buffer position is already in frdat+0/+1
+	; buffer len is already in frdat+2/+3
+	lda #<frdat
+	ldy #>frdat
+        ldx #STDOUT
+        sec
+        jmp fwrite
+	.)
+
+	; called from fileloop
+docat	ldx #OPEN_RD
+	jsr fopen
+	bcc docopy
+	rts
+docopy  stx fileno
+
+	jmp dataloop
+
+
+#include "loop.a65"
+#include "../common.a65"
+	.)
+

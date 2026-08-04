@@ -1,0 +1,125 @@
+
+/****************************************************************************
+   
+    OS/A65 Version 2.0.0
+    Multitasking Operating System for 6502 Computers
+
+    Copyright (C) 1989-1998 Andre Fachat 
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+****************************************************************************/
+
+/*
+ * Here are the global (sub-)routines for the lib6502 implementation.
+ *
+ * They include:
+ * 	libinit		check if lib is initialized and if not, do so
+ *	taskinit	check if task is initialized and if not, do so
+ *
+ *	llock		get a lock on a semaphore bit set in ac
+ *	lunlock		unlock semaphore bit in ac
+ */
+
+
+libinit	.(
+	php
+	sei
+	pha
+	lda zen
+	ora zen+1
+	bne done
+doit
+	jsr minit
+	jsr zinit
+	inc zen
+done
+	pla
+	plp
+	rts
+	.)
+
+taskinit .(
+	jsr libinit
+	lda zta
+	ora zta+1
+	clc
+	bne done
+doit 	; alloc memory block for LT_* struct
+	lda #<LT_SLEN
+	ldy #>LT_SLEN
+	jsr Malloc
+	bcs done
+	sta zta
+	sty zta+1
+
+#if LT_ENV > 256
+#echo environment list too long!!
+#endif
+	ldy #0
+	tya
+l0	sta (zta),y
+	iny
+	;cpy #LT_SLEN
+	bne l0
+
+	ldy #LT_NTHREADS
+	lda #1
+	sta (zta),y
+
+	tsx
+	inx
+	inx
+	txa
+	ldy #LT_INISTACK
+	sta (zta),y
+
+	jsr initsig
+	clc
+done	rts
+	.)
+
+/*************************************************************************/
+
+llock	.(
+	php
+l1	pha
+	sei
+	and zen+1
+	bne loop
+	pla
+	ora zen+1
+	sta zen+1
+	plp
+	rts
+loop	pla
+	plp		; restore interrupt bit
+	php
+	jsr YIELD
+	jmp l1	
+	.)
+
+lunlock	.(
+	php
+	sei
+	eor #$ff
+	and zen+1
+	sta zen+1
+	plp
+	rts
+	.)
+
+
+

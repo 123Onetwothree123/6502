@@ -1,0 +1,3 @@
+arch/emu6502/geckos.bin
+arch/emu6502/rom.o65
+arch/emu6502/rom.lab

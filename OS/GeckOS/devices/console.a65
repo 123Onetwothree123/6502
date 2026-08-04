@@ -1,0 +1,334 @@
+/****************************************************************************
+   
+    OS/A65 Version 2.0.0
+    Multitasking Operating System for 6502 Computers
+    Generic console device
+
+    Copyright (C) 1989-1998 Andre Fachat 
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+****************************************************************************/
+
+          .(	;1
+
+#ifndef BASE_NAME
+#define	BASE_NAME	"video"
+#endif
+
+#define   DC_SW_MOD      $20
+#define   DC_SW_EXIT     $10
+
+
+          .word     devend1
+          jmp prg1
+          .asc BASE_NAME, "1",0
+
+	; zei2 is used in CONSOLE_DEVICE, so 
+	; should be defined. Otherwise block level may be
+	; elevated and label defined errors may occur
+	;
+	; language note "zei" is the abbreviation for
+	; german "Zeiger", which literally means "pointer".
+	.zero
+zei2	.word 0
+	.text
+
+#include "tcdefs.i65"
+
+#include CONSOLE_DEVICE
+
+
+#if MAX_SCREEN < 3
+devend1	  .word	    devend
+          jmp prg2
+          .asc BASE_NAME, "2",0
+#else
+devend1   .word     devend2
+          jmp prg2
+          .asc BASE_NAME, "2",0
+
+#if MAX_SCREEN < 4
+devend2	  .word	    devend
+          jmp prg3
+          .asc BASE_NAME, "3",0
+#else
+devend2   .word     devend3
+          jmp prg3
+          .asc BASE_NAME, "3",0
+
+devend3   .word     devend
+          jmp prg4
+          .asc BASE_NAME, "4",0
+
+#endif	// MAX_SCREEN < 4
+#endif 	// MAX_SCREEN < 3
+
+
+#define	MAX_DEVICE	MAX_SCREEN
+
+prg4      ldx #3
+          .byt $2c
+prg3      ldx #2
+	  .byt $2c
+prg2      ldx #1
+          .byt $2c
+prg1      ldx #0
+
+
+	.data          
+;curdev	  .byt 0	; device currently called in DEVCMD (set in generic dev code)
+actdev	  .byt 0	; device currently active in output
+actscr    .byt 0	; device currently visible 
+freq	  .byt 0	; hardware status byte from kernel (1/2 MHz bit)
+syscnt	  .byt 0	; reentrance semaphore when IRQ can be checked
+shfl	  .byt 0	; shift flag for typed char
+rspd	  .byt 0	; key repeat speed
+ctrlst    .dsb MAX_SCREEN ; status for multi-byte sequences
+
+	.text
+
+	jmp gen_dev
+
+dev_reset .(	;2
+	  sty freq
+
+	  lda #0
+
+          sta syscnt
+          sta actscr
+
+	  ; uncomment to start in direct mode
+	  ;lda #DC_SW_MOD
+	  ;sta status,x
+
+          txa
+          bne re		; only the first is hw-initialized
+	  jsr console_init	; init hardware (called with y=hardware byte)
+&re
+	  jsr setscr
+	  jsr inivscr
+          clc
+          rts
+          .)	;1
+
+dev_timer .(	;2
+#if 0 	/* allow interruptable devices? */
+	  jsr do_irq
+	  sec
+	  rts
+#else
+          lda syscnt	/* this devices has already been interrupted */
+	  bmi wasirq	/* then return */
+
+          dec syscnt	/* signal that devices is interrupted */
+          cli
+
+	nop
+	nop
+	sei
+	  jsr do_irq
+
+          sei
+          inc syscnt
+	  lda #E_NOIRQ
+          rts
+
+wasirq	  lda #E_OK
+	  rts
+
+#endif 
+	.)	;1
+          
+do_irq  .(	;2
+	jsr setscr
+
+	ldy curdev
+	DO_IRQ
+
+	jsr gen_rx_check
+
+	; ----------------------
+	; check keyboard input
+	
+	lda curdev	; get keyboard only for visible screen
+	cmp actscr
+	bne end_input
+	jsr getkey	; returns x=shiftfl, y=index in keytable, a=ascii code
+	bcs end_input
+	cpy #SWITCHKEY
+	bne gotchar
+#ifndef SWITCHNOSHIFT
+	dex
+	bmi gotchar	; ignore switch key without shift/ctrl
+#endif
+	jsr crsroff	; must preserve xr
+	jsr do_switch
+	jmp end_input
+gotchar	
+	sta zei2
+	ldy curdev	; first check if we are receiving (from keyboard)
+	lda status,y
+        and #DC_SW_RX
+        beq end_input
+	lda zei2
+	cmp brkkey,y
+	beq dobrk
+	cmp #"^Z"
+	bne nobrk
+	; send suspend signal
+	lda #SIG_SUSPEND
+	bne sendsig
+dobrk
+	ldx outstr,y
+	lda #SC_SSTAT
+	ldy #SCE_BRK
+	jsr STRCMD
+	; send BRK signal to foreground process
+	lda #SIG_BRK
+sendsig	ldy curdev
+	ldx outstr,y
+	tay
+	lda #SC_FGSIG
+	jsr STRCMD
+nobrk
+	ldx zei2
+	ldy curdev
+	lda status,y
+	and #DC_SW_RX+DC_SW_TX+DC_SW_MOD
+	cmp #DC_SW_RX+DC_SW_TX+DC_SW_MOD
+	bne direct	; indirect mode -> print char and send line on cr
+	cpx #TC_CR
+	bne print	; no cr, then just print it
+	jsr crsroff
+	jsr sendline	; otherwise send the whole line
+	;ldx #TC_CR
+	jmp end_input
+print
+	jsr crsroff
+	txa
+	jsr printchar
+	jmp end_input
+          
+direct	and #DC_SW_RX	; direct mode -> send the char directly
+	beq end_input
+	txa
+	ldx outstr,y
+	jsr PUTC
+end_input
+	ldx curdev	
+	; ----------------------
+	; output from stream to screen
+
+	; output stuff
+	jsr gen_tx_check
+	bcs endirq
+
+	; are we on the current screen?
+	lda curdev
+	cmp actscr
+	bne dotx
+	; if so, switch off cursor
+	jsr crsroff
+dotx
+	; check input from stream
+	ldy curdev
+	ldx getstr,y
+	jsr GETC
+	bcs endirq
+txloop
+	jsr printchar
+	ldy curdev
+	ldx getstr,y
+	jsr GETC
+	bcc txloop
+	; set the line start for any input, to be read by getline
+	jsr setlin
+endirq	
+	; are we on the current screen?
+	lda curdev
+	cmp actscr
+	bne end1
+	; if so, switch crsr back on
+	jsr crsron
+end1
+	BELLIRQ 
+	lda #E_NOIRQ
+	rts
+	.)	;1
+
+do_switch .(	;2
+          dex
+          bmi sw_next    ; with shift
+	  dex
+	  bmi sw_mode	 ; with ctrl
+	  bpl sw_close
+
+	; next screen
+sw_next	.(	;3
+p1c1b     ldx actscr	 ; needed to tell setact the old screen number
+	  inc actscr     ; then switch screen
+	  lda actscr
+	  cmp #MAX_SCREEN
+	  bcc p1c1a
+	  lda #0
+	  sta actscr
+p1c1a
+          tay
+          lda status,y
+          and #DC_SW_EXIT
+          bne p1c1b
+          tya
+          jmp setact
+	.)	;2
+
+	; switch mode
+sw_mode	.(	;3
+          ldy curdev
+          lda status,y
+          eor #DC_SW_MOD
+          sta status,y
+          rts
+	.)	;2
+
+	; switch off and close stream
+sw_close .(	;3
+          jmp rxoff
+	.)	;2
+
+	.)	;1
+
+starttx	.(
+	jsr setscr
+	jmp towcl
+	.)
+
+/*************************************************************************
+ *
+ * Generic Device handling
+ *
+ */
+
+#include "devices/gen_device.a65"
+
+
+/**************************************************************************/
+
+;#include "devices/gen_con_mmap.a65"
+
+#undef BASE_NAME
+
+devend    .)
+ 

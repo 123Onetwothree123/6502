@@ -1,0 +1,109 @@
+
+/****************************************************************************
+   
+    OS/A65 Version 2.0.0
+    Multitasking Operating System for 6502 Computers
+
+    Copyright (C) 1989-1998 Andre Fachat 
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+****************************************************************************/
+
+/*
+ * This is the includer for the lib6502 standard library. 
+ * It takes the preprocessor-define STDIOADDR as the address where
+ * the code should end. It sets the define LIB6502 as the start address
+ * of the library jump table.
+ */
+
+	.(
+
+#include "kernel.i65"
+#include "fdefs.i65"
+#include "version.i65"
+
+#echo "Start" 
+#print *
+
+#ifdef LIB6502START
+
+#define	LIB6502 LIB6502START
+; make sure the actual jump table is assembled
+#define	LIB6502BIN
+
+#endif /* LIB6502START */
+
+/* note: this is actually the very same file as include/lib6502.i65 */
+/* depending on whether LIB6502BIN is defined it generates the actual jump table or not */
+#include "lib6502/libjmp.a65"
+
+#include "lib6502/libdef.a65"
+#include "lib6502/libglob.a65"
+#include "lib6502/libzmem.a65"
+#include "lib6502/libmem.a65"
+#include "lib6502/libsem.a65"
+#include "lib6502/libfile.a65"
+#include "lib6502/libexec.a65"
+#include "lib6502/libloader.a65" 
+#include "lib6502/libnet.a65" 
+#include "lib6502/libenv.a65" 
+#include "lib6502/libsig.a65"
+
+notimp  lda #E_NOTIMP
+        sec
+        rts
+
+
+#ifndef LIB6502START
+
+/* make sure jump table is generated during the next include */
+#ifndef LIB6502BIN
+#define	LIB6502BIN
+#endif
+
+/****************************************
+ * if STDIOADDR is defined, put jump table
+ * at the just before STDIOADDR
+ */
+#ifdef STDIOADDR
+
+#define LIB6502BINADDR  STDIOADDR-3*(LIBCALLNUM+LIBOSACALLS)
+
+#print LIB6502BINADDR
+#print *
+
+        .dsb LIB6502BINADDR-*,<-1
+
+#else /* STDIOADDR */
+/****************************************/
+
+#ifdef LIB6502
+
+libtarget=LIB6502-LIBOSACALLS*3
+        .dsb libtarget-*
+#endif
+
+#endif /* STDIOADDR */
+/****************************************/
+
+#include "lib6502/libjmp.a65"
+
+#endif /* not LIB6502START */
+
+#undef	LIB6502BIN
+
+	.)
+

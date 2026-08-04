@@ -1,0 +1,168 @@
+
+
+#include "lib6502.i65"
+#include "tcdefs.i65"
+
+main
+	lda #<txt1
+	ldy #>txt1
+	ldx #txt1a-txt1
+	jsr strnout
+
+	lda #<txt1a
+	ldy #>txt1a
+	ldx #txt1b-txt1a
+	jsr strnout
+
+	lda #<txt1b
+	ldy #>txt1b
+	ldx #txt2-txt1b
+	jsr strnout
+
+	jsr waitkey
+
+	; ---
+
+	lda #<txt2
+	ldy #>txt2
+	ldx #txt5-txt2
+	jsr strnout
+
+	jsr waitkey
+
+	; ---
+
+	lda #<txt5
+	ldy #>txt5
+	ldx #txt6-txt5
+	jsr strnout
+
+	jsr waitkey
+
+	; ---
+
+	lda #<txt6
+	ldy #>txt6
+	ldx #txt7-txt6
+	jsr strnout
+
+	jsr waitkey
+
+	; ---
+
+	lda #<txt7
+	ldy #>txt7
+	ldx #txt8-txt7
+	jsr strnout
+
+	jsr waitkey
+
+	; ---
+
+	lda #<txt8
+	ldy #>txt8
+	ldx #txt9-txt8
+	jsr strnout
+
+	jsr waitkey
+
+	; ---
+
+	lda #<txt9
+	ldy #>txt9
+	ldx #txtA-txt9
+	jsr strnout
+
+	jsr waitkey
+
+	; ---
+
+	lda #<txtA
+	ldy #>txtA
+	ldx #txtB-txtA
+	jsr strnout
+
+	jsr waitkey
+
+	; ---
+
+	lda #<txtB
+	ldy #>txtB
+	ldx #txtC-txtB
+	jsr strnout
+
+	jsr waitkey
+
+	; ---
+
+	lda #<txtC
+	ldy #>txtC
+	ldx #txtD-txtC
+	jsr strnout
+
+	lda #E_OK
+	rts
+
+waitkey	ldx #STDIN
+	sec
+	jmp fgetc
+
+txt1	.byt TC_WCLS, TC_FF
+	.byt TC_LF, TC_LF
+	.byt " +----------------------+", TC_CR,TC_LF	; 0
+	.byt " |   _______________   ",TC_ATTR,TC_ATTR_REV,TC_FGCOL,TC_COL_LRED,"0",TC_FGCOL, TC_COL_DEFAULT, TC_ATTR,0,"|", TC_CR,TC_LF	; 1
+	.byt " |   insert here ><   /",TC_ATTR,TC_ATTR_ULINE,TC_FGCOL,TC_COL_LBLUE,"1",TC_FGCOL, TC_COL_DEFAULT, TC_ATTR,0,"|", TC_CR,TC_LF	; 2
+	.byt " |   delete this > <   ",TC_ATTR,TC_ATTR_BLINK,TC_FGCOL,TC_COL_LGREEN,"2",TC_FGCOL, TC_COL_DEFAULT, TC_ATTR,0,"|", TC_CR,TC_LF	; 3
+	.byt " |   _______________   ",TC_ATTR,TC_ATTR_REV,TC_FGCOL,TC_COL_LRED,"3",TC_FGCOL, TC_COL_DEFAULT, TC_ATTR,0,"|", TC_CR,TC_LF	; 10
+	.byt " |   insert line v     ",TC_ATTR,TC_ATTR_ULINE,TC_FGCOL,TC_COL_LBLUE,"4",TC_FGCOL, TC_COL_DEFAULT, TC_ATTR,0,"|", TC_CR,TC_LF	; 5
+	.byt " |   delete this <->   ",TC_ATTR,TC_ATTR_BLINK,TC_FGCOL,TC_COL_LGREEN,"5",TC_FGCOL, TC_COL_DEFAULT, TC_ATTR,0,"|", TC_CR,TC_LF	; 6
+txt1a	.byt " |   _______________   ",TC_ATTR,TC_ATTR_REV,TC_FGCOL,TC_COL_LRED,"6",TC_FGCOL, TC_COL_DEFAULT, TC_ATTR,0,"|", TC_CR,TC_LF	; 4
+	.byt " |   red blue green    ",TC_ATTR,TC_ATTR_ULINE,TC_FGCOL,TC_COL_LBLUE,"7",TC_FGCOL, TC_COL_DEFAULT, TC_ATTR,0,"|", TC_CR,TC_LF	; 8
+	.byt " |   blink uline rev   ",TC_ATTR,TC_ATTR_BLINK,TC_FGCOL,TC_COL_LGREEN,"8",TC_FGCOL, TC_COL_DEFAULT, TC_ATTR,0,"|", TC_CR,TC_LF	; 9
+	.byt " |   _______________   ",TC_ATTR,TC_ATTR_REV,TC_FGCOL,TC_COL_LRED,"9",TC_FGCOL, TC_COL_DEFAULT, TC_ATTR,0,"|", TC_CR,TC_LF	; 7
+	.byt " |   del this:_foo__   ",TC_ATTR,TC_ATTR_ULINE,TC_FGCOL,TC_COL_LBLUE,"A",TC_FGCOL, TC_COL_DEFAULT, TC_ATTR,0,"|", TC_CR,TC_LF	; 10
+	.byt " |   eol this:          |", TC_CR,TC_LF	; 10
+	.byt " |   last line         ",TC_ATTR,TC_ATTR_BLINK,TC_FGCOL,TC_COL_LGREEN,"C",TC_FGCOL, TC_COL_DEFAULT, TC_ATTR,0,"|", TC_CR,TC_LF	; 11
+txt1b	.byt " +----------------------+", TC_CR,TC_LF	; 12
+	.byt 0
+
+txt2	.byt TC_CPOS, 3,2, TC_WLO
+txt3	.byt TC_CPOS, 12, 21, TC_WRU
+txt4	.byt TC_CPOS, 0,0, '0'
+txt5	.byt TC_CPOS, 1,16, TC_INS
+txt6	.byt TC_CPOS, 2,16, TC_DEL
+txt7	.byt TC_CPOS, 7,3, TC_FGCOL, TC_COL_LRED, "red "
+	.byt TC_FGCOL, TC_COL_LBLUE, "blue ",
+	.byt TC_FGCOL, TC_COL_LGREEN, "green"
+	.byt TC_FGCOL, TC_COL_DEFAULT
+txt8	.byt TC_CPOS, 8,3, TC_ATTR, TC_ATTR_BLINK, "blink", TC_ATTR, 0, " "
+	.byt TC_ATTR, TC_ATTR_ULINE, "uline", TC_ATTR, 0, " ",
+	.byt TC_ATTR, TC_ATTR_REV, "rev"
+	.byt TC_ATTR, 0
+txt9	.byt TC_CPOS, 5,4, TC_INSL
+txtA	.byt TC_CPOS, 6,6, TC_DELL
+txtB	.byt TC_CPOS, 10,12, TC_CLL
+txtC	.byt TC_CPOS, 11,2, TC_EOL, 'x'
+txtD
+
+strnout	.(
+	.zero
+ptr	.word 0
+	.bss
+cnt	.byt 0
+	.text
+	sta ptr
+	sty ptr+1
+	stx cnt
+
+	ldy #0
+	ldx #STDOUT
+out	lda (ptr),y
+	sec
+	jsr fputc
+	iny
+	cpy cnt
+	bne out
+	rts
+	.)
+

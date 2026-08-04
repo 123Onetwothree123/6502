@@ -1,0 +1,29 @@
+#!/bin/sh
+
+tmpfile=/tmp/mkdisk.$user.$$
+echo "set tmpfile to $tmpfile"
+
+#echo "get files"
+#files=`ls *` 
+
+format=$1
+shift
+
+outfile=$1
+shift
+
+files="$*"
+
+echo "outfile=$outfile"
+echo "files=$files"
+
+echo "format osa,65 $format $outfile" > $tmpfile
+
+for i in $files; do
+  echo "write $i" >> $tmpfile
+done
+
+cat $tmpfile | c1541 > /dev/null
+
+rm -f $tmpfile
+

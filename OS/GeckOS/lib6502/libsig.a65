@@ -1,0 +1,202 @@
+
+/****************************************************************************
+   
+    OS/A65 Version 2.0.0
+    Multitasking Operating System for 6502 Computers
+
+    Copyright (C) 1989-1998 Andre Fachat 
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+****************************************************************************/
+
+
+/*
+ * This is the signal code of lib6502 on OS/A65. 
+ *
+ * It needs to have the signal masks USR1-USR4 set by the
+ * task init code, as well as the LT_SIGADDR map being
+ * set to zero on task startup.
+ * Also the signal handler must be set to rxsig.
+ * All this is done in initsig
+ */
+
+
+initsig	.(
+	ldy #LT_SIGADDR
+	lda #0
+l0	sta (zta),y
+	iny
+	cpy #LT_SIGADDR+NUMOFSIG*2
+	bcc l0
+	lda #<rxsig
+	ldy #>rxsig
+	sec
+	jsr SETSIG
+	lda #SIG_USR1 | SIG_USR2 | SIG_CONT | /*SIG_SUSPEND |*/ SIG_BRK | SIG_CHLD
+	clc
+	jmp SETSIG
+	.)
+
+Signal	.(
+	sta zth
+	sty zth+1
+	txa
+	ldy #NUMOFSIG-1
+l0	cmp sigtab,y
+	beq ok
+	dey
+	bpl l0
+	lda #E_ILLSIG
+	sec
+	rts
+
+ok	tya
+	asl
+	clc
+	adc #LT_SIGADDR
+	php
+	sei
+	tay
+	lda zth
+	sta (zta),y
+	iny
+	lda zth+1
+	sta (zta),y
+	plp
+	clc
+	rts
+	.)
+
+Sendsignal .(
+	tay
+	txa
+	pha
+	tya
+	tax
+	pla
+	sec
+	jmp SENDSIG
+	.)
+
+rxsig	.(
+	pha
+	tya
+	pha
+	txa
+	pha
+	lda zth
+	pha
+	lda zth+1
+	pha
+l1	tsx
+	ldy #NUMOFSIG-1
+l0	lda $0105,x	; signal mask
+	and sigtab,y
+	bne doit
+	dey
+	bpl l0
+endsig
+	pla
+	sta zth+1
+	pla
+	sta zth	
+	pla
+	tax
+	pla
+	tay
+	pla
+	pla
+	rti
+
+doit
+	lda sigtab,y
+	pha		; save for signal handler
+	eor #$ff
+	and $0105,x	; clear corresponding signal bit
+	sta $0105,x
+	tya
+	asl
+	clc
+	adc #LT_SIGADDR
+	tay
+	lda (zta),y
+	sta zth
+	iny
+	ora (zta),y
+	beq checkchild	; no application signal handler set - use our own
+	lda (zta),y
+	sta zth+1
+	pla		; signal mask
+	cmp #SIG_CHLD
+	beq dochild	; if child signal - handle per task
+	cmp #SIG_CONT
+	beq docont
+	jsr jmpzth	; otherwise just call application signal handler
+	jmp l1
+
+	; use the library signal handler
+checkchild
+	pla
+	cmp #SIG_CHLD
+	bne chkbrk
+cc	sec		; search for killed tasks
+	jsr CHECKCHLD2
+	bcc cc
+l1a	jmp l1
+
+chkbrk	cmp #SIG_BRK
+	bne checksus
+	jmp Term
+
+checksus=l1a
+#if 0		/* is now done in kernel */
+checksus
+	cmp #SIG_SUSPEND
+	bne l1a
+	lda #JC_SUSPEND	; suspend own task (all threads)
+	jsr JOBCMD
+	jmp l1
+#endif
+
+	; call application signal handler per task
+dochild	sec		; search for dead children
+	jsr CHECKCHLD2
+	bcs l1a
+;.byt 2
+	ldy #0		; high byte PID
+	jsr jmpzth
+	ldy #CHLDIDX
+	jmp doit	; no loop to dochild, as handler may call lib, which in turn uses zth
+
+	; call application signal handler per task
+docont	clc		; search for suspended children
+	jsr CHECKCHLD2
+	bcs l1a
+	ldy #0		; high byte PID
+	jsr jmpzth
+	ldy #CONTIDX
+	jmp doit	; no loop to dochild, as handler may call lib, which in turn uses zth
+	.)
+
+jmpzth	jmp (zth)
+
+	; SIG_CHLD must be the last one, it cannot be sent.
+sigtab	.byt SIG_SUSPEND, SIG_BRK, SIG_USR1, SIG_USR2, SIG_CONT, SIG_CHLD
+CHLDIDX	=5
+CONTIDX	=4
+
+	.assert sigtab + NUMOFSIG == *, "number of handled signals inconsistent"
+

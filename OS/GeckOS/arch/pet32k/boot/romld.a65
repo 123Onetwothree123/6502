@@ -1,0 +1,149 @@
+
+START	=$7000
+
+TRGADDR	=$0300
+
+ZP	=$02
+ZP2	=$fe
+
+ST	=$96
+
+CHKIN	=$ffc6
+CHRIN	=$ffcf
+CLOSE	=$f2e0		; $ffc3 - calls into BASIC.... 
+CLRCH	=$ffcc
+
+	.word start
+	*= START
+
+start	jsr loadrom
+
+	sei
+
+	jsr moverom
+
+	jmp TRGADDR	; RESET
+
+	;------------------
+moverom	.(
+	lda ZP
+	sta endp
+	lda ZP+1
+	sta endp+1
+	lda startp
+	sta ZP
+	lda startp+1
+	sta ZP+1
+	lda #<TRGADDR
+	sta ZP2
+	lda #>TRGADDR
+	sta ZP2+1
+
+	ldy #0
+mvblk	lda (ZP),y
+	sta (ZP2),y
+	iny
+	bne mvblk
+
+	inc ZP+1
+	inc ZP2+1
+
+	lda ZP+1
+	cmp endp+1
+	bcc mvblk
+	bne done
+	lda ZP
+	cmp endp
+	bcc mvblk
+done	rts
+	.)
+
+	;------------------
+
+romname	.asc "ROM.BIN"
+romnlen	=*-romname
+
+
+loadrom	lda #romnlen
+	ldx #<romname
+	ldy #>romname
+	;jsr do_load
+
+do_load	jsr SETNAM
+	lda #1		; LFN
+	ldx $d4		; current device (from where loader has been loaded)
+	ldy #0		; SEC = load
+	jsr SETLFS
+
+	jsr OPEN	
+
+	;------------------
+	; load and store in 8x96 extra memory banks
+
+load	ldx #1		; LFN
+	jsr CHKIN
+
+	lda #0
+	sta ST
+
+	; load start address
+	jsr CHRIN
+	sta ZP
+	sta startp
+	jsr CHRIN
+	sta ZP+1
+	sta startp+1
+
+	; byte loop
+l1	jsr CHRIN
+	ldy #0
+	sta (ZP),y
+
+	lda ST
+	bne endload
+
+	; inc address
+incl	inc ZP
+	bne l1
+	inc ZP+1
+	bne l1
+
+endload	
+	jsr CLRCH
+	lda #1		; LFN
+	jmp CLOSE
+
+	;----------------------------------
+	; C64 kernal jump table adapters for the PET ROM
+
+SETLFS  ; SETLFS        set logical/first/second address
+        .(
+        sta $d2         ; logical file no
+        stx $d4         ; unit address
+        sty $d3         ; secondary address
+        rts
+        .)
+
+SETNAM  ; SETNAM        set filename
+        .(
+        sta $d1         ; filename length
+        stx $da         ; address low
+        sty $db         ; address high
+        rts
+        .)
+
+LOAD    ; LOAD          load
+        .(
+        stx $fb         ; start lo
+        sty $fc         ; start hi
+        sta $9d         ; load/verify flag
+        jmp $f356
+        .)
+
+OPEN	=$f563
+
+	; -----------------------------
+startp	.word 0
+endp	.word 0
+
+

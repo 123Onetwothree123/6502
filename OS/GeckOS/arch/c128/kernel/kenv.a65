@@ -1,0 +1,618 @@
+/****************************************************************************
+   
+    OS/A65 Version 2.0.0
+    Multitasking Operating System for 6502 Computers
+
+    Copyright (C) 1989-1998 Andre Fachat 
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+****************************************************************************/
+
+/* TODO: make stack addr computation a table lookup, which is faster */
+
+/*        Struct Task Environment Entry          */
+
+/* we have three structs now: 
+ * TE_* 	for task environment handling - not needed for system without
+ *       	memory management
+ * TT_*		task table, contains STD streams, etc
+ * TH_*		thread table, has stack info and state
+ */
+
+#define	TE_SLEN		0	/* we don't have envs */
+
+	.data
+actEnv	.byt 0
+	.text
+
+/* 
+ * setup memory mapping for environment in Y
+ *
+ * ENVBANK()/SYSBANK() Need to preserve X (A would also be needed for push)
+ *
+ * Also need to change ZP (stack is shared, because we copy it anyway)
+ */
+
+; stores env (0 or 1) in P0H, then clears P0L, before switching to actual env mem
+; note: ENVBANK must have I/O available, thus switching directly from user to sys bank
+; is not working, as user bank does not have I/O visible but RAM instead
+#define ENVBANK()       sty MMU+P0H:lda #0:sta MMU+P0L:sta MMUFF+LCRA,y
+#define	SYSBANK()	sta MMUFF+LCRA:lda #0:sta MMU+P0H:sta MMU+P0L
+
+/************************************************************************
+ * These routines are needed in the env section! 
+ *   inienv
+ *   setthread
+ *   initsp
+ *   push
+ *   pull
+ *   memtask
+ *   memsys
+ *
+ *   sbrk
+ *   getenv
+ *   freenv
+ */
+
+&&enmem  = notimp	; to enable memory blocks to the kernel
+&&setblk = notimp	; to set memory blocks in MMU mapping
+
+#ifdef STACKCOPY
+	.zero
+zp	.word 0
+
+	.data
+
+Stacks  .dsb MAXNTHREADS * STACKSIZE
+
+	.text
+#endif
+
+
+	; initializing the ENVSAVE pointers to zero is important,
+	; as lib6502 checks this and inits itself if zero.
+	; So, this is only relevant where zp is not shared between envs.
+	; In MMU systems this is in kgetenv, but we have a non-existent
+	; environment management - only one sys and one user env - so, 
+	; do it in init.
+&inienv .(
+	ldx #<-1
+	stx actThread
+	stx actTask
+	stx actEnv
+	inx		; 0
+
+	stx ENVSAVE
+	stx ENVSAVE+1
+
+	ldy #1		; env number
+	ENVBANK()
+	stx ENVSAVE	; init user env
+	stx ENVSAVE+1
+	SYSBANK()
+
+	inx		; 1
+	stx Syscnt
+	clc
+	rts
+	.)
+
+	
+	; ----------------------------
+	; switch threads for execution.
+	;
+	; this means setting up the stack, as well as 
+	; THREADSAVE and TASKSAVE zeropage pointers
+	; a) copying current stack / ptrs into kernel tables
+	; b) copying new stack / pts from kernel tables
+	;
+setthread .(
+	.data
+newThread .byt 0
+	.text
+
+	cmp actThread
+	bne doit
+	rts
+doit
+	; protect from interrupt
+	php
+	sei
+
+	sta newThread
+	
+	ldx actThread
+	cpx #<-1
+	beq nosave
+
+	; ----------------------------
+	; save current stack and thread / task info into kernel tables
+
+	; setup memory bank so current thread info is available
+	ldy actEnv
+	ENVBANK()
+
+	; save THREADSAVE zp pointer
+	lda THREADSAVE
+	sta threadTab + TH_LIBSAVE,x
+	lda THREADSAVE+1
+	sta threadTab + TH_LIBSAVE+1,x
+
+	; save TASKSAVE zp pointer
+	ldy threadTab + TH_TASK,x
+	lda TASKSAVE
+	sta taskTab + TT_LIBSAVE,y
+	lda TASKSAVE + 1
+	sta taskTab + TT_LIBSAVE + 1,y
+
+#ifdef STACKCOPY
+	; save stack (requires XR = thread ID)
+	jsr setstackzp
+
+	lda threadTab + TH_SP,x
+	tay
+	iny
+l2	cpy #STACKSIZE
+	bcs savetask
+	lda $100,y
+	sta (zp),y
+	iny
+	bne l2
+savetask
+#endif
+
+nosave	SYSBANK()
+	; ----------------------------
+	; setup new thread / task
+	ldx newThread
+	stx actThread
+	cpx #<-1
+	bne load
+	stx actTask
+	stx actEnv
+	beq noload
+
+	; ----------------------------
+	; load stack and thread / task info into shared environment
+load
+	ldy threadTab + TH_TASK,x
+	sty actTask
+	lda taskTab + TT_ENV,y
+	sta actEnv
+
+	tay
+	ENVBANK()
+
+	; restore TASKSAVE ptrs
+	ldy actTask
+	lda taskTab + TT_LIBSAVE,y
+	sta TASKSAVE
+	lda taskTab + TT_LIBSAVE + 1,y
+	sta TASKSAVE + 1
+
+	; restore THREADSAVE ptrs
+	lda threadTab + TH_LIBSAVE,x
+	sta THREADSAVE
+	lda threadTab + TH_LIBSAVE+1,x
+	sta THREADSAVE + 1
+
+#ifdef STACKCOPY
+	jsr setstackzp
+
+	lda threadTab + TH_SP,x
+	tay
+	iny
+l4	cpy #STACKSIZE
+	bcs endset
+	lda (zp),y
+	sta $100,y
+	iny
+	bne l4
+endset
+#endif
+noload	SYSBANK()
+
+	plp
+	rts
+	.)
+
+#ifdef STACKCOPY
+	; calculate save area for STACKCOPY stacks
+	; preserves thread ID in XR
+setstackzp .(
+	.assert STACKSIZE == 8 * TH_SLEN, "algo computing stack offset from thread ID"
+
+	; XR has the thread ID, which is a multiple of TH_SLEN = 8
+	; stack is 8 * TH_SLEN = 64
+	; so, we multiply by 8 here
+	txa		
+	ldy #0
+	sty zp+1
+	asl 
+	rol zp+1
+	asl
+	rol zp+1
+	asl
+	rol zp+1
+	clc
+	adc #<Stacks
+	sta zp
+	lda #>Stacks
+	adc zp+1
+	sta zp+1
+	rts
+	.)
+#endif
+
+initsp	.(
+#ifdef STACKCOPY
+	lda #STACKSIZE-1
+	;ldx actThread
+	sta threadTab + TH_SP,x
+	rts
+#else
+	.data
+divsp	.byt 0
+	.text
+
+	;ldx actThread
+	txa
+	clc
+	adc #TH_SLEN
+	sta divsp
+	asl
+	asl				; split stack
+	clc
+	adc divsp
+	sta threadTab + TH_SP,x
+	dec threadTab + TH_SP,x
+	rts
+#endif
+	.)
+
+pull	.(
+	ldx actThread
+	inc threadTab + TH_SP,x
+	lda threadTab + TH_SP,x
+	tay
+	lda $0100,y
+	rts
+	.)
+
+&push	.(
+	pha
+	ldx actThread
+	lda threadTab + TH_SP,x
+	dec threadTab + TH_SP,x
+	tax
+	pla
+	sta $0100,x
+	rts
+	.)
+
+	.(
+	.data
+AC      .byt 0
+XR      .byt 0
+YR      .byt 0
+SR      .byt 0
+ADR     .word 0
+&SSP    .byt 0
+	.text
+
+/* 
+ * this one is used to return from an interrupt. We do not need to save
+ * any registers. so for brevity, we do it as macro
+ * This doesn't check for interrupted devices, as we do not have them 
+ * without MMU (so far).
+ */
+
+#define MEMTASK2()                                      \
+	.(						:\
+	  sei						:\
+	  dec Syscnt					:\
+	  bne mtask					:\
+          tsx                                           :\
+          stx SSP                                       :\
+	  ldy actEnv					:\
+	  sty MMU+P0H					:\
+	  ldx #0					:\
+	  stx MMU+P0L					:\
+	  sta MMUFF+LCRA,y				:\
+          ldy actThread                                 :\
+          ldx threadTab+TH_SP,y                         :\
+          txs						:\
+mtask	.)
+
+/* 
+ * This is the standard return to user space. the kernel jumps here,
+ * so we need not save any return address, but use the one on the
+ * user stack.
+ */
+/*
+ * In the C128 port, env 0 and 1 have separate zeropage and stacks.
+ */
+&&memtask .(
+	  php
+          sei
+          dec Syscnt     ; wieder in Task 
+          bne mtask      ; nein dann Ende
+#ifndef NO_DEVICE
+          bit adev       ; Ruecksprung in Device
+          bpl mtask      ; ja dann Ende
+#endif 
+          sty YR         ; sonst Task-Env setzen
+          stx XR
+          sta AC
+          pla		 ; SR
+
+          tsx
+          stx SSP
+
+          ldy actThread
+          ldx threadTab+TH_SP,y 
+          txs
+
+	  ldy actEnv	; set memory configuration for environment
+	  sty MMU+P0H
+	  ldx #0
+	  stx MMU+P0L
+	  sta MMUFF+LCRA,y ; store arbitrary value at either LCRA or LCRB
+
+          pha		 ; SR
+          lda AC	; as we already switched envs, these register locations
+          ldy YR	; need to be in shared memory, i.e. .data not .zero
+          ldx XR
+mtask     
+	  plp
+          rts
+	  .)
+
+/* 
+ * This is the kernel entry routine. It leaves all registers as they
+ * are, except for the stack pointer, which is set to the system stack.
+ * also the return address is moved from user stack to system stack,
+ * to allow "JSR"-ing to memsys.
+ */
+&&memsys  php
+          sei
+          pha
+
+          lda Syscnt
+          inc Syscnt
+          cmp #0
+#ifdef NO_DEVICE
+          beq msys
+#else
+          bne mse
+          bit adev       ; called by device
+          bmi msys       ; no then save stack
+#endif
+mse       pla
+          plp
+          rts
+msys      
+	  pla
+          sta AC
+          pla
+          sta SR
+          stx XR
+          ; sty YR
+          pla
+          sta ADR
+          pla
+          sta ADR+1
+          tsx
+          txa
+          ldx actThread
+          sta threadTab+TH_SP,x
+
+	  sta MMUFF+LCRA ; store arbitrary value in LCRA to enable env0
+	  lda #0
+	  sta MMU+P0H
+	  sta MMU+P0L
+
+          ldx SSP
+          txs
+          lda ADR+1
+          pha
+          lda ADR
+          pha
+          lda SR
+          pha
+          lda AC
+          ldx XR
+          ; ldy YR
+          plp
+          cld
+          rts
+	.)
+
+
+; sbrk with C=0 returns the available memory. This is
+; either Memend for the user env 1, or ROMSTART for the system env 0
+&&sbrk	.(
+	bcc ok
+	sec
+	lda #E_NOMEM
+	rts
+ok	lda actEnv
+	bne env1
+	lda #>ROMSTART
+	.byt $2c
+env1	lda #>Memend		; return available memory
+	clc
+	rts
+	.)
+
+; YR contains the FORK_SHARED param
+; In the C128 port this is a flag to see if a task should be put into
+; the system env zero (when YR!=0) or the "user" env one (when YR=0)
+kgetenv	.(
+	ldx #0
+	tya
+	bne system
+	inx
+system	clc
+	rts
+	.)
+
+freenv	.(
+	clc
+	rts
+	.)
+
+/*
+ * MAPSYSBUF() maps the PCBUF of the active task into the system memory
+ * at address SYSBUF. It's not needed in a C64...
+ */
+	.bss
+sysbuf	.dsb 256
+	.text
+
+#define	SYSBUF	sysbuf
+
+#define	MAPSYSBUF	jsr mapsysbuf
+#undef	MAPSYSBUFOUT
+#define	MAPSYSBUFREV	jsr mapsysbufrev
+
+; largely inefficient, but should work for now
+&mapsysbuf .(
+	ldy actEnv
+	php
+	sei
+	ENVBANK()
+	ldy #0
+l0	lda PCBUF,y
+	sta SYSBUF,y
+	iny
+	bne l0
+	SYSBANK()
+	plp
+	rts
+	.)
+
+	; must preserve X 
+&mapsysbufrev .(
+	ldy actEnv
+&&mapsysbufrevy 
+	php
+	sei
+	ENVBANK()
+	ldy #0
+l0	lda SYSBUF,y
+	sta PCBUF,y
+	iny
+	bne l0
+	SYSBANK()
+	plp
+	rts
+	.)
+
+/*
+ * MAPENV() maps the address given in a/y in env x to somewhere in the 
+ * kernel map. returns mapped address in a/y
+ * MAPAENV() does the same but for the actual task (env)
+ *
+ * Note: this is only done in the kernel/devices code, and only relevant
+ * 	 when devices run outside of the kernel memory map (which it doesn't here)
+ */
+#define	MAPENV()
+#define	MAPAENV()
+
+
+/*
+ * needed for GETINFO, gives RAM available for task
+ */
+#define	GETTASKMEM	.(:lda taskTab + TT_ENV,x:bne user:lda #>ROMSTART:.byt $2c:user lda #>$e0:.)
+
+/*
+ * copy routines for SEND/RECEIVE and FORK
+ */
+
+/* copy the PCBUF from another thread (in y) to this thread */
+/* uses copybuf which reqs source env in x, trg env in a, length in y */
+#define CPPCBUFRX()	.(				:\
+			lda threadTab + TH_TASK,y	:\
+			tax				:\
+			lda taskTab + TT_ENV,x		:\
+			cmp actEnv			:\
+			beq nocp			:\
+			tax				:\
+			lda threadTab + TH_PAR + 1,y	:\
+			tay				:\
+			lda actEnv			:\
+			jsr copybuf			:\
+		nocp	.)				:
+
+/* copy the PCBUF from this task to another thread (in y / trg task in x) */
+/* uses copybuf which reqs source env in x, trg env in a, length in y */
+#define CPPCBUFTX()	.(				:\
+			lda taskTab + TT_ENV,x		:\
+			cmp actEnv			:\
+			beq nocp			:\
+			pha				:\
+			ldx actThread			:\
+			lda threadTab + TH_PAR + 1,x	:\
+			tay				:\
+			pla				:\
+			ldx actEnv			:\
+			jsr copybuf			:\
+		nocp	.)				:
+
+/* copy the PCBUF to the forked task to give it command line etc */
+#define	CPFORKBUF()					\
+			ldy div				:\
+			lda threadTab + TH_TASK,y	:\
+			tay				:\
+			lda taskTab + TT_ENV,y		:\
+			tay				:\
+			jsr mapsysbufrevy
+
+/* copybuf, reqs source env in x, trg env in a, length in y */
+copybuf	.(
+	.data
+srcenv	.byt 0
+trgenv	.byt 0
+	.text
+	php
+	sei
+	stx srcenv
+	sta trgenv
+	ldy #0
+loop	dey
+	ldx srcenv
+	sta MMUFF+LCRA,x
+	lda PCBUF,y
+	pha
+	ldx trgenv
+	sta MMUFF+LCRA,x
+	pla
+	sta PCBUF,y
+	tya
+	bne loop
+	SYSBANK()
+	plp
+	rts
+	.)
+
+
+/*
+ * needed in device code to get active environment in AC
+ */
+#define GETACTENV()     lda #<-1
+
+

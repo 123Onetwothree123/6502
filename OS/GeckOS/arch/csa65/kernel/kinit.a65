@@ -1,0 +1,229 @@
+/****************************************************************************
+   
+    OS/A65 Version 2.0.0
+    Multitasking Operating System for 6502 Computers
+
+    Copyright (C) 1989-1998 Andre Fachat 
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+****************************************************************************/
+
+/***************************************************************************
+ *
+ * This file is included in the RESET routine of the kernel,
+ * after the "sei:cld". The routine starting at the bginning
+ * of this file must initialize the hardware to the system RAM
+ * in the beginning and the system ROM in the end of the memory
+ * map. Also the system stack (pointer) is setup.
+ *
+ * In addition to that the system interrupt timer (needed for
+ * task preemtion) must be setup.
+ *
+ * After that the file must define the following macros:
+ *
+ * GETFREQ()            returns a=0 for 1Mhz, a=128 for 2MHz
+ * LEDPORT              address of LED port to signal hardware failures
+ * LED_LED              bit of LED bit in LEDPORT address
+ * H_ERROR()            if LEDPORT is not defined, then H_ERROR replaces
+ *                      the LED toggle routine if needed.
+ * CLRTIMER()           clear the system interrupt timer interrupt
+ * SAVEMEM()            save system mem config for interrupt
+ * RESTOREMEM()         restore system mem config after interrupt
+ * STARTMEM()		This is used to alloc/enable memory pages found
+ *			during kernel init. Takes mem size in AC as given
+ *			by the kernel init. It is called _after_ inimem!
+ */
+
+/*
+ * init stack pointer for system stack
+ */
+          ldx #<-1
+          txs
+
+/*
+ * init memory configuration
+ */
+	.(
+#ifdef ROMTEST
+	ldx #7		; only set RAM mapping, keep running ROM mapping
+#else
+        ldx #15
+#endif
+res1    txa		;lda mmu,x
+        sta MMU,x
+        dex
+#if SYSPAGE
+        bne res1
+	lda #SYSPAGE
+	sta MMU
+#else
+	bpl res1
+#endif	/* SYSPAGE */
+	.)
+
+/*
+ * CSA65 specific irq timer init, 50 Hz irq (well, i.e. video retrace interrupt)
+ * We assume that the reset - or a loader program has disabled all irq
+ *
+ * Note that the SYSPORT 50Hz is not used anymore, but the PET-alike VSYNC
+ * VIA input, to allow easier emulator support.
+ */
+	lda #SYS_EXTIO
+	sta SYSPORT
+
+	; this sets:
+	; %00111101
+	;    \|/|\|
+	;     | | +--- CB1 negative edge input (video retrace input)
+	;     | +----- Access data register PB
+	;     +------- CB2 high output
+	; 
+	lda #$3d
+	sta $e813
+
+/*
+ * check zeropage RAM, jump to he_zero if failure
+ */
+#include "kernel/zerotest.a65"
+
+/*
+ * check system RAM up to ROMSTART, jump to he_ram if failure
+ * returns available RAM in 256 byte blocks in AC
+ */
+	.(
+	.zero
+&cnt	.byt 0
+	.text
+#include "kernel/ramtest.a65"
+        cmp #MIN_MEM ; memory size at least needed
+        bcc he_ram
+	sta cnt
+	.)
+
+	jmp endmem
+
+/*
+ * here we enable the memory pages found to be mapped by the MMU
+ * TODO: currently maximum 32k!!!!
+ */
+startmem .(
+	lda cnt
+	lsr
+	lsr
+	lsr
+	lsr
+	sta cnt
+xl      dec cnt
+        ldx cnt
+#if SYSPAGE
+	bmi x1
+        cpx #SYSPAGE
+	beq xl
+#else
+        beq x1
+#endif
+        jsr ENMEM
+        jmp xl
+x1
+	rts
+	.)
+
+#define	STARTMEM()	jsr startmem
+
+/*
+ * determine the speed the CPU is running with. We use the 50/60 Hz 
+ * screen retrace for it.
+ */
+getfreq	  .(        
+        lda $e84b
+        and #%11011111	; continuous timer
+        sta $e84b
+        ldy #0
+        lda #$20
+l0      bit $e840       ; wait retrace end
+        bne l0
+l2      bit $e840       ; wait for start of vertical retrace
+        beq l2
+        sty $e848
+        sty $e849       ; start timer
+l3      bit $e840
+        bne l3          ; wait end vertical retrace
+l4      bit $e840
+        beq l4          ; wait for start of 2nd vertical retrace
+        ldx $e849       ; read timer - 1 MHZ should be around $b1cx, 2 MHz around 63cx
+	cpx #$a0	; 
+	bcc fast
+	lda #0
+	rts
+fast	lda #$80
+        rts
+	.)
+
+
+#define	GETFREQ()	jsr getfreq
+
+/*
+ * system LED to indicate hardware failures
+ */
+/*
+ * output hardware errors
+ */
+#define LEDPORT         SYSPORT
+#define LED_LED         SYS_LED
+
+#define H_ERROR                         \
+          LDA LEDPORT:EOR #LED_LED      :\
+          STA LEDPORT                   :\
+          LDY #0:TYA                    :\
+PRE2      ADC #1:BNE PRE2               :\
+          INY:BNE PRE2                  :\
+          LDA LEDPORT:EOR #LED_LED      :\
+          STA LEDPORT                   :\
+          LDA #0:TAY                    :\
+PRE3      ADC #1:BNE PRE3:INY           :\
+          BNE PRE3:inx:BNE HERROR       :\
+          ldx #15                       :\
+          lda #0:tay                    :\
+pre5      adc #1:bne pre5               :\
+          iny:bne pre5                  :\
+          dex:bne pre5  
+/*
+ * clear the scheduler preemption timer
+ */
+#define	CHECKTIMER()	\
+	lda $e813	:/* check timer interrupt bit 7 in CRB */\
+	rol		:/* move interrupt flat into C */\
+	lda $e812	:/* clear timer interrupt */\
+
+/*
+ * MMU systems may map task pages into kernel mem to make copying
+ * easier. This mapping has to be preserved during interrupt.
+ * SAVEMEM() saves the memory configuration, while RESTOREMEM()
+ * restores it, obviously.
+ * These routines are called _after_ "jsr memsys", so this routine
+ * has to preserve this mapping when called from kernel space,
+ * and so must memtask.
+ */
+#if 1
+#define SAVEMEM()	lda MMU+1:pha:lda MMU+2:pha
+#define RESTOREMEM()	pla:sta MMU+2:pla:sta MMU+1
+#else
+#undef SAVEMEM
+#undef RESTOREMEM
+#endif
+
+endmem
+

@@ -1,0 +1,173 @@
+/****************************************************************************
+   
+    OS/A65 Version 2.0.0
+    Multitasking Operating System for 6502 Computers
+
+    Copyright (C) 1989-1998 Andre Fachat 
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+****************************************************************************/
+
+#echo OS/A65 kernel
+
+/**************************************************************************/
+/*                              OS/A 2.1.x                                */
+/*                                                                        */
+/*   The following kernel options are available:			  */
+/*   General options:							  */
+/*     ROM          without ROM, all options are set in this file 	  */
+/*     CMOSCPU      for (Rockwell) CMOS CPU				  */
+/*     NMIDEV       allows handling of NMIs in devices - without MMU only */
+/*     NMIRESET     calls RESET when an NMI is received 		  */
+/*     STACKCOPY    without MMU, split stack in 2 pieces only and save    */
+/*                  task stack each time the context is switched          */
+/*		    Gives larger stack space per process and more         */
+/*		    processes but is slower				  */
+/*									  */
+/*  Architecture defines - these are defined in arch/x/devices/kinit.a65: */
+/*	H_ERROR	    H_ERROR must be defined as routine to signal hardware */
+/*                  errors						  */
+/*	CHECKTIMER  clear the irq line from the kernel timer signal	  */
+/*                  and return if it was kernel timer interrupt in C      */
+/*									  */
+/**************************************************************************/
+
+
+/***************************************************************************/
+
+#ifndef ROM		/* to allow independend test assembles */
+#define   ROM
+
+	.word $2000
+	*= $f000
+
+#define   CMOSCPU
+#define   NOMMU
+#define   NMIDEV
+
+#ifndef ROMSTART
+#define	ROMSTART	$8000
+#endif
+
+#include  "config.i65"
+#include  "kdefs.i65"
+
+#endif	/* ROM */
+
+/***************************************************************************/
+
+#define   VA        2
+#define   VB        2
+#define   VC        0
+
+#define   D_Y       24
+#define   D_M       03
+#define   D_D       01
+
+#define   SYSTEM
+
++OSA2KERNEL =*
+
+JMPTBL=*
+#print JMPTBL
+#include  "kernel/jmptbl.a65"
+;JMPTBL_LEN=*-JMPTBL
+;#print JMPTBL_LEN
+
+notimp   lda #E_NOTIMP
+	sec
+	rts
+
+ENV=*
+#print ENV
+#include  "kernel/env.a65"
+
+KENV=*
+#print KENV
+#include  "kernel/kenv.a65"
+
+#ifdef SPLITKENV
+#print *
+#print SPLITKENV
+	.dsb SPLITKENV-*, $ff
+#endif
+
+STREAMS=*
+#print STREAMS
+#include  "kernel/streams.a65"
+;STREAMS_LEN=*-STREAMS
+;#print STREAMS_LEN
+
+/* needs to be behind env.a65 as it uses SYSBUF */
+FILES=*
+#print FILES
+#include  "kernel/files.a65"
+;FILES_LEN=*-FILES
+;#print FILES_LEN
+
+#ifdef SPLIT1K
+#print *
+#print SPLIT1K
+	.dsb SPLIT1K-*, $ff
+#endif
+
+;#ifdef SPLIT2K
+;#print *
+;#print SPLIT2K
+;	.dsb SPLIT2K-*, $ff
+;#endif
+
+TASKS=*
+#print TASKS
+#include  "kernel/tasks.a65"
+;TASKS_LEN=*-TASKS
+;#print TASKS_LEN
+
+/* needs to be behind env.a65 as it uses SYSBUF */
+DEVICES=*
+#print DEVICES
+#include  "kernel/devices.a65"
+;DEVICES_LEN=*-DEVICES
+;#print DEVICES_LEN
+
+/* WARNING: init.a65 must be in the last 4k, to enable correct MMU mapping */
+INIT=*
+#print INIT
+#include  "kernel/init.a65"
+;INIT_LEN=*-INIT
+;#print INIT_LEN
+
+END=*
+#print END
+
+POT2      .byt 1,2,4,8,$10,$20,$40,$80
+
+#if * > $fff4
+#echo     ROM is to long!
+#print *+12 
+#endif
+
+	.bss
+startmem=*
+	.zero
+startzero=*
+
+	.text
+
+#ifndef EOK_SEPARATE
+#include "kernel/end.a65"
+#endif
+
