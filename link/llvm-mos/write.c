@@ -3,6 +3,7 @@
  * 这里，直接写 $F001 UART（无缓冲，无需 stdio-full 那套平台钩子） */
 #include <stdio.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 static void uart_putchar(unsigned char c)
 {
@@ -39,4 +40,10 @@ int write(int fd, const void *buf, unsigned count)
         uart_putchar(p[i]);
     }
     return count;
+}
+
+void exit(int status)
+{
+    (void)status;
+    _Exit(status); /* crt0.S 的 _Exit：BRK 停机 */
 }

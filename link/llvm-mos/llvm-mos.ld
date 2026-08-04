@@ -70,5 +70,9 @@ SECTIONS {
     } > vec
 }
 
-/* 硬件栈顶：SP 初始化到 $01FF（栈占 $0100-$01FF） */
-__stack = 0x01FF;
+/* 软栈顶：c_sp 从这里向下生长（局部变量在 c_sp 上方，需避开 $F001 UART
+ * 和 $0200 起的代码区；低字节 $00 使硬件栈 SP=$00，仍指向 $0100-$01FF） */
+__stack = 0xD000;
+
+/* 堆大小（malloc/new 用）：__heap_start 由 noinit 段尾自动生成 */
+__heap_default_limit = 0x0800;

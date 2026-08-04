@@ -419,8 +419,9 @@ void CentralProcessingUnit::step()
     case opcode::ROL:
     {
         auto value{read_value()};
-        SetFlagsC(value & 0x80);
-        auto result{static_cast<std::uint8_t>((value << 1) | (Registers[P] & 0x01))};
+        auto OldCarry{Registers[P] & 0x01};      // 旧C先保存（移位结果要用）
+        SetFlagsC(value & 0x80);                // 新C = 旧值最高位
+        auto result{static_cast<std::uint8_t>((value << 1) | OldCarry)};
         if (Operand.GetKind() == kind::Address)
         {
             Memory.write(Operand.GetValue(), result);
@@ -436,8 +437,9 @@ void CentralProcessingUnit::step()
     case opcode::ROR:
     {
         auto value{read_value()};
-        SetFlagsC(value & 0x01);
-        auto result{static_cast<std::uint8_t>((value >> 1) | ((Registers[P] & 0x01) << 7))};
+        auto OldCarry{Registers[P] & 0x01};      // 旧C先保存（移位结果要用）
+        SetFlagsC(value & 0x01);                // 新C = 旧值最低位
+        auto result{static_cast<std::uint8_t>((value >> 1) | (OldCarry << 7))};
         if (Operand.GetKind() == kind::Address)
         {
             Memory.write(Operand.GetValue(), result);
