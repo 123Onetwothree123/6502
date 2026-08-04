@@ -1,17 +1,92 @@
 #!/bin/bash
 # 构建 6502 模拟器版 sixty5o2（Ben Eater 面包板微内核）
-# 依赖: vasm（vasm6502_oldstyle，已装到 /usr/local/bin）
+# 依赖: vasm（vasm6502_oldstyle，/usr/local/bin）
 set -e
 cd "$(dirname "$0")/.."
 
-# 1. 汇编 bootloader（模拟器版：LCD->UART、键盘自动选择 Run）
-vasm6502_oldstyle -Fihex -o /tmp/boot_emu.hex bootloader_emu.asm 2>/dev/null
+python3 - << 'PYEOF'
+import re
 
-# 2. 汇编示例程序（模拟器版）
-vasm6502_oldstyle -Fihex -o /tmp/hello.hex hello_world_emu.asm 2>/dev/null
+def to_oldstyle(src):
+    lines = src.split('\n')
+    out = []
+    for ln in lines:
+        st = ln.lstrip()
+        ind = ln[:len(ln)-len(st)]
+        for d in ['.org', '.byte', '.asciiz', '.word', '.ascii', '.text', '.ds', '.dc']:
+            if st.startswith(d + ' ') or st == d:
+                st = d[1:] + st[len(d):]
+                break
+        out.append(ind + st)
+    return '\n'.join(out)
 
-# 3. 合并为一个 ihex 镜像
-python3 - << PYEOF
+def replace_fn(src, name, newbody):
+    start = src.find(name + ':')
+    if start < 0: raise SystemExit(f'{name} 未找到')
+    body_start = src.index('\n', start) + 1
+    body_end = len(src)
+    for mm in re.finditer(r'^\S[^:]*:\s*$', src[body_start:], re.M):
+        body_end = body_start + mm.start()
+        break
+    return src[:start] + name + ':\n' + newbody + '\n' + src[body_end:]
+
+# ---- bootloader: LCD->UART、键盘自动选择 Run、去延时 ----
+s = to_oldstyle(open('bootloader.asm').read())
+s = s.replace('''main:                                           ; boot routine, first thing loaded
+    ldx #$ff                                    ; initialize the stackpointer with 0xff
+    txs''', '''main:                                           ; boot routine, first thing loaded
+    ldx #$ff                                    ; initialize the stackpointer with 0xff
+    txs
+    lda #3
+    sta $3fd9                                   ; 模拟器: 自动按键序列计数 (DOWN DOWN SELECT)''')
+s = replace_fn(s, 'LIB__sleep', '    rts')
+s = replace_fn(s, 'LCD__send_data', '''    sta $F001
+    rts''')
+s = replace_fn(s, 'LCD__send_instruction', '    rts')
+s = replace_fn(s, 'LCD__check_busy_flag', '''    lda #0
+    rts''')
+s = replace_fn(s, 'VIA__read_keyboard_input', '''    lda $3fd9
+    beq .kbd_none
+    dec $3fd9
+    lda $3fd9
+    cmp #$02
+    beq .kbd_down
+    cmp #$01
+    beq .kbd_down
+    lda #$08
+    rts
+.kbd_down:
+    lda #$02
+    rts
+.kbd_none:
+    lda #$00
+    rts''')
+s = replace_fn(s, 'VIA__configure_ddrs', '    rts')
+open('/tmp/bootloader_emu.asm', 'w').write(s)
+
+# ---- hello_world 示例: LCD->UART、去延时 ----
+s = to_oldstyle(open('examples/hello_world.asm').read())
+s = replace_fn(s, 'sleep', '    rts')
+s = replace_fn(s, 'send_lcd_data', '''    sta $F001
+    rts''')
+s = replace_fn(s, 'send_lcd_instruction', '    rts')
+s = replace_fn(s, 'check_busy_flag', '''    lda #0
+    rts''')
+s = replace_fn(s, 'init_lcd', '    rts')
+s = replace_fn(s, 'init_via_ports', '    rts')
+s = replace_fn(s, 'clear_lcd', '''    pha
+    lda #$01
+    jsr send_lcd_instruction
+    pla
+    rts''')
+open('/tmp/hello_world_emu.asm', 'w').write(s)
+print('模拟器版源码生成')
+PYEOF
+
+vasm6502_oldstyle -Fihex -o /tmp/boot_emu.hex /tmp/bootloader_emu.asm
+vasm6502_oldstyle -Fihex -o /tmp/hello.hex /tmp/hello_world_emu.asm
+
+python3 - << 'PYEOF'
 def parse_hex(f):
     recs = []
     for line in open(f):
