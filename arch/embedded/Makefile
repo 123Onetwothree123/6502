@@ -2,7 +2,7 @@
 TRG=boot/rom
 
 XAINPUT=../../include,..,../..
-XA=XAINPUT=${XAINPUT} xa
+XA=XAINPUT=${XAINPUT} xa -k -XMASM
 FILE=file65
 RELOC=reloc65
 

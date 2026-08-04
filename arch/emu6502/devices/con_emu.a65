@@ -1,0 +1,190 @@
+/****************************************************************************
+ * 6502 模拟器控制台终端
+ * 极简流式终端：所有字符直接输出到 $F001 UART（模拟器打印到宿主终端）
+ * 替代 con_gen_mmap + con_c64 的屏幕模型
+ * 提供 console.a65 需要的全部接口
+ ****************************************************************************/
+
+#define	MAX_SCREEN	2		/* maximum number of screens */
+#define	MAXSPAL		#40
+#define	MAXZEIL		#25
+#define	SWITCHKEY	61		/* 终端切换键（无键盘，值无实际意义） */
+
+	.data
+; active screen data
+&col      .byt 0
+&row      .byt 0
+wx        .byt 0
+wy        .byt 0
+wr        .byt 0
+wh        .byt 0
+hivid     .byt 0
+attrfg	  .byt 0
+iz        .byt 0
+is        .byt 0
+
+tablen	  =*-col+2
+vtab      .dsb MAX_SCREEN*12
+
+; volatile
+tmp	.byt 0
+	.zero
+&vzei   .word 0
+	.text
+
+; 底层字符输出：写 $F001
+; A = 字符
+emupout .(
+        pha
+        sta $F001
+        pla
+        rts
+        .)
+
+; 发一个字符到流（sendline 用）
+&outch   .(
+        jmp emupout
+        .)
+
+; 初始化虚拟屏幕（A = 屏幕号）
+&inivscr .(	;2
+        pha
+        lda #TC_FF     ; form feed，清宿主终端
+        jsr emupout
+        lda #0
+        sta col
+        sta row
+        lda MAXSPAL
+        sta wr
+        lda MAXZEIL
+        sta wh
+        lda #0
+        sta attrfg
+        pla
+        rts
+        .)
+
+&setlin   .(
+          lda row
+          sta iz
+          lda col
+          sta is
+          rts
+          .)
+
+; 发送当前行（简化：发回车）
+&sendline .(	;2
+          lda #TC_CR
+          jsr emupout
+          lda #SC_SSTAT
+	  ldy #SCE_PUSH
+	  jsr STRCMD
+	  ldx row
+          stx row
+          rts
+          .)
+
+; 打印一个字符
+&printchar .(
+	  pha
+	  jsr setscr
+	  pla
+          tay
+          bmi x1
+          cmp #32
+          bcs outc
+          jmp xout
+x1        cmp #128+32
+          bcs outc
+          jmp xcode
+outc      bit attrfg
+	  bvc doout
+	  ora #$80
+doout	  jsr emupout
+          ldy col
+          iny
+          cpy wr
+          bcc o1
+          jsr nextrow
+          ldy wx
+o1        sty col
+          rts
+nextrow   ldx row
+          inx
+          cpx wh
+          bcc o2
+          ldx wh
+          dex
+o2        stx row
+          rts
+
+; 控制字符
+xout      cmp #TC_CR
+          beq cr
+          cmp #TC_LF
+          beq lf
+          cmp #TC_BS
+          beq bs
+          cmp #TC_FF
+          beq ff
+          rts
+cr        lda #0
+          sta col
+          rts
+lf        jsr nextrow
+          rts
+bs        ldy col
+          beq bs2
+          dec col
+bs2       rts
+ff        lda #0
+          sta col
+          sta row
+          rts
+; 特殊代码（高字节字符）—— 简化成直接输出
+xcode     rts
+          .)
+
+; 清窗口（无窗口概念，空操作；console.a65 的 starttx 引用）
+towcl     .(
+          rts
+          .)
+
+; 设置屏幕
+&setscr   .(
+          rts
+          .)
+
+; 切换可见屏幕
+&setact   .(
+          rts
+          .)
+
+; 初始化（A = 设备号）
+&console_init .(
+          pha
+          lda #0
+          sta col
+          sta row
+          lda MAXSPAL
+          sta wr
+          lda MAXZEIL
+          sta wh
+          pla
+          jmp inivscr
+          .)
+
+; 光标（无屏幕，空操作）
+&crsroff  .(
+          rts
+          .)
+&crsron   .(
+          rts
+          .)
+
+; 键盘（模拟器无输入，恒无键）
+&getkey   .(
+          lda #0
+          rts
+          .)
+
