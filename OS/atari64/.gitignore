@@ -1,0 +1,12 @@
+*.lst
+*.sym
+*.a8s
+*.lbl
+*.xex
+*.obj
+*~
+roms
+rom.*
+atari64.xex
+atari64.o
+

@@ -1,0 +1,81 @@
+
+; SIMIRQ - SIMULATE AN IRQ (FOR CASSETTE READ)
+;  ENTER BY A JSR SIMIRQ
+;
+SIMIRQ	PHP
+	PLA             ;FIX THE BREAK FLAG
+	AND #$EF
+	PHA
+;
+; PULS - CHECKS FOR REAL IRQ'S 
+;      In the C64, VBI is an IRQ.  but on the Atari,
+;      it's an NMI.  so we need to move BRK detection
+;      to a different routine
+;
+PULS	PHA
+	TXA
+	PHA
+	TYA
+	PHA
+	TSX
+	LDA $104,X      ;GET OLD P STATUS
+	AND #$10        ;BREAK FLAG?
+	BEQ PULS1       ;...NO
+	JMP (CBINV)     ;...YES...BREAK INSTR
+PULS1	BIT NMIST
+        BVC PULS2       ; THIS DIDN'T WORK
+	STA NMIRES      ; reset vector
+	JMP (CINV)      ;...VBI -- scan keys and stuff
+PULS2   BMI DO_DLI	; branch if this is a DLI
+	; by process of elimination this is RESET
+	JMP TIMB   ; warmstart BASIC
+DO_DLI  ; TODO: create vector for this and store KPREND by default
+	JMP KPREND ; pull everything back
+
+
+; PCINT - ADD UNIVERSAL TO CINIT
+;
+PCINT	JSR CINT
+P0010	LDA VCOUNT     ;CHECK RASTER COMPARE FOR ZERO
+	BNE P0010       ;IF IT'S ZERO THEN CHECK VALUE...
+	LDA VICREG+25   ;GET RASTER IRQ VALUE
+	AND #$01
+	STA PALNTS      ;PLACE IN PAL/NTSC INDICATOR
+        ; no idea if this has the intended effect on atari
+	JMP IOKEYS
+;
+; PIOKEY - ADD UNIVERSAL TO IOKEYS
+;
+PIOKEY	LDA #$81        ;ENABLE T1 IRQ'S
+	STA D1ICR
+	LDA D1CRA
+	AND #$80        ;SAVE ONLY TOD BIT
+	ORA #%00010001  ;ENABLE TIMER1
+	STA D1CRA
+	JMP CLKHI       ;RELEASE THE CLOCK LINE***901227-03***
+;
+; ACTUAL IRQ for break key, 
+;
+TEMPRTI	BIT IRQST 
+	PHA
+	IFCONST DEBUG
+	LDA IRQST
+	STA $0410 ; debugging info
+	INC $0411
+	ENDIF
+	;  check which thingy
+	LDA IRQST
+	BMI RTINOW ; not BREAK
+	LDA #$00
+	STA IRQEN ; mark IRQ as received
+	LDA #$80
+	STA IRQEN ; re-enable BREAK IRQ
+	LDA #$7F  ;
+	STA STKEY
+RTINOW	PLA; TODO: handle timer1/2/4 and other stuff
+	; this might be how the tape and rs232 stuff can
+	; be re-awakened
+	RTI      ; but do nothing else now
+
+
+; .end

@@ -1,0 +1,74 @@
+  processor 6502
+;
+;  Generate ROM files for direct use
+;  Build with dasm -f3
+;
+  seg.u variables
+  INCLUDE "basic/disclaimer.a65"
+  INCLUDE "basic/declare.a65"
+  seg code
+  INCLUDE "basic/tokens.a65"
+  INCLUDE "basic/token2.a65"
+  INCLUDE "basic/code1.a65"
+  INCLUDE "basic/code2.a65"
+  INCLUDE "basic/code3.a65"
+  INCLUDE "basic/code4.a65"
+  INCLUDE "basic/code5.a65"
+  INCLUDE "basic/code6.a65"
+  INCLUDE "basic/code7.a65"
+  INCLUDE "basic/code8.a65"
+  INCLUDE "basic/code9.a65"
+  INCLUDE "basic/code10.a65"
+  INCLUDE "basic/code11.a65"
+  INCLUDE "basic/code12.a65"
+  INCLUDE "basic/code13.a65"
+  INCLUDE "basic/code14.a65"
+  INCLUDE "basic/code15.a65"
+  INCLUDE "basic/code16.a65"
+  INCLUDE "basic/code17.a65"
+  INCLUDE "basic/code18.a65"
+  INCLUDE "basic/code19.a65"
+  INCLUDE "basic/code20.a65"
+  INCLUDE "basic/code21.a65"
+  INCLUDE "basic/code22.a65"
+  INCLUDE "basic/code23.a65"
+  INCLUDE "basic/code24.a65"
+  ; Atari needs chargen in ROM
+  ORG $D800
+  INCBIN "chargen.bin"
+  ; this part of BASIC starts at $E000
+  INCLUDE "basic/code25.a65"
+  INCLUDE "basic/code26.a65"
+  INCLUDE "basic/trig.a65"
+  INCLUDE "basic/preload_atari.a65"
+  INCLUDE "basic/init.a65"
+
+  seg.u variables
+  INCLUDE "kernal/disclaimer"
+  INCLUDE "kernal/declare.a65"
+  seg code
+  ;INCLUDE "kernal/patch.a65" ; integrated later
+;	ORG $E500         ;START OF VIC-40 KERNAL
+  INCLUDE "kernal/editor.1.a65"
+  INCLUDE "kernal/editor.2.a65"
+  INCLUDE "kernal/editor.3.a65"
+  INCLUDE "kernal/serial4.0.a65"
+  INCLUDE "kernal/messages.a65"
+  INCLUDE "kernal/channelio.a65"
+  INCLUDE "kernal/openchannel.a65"
+  INCLUDE "kernal/close.a65"
+  INCLUDE "kernal/clall.a65"
+  INCLUDE "kernal/open.a65"
+  INCLUDE "kernal/load.a65"
+  INCLUDE "kernal/save.a65"
+  INCLUDE "kernal/time.a65"
+  INCLUDE "kernal/errorhandler.a65"
+  INCLUDE "kernal/tapefile.a65"
+  INCLUDE "kernal/tapecontrol.a65"
+  INCLUDE "kernal/read.a65"
+  INCLUDE "kernal/write.a65"
+  INCLUDE "kernal/init.a65"
+  INCLUDE "kernal/reset.a65"
+  INCLUDE "kernal/irqfile.a65"
+  INCLUDE "kernal/vectors.a65"
+
