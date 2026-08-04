@@ -171,6 +171,8 @@ static uint16_t lastport;       /* Keeps track of the last port used for
 
 /* Temporary variables. */
 uint8_t uip_acc32[4];
+/* cc65 2.19: uip_arch.c 内联汇编用 zp 寻址 */
+#pragma zpsym("uip_acc32")
 static uint8_t c, opt;
 static uint16_t tmp16;
 

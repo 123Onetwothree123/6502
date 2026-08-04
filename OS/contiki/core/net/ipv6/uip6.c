@@ -257,6 +257,8 @@ static uint8_t iss[4];
 
 /* Temporary variables. */
 uint8_t uip_acc32[4];
+/* cc65 2.19: uip_arch.c 内联汇编用 zp 寻址 */
+#pragma zpsym("uip_acc32")
 #endif /* UIP_TCP */
 /** @} */
 
