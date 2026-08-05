@@ -7,6 +7,9 @@
 #ifdef CONFIG_SDB
 #include "sdb/sdb.hpp"
 #endif
+#ifdef CONFIG_UART
+#include "peripheral/uart/uart.hpp"
+#endif
 
 int main(int argc, char const *argv[])
 {
@@ -45,6 +48,9 @@ int main(int argc, char const *argv[])
     }
     CentralProcessingUnit CPU(MemoryObject);
     CPU.reset();
+#ifdef CONFIG_UART
+    uart::SetupStdin(); // SDB 模式由 linenoise 管理终端，这里只接管运行模式
+#endif
     // 周期定时器（RTOS 用，如 GeckOS）：IRQ_INTERVAL=<指令数> 环境变量启用
     if (const char *IrqIntervalEnv = std::getenv("IRQ_INTERVAL"))
     {
