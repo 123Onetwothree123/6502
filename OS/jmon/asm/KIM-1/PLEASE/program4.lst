@@ -1,0 +1,254 @@
+ca65 V2.19 - Git dbcfa9108
+Main file   : program4.s
+Current file: program4.s
+
+000000r 1               ; Program Module #4
+000000r 1               
+000000r 1               .INCLUDE        "pagezero.s"
+000000r 2               ; Page zero addresses
+000000r 2               
+000000r 2               DCDLO   =       $00             ; Application Address Low
+000000r 2               DCDHI   =       $03             ; Application Address High
+000000r 2               
+000000r 2               PARAM0  =       $B0             ; Parameter 0 is usually the COMMAND CODE
+000000r 2               PARAM1  =       $B1             ; Parameter 1 is usually DATA
+000000r 2               PARAM2  =       $B2             ; Parameter 2 is usually DATA
+000000r 2               PARAM3  =       $B3             ; Parameter 3 is usually DATA
+000000r 2               ADRLO   =       $B4             ; Low Address pointer for Indirect Address
+000000r 2               ADRHI   =       $B5             ; High Address pointer for Indirect Address
+000000r 2               PNTR    =       $B6             ; Temporary Pointer Storage
+000000r 2               STEPNO  =       $B7             ; Number of NEXT PLEASE Step
+000000r 2               STEPLO  =       $B8             ; Low Address of Current PLEASE Step
+000000r 2               STEPHI  =       $B9             ; High Address of Current PLEASE Step
+000000r 2               TRANLO  =       $BA             ; Temporary Transfer Pointer to PLEASE Function
+000000r 2               TRANHI  =       $BB             ; Temporary Transfer Pointer to PLEASE Function
+000000r 2               PLACE   =       $BB             ; Alternate name
+000000r 2               FUNTBL  =       $BC             ; Low Address of PLEASE Function Table
+000000r 2               FUNTBH  =       $BD             ; High Address of PLEASE Function Table
+000000r 2               PTEMP0  =       $BE             ; PLEASE Temporary Storage
+000000r 2               PTEMP1  =       $BF             ; PLEASE Temporary Storage
+000000r 2               TEMP1   =       PTEMP0
+000000r 2               TEMP2   =       PTEMP1
+000000r 2               
+000000r 2               THOUS   =       $C0             ; Thousands and Tens of Thousands of Seconds
+000000r 2               TENS    =       $C1             ; Tens and Hundreds of Seconds
+000000r 2               TENTHS  =       $C2             ; Tenths and Seconds
+000000r 2               MILLI   =       $C3             ; Thousandths and hundredths of Seconds
+000000r 2               HOUR    =       $C4             ; Hour portion of 24 Hour Clock
+000000r 2               MINUTE  =       $C5             ; Minute portion of 24 Hour Clock
+000000r 2               SECOND  =       $C6             ; Second portion of 24 Hour Clock
+000000r 2               ONESEC  =       $C7             ; Counter for One Second
+000000r 2               
+000000r 2               DSP0    =       $C8             ; Display position 0 (Leftmost Digit)
+000000r 2               DSP1    =       $C9             ; Display position 1
+000000r 2               DSP2    =       $CA             ; Display position 2
+000000r 2               DSP3    =       $CB             ; Display position 3
+000000r 2               DSP4    =       $CC             ; Display position 4
+000000r 2               DSP5    =       $CD             ; Display position 5 (Rightmost Digit)
+000000r 2               DSPLO   =       $CE             ; Low Address of Display Buffer (Usually = DSP0 = C8)
+000000r 2               DSPHI   =       $CF             ; High Address of Display Buffer (Usually = DSP0 = 00)
+000000r 2               
+000000r 2               DCONLO  =       $D0             ; Display Conversion Table Low Address
+000000r 2               DCONHI  =       $D1             ; Display Conversion Table High Address
+000000r 2               DTABLO  =       DCONLO
+000000r 2               DTABHI  =       DCONHI
+000000r 2               HEXDEC  =       HEXLO
+000000r 2               HEXLO   =       $D2             ; Hexadecimal (and Decimal) Conversion Table Low Address = E7
+000000r 2               HEXHI   =       $D3             ; Hexadecimal (and Decimal) Conversion Table High Address = 1F
+000000r 2               ALPHLO  =       $D4             ; Alphabetic Conversion Table Low Address (usually = F0)
+000000r 2               ALPHHI  =       $D5             ; Alphabetic Conversion Table High Address (usually = 03)
+000000r 2               XTABLE  =       $D6             ; Used by Conversion Routine to Point to HEX or ALPHA Table
+000000r 2               TEMP    =       $D7             ; General Purpose Temporary Save Location
+000000r 2               LIMIT   =       $D8             ; Uses by Conversion Routine.  General Purpose Register
+000000r 2               DSPPOS  =       $D9             ; Executive Pointer to Current Display Position
+000000r 2               CURPNT  =       $DA             ; Used by Input Routines as Current Data Pointer.
+000000r 2               CHAR    =       $DB             ; Save location for Input Character
+000000r 2               CTABLO  =       $DC             ; Command Table Low Address (usually = A0)
+000000r 2               CTABHI  =       $DD             ; Command Table High Address (usually = 00)
+000000r 2               KEYTST  =       $DE             ; Used by Executive as part of Keyboard Input
+000000r 2               KEYVAL  =       $DF             ; Contains Last Character if Input String
+000000r 2               
+000000r 2               BUF0    =       $E0             ; General Purpose Buffer
+000000r 2               BUF1    =       $E1
+000000r 2               BUF2    =       $E2
+000000r 2               BUF3    =       $E3
+000000r 2               BUF4    =       $E4
+000000r 2               BUF5    =       $E5
+000000r 2               
+000000r 2               ALT0    =       $E6             ; Alternate General Purpose Buffer
+000000r 2               ALT1    =       $E7
+000000r 2               ALT2    =       $E8
+000000r 2               ALT3    =       $E9
+000000r 2               ALT4    =       $EA
+000000r 2               ALT5    =       $EB
+000000r 2               
+000000r 2               APL0    =       $EC             ; Application General Registers
+000000r 2               APL1    =       $ED
+000000r 2               APL2    =       $EE
+000000r 2               
+000000r 1               
+000000r 1               ; Please Functions
+000000r 1               
+000000r 1               NXTSTP  =      $0304
+000000r 1               
+000000r 1               ; Please command codes
+000000r 1               
+000000r 1               ALPIN   =       $00
+000000r 1               DECODE  =       $00
+000000r 1               HEXIN   =       $01
+000000r 1               DECIN   =       $02
+000000r 1               HEXOUT  =       $04
+000000r 1               DECM    =       $04
+000000r 1               PACK    =       $06
+000000r 1               UNPACK  =       $07
+000000r 1               SHOW    =       $07
+000000r 1               BRANCH  =       $08
+000000r 1               BRCHAR  =       $09
+000000r 1               WAIT    =       $09
+000000r 1               BRTABL  =       $0A
+000000r 1               FILL    =       $0B
+000000r 1               HEX     =       $0B
+000000r 1               OVRFLO  =       $0F
+000000r 1               DECHEX  =       $10
+000000r 1               HEXDEX  =       $11
+000000r 1               GO      =       $13
+000000r 1               DISPLAY =       $C8
+000000r 1               CMDTBL  =       $DC
+000000r 1               BUFFER  =       $E0
+000000r 1               DATA    =       $E6
+000000r 1               
+000000r 1                       .ORG    $0000
+000000  1               
+000000  1               ;               COMMAND  PARAM1     PARAM2    PARAM3   STEP LABEL
+000000  1               
+000000  1               ; Command Decoder
+000000  1  00 E0 00 05          .BYTE   ALPIN,   BUFFER,    0,        5      ;  0   DECODE
+000004  1  06 E0 DF 01          .BYTE   PACK,    BUFFER,    KEYVAL,   1      ;  1
+000008  1  0B C8 00 06          .BYTE   FILL,    DISPLAY,   0,        6      ;  2
+00000C  1  0A DC DF 00          .BYTE   BRTABL,  CMDTBL,    KEYVAL,   DECODE ;  3
+000010  1               
+000010  1               ; Decimal/Hexadecimal Conversion
+000010  1  02 E0 05 00          .BYTE   DECIN,   BUFFER,    5,        0      ;  4   DEC
+000014  1  10 E0 E6 06          .BYTE   DECHEX,  BUFFER,    DATA,     6      ;  5
+000018  1  08 0F 00 00          .BYTE   BRANCH,  OVRFLO,    0,        0      ;  6
+00001C  1  07 E6 E0 06          .BYTE   UNPACK,  DATA,      BUFFER,   6      ;  7   SHOW
+000020  1  04 E0 00 05          .BYTE   HEXOUT,  BUFFER ,   0,        5      ;  8
+000024  1  09 13 0B 04          .BYTE   BRCHAR,  GO,        HEX,      DECM   ;  9   WAIT
+000028  1  08 09 00 00          .BYTE   BRANCH,  WAIT,      0,        0      ;  A
+00002C  1  01 E0 05 00          .BYTE   HEXIN,   BUFFER,    5,        0      ;  B   HEX
+000030  1  11 E0 E6 06          .BYTE   HEXDEX,  BUFFER,    DATA,     6      ;  C
+000034  1  08 0F 00 00          .BYTE   BRANCH,  OVRFLO,    0,        0      ;  D
+000038  1  08 07 00 00          .BYTE   BRANCH,  SHOW,      0,        0      ;  E
+00003C  1  0B C8 53 06          .BYTE   FILL,    DISPLAY,   $53,      6      ;  F   OVRFLO
+000040  1  08 09 00 00          .BYTE   BRANCH,  WAIT,      0,        0      ; 10
+000044  1               
+000044  1               ; Command Table.
+000044  1               ; JJT: Table was not shown in the original listing but is described in
+000044  1               ; the LISTING document page 38.
+000044  1               
+000044  1               ; Command Keys Step Description
+000044  1               ;  "DH"   36   04   Decimal to Hex
+000044  1               ;  "HD"   63   0B   Hex to Decimal
+000044  1               ;         00   00   End of table
+000044  1               
+000044  1  00 00 00 00          .RES    $00A0-*, $0000
+000048  1  00 00 00 00  
+00004C  1  00 00 00 00  
+0000A0  1               
+0000A0  1  36 04 63 0B          .BYTE   $36, $04, $63, $0B, $00, $00, $00, $00
+0000A4  1  00 00 00 00  
+0000A8  1  00 00 00 00          .BYTE   $00, $00, $00, $00, $00, $00, $00, $00
+0000AC  1  00 00 00 00  
+0000B0  1               
+0000B0  1               ; Special Function Table
+0000B0  1               ; JJT: Table was not shown in original listing.
+0000B0  1               
+0000B0  1  00 00 00 00          .RES    $0120-*, $00
+0000B4  1  00 00 00 00  
+0000B8  1  00 00 00 00  
+000120  1                                       ; Code Word
+000120  1  30 01                .WORD   _HEXDEC ; 10   _HEXDEC
+000122  1  30 01                .WORD   _HEXDEC ; 11   _HEXDEC
+000124  1  00 00                .WORD   $0000   ; 12   Not used
+000126  1  00 00                .WORD   $0000   ; 13   Not used
+000128  1  00 00                .WORD   $0000   ; 14   Not used
+00012A  1  00 00                .WORD   $0000   ; 15   Not used
+00012C  1  00 00                .WORD   $0000   ; 16   Not used
+00012E  1  00 00                .WORD   $0000   ; 17   Not used
+000130  1               
+000130  1               _HEXDEC:
+000130  1  A6 B2                LDX     PARAM2          ; Get Pointer to Answer Buffer
+000132  1  A9 00                LDA     #0              ; Clear three bytes or six
+000134  1  95 00                STA     0,X             ; digit positions
+000136  1  95 01                STA     1,X
+000138  1  95 02                STA     2,X
+00013A  1               
+00013A  1  A6 B1        NEXT:   LDX     PARAM1          ; Get Pointer to Input Buffer
+00013C  1  B5 00                LDA     0,X             ; Get next character
+00013E  1  30 0D                BMI     LZERO           ; Test leading blanks
+000140  1  A6 B2                LDX     PARAM2          ; Get Pointer to Answer Buffer
+000142  1  A0 11                LDY     #HEXDEX         ; Test Hex to Dec or Dec to Hex
+000144  1  C4 B0                CPY     PARAM0
+000146  1  F0 10                BEQ     HX              ; Hex to Dec
+000148  1  20 75 01             JSR     XTEN            ; Dec to Hex Subroutine
+00014B  1  B0 08                BCS     _OVRFLO         ; Branch on Overflow
+00014D  1  E6 B1        LZERO:  INC     PARAM1          ; Bump Pointer
+00014F  1  C6 B3                DEC     PARAM3          ; Decrement No. Digits
+000151  1  D0 E7                BNE     NEXT            ; Get Next
+000153  1  E6 B7                INC     STEPNO          ; Incr. Step. No. for Normal
+000155  1               _OVRFLO:
+000155  1  4C 04 03             JMP     NXTSTP          ; or Next Step for Overflow
+000158  1               
+000158  1  C9 0A        HX:     CMP     #10             ; Hex to Dec.  Convert from
+00015A  1  30 02                BMI     OKAY            ; Hex Character to BCD byte
+00015C  1  69 05                ADC     #5
+00015E  1  20 70 01     OKAY:   JSR     DSIXT           ; Hex to Dec Subroutine
+000161  1  B0 F2                BCS     _OVRFLO         ; Branch on Overflow
+000163  1  90 E8                BCC     LZERO           ; Normal return
+000165  1               
+000165  1  00 00 00 00          .RES    $0170-*, $00
+000169  1  00 00 00 00  
+00016D  1  00 00 00     
+000170  1               
+000170  1  A0 10        DSIXT:  LDY     #16             ; Set Counter for 16 loops
+000172  1  F8                   SED                     ; Set Decimal Mode
+000173  1  10 03                BPL     COMMON
+000175  1               
+000175  1  A0 0A        XTEN:   LDY     #10             ; Set Counter for 10 loops
+000177  1  D8                   CLD                     ; Set Binary Mode
+000178  1  85 D7        COMMON: STA     TEMP            ; Store New Value
+00017A  1  18                   CLC                     ; Clear Carry
+00017B  1  A9 00                LDA     #0              ; Clear Temporary bytes
+00017D  1  95 03                STA     3,X
+00017F  1  95 04                STA     4,X
+000181  1  95 05                STA     5,X
+000183  1               
+000183  1  B5 02        NTIMES: LDA     2,X             ; Shift old value by
+000185  1  75 05        LAST:   ADC     5,X             ; adding to itself the
+000187  1  95 05                STA     5,X             ; required number of times
+000189  1  B5 01                LDA     1,X             ; 16 for Hex
+00018B  1  75 04                ADC     4,X             ; 10 for Decimal
+00018D  1  95 04                STA     4,X             ; Do addition for all three
+00018F  1  B5 00                LDA     0,X             ; bytes worth of data
+000191  1  75 03                ADC     3,X
+000193  1  95 03                STA     3,X
+000195  1  B0 1D                BCS     ERROR           ; Branch on Overflow
+000197  1  88                   DEY                     ; Decrement Loop Counter
+000198  1  30 0E                BMI     DONE            ; When minus, then done
+00019A  1  D0 E7                BNE     NTIMES          ; If not zero, keep looping
+00019C  1  A9 00                LDA     #0              ; On zero, set up to add
+00019E  1  95 00                STA     0,X             ; in the new value by
+0001A0  1  95 01                STA     1,X             ; clearing the old values
+0001A2  1  95 02                STA     2,X             ; and then pick up the
+0001A4  1  A5 D7                LDA     TEMP            ; new value and make final
+0001A6  1  10 DD                BPL     LAST            ; loop.
+0001A8  1               
+0001A8  1  B5 05        DONE:   LDA     5,X             ; Move result from Temp
+0001AA  1  95 02                STA     2,X             ; to Result bytes
+0001AC  1  B5 04                LDA     4,X
+0001AE  1  95 01                STA     1,X
+0001B0  1  B5 03                LDA     3,X
+0001B2  1  95 00                STA     0,X
+0001B4  1  D8           ERROR:  CLD                     ; Clear Decimal Mode
+0001B5  1  60                   RTS                     ; Return
+0001B5  1               

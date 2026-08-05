@@ -1,0 +1,111 @@
+#+TITLE: VolksForth MS-DOS README
+#+AUTHOR: Carsten Strotmann, Philip Zembrod
+#+DATE: <2022-03-13 Sun>
+
+* Refactoring in progress
+
+MSDOS VolksForth is currently in transition towards make based
+and stream file (.fth) based builds.
+
+* Documentation for make based builds
+
+The central Makefile is written for GNU make on Linux and uses
+the DOS emulator dosbox to run VolksForth and Metacompiler
+binaries for building new VolksForth binaries and for running
+tests. The make rules also use several Linux tools, e.g.
+bash, Python, grep or dos2unix.
+
+volks4th.com is the old checked-in full VolksForth binary
+with editor etc, manually compiled from block sources as
+described in the "Previous .fb-based manual build instructions".
+It is intended to remain untouched throughout the transition
+period until it can be safely replaced by new .fth-based
+kernels with build-in .fth interface.
+
+** Binary make targets
+
+=make v4th.com=
+builds the new minimal VolksForth kernel v4th.com
+from .fth sources using metafile.com. v4th.com does not have the block
+words and the buffer mechanism anymore. The only way to load code from
+files is via =include filename.fth=.
+
+=make v4thblk.com=
+builds the new minimal VolksForth kernel v4thblk.com
+from .fth sources using metafile.com. v4thblk.com contains the block
+words and the buffer mechanism and can load and include both .fth
+stream sources and .fb block sources.
+
+=make metafile.com=
+builds the metacompiler with included .fth file interface.
+It is used to build v4th.com, so metafile.com will be built
+as part of the make rule for v4th.com. Note: metafile.com
+is mostly still built from meta.fb, i.e. from block sources.
+
+=make o4th.com=
+builds a new minimal VolksForth kernel from kernel.fb, i.e.
+from block sources. This is equivalent to the previous
+"How to meta-compile a new kernel" instruction.
+
+=make v4thfile.com=
+adds the .fth file interface to the old volks4th binary.
+
+** Test make targets
+
+=make test=
+runs all current tests.
+
+=make test-std.result=
+runs v4th.com through the standard set of unit tests, without the block
+tests, of course
+
+=make test-blk.result=
+runs v4thblk.com through full set of unit tests, including the block
+tests.
+
+=make test-volks4th-min.result=
+runs the same initial minimal set of unit tests on v4thfile.com
+which is the old volks4th.com binary with added .fth file interface.
+
+* Previous .fb-based manual build instructions
+
+** How to meta-compile a new kernel
+
+  After making changes the the Forth kernel source in =kernel.fb=,
+  restart =volksforth.com= to have a clean system and compile a new
+  "minimal" kernel with =include kernel.fb=. This will create a new
+  =FORTH.COM= executable.
+
+** creating a minimal system with a simple editor
+
+  Execute =forth.com include minimal.sys= to generate the file
+  =minimal.com= which contains a minimal VolksForth system with the
+  Retro-Forth editor
+  https://fossil.forth-ev.de/volksforth/wiki?name=Atari8bit-retrofortheditor
+
+  This system can be used to edit the file =volksforth.sys= or other
+  Forth source block files needed to create a full VolksForth system.
+
+** creating a full VolksForth system from the minimal kernel
+
+  Execute =forth.com include volks4th.sys= to create a new fully
+  equipped VolksForth executable =volks4th.com=.
+
+** creating a version of VolksForth that works with emu2
+
+  EMU2 is a nice PC Emulator that can run MS-DOS console applications
+  as Linux/MacOS/Windows console applications. EMU2 can be found at
+  https://github.com/dmsc/emu2
+
+  The standard Keyboard-Interface of VolksForth (BDOS) does not work
+  with EMU2, however it is possible to switch to the simpler BIOS
+  keyboard interface. For that, comment out the blocks #114 and #115
+  by placing =\\= at the beginning of the first row of these blocks
+  and comment in block #116 by changing the =\\= in the first row to
+  =\=. (=\= is "skip to end of line" comment, while =\\= is the "skip
+  to end of current block" commend).
+
+  The downside of this change is that the VolksForth full screen
+  editor does not work anymore, as the BIOS interface does not support
+  special keys like cursor or function keys. As a replacement, the
+  Retro-Forth Editor =rfe.fb= or some other Forth Editor can be used.
