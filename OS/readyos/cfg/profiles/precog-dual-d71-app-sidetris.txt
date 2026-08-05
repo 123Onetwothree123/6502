@@ -1,2 +1,0 @@
-9:sidetris:sidetris
-sideways tetris
