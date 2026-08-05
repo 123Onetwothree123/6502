@@ -182,9 +182,18 @@ towcl     .(
           rts
           .)
 
-; 键盘（模拟器无输入，恒无键）
+; 键盘：6502 模拟器 stdin UART
+; 读 $F000 = 输入状态（0=无键，1=有键），读 $F001 = 取字符
+; 约定（见 console.a65）：C=1 无键；C=0 时 a=ascii，x=shiftfl(0=无)，y=键表索引
 &getkey   .(
-          lda #0
+          lda $F000
+          beq nokey
+          lda $F001
+          ldx #0          ; 无 shift/ctrl
+          ldy #0          ; 索引 0，不等于 SWITCHKEY（61），不会被当作终端切换键
+          clc
+          rts
+nokey     sec
           rts
           .)
 

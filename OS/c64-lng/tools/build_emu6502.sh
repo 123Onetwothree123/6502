@@ -14,8 +14,9 @@ def load(f, addr, img, strip_header=True):
 img = bytearray(0x10000)
 load('kernel/boot.c64', 0x1000, img)
 load('kernel/lunix.c64', 0x2000, img)
+# 复位向量指向 boot.c64 的 $1078：跳过 C64 硬件检测/VIC 光栅等待，
+# 之后走 bootstrap 正常流程（console_init/keyboard_init/add_task_simple）
 img[0xFFFC:0xFFFE] = bytes([0x78, 0x10])
-img[0x1150:0x1153] = bytes([0x4C, 0x05, 0x20])
 open('LUNIX_EMU.bin', 'wb').write(img)
 print('镜像: LUNIX_EMU.bin')
 PYEOF

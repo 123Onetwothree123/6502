@@ -182,11 +182,11 @@
 /************* fsiec - 去掉（模拟器无 IEC 总线） */
 
 /************* mon - OS/A 1 old style monitor/shell	*/
-#if 0
+#if 1
 
 #define	MON_SHEXE $c0		/* ROM executable flag */
 #define	MON_MONEXE 0		/* ROM executable flag */
-#define	MON_SHDEV 2		/* start on device 0 = video1 */
+#define	MON_SHDEV 0		/* start on device 0 = video1（键盘只路由到 actscr=0）*/
 #define	SHORTMON		/* no assembler/disassembler */
 #undef	NOSH
 
@@ -260,8 +260,8 @@ end_auto
 #endif
 
 .dsb $d000-*,<-1
-.dsb $1c00, <-1			/* from d000 to f000 
-				   ($e000-ebff is screen buffer) */
+.dsb $e800-*,<-1		/* from d000 to e800 (unused on the emulator;
+				   $e000-ebff was the C64 screen buffer) */
 
 /************* Kernel					*/
           

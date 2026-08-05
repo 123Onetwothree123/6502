@@ -379,6 +379,9 @@ welcome_txt:
 #ifdef ANTIC_CONSOLE
 		.text "  - ANTIC/GTIA console",$0a
 #endif
+#ifdef EMU6502
+		.text "  - 6502 emulator (UART console+keyboard)",$0a
+#endif
 #ifdef MULTIPLE_CONSOLES
 		.text "  - multiple consoles",$0a
 #endif
@@ -518,9 +521,16 @@ add_task_simple:
 #ifdef ANTIC_CONSOLE
 # include "opt/antic_console_init.s"
 #endif
+#ifdef EMU6502
+# include "opt/emu_console_init.s"
+#endif
 
-#ifdef PCAT_KEYB
-# include "opt/pcat_keyboard_init.s"
+#ifdef EMU6502
+# include "opt/emu_keyboard_init.s"
 #else
-# include MACHINE(keyboard_init.s)
+# ifdef PCAT_KEYB
+#  include "opt/pcat_keyboard_init.s"
+# else
+#  include MACHINE(keyboard_init.s)
+# endif
 #endif

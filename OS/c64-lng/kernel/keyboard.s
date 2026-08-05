@@ -29,10 +29,14 @@ joy1result:		.byte $ff		; current state of joy1
 		;; include machine-dependent code with _keytab_normal
 		;; and _keytab_shift tables as well as locktab table
 
-#ifdef PCAT_KEYB
-# include "opt/pcat_keyboard.s"
+#ifdef EMU6502
+# include "opt/emu_keyboard.s"
 #else
-# include MACHINE(keyboard.s)
+# ifdef PCAT_KEYB
+#  include "opt/pcat_keyboard.s"
+# else
+#  include MACHINE(keyboard.s)
+# endif
 #endif
 
 		;; machine-dependent code falls here (with keycode offset in X register)

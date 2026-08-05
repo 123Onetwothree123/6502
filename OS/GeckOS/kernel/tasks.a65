@@ -576,7 +576,14 @@ nosig	  ldx threadTab + TH_TASK,y
 	  ; note if we have tasks waiting for signals
 	  cmp #TTS_PAUSE
 	  bne nopause
+	  ; countPaused is only used as a zero/non-zero flag below;
+	  ; saturate instead of overflowing, otherwise an idle system
+	  ; (all tasks paused) wraps the counter to 0 after 256 scheduler
+	  ; passes and wrongly triggers HE_TASK ("no task runnable")
 	  inc countPaused
+	  bne cpok
+	  dec countPaused
+cpok
 	  ; check if task is allowed to run
 nopause	  cmp #TTS_RUN
 	  bne next
@@ -761,6 +768,13 @@ susifbg
 	cpy actTask	; is fg pid our PID?
 	beq ok		; if so, return
 			; otherwise suspend
+#ifdef EMU6502_UART_HOLE
+	/* the emulator intercepts reads at $f000/$f001 (stdin UART),
+	   so no instruction byte may be fetched from there - pad */
+#if * < $f002
+	.dsb $f002-*, <-1
+#endif
+#endif
 suspend lda #TTS_SUSP
 	.byt $2c
 pause	lda #TTS_PAUSE

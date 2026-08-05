@@ -7,6 +7,14 @@
 # define MACHINE_H <c64.h>
 # define MACHINE(file) "c64/file"
 
+;// 6502 emulator (emu6502) port
+;// ----------------------------
+;//   UART console ($f001) + UART keyboard ($f000/$f001) instead of
+;//   VIC screen / CIA keyboard matrix; no IEC disk boot script.
+;//   Undefine for real C64 hardware.
+
+#define EMU6502
+
 ;// Keyboard/console settings
 ;// -------------------------
 ;//   Enable this if you want to have German keyboard layout
@@ -162,8 +170,11 @@
 ;// -------------------------
 ;// this forces kernel to load sh and execute lunixrc script upon boot
 ;// instead of executing built-in microshell
+;// (disabled for emu6502: no IEC disk drive, use the microshell)
 
+#ifndef EMU6502
 #define HAVE_INITSCRIPT
+#endif
 
 
 ;// Misc stuff
@@ -208,7 +219,9 @@
 ;// fall back to VIC console (40)
 #ifndef VDC_CONSOLE
 # ifndef VIC_CONSOLE80
-#  define VIC_CONSOLE
+#  ifndef EMU6502
+#   define VIC_CONSOLE
+#  endif
 # endif
 #endif
 

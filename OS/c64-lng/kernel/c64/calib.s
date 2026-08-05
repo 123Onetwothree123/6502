@@ -12,6 +12,14 @@
 		;; works for the 50Hzand 60Hz version of the C64/C128
 		;; use TOD of CIA1! (frequency range is 260kHz - 65MHz)
 
+		#ifdef EMU6502
+		;; emu6502: no CIA TOD clock, use fixed calibration values
+		;; (1 MHz: 50us delay ~ 10 loops)
+		lda  #10
+		sta  lkf_delay_calib_lo
+		lda  #0
+		sta  lkf_delay_calib_hi
+#else
 		sprintk(begin_txt)
 		sei
 		lda  #%11111111
@@ -89,3 +97,4 @@ loop2:		dec  tmpzp+2
 		lda  lkf_delay_calib_hi
 		eor  #$ff
 		sta  lkf_delay_calib_hi
+#endif

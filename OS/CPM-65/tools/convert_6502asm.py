@@ -62,12 +62,14 @@ def patch_bios():
     b = 'System/BIOS.xa.asm'
     s = open(b).read()
     emu_console = '''
-; --- 6502 模拟器控制台：$F001 UART 输出，无输入 ---
+; --- 6502 模拟器控制台：$F000 输入状态, $F001 读字符/写输出 ---
 EMU_CONST:
-	LDA #0			;无输入
+	LDA $F000		;0=无输入, 1=有字符
 	RTS
 EMU_CONIN:
-	LDA #0			;无输入，返回 0
+	LDA $F000		;等待输入
+	BEQ EMU_CONIN
+	LDA $F001		;取字符
 	RTS
 EMU_CONOUT:
 	STA $F001		;输出到模拟器 UART

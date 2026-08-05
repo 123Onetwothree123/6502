@@ -10,6 +10,12 @@
 # include <reu.h>
 #endif
 
+#ifdef EMU6502
+;// defines for 6502 emulator UART console
+# define size_x  40
+# define size_y  25
+# define MAX_CONSOLES		1
+#endif
 #ifdef VIC_CONSOLE
 ;// defines for VIC console
 # define screenA_base $400

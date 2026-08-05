@@ -92,3 +92,7 @@ dirty equ *+1
 #ifdef ANTIC_CONSOLE
 # include "opt/antic_console.s"
 #endif
+
+#ifdef EMU6502
+# include "opt/emu_console.s"
+#endif

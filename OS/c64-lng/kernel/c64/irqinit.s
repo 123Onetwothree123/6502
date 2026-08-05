@@ -35,7 +35,9 @@
 		sta  CIA2_TODSEC
 		sta  CIA2_TOD10
 
+#ifndef EMU6502
 		;; try to determine the power frequency (50 or 60 Hz)
+		;; (needs a real CIA TOD clock; skipped on emu6502)
 		ldx  #<46015
 		ldy  #>45015
 		stx  CIA2_TALO
@@ -70,4 +72,5 @@
 		and  #%01111111			; 60Hz
 		sta  CIA2_CRA
 
+#endif
 	+

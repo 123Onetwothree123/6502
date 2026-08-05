@@ -124,18 +124,14 @@ pre5      adc #1:bne pre5               :\
           iny:bne pre5                  :\
           dex:bne pre5  
 
-/* 
- * as we have set the VIC irq in the kernel, we have to clear the
- * VIC interrupt flag. 
- *
- * Note, this asl on the VIC interrupt latch register does two things:
- * 1) it writes a zero into bit 0, which is the rasterline interrupt timer bit,
- *    thus acknoledging the interrupt
- * 2) it moves bit 7 into C, so if after CHECKTIMER C=1, then it's a timer interrupt
- *
+/*
+ * 6502 模拟器：唯一的 IRQ 源就是内核定时器（模拟器按指令周期产生），
+ * 没有 VIC 中断锁存器可言——$d019 只是普通 RAM，asl 移 8 次后恒为 0，
+ * 会导致定时器轮询（键盘/设备）在 8 次 IRQ 后永久停止。
+ * 所以 CHECKTIMER 恒返回"是定时器中断"（C=1）。
+ * （与 arch/embedded/kernel/kinit.a65 的处理一致）
  */
-;#define	CLRTIMER()	asl $d019
-#define	CHECKTIMER()	asl $d019
+#define	CHECKTIMER()	sec
 
 /*
  * MMU systems may map task pages into kernel mem to make copying 

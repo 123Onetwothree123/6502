@@ -67,5 +67,10 @@
 /* we don't map any of these memory areas */
 #undef 	  MAP_ZERO
 
+/* 6502 模拟器：$f000/$f001 是 stdin UART（读被宿主拦截），
+   内核代码不得占用这两个字节；在共享内核源码里以此宏
+   条件性地在该地址前插入填充（见 kernel/tasks.a65） */
+#define	  EMU6502_UART_HOLE
+
 #endif	/* _C64CONFIG_ */
 
