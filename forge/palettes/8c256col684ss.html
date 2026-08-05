@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html>
+<!--	684 palette, centered values, with alternative system band
+		System colours rearranged in order to put MSB (high Green) at plane 0
+		also 8, 64 & 128/96-colour compatible (gBRG)
+		last modified 20191230-2140
+		(c) 2019-2022 Carlos J. Santisteban -->
+	<head>
+		<title>minimOS 256-colour palette (fully compatible)</title>
+	</head>
+	<body style="font-family:'DINNeuzeitGrotesk LT Light', avantgarde, sans-serif;text-align:center;">
+		<table border='0'>
+<!-- system colours, 0000gBRG scheme -->
+			<tr>
+				<th>*Sx</th>
+				<td style='color:#0A0;background-color:#000;'>S0<br /><span style='font-size:0.7em;'>000</span></td>
+				<td style='color:#000;background-color:#0A0;'>S1<br /><span style='font-size:0.7em;'>0A0</span></td>
+				<td style='color:#FA0;background-color:#F00;'>S2<br /><span style='font-size:0.7em;'>F00</span></td>
+				<td style='color:#F00;background-color:#FA0;'>S3<br /><span style='font-size:0.7em;'>FA0</span></td>
+				<td style='color:#0AF;background-color:#00F;'>S4<br /><span style='font-size:0.7em;'>00F</span></td>
+				<td style='color:#00F;background-color:#0AF;'>S5<br /><span style='font-size:0.7em;'>0AF</span></td>
+				<td style='color:#FAF;background-color:#F0F;'>S6<br /><span style='font-size:0.7em;'>F0F</span></td>
+				<td style='color:#F0F;background-color:#FAF;'>S7<br /><span style='font-size:0.7em;'>FAF</span></td>
+				<td style='color:#0F0;background-color:#050;'>S8<br /><span style='font-size:0.7em;'>050</span></td>
+				<td style='color:#050;background-color:#0F0;'>S9<br /><span style='font-size:0.7em;'>0F0</span></td>
+				<td style='color:#FF0;background-color:#F50;'>S10<br /><span style='font-size:0.7em;'>F50</span></td>
+				<td style='color:#F50;background-color:#FF0;'>S11<br /><span style='font-size:0.7em;'>FF0</span></td>
+				<td style='color:#0FF;background-color:#05F;'>S12<br /><span style='font-size:0.7em;'>05F</span></td>
+				<td style='color:#05F;background-color:#0FF;'>S13<br /><span style='font-size:0.7em;'>0FF</span></td>
+				<td style='color:#FFF;background-color:#F5F;'>S14<br /><span style='font-size:0.7em;'>F5F</span></td>
+				<td style='color:#F5F;background-color:#FFF;'>S15<br /><span style='font-size:0.7em;'>FFF</span></td>
+			</tr>
+<!-- system greyscale, 0001yyyY, does not include black or white (····y1y0y2y3) -->
+			<tr>
+				<th>*Gx</th>
+				<td style='color:#878787;background-color:#0F0F0F;'>G1<br /><span style='font-size:0.7em;'>#0F</span></td>
+				<td style='color:#0F0F0F;background-color:#878787;'>G9<br /><span style='font-size:0.7em;'>#87</span></td>
+				<td style='color:#C3C3C3;background-color:#4B4B4B;'>G5<br /><span style='font-size:0.7em;'>#4B</span></td>
+				<td style='color:#4B4B4B;background-color:#C3C3C3;'>G13<br /><span style='font-size:0.7em;'>#C3</span></td>
+				<td style='color:#969696;background-color:#1E1E1E;'>G2<br /><span style='font-size:0.7em;'>#1E</span></td>
+				<td style='color:#1E1E1E;background-color:#969696;'>G10<br /><span style='font-size:0.7em;'>#96</span></td>
+				<td style='color:#D2D2D2;background-color:#5A5A5A;'>G6<br /><span style='font-size:0.7em;'>#5A</span></td>
+				<td style='color:#5A5A5A;background-color:#D2D2D2;'>G14<br /><span style='font-size:0.7em;'>#D2</span></td>
+				<td style='color:#A5A5A5;background-color:#2D2D2D;'>G3<br /><span style='font-size:0.7em;'>#2D</span></td>
+				<td style='color:#2D2D2D;background-color:#A5A5A5;'>G11<br /><span style='font-size:0.7em;'>#A5</span></td>
+				<td style='color:#E1E1E1;background-color:#696969;'>G7<br /><span style='font-size:0.7em;'>#69</span></td>
+				<td style='color:#696969;background-color:#E1E1E1;'>G15<br /><span style='font-size:0.7em;'>#E1</span></td>
+				<td style='color:#B4B4B4;background-color:#3C3C3C;'>G4<br /><span style='font-size:0.7em;'>#3C</span></td>
+				<td style='color:#3C3C3C;background-color:#B4B4B4;'>G12<br /><span style='font-size:0.7em;'>#B4</span></td>
+				<td style='color:#F0F0F0;background-color:#787878;'>G8<br /><span style='font-size:0.7em;'>#78</span></td>
+				<td style='color:#787878;background-color:#F0F0F0;'>G16<br /><span style='font-size:0.7em;'>#F0</span></td>
+			</tr>
+<!--	non system colours
+		784 scheme *was* rrRbgBgG, where R=1...7 (r1r0r2b0g0b1g1g2, or NOT?)
+		444 scheme is now 0b1rgBRG, thus this 784 should go like g0b0r0r1-g1b1r2g2
+		...or limit to 192-colour 684? R=$15/40/6B/95/A0/EB, for R=1,2,3,5,6,7
+		system band when r0=0 and r1=0 (R=0 & R=4), what about b0?
+		perhaps g0R1r0B0···· makes more sense, thus g0r1r0b0-g1b1r2g2
+		alternatively, allow red level 4, using the highest 4 when g0=1
+		I have no idea of what I'm saying... :-(
+		OK, let's try 784 as g0b0r0r1-g1b1r2g2 
+		and what about that 684 g0r1r0b0?
+		another attempt: g0r0r1b0 with special desaturated band (Red level)
+		now switching rows 3-4 with 6-7, perhaps 01267543•89AEFDCB -->
+			<tr>
+				<th>$2x</th><!--0010,R(2)-->
+				<td style='color:#408F20;background-color:#401020;'>$40<br /><span style='font-size:0.5em;'>401020</span></td>
+				<td style='color:#401020;background-color:#408F20;'>$48<br /><span style='font-size:0.5em;'>408F20</span></td>
+				<td style='color:#A08F20;background-color:#A01020;'>$C0<br /><span style='font-size:0.5em;'>A01020</span></td>
+				<td style='color:#A01020;background-color:#A08F20;'>$C8<br /><span style='font-size:0.5em;'>A08F20</span></td>
+				<td style='color:#408F9F;background-color:#40109F;'>$41<br /><span style='font-size:0.5em;'>40109F</span></td>
+				<td style='color:#40109F;background-color:#408F9F;'>$49<br /><span style='font-size:0.5em;'>408F9F</span></td>
+				<td style='color:#A08F9F;background-color:#A0109F;'>$C1<br /><span style='font-size:0.5em;'>A0109F</span></td>
+				<td style='color:#A0109F;background-color:#A08F9F;'>$C9<br /><span style='font-size:0.5em;'>A08F9F</span></td>
+				<td style='color:#40CF20;background-color:#405020;'>$44<br /><span style='font-size:0.5em;'>405020</span></td>
+				<td style='color:#405020;background-color:#40CF20;'>$4C<br /><span style='font-size:0.5em;'>40CF20</span></td>
+				<td style='color:#A0CF20;background-color:#A05020;'>$C4<br /><span style='font-size:0.5em;'>A05020</span></td>
+				<td style='color:#A05020;background-color:#A0CF20;'>$CC<br /><span style='font-size:0.5em;'>A0CF20</span></td>
+				<td style='color:#40CF9F;background-color:#40509F;'>$45<br /><span style='font-size:0.5em;'>40509F</span></td>
+				<td style='color:#40509F;background-color:#40CF9F;'>$4D<br /><span style='font-size:0.5em;'>40CF9F</span></td>
+				<td style='color:#A0CF9F;background-color:#A0509F;'>$C5<br /><span style='font-size:0.5em;'>A0509F</span></td>
+				<td style='color:#A0509F;background-color:#A0CF9F;'>$CD<br /><span style='font-size:0.5em;'>A0CF9F</span></td>
+			</tr>
+			<tr>
+				<th>$3x</th><!--0110,rR(3)-->
+				<td style='color:#6B8F20;background-color:#6B1020;'>$60<br /><span style='font-size:0.5em;'>6B1020</span></td>
+				<td style='color:#6B1020;background-color:#6B8F20;'>$68<br /><span style='font-size:0.5em;'>6B8F20</span></td>
+				<td style='color:#EB8F20;background-color:#EB1020;'>$E0<br /><span style='font-size:0.5em;'>EB1020</span></td>
+				<td style='color:#EB1020;background-color:#EB8F20;'>$E8<br /><span style='font-size:0.5em;'>EB8F20</span></td>
+				<td style='color:#6B8F9F;background-color:#6B109F;'>$61<br /><span style='font-size:0.5em;'>6B109F</span></td>
+				<td style='color:#6B109F;background-color:#6B8F9F;'>$69<br /><span style='font-size:0.5em;'>6B8F9F</span></td>
+				<td style='color:#EB8F9F;background-color:#EB109F;'>$E1<br /><span style='font-size:0.5em;'>EB109F</span></td>
+				<td style='color:#EB109F;background-color:#EB8F9F;'>$E9<br /><span style='font-size:0.5em;'>EB8F9F</span></td>
+				<td style='color:#6BCF20;background-color:#6B5020;'>$64<br /><span style='font-size:0.5em;'>6B5020</span></td>
+				<td style='color:#6B5020;background-color:#6BCF20;'>$6C<br /><span style='font-size:0.5em;'>6BCF20</span></td>
+				<td style='color:#EBCF20;background-color:#EB5020;'>$E4<br /><span style='font-size:0.5em;'>EB5020</span></td>
+				<td style='color:#EB5020;background-color:#EBCF20;'>$EC<br /><span style='font-size:0.5em;'>EBCF20</span></td>
+				<td style='color:#6BCF9F;background-color:#6B509F;'>$65<br /><span style='font-size:0.5em;'>6B509F</span></td>
+				<td style='color:#6B509F;background-color:#6BCF9F;'>$6D<br /><span style='font-size:0.5em;'>6BCF9F</span></td>
+				<td style='color:#EBCF9F;background-color:#EB509F;'>$E5<br /><span style='font-size:0.5em;'>EB509F</span></td>
+				<td style='color:#EB509F;background-color:#EBCF9F;'>$ED<br /><span style='font-size:0.5em;'>EBCF9F</span></td>
+			</tr>
+			<tr>
+				<th>$4x</th><!--0111,rRb(3)-->
+				<td style='color:#6B8F60;background-color:#6B1060;'>$70<br /><span style='font-size:0.5em;'>6B1060</span></td>
+				<td style='color:#6B1060;background-color:#6B8F60;'>$78<br /><span style='font-size:0.5em;'>6B8F60</span></td>
+				<td style='color:#EB8F60;background-color:#EB1060;'>$F0<br /><span style='font-size:0.5em;'>EB1060</span></td>
+				<td style='color:#EB1060;background-color:#EB8F60;'>$F8<br /><span style='font-size:0.5em;'>EB8F60</span></td>
+				<td style='color:#6B8FDF;background-color:#6B10DF;'>$71<br /><span style='font-size:0.5em;'>6B10DF</span></td>
+				<td style='color:#6B10DF;background-color:#6B8FDF;'>$79<br /><span style='font-size:0.5em;'>6B8FDF</span></td>
+				<td style='color:#EB8FDF;background-color:#EB10DF;'>$F1<br /><span style='font-size:0.5em;'>EB10DF</span></td>
+				<td style='color:#EB10DF;background-color:#EB8FDF;'>$F9<br /><span style='font-size:0.5em;'>EB8FDF</span></td>
+				<td style='color:#6BCF60;background-color:#6B5060;'>$74<br /><span style='font-size:0.5em;'>6B5060</span></td>
+				<td style='color:#6B5060;background-color:#6BCF60;'>$7C<br /><span style='font-size:0.5em;'>6BCF60</span></td>
+				<td style='color:#EBCF60;background-color:#EB5060;'>$F4<br /><span style='font-size:0.5em;'>EB5060</span></td>
+				<td style='color:#EB5060;background-color:#EBCF60;'>$FC<br /><span style='font-size:0.5em;'>EBCF60</span></td>
+				<td style='color:#6BCFDF;background-color:#6B50DF;'>$75<br /><span style='font-size:0.5em;'>6B50DF</span></td>
+				<td style='color:#6B50DF;background-color:#6BCFDF;'>$7D<br /><span style='font-size:0.5em;'>6BCFDF</span></td>
+				<td style='color:#EBCFDF;background-color:#EB50DF;'>$F5<br /><span style='font-size:0.5em;'>EB50DF</span></td>
+				<td style='color:#EB50DF;background-color:#EBCFDF;'>$FD<br /><span style='font-size:0.5em;'>EBCFDF</span></td>
+			</tr>
+			<tr>
+				<th>$5x</th><!--0101,rb(1)-->
+				<td style='color:#158F60;background-color:#151060;'>$30<br /><span style='font-size:0.5em;'>151060</span></td>
+				<td style='color:#151060;background-color:#158F60;'>$38<br /><span style='font-size:0.5em;'>158F60</span></td>
+				<td style='color:#958F60;background-color:#951060;'>$B0<br /><span style='font-size:0.5em;'>951060</span></td>
+				<td style='color:#951060;background-color:#958F60;'>$B8<br /><span style='font-size:0.5em;'>958F60</span></td>
+				<td style='color:#158FDF;background-color:#1510DF;'>$31<br /><span style='font-size:0.5em;'>1510DF</span></td>
+				<td style='color:#1510DF;background-color:#158FDF;'>$39<br /><span style='font-size:0.5em;'>158FDF</span></td>
+				<td style='color:#958FDF;background-color:#9510DF;'>$B1<br /><span style='font-size:0.5em;'>9510DF</span></td>
+				<td style='color:#9510DF;background-color:#958FDF;'>$B9<br /><span style='font-size:0.5em;'>958FDF</span></td>
+				<td style='color:#15CF60;background-color:#155060;'>$34<br /><span style='font-size:0.5em;'>155060</span></td>
+				<td style='color:#155060;background-color:#15CF60;'>$3C<br /><span style='font-size:0.5em;'>15CF60</span></td>
+				<td style='color:#95CF60;background-color:#955060;'>$B4<br /><span style='font-size:0.5em;'>955060</span></td>
+				<td style='color:#955060;background-color:#95CF60;'>$BC<br /><span style='font-size:0.5em;'>95CF60</span></td>
+				<td style='color:#15CFDF;background-color:#1550DF;'>$35<br /><span style='font-size:0.5em;'>1550DF</span></td>
+				<td style='color:#1550DF;background-color:#15CFDF;'>$3D<br /><span style='font-size:0.5em;'>15CFDF</span></td>
+				<td style='color:#95CFDF;background-color:#9550DF;'>$B5<br /><span style='font-size:0.5em;'>9550DF</span></td>
+				<td style='color:#9550DF;background-color:#95CFDF;'>$BD<br /><span style='font-size:0.5em;'>95CFDF</span></td>
+			</tr>
+			<tr>
+				<th>$6x</th><!--0100,r(1)-->
+				<td style='color:#158F20;background-color:#151020;'>$20<br /><span style='font-size:0.5em;'>151020</span></td>
+				<td style='color:#151020;background-color:#158F20;'>$28<br /><span style='font-size:0.5em;'>158F20</span></td>
+				<td style='color:#958F20;background-color:#951020;'>$A0<br /><span style='font-size:0.5em;'>951020</span></td>
+				<td style='color:#951020;background-color:#958F20;'>$A8<br /><span style='font-size:0.5em;'>958F20</span></td>
+				<td style='color:#158F9F;background-color:#15109F;'>$21<br /><span style='font-size:0.5em;'>15109F</span></td>
+				<td style='color:#15109F;background-color:#158F9F;'>$29<br /><span style='font-size:0.5em;'>158F9F</span></td>
+				<td style='color:#958F9F;background-color:#95109F;'>$A1<br /><span style='font-size:0.5em;'>95109F</span></td>
+				<td style='color:#95109F;background-color:#958F9F;'>$A9<br /><span style='font-size:0.5em;'>958F9F</span></td>
+				<td style='color:#15CF20;background-color:#155020;'>$24<br /><span style='font-size:0.5em;'>155020</span></td>
+				<td style='color:#155020;background-color:#15CF20;'>$2C<br /><span style='font-size:0.5em;'>15CF20</span></td>
+				<td style='color:#95CF20;background-color:#955020;'>$A4<br /><span style='font-size:0.5em;'>955020</span></td>
+				<td style='color:#955020;background-color:#95CF20;'>$AC<br /><span style='font-size:0.5em;'>95CF20</span></td>
+				<td style='color:#15CF9F;background-color:#15509F;'>$25<br /><span style='font-size:0.5em;'>15509F</span></td>
+				<td style='color:#15509F;background-color:#15CF9F;'>$2D<br /><span style='font-size:0.5em;'>15CF9F</span></td>
+				<td style='color:#95CF9F;background-color:#95509F;'>$A5<br /><span style='font-size:0.5em;'>95509F</span></td>
+				<td style='color:#95509F;background-color:#95CF9F;'>$AD<br /><span style='font-size:0.5em;'>95CF9F</span></td>
+			</tr>
+			<tr>
+				<th>$7x</th><!--0011,Rb(2)-->
+				<td style='color:#408F60;background-color:#401060;'>$50<br /><span style='font-size:0.5em;'>401060</span></td>
+				<td style='color:#401060;background-color:#408F60;'>$58<br /><span style='font-size:0.5em;'>408F60</span></td>
+				<td style='color:#A08F60;background-color:#A01060;'>$D0<br /><span style='font-size:0.5em;'>A01060</span></td>
+				<td style='color:#A01060;background-color:#A08F60;'>$D8<br /><span style='font-size:0.5em;'>A08F60</span></td>
+				<td style='color:#408FDF;background-color:#4010DF;'>$51<br /><span style='font-size:0.5em;'>4010DF</span></td>
+				<td style='color:#4010DF;background-color:#408FDF;'>$59<br /><span style='font-size:0.5em;'>408FDF</span></td>
+				<td style='color:#A08FDF;background-color:#A010DF;'>$D1<br /><span style='font-size:0.5em;'>A010DF</span></td>
+				<td style='color:#A010DF;background-color:#A08FDF;'>$D9<br /><span style='font-size:0.5em;'>A08FDF</span></td>
+				<td style='color:#40CF60;background-color:#405060;'>$54<br /><span style='font-size:0.5em;'>405060</span></td>
+				<td style='color:#405060;background-color:#40CF60;'>$5C<br /><span style='font-size:0.5em;'>40CF60</span></td>
+				<td style='color:#A0CF60;background-color:#A05060;'>$D4<br /><span style='font-size:0.5em;'>A05060</span></td>
+				<td style='color:#A05060;background-color:#A0CF60;'>$DC<br /><span style='font-size:0.5em;'>A0CF60</span></td>
+				<td style='color:#40CFDF;background-color:#4050DF;'>$55<br /><span style='font-size:0.5em;'>4050DF</span></td>
+				<td style='color:#4050DF;background-color:#40CFDF;'>$5D<br /><span style='font-size:0.5em;'>40CFDF</span></td>
+				<td style='color:#A0CFDF;background-color:#A050DF;'>$D5<br /><span style='font-size:0.5em;'>A050DF</span></td>
+				<td style='color:#A050DF;background-color:#A0CFDF;'>$DD<br /><span style='font-size:0.5em;'>A0CFDF</span></td>
+			</tr>
+			<tr>
+				<th>$8x*</th><!--1000,g(0) (special band, 40-6B-95-C0)-->
+				<td style='color:#409540;background-color:#404040;'>$80<br /><span style='font-size:0.5em;'>404040</span></td>
+				<td style='color:#404040;background-color:#409540;'>$81<br /><span style='font-size:0.5em;'>409540</span></td>
+				<td style='color:#C09540;background-color:#C04040;'>$82<br /><span style='font-size:0.5em;'>C04040</span></td>
+				<td style='color:#C04040;background-color:#C09540;'>$83<br /><span style='font-size:0.5em;'>C09540</span></td>
+				<td style='color:#4095C0;background-color:#4040C0;'>$84<br /><span style='font-size:0.5em;'>4040C0</span></td>
+				<td style='color:#4040C0;background-color:#4095C0;'>$85<br /><span style='font-size:0.5em;'>4095C0</span></td>
+				<td style='color:#C095C0;background-color:#C040C0;'>$86<br /><span style='font-size:0.5em;'>C040C0</span></td>
+				<td style='color:#C040C0;background-color:#C095C0;'>$87<br /><span style='font-size:0.5em;'>C095C0</span></td>
+				<td style='color:#40C040;background-color:#406B40;'>$88<br /><span style='font-size:0.5em;'>406B40</span></td>
+				<td style='color:#406B40;background-color:#40C040;'>$89<br /><span style='font-size:0.5em;'>40C040</span></td>
+				<td style='color:#C0C040;background-color:#C06B40;'>$8A<br /><span style='font-size:0.5em;'>C06B40</span></td>
+				<td style='color:#C06B40;background-color:#C0C040;'>$8B<br /><span style='font-size:0.5em;'>C0C040</span></td>
+				<td style='color:#40C0C0;background-color:#406BC0;'>$8C<br /><span style='font-size:0.5em;'>406BC0</span></td>
+				<td style='color:#406BC0;background-color:#40C0C0;'>$8D<br /><span style='font-size:0.5em;'>40C0C0</span></td>
+				<td style='color:#C0C0C0;background-color:#C06BC0;'>$8E<br /><span style='font-size:0.5em;'>C06BC0</span></td>
+				<td style='color:#C06BC0;background-color:#C0C0C0;'>$8F<br /><span style='font-size:0.5em;'>C0C0C0</span></td>
+			</tr>
+			<tr>
+				<th>$9x*</th><!--1001,gb(0) (special band, like greyscale with minimally saturated colours)-->
+<!-- colours $0-15-2A-40, base greys: $24,2c,34,3c,44,4c,54,5c;64,6c,74,7c,84,8c,94,9c -->
+				<td style='color:#648E64;background-color:#242424;'>$90<br /><span style='font-size:0.5em;'>242424</span></td>
+				<td style='color:#242424;background-color:#648E64;'>$91<br /><span style='font-size:0.5em;'>648E64</span></td>
+				<td style='color:#C4AE84;background-color:#844444;'>$92<br /><span style='font-size:0.5em;'>844444</span></td>
+				<td style='color:#844444;background-color:#C4AE84;'>$93<br /><span style='font-size:0.5em;'>C4AE84</span></td>
+				<td style='color:#6C96AC;background-color:#2C2C6C;'>$94<br /><span style='font-size:0.5em;'>2C2C6C</span></td>
+				<td style='color:#2C2C6C;background-color:#6C96AC;'>$95<br /><span style='font-size:0.5em;'>6C96AC</span></td>
+				<td style='color:#CCB6CC;background-color:#8C4C8C;'>$96<br /><span style='font-size:0.5em;'>8C4C8C</span></td>
+				<td style='color:#8C4C8C;background-color:#CCB6CC;'>$97<br /><span style='font-size:0.5em;'>CCB6CC</span></td>
+				<td style='color:#74B474;background-color:#344934;'>$98<br /><span style='font-size:0.5em;'>344934</span></td>
+				<td style='color:#344934;background-color:#74B474;'>$99<br /><span style='font-size:0.5em;'>74B474</span></td>
+				<td style='color:#D4D494;background-color:#946954;'>$9A<br /><span style='font-size:0.5em;'>946954</span></td>
+				<td style='color:#946954;background-color:#D4D494;'>$9B<br /><span style='font-size:0.5em;'>D4D494</span></td>
+				<td style='color:#7CBCBC;background-color:#3C517C;'>$9C<br /><span style='font-size:0.5em;'>3C517C</span></td>
+				<td style='color:#3C517C;background-color:#7CBCBC;'>$9D<br /><span style='font-size:0.5em;'>7CBCBC</span></td>
+				<td style='color:#DCDCDC;background-color:#9C619C;'>$9E<br /><span style='font-size:0.5em;'>9C619C</span></td>
+				<td style='color:#9C619C;background-color:#DCDCDC;'>$9F<br /><span style='font-size:0.5em;'>DCDCDC</span></td>
+			</tr>
+			<tr>
+				<th>$Ax</th><!--1010,gR(2)-->
+				<td style='color:#40AF20;background-color:#403020;'>$42<br /><span style='font-size:0.5em;'>403020</span></td>
+				<td style='color:#403020;background-color:#40AF20;'>$4A<br /><span style='font-size:0.5em;'>40AF20</span></td>
+				<td style='color:#A0AF20;background-color:#A03020;'>$C2<br /><span style='font-size:0.5em;'>A03020</span></td>
+				<td style='color:#A03020;background-color:#A0AF20;'>$CA<br /><span style='font-size:0.5em;'>A0AF20</span></td>
+				<td style='color:#40AF9F;background-color:#40309F;'>$43<br /><span style='font-size:0.5em;'>40309F</span></td>
+				<td style='color:#40309F;background-color:#40AF9F;'>$4B<br /><span style='font-size:0.5em;'>40AF9F</span></td>
+				<td style='color:#A0AF9F;background-color:#A0309F;'>$C3<br /><span style='font-size:0.5em;'>A0309F</span></td>
+				<td style='color:#A0309F;background-color:#A0AF9F;'>$CB<br /><span style='font-size:0.5em;'>A0AF9F</span></td>
+				<td style='color:#40EF20;background-color:#407020;'>$46<br /><span style='font-size:0.5em;'>407020</span></td>
+				<td style='color:#407020;background-color:#40EF20;'>$4E<br /><span style='font-size:0.5em;'>40EF20</span></td>
+				<td style='color:#A0EF20;background-color:#A07020;'>$C6<br /><span style='font-size:0.5em;'>A07020</span></td>
+				<td style='color:#A07020;background-color:#A0EF20;'>$CE<br /><span style='font-size:0.5em;'>A0EF20</span></td>
+				<td style='color:#40EF9F;background-color:#40709F;'>$47<br /><span style='font-size:0.5em;'>40709F</span></td>
+				<td style='color:#40709F;background-color:#40EF9F;'>$4F<br /><span style='font-size:0.5em;'>40EF9F</span></td>
+				<td style='color:#A0EF9F;background-color:#A0709F;'>$C7<br /><span style='font-size:0.5em;'>A0709F</span></td>
+				<td style='color:#A0709F;background-color:#A0EF9F;'>$CF<br /><span style='font-size:0.5em;'>A0EF9F</span></td>
+			</tr>
+			<tr>
+				<th>$Bx</th><!--1110,grR(3)-->
+				<td style='color:#6BAF20;background-color:#6B3020;'>$62<br /><span style='font-size:0.5em;'>6B3020</span></td>
+				<td style='color:#6B3020;background-color:#6BAF20;'>$6A<br /><span style='font-size:0.5em;'>6BAF20</span></td>
+				<td style='color:#EBAF20;background-color:#EB3020;'>$E2<br /><span style='font-size:0.5em;'>EB3020</span></td>
+				<td style='color:#EB3020;background-color:#EBAF20;'>$EA<br /><span style='font-size:0.5em;'>EBAF20</span></td>
+				<td style='color:#6BAF9F;background-color:#6B309F;'>$63<br /><span style='font-size:0.5em;'>6B309F</span></td>
+				<td style='color:#6B309F;background-color:#6BAF9F;'>$6B<br /><span style='font-size:0.5em;'>6BAF9F</span></td>
+				<td style='color:#EBAF9F;background-color:#EB309F;'>$E3<br /><span style='font-size:0.5em;'>EB309F</span></td>
+				<td style='color:#EB309F;background-color:#EBAF9F;'>$EB<br /><span style='font-size:0.5em;'>EBAF9F</span></td>
+				<td style='color:#6BEF20;background-color:#6B7020;'>$66<br /><span style='font-size:0.5em;'>6B7020</span></td>
+				<td style='color:#6B7020;background-color:#6BEF20;'>$6E<br /><span style='font-size:0.5em;'>6BEF20</span></td>
+				<td style='color:#EBEF20;background-color:#EB7020;'>$E6<br /><span style='font-size:0.5em;'>EB7020</span></td>
+				<td style='color:#EB7020;background-color:#EBEF20;'>$EE<br /><span style='font-size:0.5em;'>EBEF20</span></td>
+				<td style='color:#6BEF9F;background-color:#6B709F;'>$67<br /><span style='font-size:0.5em;'>6B709F</span></td>
+				<td style='color:#6B709F;background-color:#6BEF9F;'>$6F<br /><span style='font-size:0.5em;'>6BEF9F</span></td>
+				<td style='color:#EBEF9F;background-color:#EB709F;'>$E7<br /><span style='font-size:0.5em;'>EB709F</span></td>
+				<td style='color:#EB709F;background-color:#EBEF9F;'>$EF<br /><span style='font-size:0.5em;'>EBEF9F</span></td>
+			</tr>
+			<tr>
+				<th>$Cx</th><!--1111,grRb(3)-->
+				<td style='color:#6BAF60;background-color:#6B3060;'>$72<br /><span style='font-size:0.5em;'>6B3060</span></td>
+				<td style='color:#6B3060;background-color:#6BAF60;'>$7A<br /><span style='font-size:0.5em;'>6BAF60</span></td>
+				<td style='color:#EBAF60;background-color:#EB3060;'>$F2<br /><span style='font-size:0.5em;'>EB3060</span></td>
+				<td style='color:#EB3060;background-color:#EBAF60;'>$FA<br /><span style='font-size:0.5em;'>EBAF60</span></td>
+				<td style='color:#6BAFDF;background-color:#6B30DF;'>$73<br /><span style='font-size:0.5em;'>6B30DF</span></td>
+				<td style='color:#6B30DF;background-color:#6BAFDF;'>$7B<br /><span style='font-size:0.5em;'>6BAFDF</span></td>
+				<td style='color:#EBAFDF;background-color:#EB30DF;'>$F3<br /><span style='font-size:0.5em;'>EB30DF</span></td>
+				<td style='color:#EB30DF;background-color:#EBAFDF;'>$FB<br /><span style='font-size:0.5em;'>EBAFDF</span></td>
+				<td style='color:#6BEF60;background-color:#6B7060;'>$76<br /><span style='font-size:0.5em;'>6B7060</span></td>
+				<td style='color:#6B7060;background-color:#6BEF60;'>$7E<br /><span style='font-size:0.5em;'>6BEF60</span></td>
+				<td style='color:#EBEF60;background-color:#EB7060;'>$F6<br /><span style='font-size:0.5em;'>EB7060</span></td>
+				<td style='color:#EB7060;background-color:#EBEF60;'>$FE<br /><span style='font-size:0.5em;'>EBEF60</span></td>
+				<td style='color:#6BEFDF;background-color:#6B70DF;'>$77<br /><span style='font-size:0.5em;'>6B70DF</span></td>
+				<td style='color:#6B70DF;background-color:#6BEFDF;'>$7F<br /><span style='font-size:0.5em;'>6BEFDF</span></td>
+				<td style='color:#EBEFDF;background-color:#EB70DF;'>$F7<br /><span style='font-size:0.5em;'>EB70DF</span></td>
+				<td style='color:#EB70DF;background-color:#EBEFDF;'>$FF<br /><span style='font-size:0.5em;'>EBEFDF</span></td>
+			</tr>
+			<tr>
+				<th>$Dx</th><!--1101,grb(1)-->
+				<td style='color:#15AF60;background-color:#153060;'>$32<br /><span style='font-size:0.5em;'>153060</span></td>
+				<td style='color:#153060;background-color:#15AF60;'>$3A<br /><span style='font-size:0.5em;'>15AF60</span></td>
+				<td style='color:#95AF60;background-color:#953060;'>$B2<br /><span style='font-size:0.5em;'>953060</span></td>
+				<td style='color:#953060;background-color:#95AF60;'>$BA<br /><span style='font-size:0.5em;'>95AF60</span></td>
+				<td style='color:#15AFDF;background-color:#1530DF;'>$33<br /><span style='font-size:0.5em;'>1530DF</span></td>
+				<td style='color:#1530DF;background-color:#15AFDF;'>$3B<br /><span style='font-size:0.5em;'>15AFDF</span></td>
+				<td style='color:#95AFDF;background-color:#9530DF;'>$B3<br /><span style='font-size:0.5em;'>9530DF</span></td>
+				<td style='color:#9530DF;background-color:#95AFDF;'>$BB<br /><span style='font-size:0.5em;'>95AFDF</span></td>
+				<td style='color:#15EF60;background-color:#157060;'>$36<br /><span style='font-size:0.5em;'>157060</span></td>
+				<td style='color:#157060;background-color:#15EF60;'>$3E<br /><span style='font-size:0.5em;'>15EF60</span></td>
+				<td style='color:#95EF60;background-color:#957060;'>$B6<br /><span style='font-size:0.5em;'>957060</span></td>
+				<td style='color:#957060;background-color:#95EF60;'>$BE<br /><span style='font-size:0.5em;'>95EF60</span></td>
+				<td style='color:#15EFDF;background-color:#1570DF;'>$37<br /><span style='font-size:0.5em;'>1570DF</span></td>
+				<td style='color:#1570DF;background-color:#15EFDF;'>$3F<br /><span style='font-size:0.5em;'>15EFDF</span></td>
+				<td style='color:#95EFDF;background-color:#9570DF;'>$B7<br /><span style='font-size:0.5em;'>9570DF</span></td>
+				<td style='color:#9570DF;background-color:#95EFDF;'>$BF<br /><span style='font-size:0.5em;'>95EFDF</span></td>
+			</tr>
+			<tr>
+				<th>$Ex</th><!--1100,gr(1)-->
+				<td style='color:#15AF20;background-color:#153020;'>$22<br /><span style='font-size:0.5em;'>153020</span></td>
+				<td style='color:#153020;background-color:#15AF20;'>$2A<br /><span style='font-size:0.5em;'>15AF20</span></td>
+				<td style='color:#95AF20;background-color:#953020;'>$A2<br /><span style='font-size:0.5em;'>953020</span></td>
+				<td style='color:#953020;background-color:#95AF20;'>$AA<br /><span style='font-size:0.5em;'>95AF20</span></td>
+				<td style='color:#15AF9F;background-color:#15309F;'>$23<br /><span style='font-size:0.5em;'>15309F</span></td>
+				<td style='color:#15309F;background-color:#15AF9F;'>$2B<br /><span style='font-size:0.5em;'>15AF9F</span></td>
+				<td style='color:#95AF9F;background-color:#95309F;'>$A3<br /><span style='font-size:0.5em;'>95309F</span></td>
+				<td style='color:#95309F;background-color:#95AF9F;'>$AB<br /><span style='font-size:0.5em;'>95AF9F</span></td>
+				<td style='color:#15EF20;background-color:#157020;'>$26<br /><span style='font-size:0.5em;'>157020</span></td>
+				<td style='color:#157020;background-color:#15EF20;'>$2E<br /><span style='font-size:0.5em;'>15EF20</span></td>
+				<td style='color:#95EF20;background-color:#957020;'>$A6<br /><span style='font-size:0.5em;'>957020</span></td>
+				<td style='color:#957020;background-color:#95EF20;'>$AE<br /><span style='font-size:0.5em;'>95EF20</span></td>
+				<td style='color:#15EF9F;background-color:#15709F;'>$27<br /><span style='font-size:0.5em;'>15709F</span></td>
+				<td style='color:#15709F;background-color:#15EF9F;'>$2F<br /><span style='font-size:0.5em;'>15EF9F</span></td>
+				<td style='color:#95EF9F;background-color:#95709F;'>$A7<br /><span style='font-size:0.5em;'>95709F</span></td>
+				<td style='color:#95709F;background-color:#95EF9F;'>$AF<br /><span style='font-size:0.5em;'>95EF9F</span></td>
+			</tr>
+			<tr>
+				<th>$Fx</th><!--1011,gRb(2)-->
+				<td style='color:#40AF60;background-color:#403060;'>$52<br /><span style='font-size:0.5em;'>403060</span></td>
+				<td style='color:#403060;background-color:#40AF60;'>$5A<br /><span style='font-size:0.5em;'>40AF60</span></td>
+				<td style='color:#A0AF60;background-color:#A03060;'>$D2<br /><span style='font-size:0.5em;'>A03060</span></td>
+				<td style='color:#A03060;background-color:#A0AF60;'>$DA<br /><span style='font-size:0.5em;'>A0AF60</span></td>
+				<td style='color:#40AFDF;background-color:#4030DF;'>$53<br /><span style='font-size:0.5em;'>4030DF</span></td>
+				<td style='color:#4030DF;background-color:#40AFDF;'>$5B<br /><span style='font-size:0.5em;'>40AFDF</span></td>
+				<td style='color:#A0AFDF;background-color:#A030DF;'>$D3<br /><span style='font-size:0.5em;'>A030DF</span></td>
+				<td style='color:#A030DF;background-color:#A0AFDF;'>$DB<br /><span style='font-size:0.5em;'>A0AFDF</span></td>
+				<td style='color:#40EF60;background-color:#407060;'>$56<br /><span style='font-size:0.5em;'>407060</span></td>
+				<td style='color:#407060;background-color:#40EF60;'>$5E<br /><span style='font-size:0.5em;'>40EF60</span></td>
+				<td style='color:#A0EF60;background-color:#A07060;'>$D6<br /><span style='font-size:0.5em;'>A07060</span></td>
+				<td style='color:#A07060;background-color:#A0EF60;'>$DE<br /><span style='font-size:0.5em;'>A0EF60</span></td>
+				<td style='color:#40EFDF;background-color:#4070DF;'>$57<br /><span style='font-size:0.5em;'>4070DF</span></td>
+				<td style='color:#4070DF;background-color:#40EFDF;'>$5F<br /><span style='font-size:0.5em;'>40EFDF</span></td>
+				<td style='color:#A0EFDF;background-color:#A070DF;'>$D7<br /><span style='font-size:0.5em;'>A070DF</span></td>
+				<td style='color:#A070DF;background-color:#A0EFDF;'>$DF<br /><span style='font-size:0.5em;'>A0EFDF</span></td>
+			</tr>
+		</table>
+	</body>
+</html>

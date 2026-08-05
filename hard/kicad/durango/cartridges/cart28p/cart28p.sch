@@ -1,0 +1,382 @@
+EESchema Schematic File Version 4
+LIBS:cart28p-cache
+EELAYER 29 0
+EELAYER END
+$Descr A4 11693 8268
+encoding utf-8
+Sheet 1 1
+Title "28-pin cartridge for Durango-X"
+Date ""
+Rev ""
+Comp ""
+Comment1 ""
+Comment2 ""
+Comment3 ""
+Comment4 ""
+$EndDescr
+$Comp
+L Memory_EPROM:27C512 U1
+U 1 1 6248CC58
+P 5450 2700
+F 0 "U1" H 6000 1850 50  0000 C CNN
+F 1 "27C512" H 6000 1750 50  0000 C CNN
+F 2 "Package_DIP:DIP-28_W15.24mm" H 5450 2700 50  0001 C CNN
+F 3 "http://ww1.microchip.com/downloads/en/DeviceDoc/doc0015.pdf" H 5450 2700 50  0001 C CNN
+	1    5450 2700
+	1    0    0    -1  
+$EndComp
+Text Notes 5750 3850 0    50   ~ 0
+or 256, 128, 64\nNote 28C256 pinout!
+$Comp
+L power:GND #PWR0102
+U 1 1 624EBE66
+P 5450 3800
+F 0 "#PWR0102" H 5450 3550 50  0001 C CNN
+F 1 "GND" H 5455 3627 50  0000 C CNN
+F 2 "" H 5450 3800 50  0001 C CNN
+F 3 "" H 5450 3800 50  0001 C CNN
+	1    5450 3800
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:+5V #PWR0104
+U 1 1 625077D4
+P 5450 1600
+F 0 "#PWR0104" H 5450 1450 50  0001 C CNN
+F 1 "+5V" H 5350 1700 50  0000 C CNN
+F 2 "" H 5450 1600 50  0001 C CNN
+F 3 "" H 5450 1600 50  0001 C CNN
+	1    5450 1600
+	1    0    0    -1  
+$EndComp
+$Comp
+L Device:C C1
+U 1 1 62636C82
+P 5600 1600
+F 0 "C1" V 5500 1500 50  0000 C CNN
+F 1 "100n" V 5450 1650 50  0000 C CNN
+F 2 "Capacitor_THT:C_Rect_L7.0mm_W3.5mm_P5.00mm" H 5638 1450 50  0001 C CNN
+F 3 "~" H 5600 1600 50  0001 C CNN
+	1    5600 1600
+	0    1    1    0   
+$EndComp
+Connection ~ 5450 1600
+$Comp
+L power:GND #PWR0107
+U 1 1 626370FC
+P 5750 1600
+F 0 "#PWR0107" H 5750 1350 50  0001 C CNN
+F 1 "GND" H 5750 1650 50  0000 C CNN
+F 2 "" H 5750 1600 50  0001 C CNN
+F 3 "" H 5750 1600 50  0001 C CNN
+	1    5750 1600
+	1    0    0    -1  
+$EndComp
+$Comp
+L edge_conn:Durango_ROM J1
+U 1 1 629256A2
+P 4050 2550
+F 0 "J1" H 4050 1250 50  0000 C CNN
+F 1 "Edge Connector" H 4050 1350 50  0000 C CNN
+F 2 "edge_conn:Durango_ROM" H 3750 1550 50  0001 C CNN
+F 3 "" H 3750 1550 50  0001 C CNN
+	1    4050 2550
+	-1   0    0    1   
+$EndComp
+Wire Wire Line
+	4450 1800 5050 1800
+Wire Wire Line
+	4450 1900 5050 1900
+Wire Wire Line
+	4450 2000 5050 2000
+Wire Wire Line
+	4450 2100 5050 2100
+Wire Wire Line
+	4450 2200 5050 2200
+Wire Wire Line
+	4450 2300 5050 2300
+Wire Wire Line
+	4450 2400 5050 2400
+Wire Wire Line
+	4450 2500 5050 2500
+Wire Wire Line
+	4450 2600 5050 2600
+Wire Wire Line
+	4450 2700 5050 2700
+Wire Wire Line
+	4450 2800 5050 2800
+Wire Wire Line
+	4450 2900 5050 2900
+Wire Wire Line
+	4450 3000 5050 3000
+Wire Wire Line
+	4450 3100 5050 3100
+NoConn ~ 4450 3350
+NoConn ~ 4450 3450
+NoConn ~ 3650 1600
+NoConn ~ 4450 1600
+NoConn ~ 3650 3300
+NoConn ~ 3650 3100
+NoConn ~ 3650 3000
+Wire Wire Line
+	3650 1800 3600 1800
+Wire Wire Line
+	3600 1800 3600 1200
+Wire Wire Line
+	3600 1200 5850 1200
+Wire Wire Line
+	5850 1200 5850 1800
+Wire Wire Line
+	3650 1900 3550 1900
+Wire Wire Line
+	3550 1900 3550 1150
+Wire Wire Line
+	3550 1150 5900 1150
+Wire Wire Line
+	5900 1150 5900 1900
+Wire Wire Line
+	5900 1900 5850 1900
+Wire Wire Line
+	3650 2000 3500 2000
+Wire Wire Line
+	3500 2000 3500 1100
+Wire Wire Line
+	3500 1100 5950 1100
+Wire Wire Line
+	5950 1100 5950 2000
+Wire Wire Line
+	5950 2000 5850 2000
+Wire Wire Line
+	3650 2100 3450 2100
+Wire Wire Line
+	3450 2100 3450 1050
+Wire Wire Line
+	3450 1050 6000 1050
+Wire Wire Line
+	6000 1050 6000 2100
+Wire Wire Line
+	6000 2100 5850 2100
+Wire Wire Line
+	3650 2200 3400 2200
+Wire Wire Line
+	3400 2200 3400 1000
+Wire Wire Line
+	3400 1000 6050 1000
+Wire Wire Line
+	6050 1000 6050 2200
+Wire Wire Line
+	6050 2200 5850 2200
+Wire Wire Line
+	5850 2300 6100 2300
+Wire Wire Line
+	6100 2300 6100 950 
+Wire Wire Line
+	6100 950  3350 950 
+Wire Wire Line
+	3350 950  3350 2300
+Wire Wire Line
+	3350 2300 3650 2300
+Wire Wire Line
+	3650 2400 3300 2400
+Wire Wire Line
+	3300 2400 3300 900 
+Wire Wire Line
+	3300 900  6150 900 
+Wire Wire Line
+	6150 900  6150 2400
+Wire Wire Line
+	6150 2400 5850 2400
+Wire Wire Line
+	5850 2500 6200 2500
+Wire Wire Line
+	6200 2500 6200 850 
+Wire Wire Line
+	6200 850  3250 850 
+Wire Wire Line
+	3250 850  3250 2500
+Wire Wire Line
+	3250 2500 3650 2500
+$Comp
+L power:GND #PWR0101
+U 1 1 62935634
+P 4050 1450
+F 0 "#PWR0101" H 4050 1200 50  0001 C CNN
+F 1 "GND" V 4055 1322 50  0000 R CNN
+F 2 "" H 4050 1450 50  0001 C CNN
+F 3 "" H 4050 1450 50  0001 C CNN
+	1    4050 1450
+	0    -1   -1   0   
+$EndComp
+$Comp
+L Device:R R1
+U 1 1 62538342
+P 4200 3950
+F 0 "R1" V 4100 3950 50  0000 C CNN
+F 1 "3K3" V 4200 3950 50  0000 C CNN
+F 2 "Resistor_THT:R_Axial_DIN0204_L3.6mm_D1.6mm_P2.54mm_Vertical" V 4130 3950 50  0001 C CNN
+F 3 "~" H 4200 3950 50  0001 C CNN
+	1    4200 3950
+	0    1    1    0   
+$EndComp
+$Comp
+L power:+5V #PWR0105
+U 1 1 6253888C
+P 4050 3950
+F 0 "#PWR0105" H 4050 3800 50  0001 C CNN
+F 1 "+5V" V 4050 4150 50  0000 C CNN
+F 2 "" H 4050 3950 50  0001 C CNN
+F 3 "" H 4050 3950 50  0001 C CNN
+	1    4050 3950
+	0    -1   -1   0   
+$EndComp
+$Comp
+L Device:R R2
+U 1 1 62539806
+P 4200 4150
+F 0 "R2" V 4100 4150 50  0000 C CNN
+F 1 "3K3" V 4200 4150 50  0000 C CNN
+F 2 "Resistor_THT:R_Axial_DIN0204_L3.6mm_D1.6mm_P2.54mm_Vertical" V 4130 4150 50  0001 C CNN
+F 3 "~" H 4200 4150 50  0001 C CNN
+	1    4200 4150
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	4050 3950 4050 4150
+Connection ~ 4050 3950
+Wire Wire Line
+	4400 3800 4350 3800
+Wire Wire Line
+	4350 3800 4350 3950
+Connection ~ 4350 3950
+Wire Wire Line
+	4350 3950 4700 3950
+Wire Wire Line
+	4050 3950 4050 3650
+Wire Wire Line
+	4600 3200 4600 3800
+Wire Wire Line
+	4600 3200 4450 3200
+$Comp
+L Device:Jumper_NC_Small JP1
+U 1 1 625351FC
+P 4500 3800
+F 0 "JP1" H 4500 4000 50  0000 C CNN
+F 1 "27x256-512" H 4350 3900 50  0000 C CNN
+F 2 "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical" H 4500 3800 50  0001 C CNN
+F 3 "~" H 4500 3800 50  0001 C CNN
+	1    4500 3800
+	1    0    0    -1  
+$EndComp
+Text Label 4350 3800 2    50   ~ 0
+A14_32+
+$Comp
+L Jumper:Jumper_3_Open JP2
+U 1 1 6250AAF5
+P 4350 4300
+F 0 "JP2" H 4700 4300 50  0000 C CNN
+F 1 "LOW 512/28C256" H 4300 4450 50  0000 C CNN
+F 2 "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical" H 4350 4300 50  0001 C CNN
+F 3 "~" H 4350 4300 50  0001 C CNN
+	1    4350 4300
+	1    0    0    1   
+$EndComp
+$Comp
+L power:GND #PWR0106
+U 1 1 6255B13E
+P 4100 4300
+F 0 "#PWR0106" H 4100 4050 50  0001 C CNN
+F 1 "GND" V 4105 4172 50  0000 R CNN
+F 2 "" H 4100 4300 50  0001 C CNN
+F 3 "" H 4100 4300 50  0001 C CNN
+	1    4100 4300
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	4700 3950 4700 3200
+Wire Wire Line
+	4700 3200 5050 3200
+Wire Wire Line
+	4600 3800 4600 4300
+Connection ~ 4600 3800
+Wire Wire Line
+	4800 4150 4800 3300
+Wire Wire Line
+	4800 3300 5050 3300
+Text Label 4700 1800 0    50   ~ 0
+A0
+Text Label 4700 1900 0    50   ~ 0
+A1
+Text Label 4700 2000 0    50   ~ 0
+A2
+Text Label 4700 2100 0    50   ~ 0
+A3
+Text Label 4700 2200 0    50   ~ 0
+A4
+Text Label 4700 2300 0    50   ~ 0
+A5
+Text Label 4700 2400 0    50   ~ 0
+A6
+Text Label 4700 2500 0    50   ~ 0
+A7
+Text Label 4700 2600 0    50   ~ 0
+A8
+Text Label 4700 2700 0    50   ~ 0
+A9
+Text Label 4650 2800 0    50   ~ 0
+A10
+Text Label 4650 2900 0    50   ~ 0
+A11
+Text Label 4650 3000 0    50   ~ 0
+A12
+Text Label 4650 3100 0    50   ~ 0
+A13
+Text Label 4450 3200 0    50   ~ 0
+CA14
+Text Label 4800 3200 0    50   ~ 0
+A14
+Text Label 4800 3300 0    50   ~ 0
+A15
+Wire Wire Line
+	3650 2800 3600 2800
+Wire Wire Line
+	3600 2800 3600 4500
+Wire Wire Line
+	3600 4500 4900 4500
+Wire Wire Line
+	4900 4500 4900 3500
+Wire Wire Line
+	4900 3500 5050 3500
+Wire Wire Line
+	3650 2700 3550 2700
+Wire Wire Line
+	3550 2700 3550 4550
+Wire Wire Line
+	3550 4550 4950 4550
+Wire Wire Line
+	4950 4550 4950 3600
+Wire Wire Line
+	4950 3600 5050 3600
+Text Label 4950 3500 0    50   ~ 0
+~CS
+Text Label 4950 3600 0    50   ~ 0
+~OE
+Text Label 3250 2500 0    50   ~ 0
+D7
+Text Label 3300 2400 0    50   ~ 0
+D6
+Text Label 3350 2300 0    50   ~ 0
+D5
+Text Label 3400 2200 0    50   ~ 0
+D4
+Text Label 3450 2100 0    50   ~ 0
+D3
+Text Label 3500 2000 0    50   ~ 0
+D2
+Text Label 3550 1900 0    50   ~ 0
+D1
+Text Label 3600 1500 0    50   ~ 0
+D0
+Wire Wire Line
+	4800 4150 4350 4150
+Connection ~ 4350 4150
+$EndSCHEMATC
