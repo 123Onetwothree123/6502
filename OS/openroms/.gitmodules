@@ -1,0 +1,9 @@
+[submodule "3rdparty/acme"]
+	path = 3rdparty/acme
+	url = https://github.com/MEGA65/acme
+[submodule "3rdparty/zmac"]
+	path = 3rdparty/zmac
+	url = https://github.com/FeralChild64/zmac
+[submodule "3rdparty/z80exer"]
+	path = 3rdparty/z80exer
+	url = https://github.com/FeralChild64/z80exer

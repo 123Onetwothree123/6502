@@ -1,0 +1,22 @@
+
+# Image which is illegal to distribute - just for extra safety
+
+kernal_hybrid.rom
+
+# Compilation related files
+
+build/*
+
+# Input to the similarity tool - copyrighted material, we can't check it in!
+
+/basic
+/kernal
+/3rdparty/ROMs/*
+
+# Various IDE project files, temporary files, etc.
+
+dump.mem
+vgcore*
+*project
+.*swp
+*.log
