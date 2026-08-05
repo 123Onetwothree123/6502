@@ -1,0 +1,106 @@
+dummyROMHeader: .block
+                rts
+                .byte 0,0
+                rts
+                .byte 0,0
+                .byte romType6502
+                .byte copyright-dummyROMHeader
+                .byte $ff
+                .text "R"
+ram_or_rom_char:
+                .text "A"
+                .text "M"
+copyright:
+                .byte 0
+                .text "(C)"
+size=*-dummyROMHeader
+                ; I doubt I've caught all the implied 16s...
+                .cerror *-dummyROMHeader!=16
+
+                ; in any event, this ROM header must be <=16 bytes, as
+                ; the total pseudo-addressable area has a o documented
+                ; size of 4*(16384-16)
+                .cerror *-dummyROMHeader>16
+                .endblock
+
+dataBankStart=$8000+16
+dataBankSize=16384-16
+
+;-------------------------------------------------------------------------
+;
+; 
+initDummyROMHeader:
+                jsr selectROMX
+                ldy #size(dummyROMHeader)-1
+LF881:
+                lda dummyROMHeader,y
+                sta $8000,y
+                dey
+                bpl LF881
+                bit sramWorkspace.type
+                bvs LF894       ; taken if called by *SRDATA
+                lda #'O'
+                sta $8000+(dummyROMHeader.ram_or_rom_char-dummyROMHeader)
+LF894:
+                stx $8001
+                jmp selectUtilsROM
+
+;-------------------------------------------------------------------------
+;
+; Check if a ROM bank is writeable. 
+;
+; Entry:
+;
+; X = ROM bank of interest
+;
+; Exit:
+;
+; C=0 if ROM, C=1 if RAM
+;
+; Utils ROM selected
+;
+; Preserves: X
+; 
+isBankROM:
+                jsr selectROMX
+
+                ; Modify the version number byte - if a valid
+                ; writeable sideways ROM, don't leave it in a bad
+                ; state if reset partway through (not much you can do
+                ; for non-ROMs of course...)
+                lda $8008
+                tay             ; Y = original value
+                eor #$ff
+                sei
+                sta $8008       ; store modified value
+                
+                .if version==350&&refreshVersion
+
+                jsr delayAfterPossibleEEPROMWrite
+                cmp $8008       ; did it take? Z=1 if RAM
+                clc             ; assume ROM
+
+                ; Don't do another write if ROM, in case it's EEPROM
+                ; and it'll only make another mess.
+                bne jmpSelectUtilsROM ; taken if ROM
+                sec                      ; it's RAM
+                sty $8008                ; it's RAM - restore original
+                                         ; value
+jmpSelectUtilsROM:
+                cli
+                jmp selectUtilsROM
+                
+                .else
+                
+                cmp $8008       ; did it take? Z=1 if RAM
+                sty $8008       ; restore original value
+                cli
+                beq jmpSelectUtilsROM ; taken if RAM
+                clc
+jmpSelectUtilsROM:
+                jmp selectUtilsROM
+                .endif
+                
+
+;-------------------------------------------------------------------------
+

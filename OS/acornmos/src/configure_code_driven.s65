@@ -1,0 +1,1061 @@
+_:=[]
+_..=[(".",printCONFIGUREHelp,printSTATUSHelp)]
+                .if version<400
+_..=[("BAUD",setDefaultSerialBaudRateIndex,printDefaultSerialBaudRateIndex)]
+                .endif
+_..=[("BOOT",setDefaultAutoBoot,printDefaultAutoBoot)]
+_..=[("CAPS",setDefaultsCapsLock,printDefaultCaps)]
+                .if version<400
+_..=[("DATA",setDefaultSerialDataFormat,printDefaultSerialDataFormat)]
+                .endif
+_..=[("DELAY",setDefaultKeyboardAutoRepeatDelay,printDefaultKeyboardAutoRepeatDelay)]
+                .if version<400
+_..=[("DIR",setDefaultADFSLoadDir,printDefaultADFSLoadDir)]
+                .endif
+                .if includeTubeSupport
+_..=[("EXTUBE",setDefaultExtTube,printDefaultExtTube)]
+                .endif
+                .if version<400
+_..=[("FDRIVE",setDefaultFDRIVE,printDefaultFDRIVE)]
+                .endif
+_..=[("FILE",setDefaultFSROM,printDefaultFSROM)]
+                .if version<400
+_..=[("FLOPPY",setDefaultFloppyDrive,printDefaultFloppyDrive)]
+                .endif
+                .if version<400
+_..=[("HARD",setDefaultHardDrive,printDefaultFloppyDrive)]
+                .endif
+_..=[("IGNORE",setDefaultPrinterIgnoreChar,printDefaultPrinterIgnoreChar)]
+                .if includeTubeSupport
+_..=[("INTUBE",setDefaultIntTube,printDefaultExtTube)]
+                .endif
+_..=[("LANG",setDefaultLanguageROM,printDefaultLanguageROM)]
+_..=[("LOUD",setDefaultLoud,printDefaultLoud)]
+_..=[("MODE",setDefaultMODE,printDefaultMODE)]
+_..=[("NOBOOT",setDefaultNoAutoBoot,printDefaultAutoBoot)]
+_..=[("NOCAPS",setDefaultNoLock,printDefaultCaps)]
+                .if version<400
+_..=[("NODIR",setDefaultADFSNoLoadDir,printDefaultADFSLoadDir)]
+                .endif
+_..=[("NOSCROLL",setDefaultNoProtectedScrolling,printDefaultProtectedScrolling)]
+                .if includeTubeSupport
+_..=[("NOTUBE",setDefaultTubeOff,printDefaultTubeOn)]
+                .endif
+_..=[("PRINT",setDefaultFX5Settings,printDefaultFX5Settings)]
+_..=[("QUIET",setDefaultQuiet,printDefaultLoud)]
+_..=[("REPEAT",setDefaultKeyboardAutoRepeatRate,printDefaultKeyboardRepeatRate)]
+_..=[("SCROLL",setDefaultProtectedScrolling,printDefaultProtectedScrolling)]
+_..=[("SHCAPS",setDefaultShiftLock,printDefaultCaps)]
+                .if includeTubeSupport
+_..=[("TUBE",setDefaultTubeOn,printDefaultTubeOn)]
+                .endif
+_..=[("TV",setDefaultTVSettings,printDefaultTVSettings)]
+configureData=_
+
+                .if version<400
+configureNames:
+                .for i=0,i<len(configureData),i+=1
+                .text configureData[i][0]
+                .byte $80+i*4                ;encoded index into configureRoutines
+                .next
+                .byte 0
+
+configureRoutines:
+                .for i=0,i<len(configureData),i+=1
+                .beword configureData[i][1]-1
+                .beword configureData[i][2]-1
+                .next
+                .else
+configureTable:
+                .for i=0,i<len(configureData),i+=1
+                .text configureData[i][0]
+                .beword configureData[i][1]-1
+                .beword configureData[i][2]-1
+                .next
+                .byte 0
+                .endif
+
+;-------------------------------------------------------------------------
+;
+; *CONFIGURE [MasRef C.5-2]
+; 
+starCONFIGURE:
+                jsr L8934                    ;get configure param
+                bcs callSetRoutine           ;taken if known
+                ldx #romServiceCallUnknownCONFIG
+L8881:
+                ldy commandLineY
+                jsr makeROMServiceCall
+                bne badCommandError88AC
+                rts
+
+callSetRoutine:
+                .if version<400
+                tax
+                lda configureRoutines+0-$80,x ;set routine MSB
+                pha
+                lda configureRoutines+1-$80,x ;set routine LSB
+                pha
+                .else
+                pha
+                lda configureTable+1,x
+                pha
+                .endif
+L8892:
+                jmp skipSpacesAndCheckForCRInStringInput
+
+starSTATUS:
+                jsr L8934
+                bcs L889E
+                ldx #romServiceCallUnknownSTATUS
+                bra L8881
+
+L889E:
+                .if version<400
+                tax
+                lda configureRoutines+2-$80,x ;print routine MSB
+                pha
+                lda configureRoutines+3-$80,x ;print routine LSB
+                pha
+                .else
+                lda configureTable+2,x
+                pha
+                lda configureTable+3,x
+                pha
+                .endif
+                jsr skipSpacesAndCheckForCRInStringInput
+                beq L8892
+badCommandError88AC:
+                jmp badCommandError8976                   
+
+;-------------------------------------------------------------------------
+
+                .if version<400
+setDefaultHardDrive:
+                bne badCommandError88AC
+                lda #$00
+                bra writeDefaultFloppyDrive
+                .endif
+
+;-------------------------------------------------------------------------
+
+                .if version<400
+setDefaultFloppyDrive:
+                bne badCommandError88AC
+                lda #CMOSBytes.defaults1.floppyDrive
+writeDefaultFloppyDrive:
+                ldy #~(CMOSBytes.defaults1.floppyDrive)&$ff
+                bra writeDefaults1Bits
+                .endif
+                
+;-------------------------------------------------------------------------
+
+                .if version<400
+setDefaultADFSLoadDir:
+                bne badCommandError88AC
+                lda #$00                                   ;NODIR
+                bra writeDefaultADFSLoadDir
+                .endif
+
+;-------------------------------------------------------------------------
+
+                .if version<400
+setDefaultADFSNoLoadDir:
+                bne badCommandError88AC
+                lda #CMOSBytes.defaults1.adfsLoadDirMask
+writeDefaultADFSLoadDir:
+                ldy #(~CMOSBytes.defaults1.adfsLoadDirMask)&$ff
+                bra writeDefaults1Bits
+                .endif
+                
+;-------------------------------------------------------------------------
+
+                .if version<400
+setDefaultFDRIVE:
+                jsr parseNumberFromCommandLine
+                jsr ensureCommandLineTailEmpty
+                txa
+                cmp #$08                     ;max FDRIVE is 7
+                bcs badCommandError88AC
+                ldy #(~CMOSBytes.defaults1.fdriveMask)&$ff
+writeDefaults1Bits:
+                ldx #CMOSBytes.defaults1+cmosBytesOffset
+                bra jmpWriteRTCBits892D
+                .endif
+                
+;-------------------------------------------------------------------------
+
+setDefaultNoLock:
+                bne badCommandError88AC
+                lda #CMOSBytes.defaults1.noLockMask
+                bra setDefaultLock     
+
+;-------------------------------------------------------------------------
+
+setDefaultShiftLock:
+                bne badCommandError88AC
+                lda #CMOSBytes.defaults1.shiftLockMask
+                bra setDefaultLock
+
+;-------------------------------------------------------------------------
+
+setDefaultsCapsLock:
+                bne badCommandError88AC
+                lda #CMOSBytes.defaults1.capsLockMask
+setDefaultLock:
+                ldy #~(CMOSBytes.defaults1.capsLockMask|CMOSBytes.defaults1.noLockMask|CMOSBytes.defaults1.shiftLockMask)&$ff
+                .if version<400
+                bra writeDefaults1Bits
+                .else
+writeDefaults1Bits:
+                ldx #CMOSBytes.defaults1+cmosBytesOffset
+                bra jmpWriteRTCBits892D
+                .endif                
+
+;-------------------------------------------------------------------------
+
+setDefaultMODE:
+                jsr parseNumberFromCommandLine
+                jsr ensureCommandLineTailEmpty
+                txa
+                and #$7F
+                cmp #$08                     ;only 0-7 is valid
+                bcs bcsBadCommandError8911
+                inx    ;set N as per X value - bit 6 is never set, so the result is valid for the original value
+                bpl +
+                ora #CMOSBytes.defaults0.shadowMask
++
+                ldy #~(CMOSBytes.defaults0.shadowMask|CMOSBytes.defaults0.modeMask)&$ff
+                bra writeDefaults0Bits
+
+;-------------------------------------------------------------------------
+
+setDefaultTVSettings:
+                beq resetDefaultTVSettings        ;reset to 0,0 if no values supplied
+                jsr parseNumberFromCommandLine
+                ; valid range is 252-255 or 0-3
+                cpx #252
+                bcs +
+                cpx #$04
+bcsBadCommandError8911:
+                bcs badCommandError8976
++
+                txa
+                asl a                   ;make space for interlace flag
+                sta $B1
+                ldx #$00
+                jsr LF30A
+                beq +                  ;taken if only 1 value supplied
+                jsr parseSingle1BitNumberFromCommandLine ;get interlace flag
+                tax                          ;X=interlace flag
++
+                txa                          ;
+                ora $B1                      ;OR in the TV setting
+                asl a                        
+                asl a                        
+                asl a                        
+                asl a                        ; shift into place
+writeDefaultTVSettings:
+                ldy #~(CMOSBytes.defaults0.tvMask<<CMOSBytes.defaults0.tvShift|CMOSBytes.defaults0.interlaceMask)&$ff
+writeDefaults0Bits:
+                ldx #CMOSBytes.defaults0+cmosBytesOffset
+jmpWriteRTCBits892D:
+                jmp writeRTCBits
+
+resetDefaultTVSettings:
+                lda #$00
+                bra writeDefaultTVSettings
+
+;-------------------------------------------------------------------------
+;-------------------------------------------------------------------------
+;
+; 
+L8934:
+                jsr skipSpacesAndCheckForCRInStringInput
+                sty commandLineY
+                beq L8979                    ;taken if input ends with CR
+                ldx #$00
+                bra L894A
+
+L893F:
+                .if version==400
+                eor configureTable,x
+                .else
+                eor configureNames,x           ;matches configure setting name?
+                .endif
+                and #$DF              ;case-insensitive
+                bne L895C             ;taken if no match
+                iny
+L8947:
+                bcs L896C
+                inx
+L894A:
+                lda (stringInputBufferAddress),y
+                jsr isLetter
+                bcc L893F                    ;taken if letter
+L8951:
+                .if version==400
+                lda configureTable,x
+                bmi L8CE4
+                .else
+                lda configureNames,x
+                bmi L896C           ;taken if info byte - i.e., name matches
+                .endif
+                lda ($F2),y
+                cmp #'.'
+                beq L8960                    ;accept abbreviations
+L895C:
+                clc
+                ldy commandLineY
+                dey
+L8960:
+                iny
+                .if version==400
+                inx
+                inx
+                .else
+                dex
+                .endif
+L8962:
+                inx
+                .if version==400
+                lda configureTable-3,x
+                .else
+                lda configureNames,x
+                .endif
+                beq L896E
+                bpl L8962
+                bra L8947
+
+L896C:
+                .if version==400
+                dex
+                dex
+                dex
+                .endif
+L8CE4:
+                sec
+                rts
+
+L896E:
+                bcs L896C
+rts8970:
+                rts
+
+;-------------------------------------------------------------------------
+
+parseNumberFromCommandLine:
+                jsr parseNumberFromString
+                bcs rts8970
+badCommandError8976:
+                jmp badCommandError
+
+;-------------------------------------------------------------------------
+
+L8979:
+                ldx #$01
+                bra L8951
+
+;-------------------------------------------------------------------------
+
+parseSingle4BitNumberFromCommandLine:
+                jsr parseNumberFromString
+                bcc badCommandError8976
+                txa                    
+                cmp #$10               
+                bcs badCommandError8976
+ensureCommandLineTailEmpty:
+                pha                          ;save value parsed
+                jsr skipSpacesAndCheckForCRInStringInput
+bneBadCommandError898B:
+                bne badCommandError8976      ;taken if followed up by anything other than CR
+                pla                          ;restore value parsed
+                rts                          
+
+;-------------------------------------------------------------------------
+
+parseSingle1BitNumberFromCommandLine:
+                jsr parseSingleNumberFromCommandLine
+                cmp #$02
+                bcs badCommandError8976
+                rts
+
+;-------------------------------------------------------------------------
+;
+; Parse single number from command line. Produce Bad Command error if
+; the number is invalid or if there's more than one number.
+;
+; exit:
+;
+; A = value
+;
+; N/Z set as per A
+; 
+parseSingleNumberFromCommandLine:
+                jsr parseNumberFromString
+                bcc badCommandError8976      ;taken if error
+                txa                          ;A=value
+                bra ensureCommandLineTailEmpty
+
+;-------------------------------------------------------------------------
+
+setDefaultKeyboardAutoRepeatDelay:
+                clc
+                .byte $24                    ; BIT zp (make SEC mostly
+                                             ; a NOP, in effect)
+setDefaultKeyboardAutoRepeatRate:
+                sec
+                php                          ;save C
+                jsr parseNumberFromCommandLine
+                jsr ensureCommandLineTailEmpty
+                plp                          ;restore C
+                txa                          
+                tay                          
+                .cerror CMOSBytes.keyboardAutoRepeatDelay+1!=CMOSBytes.keyboardAutoRepeatRate,"keyboard auto repeat settings CMOS bytes must be adjacent"
+                lda #CMOSBytes.keyboardAutoRepeatDelay+cmosBytesOffset
+                adc #$00             ;pick appropriate byte based on C
+                tax                  ;X=RTC address
+jmpWriteRTCByte:
+                jmp writeRTCByte
+
+;-------------------------------------------------------------------------
+
+setDefaultPrinterIgnoreChar:
+                beq writeDefaultUsePrinterIgnoreCharTrue
+                jsr parseNumberFromCommandLine
+                phx                         
+                jsr ensureCommandLineTailEmpty
+                lda #$00                    
+                jsr writeDefaultUsePrinterIgnoreChar
+                ply                          
+                ldx #CMOSBytes.printerIgnoreChar+cmosBytesOffset
+                bra jmpWriteRTCByte
+
+;-------------------------------------------------------------------------
+
+setDefaultFX5Settings:
+                jsr parseSingleNumberFromCommandLine
+                cmp #$05
+bcsBadCommandError:
+                bcs badCommandError8976
+                ldy #~(CMOSBytes.defaults2.fx5SettingMask<<CMOSBytes.defaults2.fx5SettingShift)&$ff
+                lsr a
+                ror a
+                ror a
+                ror a
+writeDefaults2Bits:
+                ldx #CMOSBytes.defaults2+cmosBytesOffset
+writeRTCBits:
+                sta $B1
+                sty $B2
+                jsr readRTCByte
+                and $B2
+                ora $B1
+                tay
+                bra jmpWriteRTCByte
+
+;-------------------------------------------------------------------------
+
+                .if includeTubeSupport
+setDefaultTubeOff:
+                clc
+bneBadCommandError89E5:
+                bne bneBadCommandError898B
+                ldy #~(CMOSBytes.defaults2.tubeOnMask)&$ff
+                lda #$00
+                rol a
+                bra writeDefaults2Bits
+                .else
+bneBadCommandError89E5:
+                bne bneBadCommandError898B
+                .endif
+
+;-------------------------------------------------------------------------
+
+                .if includeTubeSupport
+setDefaultTubeOn:
+                sec
+                bra bneBadCommandError89E5
+                .endif
+
+;-------------------------------------------------------------------------
+
+                .if version<400
+setDefaultSerialBaudRateIndex:
+                jsr parseSingleNumberFromCommandLine
+                bne +
+                lda #$07
++
+                cmp #$09
+                bcs bcsBadCommandError       ;Bad Command if >=9
+                dec a
+                ldy #~(CMOSBytes.defaults2.serialBaudRateIndexMask<<CMOSBytes.defaults2.serialBaudRateIndexShift)&$ff
+                asl a
+                asl a                        ;shift value into place
+                bra writeDefaults2Bits
+                .endif
+                
+;-------------------------------------------------------------------------
+
+writeDefaultUsePrinterIgnoreCharTrue:
+                lda #CMOSBytes.defaults2.usePrinterIgnoreCharMask
+writeDefaultUsePrinterIgnoreChar:
+                ldy #(~CMOSBytes.defaults2.usePrinterIgnoreCharMask)&$ff
+                bra writeDefaults2Bits
+
+;-------------------------------------------------------------------------
+
+setDefaultQuiet:
+                bne bneBadCommandError89E5
+                lda #$00                  
+                bra writeDefaultLoud      
+
+;-------------------------------------------------------------------------
+
+setDefaultLoud:
+                bne bneBadCommandError89E5
+                lda #CMOSBytes.defaults3.loudMask
+writeDefaultLoud:
+                ldy #~(CMOSBytes.defaults3.loudMask)&$ff
+                .if version<400
+                bra writeDefaults3Bits
+                .else
+writeDefaults3Bits:
+                ldx #CMOSBytes.defaults3+cmosBytesOffset
+jmpWriteRTCBits8A26:
+                bra writeRTCBits
+                .endif
+
+;-------------------------------------------------------------------------
+
+                .if version<400
+setDefaultSerialDataFormat:
+                jsr parseSingleNumberFromCommandLine
+                cmp #$08
+                bcs bcsBadCommandError
+                ldy #~(CMOSBytes.defaults3.serialDataFormatMask<<CMOSBytes.defaults3.serialDataFormatShift)&$ff
+                lsr a                        ;%000000ab c
+                ror a                        ;%c000000a b
+                ror a                        ;%bc000000 a
+                ror a                        ;%abc00000 0
+writeDefaults3Bits:
+                ldx #CMOSBytes.defaults3+cmosBytesOffset
+jmpWriteRTCBits8A26:
+                bra writeRTCBits
+                .endif
+
+;-------------------------------------------------------------------------
+
+setDefaultAutoBoot:
+                bne bneBadCommandError89E5
+                lda #CMOSBytes.defaults3.autoBootMask
+                bra writeDefaultAutoBoot
+
+;-------------------------------------------------------------------------
+
+setDefaultNoAutoBoot:
+                bne bneBadCommandError89E5
+                lda #$00                     ;no boot
+writeDefaultAutoBoot:
+                ldy #(~CMOSBytes.defaults3.autoBootMask)&$ff
+                bra writeDefaults3Bits
+
+;-------------------------------------------------------------------------
+
+setDefaultProtectedScrolling:
+                bne bneBadCommandError89E5
+                lda #$00
+                bra writeDefaultProtectedScrolling
+
+;-------------------------------------------------------------------------
+
+setDefaultNoProtectedScrolling:
+                bne bneBadCommandError89E5
+                lda #CMOSBytes.defaults3.protectedScrollingMask
+writeDefaultProtectedScrolling:
+                ldy #~(CMOSBytes.defaults3.protectedScrollingMask)&$ff
+                bra writeDefaults3Bits
+
+;-------------------------------------------------------------------------
+
+                .if includeTubeSupport
+setDefaultExtTube:
+                bne bcsBadCommandError
+                lda #CMOSBytes.defaults3.extTubeMask
+                bra writeDefaultExtTube
+                .endif
+
+;-------------------------------------------------------------------------
+
+                .if includeTubeSupport
+setDefaultIntTube:
+                bne bcsBadCommandError
+                lda #$00
+writeDefaultExtTube:
+                ldy #~(CMOSBytes.defaults3.extTubeMask)&$ff
+                bra writeDefaults3Bits
+                .endif
+
+;-------------------------------------------------------------------------
+
+setDefaultLanguageROM:
+                jsr parseSingle4BitNumberFromCommandLine
+                asl a
+                asl a
+                asl a
+                asl a
+                ldy #~(15<<CMOSBytes.defaultROMs.languageShift)&$ff
+writeDefaultROM:
+                ldx #CMOSBytes.defaultROMs+cmosBytesOffset
+                bra jmpWriteRTCBits8A26
+
+;-------------------------------------------------------------------------
+
+setDefaultFSROM:
+                jsr parseSingle4BitNumberFromCommandLine
+                ldy #~(15<<CMOSBytes.defaultROMs.fsShift)&$ff
+                bra writeDefaultROM
+
+;-------------------------------------------------------------------------
+
+printDefaultCaps:
+                jsr readDefaults1            ;%fdCNSfff
+                asl a                        ;%dCNSfff0
+                asl a                        ;%CNSfff00
+                bmi printCaps
+                asl a                        ;%NSfff000
+                bmi printNoCaps
+                jsr alwaysPrintFollowingMessage
+                .text "Shift ",0
+printCaps:
+                jsr alwaysPrintFollowingMessage
+                .text "Caps",13,0
+                rts
+printNoCaps:
+                jsr printNo_
+                bra printCaps
+
+;-------------------------------------------------------------------------
+
+printDefaultProtectedScrolling:
+                jsr readDefaults3
+                bit #CMOSBytes.defaults3.protectedScrollingMask
+                beq +
+                jsr printNo_
++
+                jsr alwaysPrintFollowingMessage
+                .text "Scroll",13,0
+                rts       
+
+;-------------------------------------------------------------------------
+
+printDefaultLoud:
+                jsr readDefaults3            
+                bit #CMOSBytes.defaults3.loudMask
+                bne printLoud
+                jsr alwaysPrintFollowingMessage
+                .text "Quiet",13,0
+                rts                          
+
+printLoud:
+                jsr alwaysPrintFollowingMessage
+                .text "Loud",13,0
+                rts                          
+
+;-------------------------------------------------------------------------
+
+                .if includeTubeSupport
+printDefaultExtTube:
+                jsr readDefaults3
+                bit #CMOSBytes.defaults3.extTubeMask
+                bne printExternalTube
+                jsr alwaysPrintFollowingMessage
+                .text "In",0
+                bra printTernalTube
+
+printExternalTube:
+                jsr alwaysPrintFollowingMessage
+                .text "Ex",0
+printTernalTube:
+                jsr alwaysPrintFollowingMessage
+                .text "ternal Tube",13,0
+                rts
+                .endif
+
+;-------------------------------------------------------------------------
+
+printDefaultAutoBoot:
+                jsr readDefaults3                    
+                bit #CMOSBytes.defaults3.autoBootMask
+                bne +
+                jsr printNo_
++
+                jsr alwaysPrintFollowingMessage
+                .text "Boot",13,0
+                rts
+
+;-------------------------------------------------------------------------
+
+                .if includeTubeSupport
+printDefaultTubeOn:
+                jsr readDefaults2
+                lsr a                        ;C=tubeOn
+                bcs +
+                jsr printNo_
++
+                jsr alwaysPrintFollowingMessage
+                .text "Tube",13,0
+                rts
+                .endif                
+
+;-------------------------------------------------------------------------
+
+printDefaultLanguageROM:
+                jsr readDefaultLanguageROM
+printROMNumber:
+                jsr printDecimalByte
+                bra printNewLine8B2B
+
+;-------------------------------------------------------------------------
+
+printDefaultFSROM:
+                jsr readDefaultROMs
+                and #$0F
+                bra printROMNumber
+
+;-------------------------------------------------------------------------
+
+printDefaultTVSettings:
+                jsr readDefaultTVSettings
+                jsr printDecimalByteY
+                lda #','
+                jsr OSWRCH
+                txa
+                bra printDecimalByteThenNewLine
+
+;-------------------------------------------------------------------------
+
+printDefaultMODE:
+                jsr readDefaultMODE
+printDecimalByteThenNewLine:
+                jsr printDecimalByte
+printNewLine8B2B:
+                jmp OSNEWL
+
+;-------------------------------------------------------------------------
+
+printDefaultKeyboardAutoRepeatDelay:
+                jsr getDefaultKeyboardAutoRepeatDelay
+                tya
+                bra printDecimalByteThenNewLine
+
+;-------------------------------------------------------------------------
+
+printDefaultKeyboardRepeatRate:
+                jsr getDefaultKeyboardAutoRepeatRate
+                tya
+                bra printDecimalByteThenNewLine
+
+;-------------------------------------------------------------------------
+;
+; Read default keyboard auto repeat delay from CMOS RAM.
+;
+; exit:
+;
+; Y = default keyboard auto repeat delay
+; 
+getDefaultKeyboardAutoRepeatDelay:
+                ldx #CMOSBytes.keyboardAutoRepeatDelay+cmosBytesOffset
+                jmp readRTCByte
+
+;-------------------------------------------------------------------------
+;
+; Read default keyboard auto repeat rate from CMOS RAM.
+;
+; exit:
+;
+; Y = default keyboard auto repeat rate
+; 
+getDefaultKeyboardAutoRepeatRate:
+                ldx #CMOSBytes.keyboardAutoRepeatRate+cmosBytesOffset
+                jmp readRTCByte
+
+;-------------------------------------------------------------------------
+
+printDefaultPrinterIgnoreChar:
+                jsr readDefaults2
+                bit #CMOSBytes.defaults2.usePrinterIgnoreCharMask
+                beq showDefaultPrinterIgnoreChar
+printNoIgnore:
+                jsr printNo_
+                jsr alwaysPrintFollowingMessage
+                .text "Ignore",13,0
+                rts
+
+showDefaultPrinterIgnoreChar:
+                jsr readDefaultPrinterIgnoreChar
+                jsr printDecimalByte
+                bra printNewLine8B2B
+
+printDefaultPrinterIgnoreChar2:
+                jsr readDefaults2
+                bit #CMOSBytes.defaults2.usePrinterIgnoreCharMask
+                bne printNoIgnore
+                jsr alwaysPrintFollowingMessage
+                .text "Ignore   ",0
+                bra showDefaultPrinterIgnoreChar
+
+;-------------------------------------------------------------------------
+
+printDefaultFX5Settings:
+                jsr readDefaultFX5Settings
+                bra printDecimalByteThenNewLine
+
+;-------------------------------------------------------------------------
+
+                .if version<400
+printDefaultSerialBaudRateIndex:
+                jsr readDefaultSerialBaudRateIndex
+                bra printDecimalByteThenNewLine
+                .endif
+                
+;-------------------------------------------------------------------------
+
+                .if version<400
+printDefaultSerialDataFormat:
+                jsr readDefaultSerialDataFormat
+                bra printDecimalByteThenNewLine
+                .endif
+                
+;-------------------------------------------------------------------------
+
+                .if version<400
+printDefaultFDRIVE:
+                jsr readDefaults1
+                and #CMOSBytes.defaults1.fdriveMask
+                bra printDecimalByteThenNewLine
+                .endif
+                
+;-------------------------------------------------------------------------
+
+                .if version<400
+printDefaultFloppyDrive:
+                jsr readDefaults1
+                asl a                        ;C=1=floppy, C=0=hard
+                bcs +                    ;taken if floppy
+                jsr alwaysPrintFollowingMessage
+                .text "Hard",13,0
+                rts
+
++
+                jsr alwaysPrintFollowingMessage
+                .text "Floppy",13,0
+                rts
+                .endif
+
+;-------------------------------------------------------------------------
+
+                .if version<400
+printDefaultADFSLoadDir:
+                jsr readDefaults1            
+                asl a                        ;C=defaultFloppyDrive
+                asl a                        ;C=defaultADFSLoadDir
+                bcc +                    ;taken if NODIR - print "Directory"
+                jsr printNo_             ;print "No Directory"
++
+                jsr alwaysPrintFollowingMessage
+                .text "Directory",13,0
+                rts
+                .endif
+                
+;-------------------------------------------------------------------------
+;
+;
+; 
+printDecimalByteY:
+                tya
+printDecimalByte:
+                sec                          ;in leading 0s state
+                ldy #$FF                     ;digit = -1
+                php                          ;save leading 0s state
+hundredsLoop:
+                iny
+                sbc #100
+                bcs hundredsLoop
+                adc #100                     ;undo the step too far
+                plp                        ;restore leading 0s state
+                jsr printDecimalDigit
+                ldy #$FF
+                php
+                sec
+tensLoop:
+                iny
+                sbc #10
+                bcs tensLoop
+                adc #10                      ;undo the step too far
+                plp                          ;restore leading 0s state
+                jsr printDecimalDigit
+                clc                      ;definitely not leading 0 now
+                tay
+printDecimalDigit:
+                pha
+                tya                          ;A=digit index
+                bne +             ;taken if definitely not a leading 0
+                bcs ++            ;skip the print if a leading 0
++
+                jsr printHexDigit
+                clc                          ;clear leading 0 flag
++
+                pla
+                rts
+
+;-------------------------------------------------------------------------
+;
+; Print *CONFIGURE help
+;
+printCONFIGUREHelp:
+                jsr ensureCommandLineTailEmpty
+                phy
+                jsr alwaysPrintFollowingMessage
+                .text "Configuration options:",13
+                .if version<400
+                .text "Baud     <D>",13
+                .endif
+                .text "Boot",13
+                .text "Caps",13
+                .if version<400
+                .text "Data     <D>",13
+                .endif
+                .text "Delay    <D>",13
+                .if version<400
+                .text "Dir",13
+                .endif
+                .text "ExTube",13
+                .if version<400
+                .text "FDrive   <D>",13
+                .endif
+                .text "File     <D>",13
+                .if version<400
+                .text "Floppy",13
+                .endif
+                .if version<400
+                .text "Hard",13
+                .endif
+                .text "Ignore   [<D>]",13
+                .text "InTube",13
+                .text "Lang     <D>",13
+                .text "Loud",13
+                .text "Mode     <D>",13
+                .text "NoBoot",13
+                .text "NoCaps",13
+                .if version<400
+                .text "NoDir",13
+                .endif
+                .text "NoScroll",13
+                .text "NoTube",13
+                .text "Print    <D>",13
+                .text "Quiet",13
+                .text "Repeat   <D>",13
+                .text "Scroll",13
+                .text "ShCaps",13
+                .text "Tube",13
+                .text "TV       [<D>[,<D>]]",13
+                .byte 0
+                ply
+                ldx #romServiceCallUnknownCONFIG
+                jsr makeROMServiceCall
+                jsr alwaysPrintFollowingMessage
+                .text "Where:",13
+                .text "D is a decimal number, or",13
+                .text "a hexadecimal number preceded by &",13
+                .text "Items within [ ] are optional",13
+                .byte $00
+                rts
+
+;-------------------------------------------------------------------------
+;
+; 
+printSTATUSHelp:
+                jsr ensureCommandLineTailEmpty                    
+                phy
+
+                jsr alwaysPrintFollowingMessage
+                .text "Configuration status:",13
+                .if version<400
+                .text "Baud     ",0
+                jsr printDefaultSerialBaudRateIndex
+                .else
+                .byte 0
+                .endif
+                
+                jsr printDefaultAutoBoot
+                
+                jsr printDefaultCaps
+
+                .if version<400
+                jsr alwaysPrintFollowingMessage                    
+                .text "Data     ",0
+                jsr printDefaultSerialDataFormat
+                .endif
+                
+                jsr alwaysPrintFollowingMessage                    
+                .text "Delay    ",0
+                jsr printDefaultKeyboardAutoRepeatDelay
+
+                .if version<400
+                jsr printDefaultADFSLoadDir
+                .endif
+
+                .if includeTubeSupport
+                jsr printDefaultExtTube
+                .endif
+
+                .if version<400
+                jsr alwaysPrintFollowingMessage                    
+                .text "FDrive   ",0
+                jsr printDefaultFDRIVE
+                .endif
+                
+                jsr alwaysPrintFollowingMessage                    
+                .text "File     ",0
+                jsr printDefaultFSROM
+
+                .if version<400
+                jsr printDefaultFloppyDrive
+                .endif
+                
+                jsr printDefaultPrinterIgnoreChar2
+                
+                jsr alwaysPrintFollowingMessage
+                .text "Lang     ",0
+                jsr printDefaultLanguageROM
+                
+                jsr alwaysPrintFollowingMessage                    
+                .text "Mode     ",0
+                jsr printDefaultMODE
+
+                .if includeTubeSupport
+                jsr printDefaultTubeOn
+                .endif
+                
+                jsr printDefaultLoud
+                
+                jsr alwaysPrintFollowingMessage                    
+                .text "Print    "
+                .byte 0
+                jsr printDefaultFX5Settings
+                
+                jsr alwaysPrintFollowingMessage                    
+                .text "Repeat   ",0
+                jsr printDefaultKeyboardRepeatRate
+                
+                jsr printDefaultProtectedScrolling
+                
+                jsr alwaysPrintFollowingMessage                    
+                .text "TV       ",0
+                jsr printDefaultTVSettings
+                
+                ply                          
+                ldx #romServiceCallUnknownSTATUS
+                jmp makeROMServiceCall   
+

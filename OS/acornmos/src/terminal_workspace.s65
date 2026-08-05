@@ -1,0 +1,17 @@
+;-------------------------------------------------------------------------
+
+; Not really MOS stuff. This is the Terminal ROM zero page workspace.
+
+oldINSV=$70
+oldREMV=$72
+                .cerror oldREMV!=oldINSV+2,"oldREMV and oldINSV must be adjacent"
+                
+;-------------------------------------------------------------------------
+
+zterm: .struct
+numRowsMinusOne=$39
+numColumns=$38
+numColumnsMinusOne=$37
+; TODO old INSV and oldREMV should probably go in here too!
+                .endstruct
+                

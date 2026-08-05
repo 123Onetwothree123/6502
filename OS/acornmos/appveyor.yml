@@ -1,0 +1,42 @@
+version: '{build}'
+
+branches:
+  only:
+    - master
+
+image:
+  - Ubuntu2004
+
+install:
+  - ps: git submodule init
+  - ps: git submodule update
+  - ps: nproc
+  - ps: pwd
+  - pushd ~
+  - svn checkout -r 3120 https://svn.code.sf.net/p/tass64/code/trunk tass64-code
+  - cd ~/tass64-code && make -j$(nproc)
+  - popd
+  - ps: $env:RELEASE_NAME = $(git log -1 --format=%cd-%h --date=format:%Y%m%d-%H%M%S $env:APPVEYOR_REPO_COMMIT)
+
+build_script:
+  - ps: $env:CI_LST_ARCHIVE="acorn-mos-disassembly-lst."+$env:RELEASE_NAME+".zip"
+  - ps: $env:CI_NT_ARCHIVE="acorn-mos-320nt-350nt."+$env:RELEASE_NAME+".zip"
+  - env
+  - ps: make ci "TASSCMD=$HOME/tass64-code/64tass"
+    
+artifacts:
+  - path: $(CI_LST_ARCHIVE)
+    name: lst_archive
+  - path: $(CI_NT_ARCHIVE)
+    name: nt_archive
+
+deploy:
+  - release: $(RELEASE_NAME)
+    description: See https://github.com/tom-seddon/acorn_mos_disassembly
+      
+    provider: GitHub
+    auth_token:
+      secure: fbUFdJ9CBwsYJ43oEC7AZO8FDuTtwlFOo2S953oBUhew7Qwo/+AZVCIjhSsV0S3M
+    artifact: lst_archive,nt_archive
+    draft: false
+    prerelease: false

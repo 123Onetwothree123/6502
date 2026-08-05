@@ -1,0 +1,169 @@
+;-------------------------------------------------------------------------
+;
+; BBC Micro include file for 64tass
+;
+; Copyright (C) 2018-9 Tom Seddon
+; 
+; This program is free software: you can redistribute it and/or
+; modify it under the terms of the GNU General Public License as
+; published by the Free Software Foundation, either version 3 of the
+; License, or (at your option) any later version.
+; 
+; This program is distributed in the hope that it will be useful, but
+; WITHOUT ANY WARRANTY; without even the implied warranty of
+; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+; General Public License for more details.
+; 
+; You should have received a copy of the GNU General Public License
+; along with this program. If not, see
+; <https://www.gnu.org/licenses/>.
+;
+;-------------------------------------------------------------------------
+
+                .include "common.s65"
+                
+;-------------------------------------------------------------------------
+
+; Hardware stuff
+
+;-------------------------------------------------------------------------
+
+; ROMSEL
+                .weak
+                .virtual $fe30
+romsel: .fill 0
+                .endv
+                .endweak
+
+;-------------------------------------------------------------------------
+
+; ACCCON
+                .weak
+                .virtual $fe34
+acccon: .block
+;D=1 = display shadow RAM; D=0 = display main RAM
+d=$01
+
+;E=1 = VDU code ($c000-$dfff in MOS ROM) accesses shadow RAM; E=0 =
+;VDU code accesses main RAM
+e=$02
+
+;X=1 = shadow RAM at $3000; X=0 = main RAM at $3000
+x=$04
+
+;Y=1 = HAZEL at $c000; Y=0 = MOS ROM at $c000
+y=$08
+
+;ITU=1 = access internal Tube; ITU=0 = access external Tube
+itu=$10
+
+;IFJ=1 = $fc00...$fdff accesses cartridge; IFJ=0 = $fc00...$fdff
+;accesses 1MHz bus
+ifj=$20
+
+; TST=1 = read MOS ROM at $fc00...$feff; TST=0 = read I/O at
+; $fc00...$feff
+tst=$40
+
+;IRR=1 = IRQ to CPU
+irr=$80
+                .bend
+                .endv
+                .endweak
+
+;-------------------------------------------------------------------------
+
+                .weak
+                .virtual $fe20
+video_ula_control: .block
+; Flashing colour select
+flash=$01
+
+; If set, teletext mode
+teletext=$02
+
+; Shift rate
+shift_rate_mask=$0c
+shift_rate_16MHz=$0c
+shift_rate_8MHz=$08
+shift_rate_4MHz=$04
+shift_rate_2MHz=$00
+
+; 2MHz CRTC flag    
+crtc_2MHz=$10
+
+; Cursor bits
+cursor_mask=$e0
+                .bend
+                .endv
+                .endweak
+
+                .weak
+video_ula_palette=$fe21
+                .endweak
+                
+;-------------------------------------------------------------------------
+
+VIAIRQ: .block
+ca2=$01
+ca1=$02
+shift=$04
+cb2=$08
+cb1=$10
+t2=$20
+t1=$40
+                .bend
+                
+VIA: .struct                    ;
+orb:
+irb:
+                .fill 1         ;0
+ora:
+ira:
+                .fill 1         ;1
+ddrb:
+                .fill 1         ;2
+ddra:
+                .fill 1         ;3
+t1c_l:
+                .fill 1         ;4
+t1c_h:
+                .fill 1         ;5
+t1l_l:
+                .fill 1         ;6
+t1l_h:
+                .fill 1         ;7
+t2c_l:
+                .fill 1         ;8
+t2c_h:
+                .fill 1         ;9
+sr:
+                .fill 1         ;10
+acr:
+                .fill 1         ;11
+pcr:
+                .fill 1         ;12
+ifr:
+                .fill 1         ;13
+ier:
+                .fill 1         ;14
+ora_no_handshake:
+ira_no_handshake:
+                .fill 1         ;15
+                .ends
+
+                .virtual $fe40
+system_via: .dstruct VIA
+                .endv
+
+                .virtual $fe60
+user_via: .dstruct VIA
+                .endv
+                
+;-------------------------------------------------------------------------
+
+                .virtual $fee0
+tube: .dstruct Tube                
+                .endv
+
+;-------------------------------------------------------------------------

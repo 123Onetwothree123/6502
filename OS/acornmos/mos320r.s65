@@ -1,0 +1,30 @@
+                .include "src/hardware.s65"
+                .include "src/mos_workspace.s65"
+                .include "src/refresh.s65"
+
+; Refreshed MOS 3.20 (Master 128)
+                
+version=320
+includeTerminalROM=false
+versionString=refreshVersionString("3.20")
+includeStarX=false
+assumedRTCCenturyBCD=$20   
+useTableDrivenConfigure=true
+soundStuffInExtROM=true
+fasterOSWRCH=true
+tubeHostBrkAndIdleInMainRAM=true
+                
+*=$8000
+                .dsection utils
+                .cwarn *>$c000,'Terminal ROM is too large'
+                
+*=$c000
+                .dsection mos
+
+                .section utils
+                .include "src/utils.s65"
+                .endsection
+
+                .section mos
+                .include "src/mos.s65"
+                .endsection

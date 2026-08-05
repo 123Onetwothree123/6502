@@ -1,0 +1,24 @@
+                .include "src/hardware.s65"
+                .include "src/mos_workspace.s65"
+                .include "src/refresh.s65"
+
+; Refreshed MOS 5.10 (Master Compact/Olivetti PC128S)
+                
+version=510
+includeTerminalROM=false
+versionString=refreshVersionString("5.10")
+                
+*=$8000
+                .dsection utils
+                .cwarn *>$c000,'Terminal ROM is too large'
+                
+*=$c000
+                .dsection mos
+
+                .section utils
+                .include "src/utils.s65"
+                .endsection
+
+                .section mos
+                .include "src/mos.s65"
+                .endsection

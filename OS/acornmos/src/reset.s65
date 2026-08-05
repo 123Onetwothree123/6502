@@ -1,0 +1,908 @@
+                .if version==350
+                jsr selectUtilsROM
+                .endif
+                .if version!=350
+                lda #~ACCCON.D
+                trb ACCCON
+                .endif
+                .if version<500
+                stz hazel.hasACCCONChanged
+                .endif
+                .if version!=350
+                trb vduv.cursorFlags
+                .endif
+                cld
+                ldx #$FF
+                txs              ;reset stack
+                stx userVIA.ddra ;port A all outputs
+                lda #%11001111
+                sta systemVIA.ddrb
+                .if version==350
+                jsr enableKeyboardScanning
+                jsr clearAllSoundChannelBuffers
+                .endif
+                .if version<500
+                ldy #RTC.a.dv32768Hz
+                ldx #RTC.a
+                jsr writeRTCByte
+                jsr finishRTCUpdate
+                .endif
+                .if version!=350
+                lda #ACCCON.Y|ACCCON.X       ; page in HAZEL+shadow
+                tsb ACCCON
+                .if version>=500
+                stz hazel.hasACCCONChanged
+                jsr L8363
+                .elsif version>=400
+                jsr clearAllSoundChannelBuffers
+                .endif
+                .else
+                .if !refreshVersion
+                lda defaultVectorTable+0 ;what is this.
+                lda defaultVectorTable+0 ;what is this.
+                .endif
+                .endif
+                .if version==350
+                jsr ldaSystemVIAIER
+                .else
+                lda systemVIA.ier
+                .endif
+                asl a
+                pha             ; save initial IER<<1. 0 if power on
+                .if version==350
+                bne nonPowerOnReset
+                jsr resetCRTC
+                .if refreshVersion
+                jsr selectUtilsROM
+                ldx #CMOSBytes.defaults5+cmosBytesOffset
+                jsr clearTSTAndReadRTCByte
+                and #CMOSBytes.defaults5.noWipeSWR
+                bne startClearRAM ; taken if *CONFIGURE NOSRWIPE
+                .endif
+                ldx #7
+clearSidewaysRAMLoop:
+                jsr selectROMX
+                ldy #$80        ; ''
+                sty 1
+                stz 0
+                tay
+
+clearSidewaysRAMBankLoop:
+                sta (0),y
+                iny
+                bne clearSidewaysRAMBankLoop
+                inc 1
+                bit 1
+                bvc clearSidewaysRAMBankLoop
+                dex
+                cpx #4
+                bcs clearSidewaysRAMLoop
+
+                .if refreshVersion
+                ; the same delay should cover all banks
+                jsr delayAfterPossibleEEPROMWrite
+                .endif
+                
+                jsr selectUtilsROM
+                
+                .if refreshVersion   
+
+startClearRAM:                       
+                ldy #$00             
+                                     
+                .else                
+
+                tya
+startClearRAM:
+                tay
+
+                .endif
+LFC53:
+                ldx TEMPA
+                tya
+                stz 1
+                stz 0
+
+LFC5A:
+                sta (0),y
+                iny
+                bne LFC5A
+                inc 1
+                ldy #$40        ; '@'
+                sty $d00
+                ldy 1
+                cpy #$E0        ; ''
+                tay
+                bcc LFC5A
+                stx TEMPA
+                lda #ACCCON.X
+                jsr trbACCCON
+                bne LFC53
+                jsr selectUtilsROM
+                .else
+                .if version<400
+                beq startClearRAM       ; branch taken if power on
+                lda breakAndESCAPEEffect                    ; read BREAK action flags
+                                             ; (set by *FX200)
+                lsr a                        ; divide by 2 to get the
+                                             ; break action
+                dec a                        ; Z=1 if it was 1
+                bne nonPowerOnReset          ; branch taken if break
+                                             ; action says don't clear
+                                             ; RAM
+                .else
+                bne nonPowerOnReset
+                ldx #7
+                jsr LF8B4
+                .if version==400
+                lda #0
+                .else
+                tya
+                .endif
+                .endif
+startClearRAM:
+                tay             ;Y=0
+clearRAM:
+                tya             ;A=0
+                stz $01
+                stz $00         ;start at $0000
+clearRAMPageLoop:
+                sta ($00),y     ;clear RAM
+                iny
+                bne clearRAMPageLoop
+                inc $01
+                ldx #$40          ;$40=RTI
+                stx nmiEntryPoint ;restore the RTI previously written,
+                                  ;as each iteration will potentially
+                                  ;overwrite it
+                ldx $01
+                cpx #$E0        ;hit the end of RAM?
+                bcc clearRAMPageLoop ;branch taken if still more to go
+                lda #ACCCON.X   ;page out shadow RAM
+                trb ACCCON
+                bne clearRAM    ;branch taken if shadow RAM bit
+                             ;previously set - i.e., that was the
+                             ;first iteration, and we need to go back
+                             ;to do main RAM
+                .if version>=400
+                lda $fe28
+                lda $fe2b
+                .endif
+                .endif
+nonPowerOnReset:
+                .if version>=350
+                lda breakAndESCAPEEffect
+                lsr a
+                dec a
+                beq startClearRAM
+                .endif
+                lda #<emptyCommandLine
+                sta hazel.commandLinePointer+0
+                lda #>emptyCommandLine
+                sta hazel.commandLinePointer+1
+                lda #ACCCON.Y|ACCCON.X ; page in MOS ROM, page in main
+                                       ; RAM
+                .if version==350
+                jsr trbACCCON
+                .else
+                trb ACCCON
+                .endif
+                lda #$0F
+                sta numericKeypadShiftEffect
+                .if version<500&&version!=350
+-
+                dec a                        
+                sta systemVIA.orb
+                cmp #$09                     
+                bcs -
+                .endif
+                ldx #key_ctrl
+                .if version==350
+                jsr clearTSTAndInterrogateKeyboard
+                .else
+                jsr interrogateKeyboard
+                .endif
+                .if refreshVersion
+                bmi gotHardResetKeyState ; taken if CTRL+BREAK
+
+                ; If not CTRL+BREAK, check for - (numpad)+BREAK. That
+                ; counts as a hard BREAK too.
+                ldx #key_numpad_minus
+                .if version==350
+                jsr clearTSTAndInterrogateKeyboard
+                .else
+                jsr interrogateKeyboard
+                .endif
+gotHardResetKeyState:
+                .endif
+                cpx #$80        ; C=1 if hard reset
+                jsr updateKeyboardLEDs
+                stz lastBREAKType            ;assume softBREAK
+                ror a                        ;restore C=1 if hard reset
+                ldx #<intervalTimer ; retain TIME, but reset everything else
+                ldy #<currentLanguageROM+1 ; reset all the MOS variables
+                pla             ; restore initial IER<<1
+                beq isPowerOnBREAK
+isHardBREAK:
+                ldy #<editKeysMode+1 ; assume reset the soft BREAK set
+                bcc L80DF            ; taken if soft reset
+                ldy #<printerIgnoreChar+1 ; hard reset - reset the
+                                          ; hard BREAK set
+                inc lastBREAKType
+isPowerOnBREAK:
+                inc lastBREAKType
+                phy
+                .if version==350&&CFA3000
+                lda lastBREAKType
+                dec a
+                bne LFCBF
+                jsr LFB2F
+LFCBF:
+                .endif
+
+                .if useTableDrivenConfigure
+                .if version>=500
+                jsr L9E58
+                .endif
+                ldx #configureTable.mode.metadata-configureTable
+                .if version==350
+                jsr clearTSTAndReadConfigurationByte
+                .else
+                jsr readConfigurationByte
+                .endif
+                .else
+                jsr readDefaultMODE          ; Read configured MODE
+                .endif
+                
+                ora #CMOSBytes.defaults0.shadowMask
+                sta startupOptions
+                .if version==350
+                jsr clearTSTAndReadDefaults3
+                .else
+                jsr readDefaults3 ; Read configured BOOT
+                .endif
+                and #CMOSBytes.defaults3.autoBootMask
+                lsr a         ; Reset OSBYTE 255 boot bit (b3) if BOOT
+                trb startupOptions
+                .if version==350
+                jsr clearTSTAndReadDefaultTVSettings
+                .else
+                jsr readDefaultTVSettings
+                .endif
+                sty tvOffset
+                stx tvInterlace
+                .if version==350
+                jsr clearTSTAndReadDefaults3
+                .else
+                jsr readDefaults3
+                .endif
+                and #CMOSBytes.defaults3.protectedScrollingMask
+                beq L80D4
+                lda #VDUVariables.cursorFlags.scrollProtect
+L80D4:
+                sta vduv.cursorFlags
+                jsr restoreFont32To255
+                ply             ; restore Y=what is this
+                ldx #<timer0    ; reset everything, TIME included
+                bra initializePage2Loop
+
+L80DF:
+                .if version>=500
+                jsr L9E58
+                .endif
+                lda #$87             ; Clear MODE bits from OSBYTE 255
+                trb startupOptions
+                lda vduv.currentScreenMODE ; Get current screen MODE b0-b2
+                and #$07
+                tsb startupOptions           ; Copy to OSBYTE 255
+                lda #STATE.isShadowMode ; Test shadow screen bit in VDU flags
+                bit STATE                      ; Not shadow screen
+                beq initializePage2Loop
+                lda #$80                     ; Set shadow screen bit in OSBYTE 255
+                tsb startupOptions
+
+initializePage2Loop:
+                lda lastBREAKType
+                bne clearPage2Byte           ;taken unless soft BREAK
+
+                ; leave the ROM information table alone on a soft
+                ; BREAK.
+                cpx #<romInformationTable+16
+                bcs clearPage2Byte
+                cpx #<romInformationTable
+                bcs nextPage2Byte
+clearPage2Byte:
+                stz $0200,x
+                cpx #$CD        ; how to derive this value??
+                bcc nextPage2Byte
+                dec $0200,x                  ;initialize later values to $ff
+nextPage2Byte:
+                inx
+                bne initializePage2Loop
+
+                .if version==350
+                lda TEMPA
+                .endif
+
+                ; Is this a bug? This will clear $CF, part of FS
+                ; persistent workspace. Surely it should clear all of
+                ; it or none of it!
+                ldx #$CF
+initializeZeroPageLoop:
+                stz $00,x                    
+                inx
+                bne initializeZeroPageLoop
+                .if version==350
+                sta TEMPA
+                jsr selectUtilsROM
+                .endif
+
+                lda lastBREAKType
+                bne L813D                    ;taken if not soft BREAK
+
+                .if version!=400
+                lda noignoreState
+                pha
+                .endif
+                lda basicROMNumber
+                pha
+                lda oshwm
+                pha
+                lda spoolFileHandle
+                pha
+                ldx execFileHandle
+                
+L8130:
+                lda defaultVectorTable-1,y
+                sta vectors-1,y       
+                dey                   
+                cpy #EVENTV+1-vectors 
+                bcs L8130             
+
+                ldy #FILEV-vectors
+                
+L813D:
+                lda defaultVectorTable-1,y
+                sta vectors-1,y
+                dey
+                bne L813D
+
+                lda lastBREAKType
+                bne L8164       ; taken if power on or hard BREAK
+                stx execFileHandle
+                pla                          ;restore *SPOOL file handle
+                cmp #$04                     ;is it a TAPE or ROM handle?
+                bcs L8155                    ;taken if no - keep it
+
+                .if version==350
+                tya
+                .else
+                lda #$00          ;auto-close it if TAPE or ROM handle
+                .endif
+L8155:
+                sta spoolFileHandle
+                pla
+                sta oshwm
+                pla
+                sta basicROMNumber
+                .if version!=400
+                pla
+                sta noignoreState
+                .endif
+
+L8164:
+                .if useTableDrivenConfigure
+                ldx #cmosBytesOffset+CMOSBytes.defaults1
+                .if version==350
+                jsr clearTSTAndReadRTCByte
+                .else
+                jsr readRTCByte
+                .endif
+                .else
+                jsr readDefaults1
+                .endif
+                ldx #keyboardStatusByte.shiftLockDisengaged
+                asl a
+                asl a                        ;N=defaultCapsLockMask
+                bmi gotKeyboardStatusByte                    ;taken if defaultCapsLock
+                ldx #keyboardStatusByte.shiftLockDisengaged|keyboardStatusByte.capsLockDisengaged
+                asl a                        ;N=defaultNoLockMask
+                bmi gotKeyboardStatusByte
+                ldx #keyboardStatusByte.shiftEnabled|keyboardStatusByte.shiftLockDisengaged
+gotKeyboardStatusByte:
+                stx keyboardStatusByte
+                .if version==350
+                jsr clearTSTAndResetKeyRepeat
+                .else
+                jsr selectUtilsROM
+                jsr resetKeyRepeat
+                .endif
+                lda lastBREAKType
+                beq L8196
+                .if useTableDrivenConfigure
+                ldx #cmosBytesOffset+CMOSBytes.printerIgnoreChar
+                .if version==350
+                jsr clearTSTAndReadRTCByte
+                .else
+                jsr readRTCByte
+                .endif
+                .else
+                jsr readDefaultPrinterIgnoreChar
+                .endif
+                sta printerIgnoreChar
+                .if version==350
+                jsr clearTSTAndReadUsePrinterIgnoreChar
+                .elsif version<500
+                jsr readDefaults2
+                lsr a                        ;C=tubeOn
+                lsr a                        ;C=usePrinterIgnoreChar
+                .elsif version>=500
+                jsr readUsePrinterIgnoreChar
+                .endif
+                ror noignoreState
+
+                .if useTableDrivenConfigure
+                ldx #configureTable.print.metadata-configureTable
+                .if version==350
+                jsr clearTSTAndReadConfigurationByte
+                .else
+                jsr readConfigurationByte
+                .endif
+                .else
+                jsr readDefaultFX5Settings
+                .endif
+                
+                sta printerDriverType
+L8196:
+                .if version==400
+                ldx #1
+                .else
+
+                .if useTableDrivenConfigure
+                ldx #configureTable.data.metadata-configureTable
+                .if version==350
+                jsr clearTSTAndReadConfigurationByte
+                .else
+                jsr readConfigurationByte
+                .endif
+                .else
+                jsr readDefaultSerialDataFormat
+                .endif
+                
+                asl a                        ;
+                asl a       ;shift into the control registerword field
+                ora #ACIA.control.rtsHighTXInterruptDisabled|ACIA.control.counterDivide64
+                sta aciaControlRegister
+
+                .if version<500
+                jsr resetACIAThenRewriteControlRegister
+                ldx #$01
+                .elsif version>=500
+                ldx #CMOSBytes.joystick     ; The *CONFIGURE PROPORTIONAL/SWITCHED (b5) and STICK rate (b3-b0)
+                jsr readRTCByte             ; settings are copied into adcConversionType (as are b7 and b6 which 
+                sta adcConversionType       ; control ADVAL ROM service call and simulated keypresses)
+                .if olivetti
+                ldx #CMOSBytes.country
+                jsr readRTCByte
+                sta countryFlag
+                .endif
+                ldx #$ff
+L81B2:
+                jsr resetACIA
+                lda $fe08
+                bne L81C8
+                lda #$20
+                sta $fe08
+                lda $fe08
+                and #$f7
+                cmp #$82
+                beq L81CF
+L81C8:
+                cmp #8
+                beq L81CF
+                stz rs423InterruptMask
+L81CF:
+                dex
+                bne L81B2
+                jsr resetACIAThenRewriteControlRegister
+                inx
+                .endif
+                .endif
+
+                lda #$7F
+initializeVIAInterruptsLoop:
+                sta systemVIA.ifr,x          
+                sta userVIA.ifr,x            
+                dex                          
+                bpl initializeVIAInterruptsLoop
+
+                .if version!=350
+                ; Let through 1 IRQ.
+                cli                          
+                sei
+
+                ; TEMPA was cleared above, so if bit 6 is set, there
+                ; must have been an IRQ (as A=$7f). 
+                bit TEMPA
+                bvc +
+                jsr call1MHzBusHook
++
+                .endif
+
+                .if version!=400
+                ldx #$80|VIA.irq.t1|VIA.irq.cb1|VIA.irq.ca1
+                .else
+                ldx #$80|VIA.irq.t1|VIA.irq.ca1
+                .endif
+                stx systemVIA.ier
+                
+                .if version>=500
+                ldx #$80|VIA.irq.cb1|VIA.irq.cb2
+                stx userVIA.ier
+                .endif
+
+                ldx #VIA.pcr.cb2InputNegativeActiveEdge|VIA.pcr.cb1NegativeActiveEdge|VIA.pcr.ca2InputPositiveEdge|VIA.pcr.ca1NegativeActiveEdge
+                stx systemVIA.pcr
+                lda #VIA.acr.t1Continuous|VIA.acr.t2Timer|VIA.acr.srDisabled|VIA.acr.pbLatchDisabled|VIA.acr.paLatchDisabled
+                sta systemVIA.acr
+                lda #$0E
+                sta systemVIA.t1lL
+                sta userVIA.pcr              ;VIA.pcr.cb2InputNegativeActiveEdge|VIA.pcr.cb1NegativeActiveEdge|VIA.pcr.ca2HighOutput|VIA.pcr.ca1NegativeActiveEdge
+                .if version==350
+                sta HADC.status
+                .elsif version<400
+                sta HADC.latch               ;looks benign
+                .endif
+                lda #$27
+                sta systemVIA.t1lH
+                sta systemVIA.t1cH
+
+                .if version==350||version>=400
+                jsr clearAllSoundChannelBuffers
+                .else
+                ldx #$08
+L81DD:
+                dex
+                jsr clearSoundChannelBuffer
+                cpx #$04
+                bne L81DD
+                .endif
+
+                .if version==350
+                jsr clearTSTAndOSBYTE7A
+                .else
+                jsr osbyte7A             
+                .endif
+                stx firstKeyPressedInternal
+                ldx #$00
+                .if version>=500
+                stx userVIA.ddrb
+                .endif
+                jsr purgeBuffer
+                
+                .if version!=400
+                lda serialULARegister
+                and #$7F
+                jsr LEC89
+                
+                .if useTableDrivenConfigure
+                ldx #configureTable.baud.metadata-configureTable
+                .if version==350
+                jsr clearTSTAndReadConfigurationByte
+                .else
+                jsr readConfigurationByte
+                .endif
+                .else
+                jsr readDefaultSerialBaudRateIndex
+                .endif
+                
+                pha
+                tax
+                jsr osbyte08
+                plx
+                lda #$07
+                jsr osbyte07
+                .endif
+
+                .if version==350
+                jsr clearTSTAndReadDefaults3
+                .else
+                jsr readDefaults3
+                .endif
+                bit #CMOSBytes.defaults3.loudMask
+                bne L8211
+                lda #$F0
+                sta bellSound
+L8211:
+                .if version!=350
+                jsr selectUtilsROM
+                .endif
+
+                .if refreshVersion
+                ldx #$00        ; assume no boot mode flags
+                lda firstKeyPressedInternal
+                cmp #key_numpad_multiply
+                bne checkForSafeMode
+                ; OSCLI mode
+                ldx #hazel.bootModeFlags.safeMode
+                bra bootModeKeysDone
+checkForSafeMode:
+                cmp #key_numpad_minus
+                bne bootModeKeysDone
+                
+                ; Safe mode
+                ;
+                ; It's enough to just set ignoreROMs, and "This is not
+                ; a language" will bump you into the OSCLI prompt
+                ; anyway. But no harm in being a bit tidier.
+                ldx #hazel.bootModeFlags.safeMode|hazel.bootModeFlags.ignoreROMs
+
+bootModeKeysDone:
+                ; Annoyingly, HAZEL is paged out at this point. Save
+                ; boot mode on the stack.
+                phx
+                .endif
+                ldx softKeyConsistencyFlag
+                beq checkResetType
+                jsr osbyte12          
+checkResetType:
+                lda lastBREAKType
+                beq romsScanned                    ;taken if soft BREAK
+
+                .if version==350&&!refreshVersion
+scanROMs: .block
+                .include "scan_roms.s65"
+                .endblock
+                .else
+                jmp scanROMs
+                .endif
+
+romsScanned:
+                lda startupOptions
+                jsr setStartupMODE
+                lda lastBREAKType ; $00=soft; $01=power-on; $02=hard
+                dec a             ; $ff=soft; $00=power-on; $01=hard
+                .if version>=510
+                beq powerOnReset ; taken if power-on reset
+                jmp softReset
+                .else
+                bne softReset                    ;taken if not power-on reset
+                .endif
+                
+powerOnReset:
+                .if version>=500
+                ldx #$ff
+                jsr i2cReadEEPROMByte
+                bcs checkForNVRAMReset ; taken if read failed
+                tya
+                and #$7f
+                .if version>=511||olivetti
+                cmp #$32
+                .else
+                cmp #$30
+                .endif
+                beq checkForNVRAMReset
+                ldx #0
+                ldy #0
+                jsr L9E99
+                bra resetCMOSRAM
+                .endif
+checkForNVRAMReset:
+                
+                .if version>=510
+checkForEraseKey:
+                lda firstKeyPressedInternal
+                cmp #key_delete
+                bne checkForResetKey
+                jsr alwaysPrintFollowingMessage
+                .byte 22,7
+                .byte 13,10
+                .text "Clearing options...please wait",0
+                ldx #$ff
+L82A9:
+                phx
+                ldy #0
+                jsr writeCMOSByte
+                plx
+                dex
+                cpx #cmosBytesSize
+                bcs L82A9
+                bra resetCMOSRAM
+                .endif
+
+                .if version<510
+                lda firstKeyPressedInternal
+                .endif
+checkForResetKey:
+                cmp #key_r
+                bne softReset                    ;taken if R not pressed
+
+                .if version<500
+                .if CFA3000
+                jsr LFB2F
+                .else
+                ; Reset CMOS RAM
+resetCMOSRAM:
+                ldx #size(RTC.ram)-1
+resetCMOSRAMLoop:
+                phx                          
+                ldy #$00                     
+                .if version==350
+                cpx #cmosBytesSize
+                bcs LFE91
+                ldy LFEA2-1,x
+LFE91:
+                .endif
+                jsr writeCMOSByte
+                plx
+                dex
+                .if version==350
+                bne resetCMOSRAMLoop
+                .else
+                bpl resetCMOSRAMLoop
+                .endif
+
+                .if version!=350
+                ; Initialize ROM insertion flags.                
+                ldy #$FF
+                ldx #CMOSBytes.insertedROMs+0
+                jsr writeCMOSByte
+                ldx #CMOSBytes.insertedROMs+1
+                jsr writeCMOSByte
+                .endif
+                
+                .endif
+                .else
+resetCMOSRAM:                                ;82bb in MOS 5.10
+                ldx #cmosBytesSize
+resetCMOSRAMLoop:
+                phx
+                dex
+                jsr readDefaultCMOSByte
+                jsr writeCMOSByte
+                plx
+                dex
+                bne resetCMOSRAMLoop
+                .endif
+
+                .if version==350
+                jsr LE525
+                .else
+                
+                .if version>=500
+                ; Put values in place for EEPROM size check. See code
+                ; in readCMOSByte.
+                ldx #$7f
+                jsr i2cReadEEPROMByte
+                tya
+                and #$80
+                .if version>=511||olivetti
+                eor #$b2
+                .else
+                eor #$b0
+                .endif
+                tay
+                ldx #$ff
+                jsr L9E99
+                .endif
+                
+                jsr alwaysPrintFollowingMessage
+                .if version>=500
+                .byte 22,7
+                .endif
+                .text 13,10
+                .if version<500
+                .text "CMOS RAM reset"
+                .elsif version>=500
+                .text "Options reset"
+                .endif
+                .text 13,10,"Press break to continue"
+                .text 13,10,0
+                .endif
+                
+                lda #$03
+                sta breakAndESCAPEEffect
+hang:
+                bra hang
+
+;-------------------------------------------------------------------------
+
+                .if version==350
+LFEA2:
+                .include "default_nvram_contents.s65"
+                .cwarn *-LFEA2!=cmosBytesSize-1
+
+.endif
+
+;-------------------------------------------------------------------------
+
+softReset:
+                .if version==350
+                lda #ACCCON.Y
+                jsr tsbACCCON
+                .else
+                jsr selectHAZEL
+                .endif
+                .if refreshVersion
+                pla             ; restore boot mode flags
+                sta hazel.bootModeFlags
+                .endif
+                stz hazel.moveSrcHandle
+                stz hazel.moveDestHandle
+                ldy #$CA
+                .if version==350
+                jsr clearTSTAndInsertCharacterIntoKeyboardBuffer
+                .else
+                jsr insertCharacterIntoKeyboardBuffer
+                .endif
+                .if version==350
+                jsr clearTSTAndOSBYTE247EntryPoint
+                .else
+                jsr osbyte247EntryPoint
+                .endif
+                lda lastBREAKType
+                beq L829D
+                .if version==400
+                jsr LEBBF
+                .else
+                jsr LEDD0
+                .endif
+L829D:
+                .if includeTubeSupport
+                .if version==350
+                jsr clearTSTAndReadDefaults2
+                .else
+                jsr readDefaults2
+                .endif
+                lsr a
+                bcc continueSoftReset
+
+                .if version==350
+                jsr clearTSTAndReadDefaults3
+                .else
+                jsr readDefaults3
+                .endif
+
+                .if version==350
+                lsr a
+                lsr a
+                lsr a
+                lda #ACCCON.ITU
+                jsr trbACCCON
+                bcs L82B4
+                jsr tsbACCCON
+                .else
+                bit #CMOSBytes.defaults3.extTubeMask
+                php
+                lda #ACCCON.ITU
+                trb ACCCON
+                plp
+                bne L82B4
+                tsb ACCCON
+                .endif
+L82B4:
+                .if refreshVersion
+                jsr timedIsSecondProcessorPresent
+                .else
+                jsr isSecondProcessorPresent
+                .endif
+                bcs foundTube
+
+                .if version==350
+                lda TEMPA
+                .else
+                lda ACCCON                    ; Toggle Internal/External Tube
+                .endif
+                eor #ACCCON.ITU
+                .if version==350
+                jsr staTEMPAAndACCCON
+                .else
+                sta ACCCON
+                .endif
+
+                ; Don't do a timed version for the other Tube. If the
+                ; preferred one times out, the delay for the other one
+                ; is covered.
+                jsr isSecondProcessorPresent
+                
+                .endif

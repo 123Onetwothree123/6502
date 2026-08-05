@@ -1,0 +1,36 @@
+                .include "src/hardware.s65"
+                .include "src/mos_workspace.s65"
+
+version=400
+versionString="MOS 4.00"
+                
+*=$8000
+                .dsection utils
+                .cwarn *>$c000,'utils ROM is too large'
+                
+*=$c000
+                .dsection mos
+                ; there's no need for a size check here - 64tass gives
+                ; you an error if the code would go past the 64 K
+                ; barrier.
+
+;-------------------------------------------------------------------------
+
+; MOS 4.00 seems to be able to skip the ext ROM selection step. Could
+; this be more widely applicable?
+;
+; (Not that it'd make a huge difference to the speed, but it would
+; save a few bytes.)
+selectExtROMAndPlotMoveOrCopyRectangle=plotMoveOrCopyRectangle
+selectExtROMAndPlotEllipseOutline=plotEllipseOutline
+selectExtROMAndPlotEllipseFilled=plotEllipseFilled
+                
+;-------------------------------------------------------------------------
+
+                .section utils
+                .include "src/utils.s65"
+                .endsection
+
+                .section mos
+                .include "src/mos.s65"
+                .endsection

@@ -1,0 +1,64 @@
+; There's a no-Tube version of transferBetweenSidewaysRAMAndRAM in
+; mos.s65, that's worth using if Tube not supported as it doesn't do a
+; jsr on every iteration.
+                
+transferBetweenSidewaysRAMAndRAM:
+                jsr selectROMA
+transferBetweenSidewaysRAMAndRAMLoop:
+                lda (sramTransferPointers.src),y
+                sta (sramTransferPointers.dest),y
+                jsr transferSidewaysRAMLoopUpdate
+                bne transferBetweenSidewaysRAMAndRAMLoop
+                lda 1,x
+                cmp sramWorkspace.length+1
+                bne transferBetweenSidewaysRAMAndRAMLoop
+                jmp selectUtilsROM
+                
+;-------------------------------------------------------------------------
+
+transferParasiteToSidewaysRAM:
+                jsr selectROMA
+transferParasiteToSidewaysRAMLoop:
+                lda tube.data3
+                sta (sramTransferPointers.dest),y
+                jsr LF800
+                jsr transferSidewaysRAMLoopUpdate
+                bne transferParasiteToSidewaysRAMLoop
+                lda 1,x
+                cmp sramWorkspace.length+1
+                bne transferParasiteToSidewaysRAMLoop
+                jmp selectUtilsROM
+
+;-------------------------------------------------------------------------
+
+transferSidewaysRAMOverTube:
+                bit osfileParameterBlock+1
+                bmi transferParasiteToSidewaysRAM
+                jsr selectROMA  ; select ROM of interest
+transferSidewaysRAMToParasiteLoop:
+                lda (sramTransferPointers.src),y ; load byte from sideways RAM
+                sta tube.data3  ; send byte to coprocessor
+                jsr LF800       ; 
+                jsr transferSidewaysRAMLoopUpdate
+                bne transferSidewaysRAMToParasiteLoop
+                lda 1,x
+                cmp sramWorkspace.length+1
+                bne transferSidewaysRAMToParasiteLoop
+                jmp selectUtilsROM
+
+;-------------------------------------------------------------------------
+
+transferSidewaysRAMLoopUpdate:
+                iny
+                bne LF800
+                inc sramTransferPointers.src+1
+                inc sramTransferPointers.dest+1
+                jsr selectUtilsROM
+                jsr L8D0F
+                jsr selectROMA
+LF800:
+                cpy osfileParameterBlock+2
+                ; the dummy ROM header's first byte is the RTS for
+                ; this routine...
+                .cerror *!=dummyROMHeader
+                

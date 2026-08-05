@@ -1,0 +1,1987 @@
+;-------------------------------------------------------------------------
+
+terminalServiceEntryPoint:
+                php
+                phy
+                phx
+                pha
+                cmp #romServiceCallUnrecognisedCommand
+                beq handleUnrecognisedCommand
+                cmp #romServiceCallUnrecognisedOSBYTE
+                beq handleUnrecognisedOSBYTE
+                cmp #romServiceCallLanguageChange
+                beq handleLanguageChange
+LAE29:
+                pla
+                plx
+                ply
+                plp
+                rts
+
+handleUnrecognisedCommand:
+                jsr LB832
+                cmp #$0B
+                bne LAE29
+                pla
+                plx
+                lda #$8E
+                jsr OSBYTE
+LAE3C:
+                ldx #$04
+LAE3E:
+                lda INSV-1,x
+                cmp LAE93-1,x
+                bne LAE49
+                dex
+                bne LAE3E
+LAE49:
+                rts
+
+handleUnrecognisedOSBYTE:
+                phy
+                ply
+                bne LAE29
+                lda $EF
+                cmp #$60
+                bne LAE29
+
+                ; handle OSBYTE $60
+osbyte60:
+                pla
+                phy
+                sei
+                lda $F0
+                bmi LAE6C
+                lsr a
+                bne LAE66
+                lda #$11
+                sta $76
+                ror $74
+                bra LAE29
+
+LAE66:
+
+                stz $78
+                ror $77
+
+LAE6A:
+                bra LAE29
+
+LAE6C:
+                lsr a
+                bcc handleLanguageChange
+                stz $75
+                jsr LAE3C
+                beq LAE29
+                ldx #$04
+LAE78:
+                lda INSV-1,x
+                sta oldINSV-1,x
+                lda LAE93-1,x
+                sta INSV-1,x
+                dex
+                bne LAE78
+                ldx #$06
+LAE88:
+                lda LAE97-1,x
+                sta ExtendedVectorAddress(INSV)-1,x
+                dex
+                bne LAE88
+                bra LAE6A
+
+LAE93:
+                .word E_INSV
+                .word E_REMV
+LAE97:
+                .word LAED4
+                .byte terminalROM
+                .word LAF13
+                .byte terminalROM
+
+handleLanguageChange:
+                sei
+                jsr LAE3C
+                bne LAE6A
+                ldx #$06
+LAEA5:
+                lda ExtendedVectorAddress(INSV)-1,x;extendedVectorSpace+insvIndex*3-1,x
+                cmp LAE97-1,x
+                bne LAE6A
+                dex
+                bne LAEA5
+                ldx #$04
+LAEB2:
+                lda oldINSV-1,x
+                sta INSV-1,x
+                dex
+                bne LAEB2
+                lda #$E6
+                jsr osbyteX00Y00
+                lda #$CB
+                ldx #$09
+                jsr osbyteY00
+                jsr LB11A
+                inc a
+LAECA:
+                jsr osbyteX00Y00
+                dec a
+                cmp #$01
+                bne LAECA
+                bra LAE6A
+
+LAED4:
+                php
+                sei
+                cpx #$01
+                bne LAF0B
+                bit $77
+                bpl LAEEC
+                cmp #$13
+                beq LAEE7
+                cmp #$11
+                bne LAEEC
+                clc
+LAEE7:
+                ror $78
+LAEE9:
+                plp
+                clc
+                rts
+
+LAEEC:
+                bit $74
+                bpl LAF0B
+                pha
+                sec
+                jsr LAF0F
+                tya
+                bne LAF08
+                cpx #$20
+                bcs LAF08
+                lda #$13
+                cpx #$10
+                bcc LAF06
+                cmp $76
+                beq LAF08
+LAF06:
+                sta $75
+LAF08:
+                pla
+                ldx #$01
+LAF0B:
+                plp
+                jmp ($0070)
+
+LAF0F:
+                clv
+                jmp (CNPV)
+
+LAF13:
+                php
+                sei
+                cpx #$01
+                bne LAF37
+                bit $74
+                bpl LAF33
+                clc
+                jsr LAF0F
+                cpy #$00
+                bne LAF31
+                cpx #$20
+                bcs LAF31
+                lda #$11
+                cmp $76
+                beq LAF31
+                sta $75
+LAF31:
+                ldx #$01
+LAF33:
+                plp
+                jmp ($0072)
+
+LAF37:
+                cpx #$02
+                bne LAF33
+                lda $75
+                tay
+                beq LAF48
+                bvs LAEE9
+                stz $75
+                sta $76
+                bra LAEE9
+
+LAF48:
+                lda $78
+                bpl LAF33
+                plp
+                sec
+LAF4E:
+                rts
+
+;-------------------------------------------------------------------------
+
+terminalBRKHandler:
+                lda #$DA                     
+                jsr osbyteX00Y00             ;Set VDU queue length to 0
+                jsr disableESCAPE
+                ldy #$00
+                lda (errPtr),y
+                bne LAF63
+                stz $20
+                lda #$16
+                sta $6F
+LAF63:
+                lda #13
+-
+                jsr OSASCI
+                iny
+                lda (errPtr),y
+                bne -
+                jsr OSNEWL
+                sec
+                ror $19
+                lda $1A
+                bne LAFF4
+terminalLanguageEntryPoint:
+                dec a
+                bne LAF4E
+                lda #$01
+                sta $6F
+LAF7E:
+                sei
+                ldx #$FE
+                txs
+                lda #<terminalBRKHandler
+                sta BRKV+0
+                lda #>terminalBRKHandler
+                sta BRKV+1
+                lda #<terminalINDnHandler
+                sta IND1V+0
+                lda #>terminalINDnHandler
+                sta IND1V+1
+                lda #<terminalINDnHandler
+                sta IND2V+0
+                lda #>terminalINDnHandler
+                sta IND2V+1
+
+                ; Clear zero page
+                ldx #$6E
+-
+                stz $00,x
+                dex
+                bpl -
+                
+                dec $21
+                dec $34
+                dec $36
+                cli
+                lda #$0B
+                jsr LB690
+                lda #$87
+                jsr OSBYTE                   ;Read screen mode
+                tya                          ;A = screen mode
+                jsr reinitDisplayMode
+                ldy #$FF
+-
+                iny
+                lda initOSBYTEAs,y
+                beq LAFF4
+                ldx initOSBYTEXs,y
+                phy
+                jsr osbyteY00
+                ply
+                bra -
+
+;-------------------------------------------------------------------------
+
+initOSBYTEAs:
+                .byte $CB ;OSBYTE 203 (&CB) Read/write RS423 input buffer [MasRef D.2-64]
+                .byte $60 ;OSBYTE 96 (&60) ???
+                .byte $60 ;OSBYTE 96 (&60) ???
+                .byte $60 ;OSBYTE 96 (&60) ???
+                .byte $0F ;OSBYTE 15 (&0F) Flush buffer [MasRef D.2-24]
+                .byte $0F ;OSBYTE 15 (&0F) Flush buffer [MasRef D.2-24]
+                .byte $dd ;OSBYTE 221 (&DD) Read/write interpretation of input values 192-207 [MasRef D.2-73]
+                .byte $de ;OSBYTE 222 (&DE) Read/write interpretation of input values 208-223 [MasRef D.2-73]
+                .byte $df ;OSBYTE 223 (&DF) Read/write interpretation of input values 224-239 [MasRef D.2-73]
+                .byte $e0 ;OSBYTE 224 (&E0) Read/write interpretation of input values 240-255 [MasRef D.2-73]
+                .byte $e1 ;OSBYTE 225 (&E1) Read/write soft key interpretation [MasRef D.2-74]
+                .byte $E2 ;OSBYTE 226 (&E2) Read/write SHIFT+soft key interpretation [MasRef D.2-74]
+                .byte $E3 ;OSBYTE 227 (&E3) Read/write CTRL+soft key interpretation [MasRef D.2-74]
+                .byte $e4 ;OSBYTE 228 (&E4) Read/write SHIFT+CTRL+soft key interpretation [MasRef D.2-74]
+                .byte $e5 ;OSBYTE 229 (&E5) Read/write ESCAPE key status [MasRef D.2-75]
+                .byte $04 ;OSBYTE 4 (&04) Enable/disable cursor editing [MasRef D.2-19]
+                .byte $7e ;OSBYTE 126 (&7E) Acknowledge escape condition [MasRef D.2-37]
+                .byte $e6 ;OSBYTE 230 (&E6) Read/write ESCAPE effects [MasRef D.2-75]
+                .byte $02 ;OSBYTE 2 (&02) Specify input stream [MasRef D.2-18]
+                
+initOSBYTEXs:
+                .byte $00
+                .byte $01
+                .byte $03
+                .byte $ff
+                .byte $01
+                .byte $02
+                .byte $c0
+                .byte $d0
+                .byte $e0
+                .byte $f0
+                .byte $01
+                .byte $90
+                .byte $a0
+                .byte $a0
+                .byte $01
+                .byte $00
+                .byte $00
+                .byte $01
+                .byte $02
+
+;-------------------------------------------------------------------------
+
+LAFF4:
+                ldx #$FE
+                txs
+                sec
+                ror $1A
+                stz $1D
+                jsr LB004
+                jsr LB004
+                bra LB030
+
+LB004:
+                jsr LB041
+                ldy #$01
+                sta ($1B),y
+                iny
+                txa
+                sta ($1B),y
+                iny
+                tya
+                sta ($1B),y
+                asl a
+                sta ($1B)
+                rts
+
+LB017:
+                php
+                pha
+                phx
+                phy
+                tsx
+                inx
+                txa
+                eor #$FF
+                sta ($1B)
+                tay
+LB023:
+                pla
+                sta ($1B),y
+                dey
+                bne LB023
+                lda #$20
+                sta $1E
+                jsr LB041
+LB030:
+                lda ($1B)
+                tax
+                ldy #$00
+LB035:
+                iny
+                lda ($1B),y
+                pha
+                dex
+                bne LB035
+                ply
+                plx
+                pla
+                plp
+                rts
+
+LB041:
+                ldy #$04
+                sty $1C
+                ldy #$20
+                ; Is this an adress?
+                .if version==350
+                ldx #$6e
+                .else
+                ldx #$50
+                .endif
+                lda #$B6
+                lsr $1D
+                bcs LB05B
+                inc $1D
+                ldy #$04
+                sty $1C
+                ldy #$00
+                .if version==350
+                ldx #$7b
+                .else
+                ldx #$5D
+                .endif
+                lda #$B0
+LB05B:
+                sty $1B
+                rts
+
+LB05E:
+                jsr LB063
+                bra LB05E
+
+LB063:
+                bit $20
+                bpl LB06C
+                jsr LB096
+                bcc LB083
+LB06C:
+                bra LB017
+
+LB06E:
+                cmp #$0A
+                bcc LB081
+                ldx #$00
+LB074:
+                inx
+                sbc #$0A
+                cmp #$0A
+                bcs LB074
+                pha
+                txa
+                jsr LB06E
+                pla
+LB081:
+                ora #$30
+LB083:
+                pha
+                phy
+                tay
+                lda #$8A
+                ldx #$02
+                jsr OSBYTE
+                ply
+                pla
+                bcc LB0B0
+                jsr LB017
+                bra LB083
+
+LB096:
+                ldy $6F
+                beq LB0B1
+                inc $6F
+                lda LB14C-1,y
+                bpl LB0AE
+                stz $6F
+                pha
+                lda #$D9
+                jsr osbyteX00Y00
+                pla
+                ldy #$18
+                sty $1F
+LB0AE:
+                asl a
+                lsr a
+LB0B0:
+                rts
+
+LB0B1:
+                lda #$81
+                jsr osbyteX00Y00
+                txa
+                bcs LB0B0
+                bpl LB0B0
+                cmp #$E0
+                bcs LB0B0
+                jsr LB0C4
+                sec
+LB0C3:
+                rts
+
+LB0C4:
+                cmp #$99
+                beq LB12A
+                and #$0F
+                beq LB0E9
+                cmp #$02
+                bcc LB0EE
+                beq LB0C3
+                cmp #$04
+                bcc LB116
+                beq LB11A
+                cmp #$06
+                bcc LB10A
+                beq LB0F5
+                cmp #$08
+                bcc LB0C3
+                beq LB11E
+                cmp #$09
+                beq LB12E
+                rts
+
+LB0E9:
+                lda #$0C
+LB0EB:
+                jmp OSWRCH
+
+LB0EE:
+                lda #$16
+                sta $6F
+                stz $20
+                rts
+
+LB0F5:
+                ldx #$10
+                jsr LB101
+                and #$10
+                bne LB113
+LB0FE:
+                jmp LB7B6
+
+LB101:
+                lda #$EC
+                ldy #$FF
+                jsr OSBYTE
+                txa
+                rts
+
+LB10A:
+                ldx #$40
+                jsr LB101
+                and #$40
+                beq LB0FE
+LB113:
+                jmp LB7E2
+
+LB116:
+                lda #$02
+                bra LB0EB
+
+LB11A:
+                lda #$03
+                bra LB0EB
+
+LB11E:
+                lda #$FF
+                eor $21
+                sta $21
+                sta $20
+                bne LB0FE
+                bra LB113
+
+LB12A:
+                ldx #$0C
+                bra LB130
+
+LB12E:
+                ldx #$AF
+LB130:
+                phx
+                ldx #$60
+                jsr LB82A
+                plx
+LB137:
+                phx
+                lda #$13
+                jsr OSBYTE
+                plx
+                dex
+                bne LB137
+                ldx #$00
+                jsr LB82A
+LB146:
+                jsr LB198
+                bcc LB146
+                rts
+
+LB14C:
+                .byte $1B
+                lsr $4B2A,x
+                eor $59
+                and $217C,y
+                jmp ($1B59,x)
+
+                .byte $5C
+                .byte $54
+                eor $52
+                eor $4E49
+                eor ($4C,x)
+                ora $3D0A
+                .byte $1B
+;BNE LB187        :\ B165= D0 20       P
+;BVS LB11A        :\ B167= 70 B1       p1
+                .byte $D0
+LB166:
+                jsr LB170
+                bcs LB1C4
+                cmp #$1B
+                bne LB166
+                rts
+
+LB170:
+                jsr LB17A
+                cmp #$7F
+                beq LB170
+                cmp #$20
+                rts
+
+LB17A:
+                phx
+                phy
+LB17C:
+                jsr LB189
+                bcs LB184
+                ply
+                plx
+                rts
+
+LB184:
+                jsr LB017
+LB187:
+                bra LB17C
+
+LB189:
+                bit $20
+                bmi LB190
+                jmp LB096
+
+LB190:
+                bit $25
+                bmi LB1E0
+                bit $23
+                bmi LB1A3
+LB198:
+                lda #$91
+                ldx #$01
+                jsr OSBYTE
+                tya
+                and $22
+LB1A2:
+                rts
+
+LB1A3:
+                jsr LB198
+                bcs LB1A2
+                jsr LB1D0
+                bcc LB201
+                asl a
+                asl a
+                asl a
+                asl a
+                sta $24
+LB1B3:
+                jsr LB198
+                bcc LB1BD
+                jsr LB017
+                bra LB1B3
+
+LB1BD:
+                jsr LB1D0
+                bcc LB1B3
+                ora $24
+LB1C4:
+                clc
+                rts
+
+LB1C6:
+                jsr LB166
+                bcc LB1D0
+                plx
+                plx
+                jmp LB389
+
+LB1D0:
+                cmp #$3A
+                bcs LB1D7
+                sbc #$2F
+                rts
+
+LB1D7:
+                sbc #$37
+                cmp #$10
+                bcs LB1C4
+                cmp #$0A
+LB1DF:
+                rts
+
+LB1E0:
+                stz $26
+                jsr LB198
+                bcs LB1DF
+                cmp #$7F
+                bcs LB1DF
+                cmp #$20
+                bcs LB203
+                bit $27
+                bmi LB201
+                cmp #$07
+                bcc LB201
+                beq LB240
+                cmp #$0B
+                bcc LB240
+                cmp #$0D
+                beq LB240
+LB201:
+                sec
+                rts
+
+LB203:
+                stz $27
+                cmp #$7C
+                bne LB23E
+LB209:
+                jsr LB198
+                bcc LB213
+                jsr LB017
+                bra LB209
+
+LB213:
+                cmp #$20
+                bcc LB242
+                cmp #$21
+                bne LB22F
+                lda #$80
+                sta $26
+LB21F:
+                jsr LB198
+                bcc LB229
+                jsr LB017
+                bra LB21F
+
+LB229:
+                cmp #$20
+                bcc LB21F
+                bra LB203
+
+LB22F:
+                cmp #$3F
+                bne LB236
+                lda #$7F
+                clc
+LB236:
+                bcc LB23E
+                cmp #$7C
+                beq LB23E
+                and #$9F
+LB23E:
+                ora $26
+LB240:
+                clc
+                rts
+
+LB242:
+                sec
+                ror $27
+                sec
+                rts
+
+LB247:
+                lda #$00
+                sta $F2
+                lda #$05
+                sta $F3
+                ldy #$00
+LB251:
+                jsr LB17A
+                ldx $1F
+                beq LB296
+                stz $2B
+                cmp #$1B
+                bne LB262
+                ldy #$00
+                bra LB266
+
+LB262:
+                cmp #$0D
+                bne LB273
+LB266:
+                lda #$0D
+                sta ($F2),y
+                bit $2B
+                bmi LB271
+                jsr OSASCI
+LB271:
+                clc
+                rts
+
+LB273:
+                cmp #$7F
+                bne LB27E
+                cpy #$00
+                beq LB251
+                dey
+                bra LB291
+
+LB27E:
+                cmp #$7F
+                bcs LB251
+                cmp #$20
+                bcc LB251
+                cpy #$FF
+                bcs LB251
+                sta ($F2),y
+                iny
+                bit $2B
+                bmi LB251
+LB291:
+                jsr LB728
+                bra LB251
+
+LB296:
+                cmp #$1B
+                bne LB27E
+                jsr LB166
+                cmp #$5C
+                beq LB266
+                sec
+                rts
+
+LB2A3:
+                ldx #$19
+LB2A5:
+                dex
+                stz $00,x
+                bne LB2A5
+LB2AA:
+                stz $3A
+                stz $3B
+LB2AE:
+                jsr LB166
+                bcs LB2E0
+                jsr LB8AD
+                bcc LB2E5
+                pha
+                lda $3A
+                sta $02,x
+                lda $3B
+                sta $03,x
+                pla
+                cmp #$40
+                bcs LB2F5
+                cmp #$30
+                bcc LB2D7
+                cmp #$3C
+                bcs LB2E3
+                inc $00
+                inx
+                inx
+                inx
+                cpx #$18
+                bcc LB2AA
+LB2D7:
+                cmp #$40
+                bcs LB2F5
+                jsr LB166
+                bcc LB2D7
+LB2E0:
+                jmp LB389
+
+LB2E3:
+                sta $01,x
+LB2E5:
+                lda $00
+                bne LB2AE
+                inc $00
+                bra LB2AE
+
+LB2ED:
+                lda #$01
+                sta $02
+                stz $01
+                stz $03
+LB2F5:
+                rts
+
+LB2F6:
+                lda #$03
+                bra LB2FC
+
+LB2FA:
+                lda #$00
+LB2FC:
+                phx
+                tax
+                lda $01,x
+                cmp #$01
+                lda $03,x
+                beq LB307
+                sec
+LB307:
+                lda $02,x
+                plx
+                and #$FF
+                rts
+
+LB30D:
+                pla
+                sta $28
+                pla
+                sta $29
+                lda $01
+                bne LB338
+                lda $02
+                ora $03
+                bne LB31F
+                inc $02
+LB31F:
+                lda $02
+                bne LB325
+                dec $03
+LB325:
+                dec $02
+                bne LB32D
+                lda $03
+                beq LB332
+LB32D:
+                jsr LB332
+                bra LB31F
+
+LB332:
+                lda $29
+                pha
+                lda $28
+                pha
+LB338:
+                rts
+
+LB339:
+                dec $1E
+                bne LB340
+                jsr LB017
+LB340:
+                lda $6F
+                bne LB348
+                lda $21
+                sta $20
+LB348:
+                rts
+
+LB349:
+                jsr LB34E
+                bra LB349
+
+LB34E:
+                jsr LB339
+                jsr LB170
+LB354:
+                cmp #$20
+                bcc LB361
+                jmp LB728
+
+LB35B:
+                jmp LB46C
+
+LB35E:
+                jmp LB493
+
+LB361:
+                pha
+                jsr LB2ED
+                pla
+                cmp #$07
+                bcc LB3BB
+                beq LB3E9
+                cmp #$09
+                bcc LB35B
+                beq LB35E
+                cmp #$0B
+                bcc LB3EE
+                cmp #$0D
+                beq LB3E9
+                cmp #$1B
+                bne LB3BB
+LB37E:
+                ldx $6F
+                bne LB386
+                bit $2D
+                bmi LB3BB
+LB386:
+                jsr LB166
+LB389:
+                cmp #$1B
+                beq LB37E
+                cmp #$25
+                beq LB401
+                cmp #$28
+                beq LB404
+                cmp #$44
+                beq LB3EE
+                cmp #$45
+                beq LB3EB
+                cmp #$4D
+                beq LB3E7
+                cmp #$50
+                beq LB3C5
+                cmp #$5B
+                beq LB407
+                cmp #$5D
+                stz $2B
+                beq LB3F6
+                cmp #$5E
+                beq LB3F3
+                cmp #$5F
+                beq LB3BC
+                cmp #$63
+                beq LB3FE
+LB3BB:
+                rts
+
+LB3BC:
+                jsr LB247
+                bcs LB389
+LB3C1:
+                sec
+                jmp (IND2V)
+
+LB3C5:
+                sec
+                ror $2B
+                jsr LB247
+                bcs LB389
+                ldx $1F
+                stz $1F
+                beq LB3E4
+                ldy #$00
+                jsr LB89E
+                beq LB3BB
+                stx $6F
+                cmp #$2A
+                beq LB3FB
+                cmp #$21
+                beq LB3C1
+LB3E4:
+                jmp LB4F2
+
+LB3E7:
+                lda #$0B
+LB3E9:
+                bra LB3F0
+
+LB3EB:
+                jmp OSNEWL
+
+LB3EE:
+                lda #$0A
+LB3F0:
+                jmp OSWRCH
+
+LB3F3:
+                sec
+                ror $2B
+LB3F6:
+                jsr LB247
+                bcs LB389
+LB3FB:
+                jmp LB61F
+
+LB3FE:
+                jmp LAF7E
+
+LB401:
+                jmp LB640
+
+LB404:
+                jmp LB68B
+
+LB407:
+                jsr LB2A3
+                ldx #$0E
+LB40C:
+                cmp LB41E-1,x
+                beq LB418
+                dex
+                bne LB40C
+                sec
+                jmp (IND1V)
+
+LB418:
+                txa
+                asl a
+                tax
+                jmp (LB42C-2,x)
+LB41E:
+                .byte $41,$42
+                .byte $43
+                .byte $44
+                .byte $48
+                .byte $4a
+                .byte $4B
+                .byte $53
+                .byte $58
+                .byte $68
+                .byte $6C
+                .byte $6E
+                .byte $66
+                .byte $63
+LB42C:
+                .word LB4C5
+                .word LB485
+                .word LB493
+                .word LB46C
+                .word LB4A7
+                .word LB5FD
+                .word LB60D
+                .word LB720
+                .word LB5E1
+                .word LB6B1
+                .word LB6AD
+                .word LB5A9
+                .word LB4A7
+                .word LB4D1
+LB448:
+                jsr LB44D
+                bra LB448
+LB44D:
+                jsr LB339
+                jsr LB17A
+                cmp #$1B
+                bne LB466
+                lda #$DA
+                ldy #$FF
+                ldx #$00
+                jsr OSBYTE
+                lda #$1B
+                cpx #$00
+                beq LB469
+LB466:
+                jmp OSWRCH
+
+LB469:
+                jmp LB37E
+
+LB46C:
+                lda #$08
+                sta $2C
+                jsr LB30D
+                jsr LB821
+                txa
+                bne LB480
+                bit $34
+                bpl LB4E2
+LB47D:
+                tya
+LB47E:
+                beq LB4E2
+LB480:
+                lda $2C
+LB482:
+                jmp OSWRCH
+
+LB485:
+                lda #$0A
+                sta $2C
+                jsr LB30D
+                jsr LB821
+LB48F:
+                cpy zterm.numRowsMinusOne
+                bra LB47E
+
+LB493:
+                lda #$09
+                sta $2C
+                jsr LB30D
+                jsr LB821
+                cpx zterm.numColumnsMinusOne
+LB49F:
+                bcc LB480
+                lda $34
+                beq LB4E2
+                bra LB48F
+
+LB4A7:
+                jsr LB2FA
+                bcs LB4E2
+                tay
+                beq LB4B0
+                dey
+LB4B0:
+                jsr LB2F6
+                bcs LB4E2
+                tax
+                beq LB4B9
+                dex
+LB4B9:
+                lda #$1F
+                jsr OSWRCH
+                txa
+                jsr OSWRCH
+                tya
+                bra LB482
+
+LB4C5:
+                lda #$0B
+                sta $2C
+                jsr LB30D
+                jsr LB821
+                bra LB47D
+
+LB4D1:
+                jsr LB2FA
+                bne LB4E2
+                tay
+LB4D7:
+                lda #$1B
+LB4D9:
+                iny
+                jsr LB083
+                lda LB4E2,y
+                bne LB4D9
+LB4E2:
+                rts
+
+                .byte $5B
+                .byte $3e,$35,$63
+                .byte $00
+                .byte $5B
+                .byte $30,$6e
+                .byte $00
+                .byte $5B
+                .byte $33
+                .byte $6e,$00,$5b
+                .byte $00
+LB4F2:
+                jsr LB830
+                bcs LB547
+                cmp #$07
+                bcs LB518
+                pha
+                jsr LB832
+                stz $2E
+                cmp #$0A
+                beq LB50B
+                dec $2E
+                cmp #$09
+                bne LB546
+LB50B:
+                ply
+                cpy #$06
+                bne LB515
+                lda $2E
+                sta $34
+LB514:
+                rts
+
+LB515:
+                jmp LB6E0
+
+LB518:
+                cmp #$08
+                beq LB53A
+                bcs LB54A
+LB51E:
+                jsr LB89E
+                beq LB514
+                jsr LB565
+                jsr LB89E
+                beq LB535
+                cmp #$2C
+                bne LB547
+                iny
+                jsr LB535
+                bra LB51E
+
+LB535:
+                lda $3A
+                jmp OSWRCH
+
+LB53A:
+                jsr LB89E
+                jsr LB565
+                bcs LB547
+                lda $3A
+                bra reinitDisplayMode
+
+LB546:
+                pla
+LB547:
+                jmp LB7B3
+
+LB54A:
+                ldy #$00
+                cmp #$0B
+                bcc LB547
+                beq LB561
+                iny
+                cmp #$0E
+                beq LB561
+                bcs LB547
+                ldy #$04
+                cmp #$0C
+                beq LB561
+                ldy #$05
+LB561:
+                tya
+                jmp LB64F
+
+LB565:
+                jsr LB8A9
+                bcs LB573
+LB56A:
+                iny
+                lda ($F2),y
+                jsr LB8AD
+                bcc LB56A
+                clc
+LB573:
+                rts
+
+                jsr LB2FA
+                bcs LB547
+reinitDisplayMode:
+                tay              ;Y = screen mode
+                and #$7F         ;mask off shadow bit (unnecessarily!)
+                cmp #$08
+                bcs LB547                    ;branch taken if mode>=8
+                tax                          ;X = mode number
+                lda screenDimensionsForMode,x                  ;
+                lsr a       ;A = width -1; C = height flag (1=32 rows,
+                            ;0=25 rows)
+                ldx #$1F                     ;assume 32 rows
+                bcs +                        ;taken if 32 rows
+                ldx #$18                     ;25 rows
++
+                stx zterm.numRowsMinusOne    ;store rows
+                sta zterm.numColumnsMinusOne ;store columns
+                inc a                        ;compute column count
+                sta zterm.numColumns
+
+                ; re-select mode
+                lda #22
+                jsr OSWRCH
+                tya
+                jsr OSWRCH
+
+                asl a
+                cmp #$0E                     ;C=1 if Mode 7
+                ror $30                      ;?$30 bit 7 set if Mode 7
+                rts
+
+screenDimensionsForMode:
+                .byte 79<<1|1 ;mode 0 - 80 columns, 32 rows
+                .byte 39<<1|1 ;mode 1 - 40 columns, 32 rows
+                .byte 19<<1|1 ;mode 2 - 20 columns, 32 rows
+                .byte 79<<1|0 ;mode 3 - 80 columns, 25 rows
+                .byte 39<<1|1 ;mode 4 - 40 columns, 32 rows
+                .byte 19<<1|1 ;mode 5 - 20 columns, 32 rows
+                .byte 39<<1|0 ;mode 6 - 40 columns, 25 rows
+                .byte 39<<1|0 ;mode 7 - 40 columns, 25 rows
+
+LB5A9:
+                jsr LB2FA
+                bcs LB606
+                cmp #$05
+                beq LB5D4
+                cmp #$06
+LB5B4:
+                bne LB606
+                jsr LB821
+                inx
+                phx
+                iny
+                phy
+                ldy #$0D
+                jsr LB4D7
+                pla
+                jsr LB06E
+                lda #$3B
+                jsr LB083
+                pla
+                jsr LB06E
+                lda #$52
+                jmp LB083
+
+LB5D4:
+                ldy #$05
+                bit $19
+                stz $19
+                bpl LB5DE
+                ldy #$09
+LB5DE:
+                jmp LB4D7
+
+LB5E1:
+                jsr LB821
+                phx
+                phy
+                lda #$20
+                sta $2C
+                jsr LB5F2
+                ply
+                plx
+                jmp LB4B9
+
+LB5F2:
+                jsr LB30D
+                jsr LB821
+                cpx zterm.numColumns
+                jmp LB49F
+
+LB5FD:
+                jsr LB2FA
+                bcs LB606
+                cmp #$03
+                bcc LB618
+LB606:
+                rts
+
+LB607:
+                .byte $0F
+                .byte $13
+                inc a
+                brk
+                tsb $0B
+LB60D:
+                jsr LB2FA
+                bcs LB606
+                cmp #$03
+                bcs LB606
+                adc #$03
+LB618:
+                tax
+                lda LB607,x
+                jmp LB7E6
+
+LB61F:
+                lda $20
+                and $36
+                bpl LB628
+                jmp LB7B3
+
+LB628:
+                lda #$E5
+                jsr osbyteX00Y00
+                ldx #$00
+                ldy #$05
+                jsr OSCLI
+disableESCAPE:
+                lda #$E5
+                ldx #$01
+                jsr osbyteY00                ;disable ESCAPE key
+                lda #$7E
+                jmp OSBYTE                   ;acknowledge ESCAPE
+
+LB640:
+                jsr LB1C6
+                cmp #$07
+                bcc LB64F
+                bne LB606
+                jsr LB166
+                jmp LB354
+
+LB64F:
+                sta $2A
+                stz $25
+                stz $23
+                ldx #$FE
+                txs
+                inx
+                stx $22
+                lda $2A
+                cmp #$06
+                bcc LB665
+                ror $23
+                bra LB66D
+
+LB665:
+                cmp #$04
+                bcc LB67B
+                beq LB671
+                ror $25
+LB66D:
+                stz $27
+                lsr $22
+LB671:
+                ror $30
+                lda #$21
+                jsr LB7E6
+                jmp LB448
+
+LB67B:
+                stz $30
+                lsr a
+                ror $2D
+                lsr a
+                ror $22
+                lda #$1E
+                jsr LB7E6
+                jmp LB349
+
+LB68B:
+                jsr LB1C6
+                bcc LB69B
+LB690:
+                lsr a
+                and #$04
+                bne LB69C
+                ror a
+                lsr a
+                adc #$40
+                sta $33
+LB69B:
+                rts
+
+LB69C:
+                stz $33
+                ldx #$60
+                ldy #$23
+                bcc LB6A8
+                phx
+                phy
+                plx
+                ply
+LB6A8:
+                stx $31
+                sty $32
+                rts
+
+LB6AD:
+                lda #$00
+                bra LB6B3
+
+LB6B1:
+                lda #$FF
+LB6B3:
+                sta $2E
+                stz $2F
+LB6B7:
+                ldx $2F
+                inx
+                inx
+                inx
+                cpx #$1B
+                beq LB6DF
+                stx $2F
+                jsr LB6C7
+                bra LB6B7
+
+LB6C7:
+                ldy $FFFF,x
+                lda $00,x
+                bne LB6DF
+                lda LFFFE,x
+                cmp #$3E
+                bcc LB6DF
+                beq LB6E0
+                lda $2E
+                cpy #$07
+                bne LB6DF
+                sta $34
+LB6DF:
+                rts
+
+LB6E0:
+                lda $2E
+                cpy #$01
+                bcs LB6ED
+                inc a
+                asl a
+                tax
+                lda #$04
+                bra LB6F6
+
+LB6ED:
+                bne LB6F9
+                tax
+                beq LB6F4
+                ldx #$21
+LB6F4:
+                lda #$CB
+LB6F6:
+                jmp osbyteY00
+
+LB6F9:
+                cpy #$03
+                bcs LB707
+                bit $20
+                bpl LB704
+                tay
+                beq LB6DF
+LB704:
+                sta $36
+LB706:
+                rts
+
+LB707:
+                bne LB712
+                rol a
+                lda #$00
+LB70C:
+                rol a
+                tax
+                lda #$60
+                bra LB6F6
+
+LB712:
+                cpy #$05
+                bcs LB71B
+                rol a
+                lda #$01
+                bra LB70C
+
+LB71B:
+                bne LB706
+                sta $35
+                rts
+
+LB720:
+                jsr LB30D
+                lda #$23
+                jmp LB7E6
+
+LB728:
+                phy
+                phx
+                pha
+                bit $30
+                bmi LB74C
+                cmp #$40
+                bcc LB739
+                tay
+                bmi LB739
+                clc
+                adc $33
+LB739:
+                tay
+                cpy #$60
+                bne LB740
+                lda #$BB
+LB740:
+                cpy #$BB
+                bne LB746
+                lda $32
+LB746:
+                cpy #$23
+                bne LB74C
+                lda $31
+LB74C:
+                pha
+                jsr LB821
+                cpx zterm.numColumns
+                beq LB75E
+LB754:
+                pla
+                jsr OSWRCH
+                pha
+LB759:
+                pla
+                pla
+                plx
+                ply
+                rts
+
+LB75E:
+                bit $34
+                bpl LB759
+                bit $35
+                bpl LB754
+                pla
+                pha
+                cmp #$20
+                bcc LB754
+                bne LB773
+                jsr OSNEWL
+                bra LB759
+
+LB773:
+                lda #$0D
+                jsr OSWRCH
+                jsr LB4B9
+                ldy #$00
+LB77D:
+                phy
+                lda #$08
+                jsr OSWRCH
+                lda #$87
+                jsr OSBYTE
+                ply
+                txa
+                cmp #$20
+                beq LB79B
+                sta $0440,y
+                iny
+                cpy zterm.numColumns
+                bne LB77D
+                jsr OSNEWL
+                bra LB754
+
+LB79B:
+                phy
+                lda #$00
+                jsr LB7E6
+                jsr OSNEWL
+                ply
+                iny
+LB7A6:
+                dey
+                beq LB754
+                lda $043F,y
+                jsr OSWRCH
+                bra LB7A6
+
+terminalINDnHandler:
+                bcc LB7F9
+LB7B3:
+                sec
+                ror $19
+LB7B6:
+                ldx #$32
+LB7B8:
+                lda #$D5
+                jsr osbyteY00
+                phx
+                ldx #$01
+                lda #$D6
+                jsr osbyteY00
+                phx
+                lda #$EC
+                ldx #$14
+                jsr osbyteY00
+                lda #$07
+                jsr OSWRCH
+                lda #$EC
+                jsr osbyteY00
+                plx
+                lda #$D6
+                jsr osbyteY00
+                plx
+                lda #$D5
+                bra osbyteY00
+
+LB7E2:
+                ldx #$8C
+                bra LB7B8
+
+LB7E6:
+                tay
+                ldx #$0A
+                lda #$97
+LB7EB:
+                asl a
+                bcs LB7EF
+                iny
+LB7EF:
+                lsr a
+                jsr OSWRCH
+                lda LB7FA,y
+                dex
+                bne LB7EB
+LB7F9:
+                rts
+
+LB7FA:
+                ; PHP
+                ; ORA $06
+                ; BRA LB807
+
+                ; TSB $05
+                ; BRK
+                ; BRK
+                ; ORA ($80,x)
+                ; PHP
+                ; TSB $06
+                ; BRA LB812
+
+                ; ORA $0A
+                ; BRA LB816
+
+                ; BRK
+                ; ORA $00
+                ; BRK
+                .byte $08
+                .byte $05
+                .byte $06
+                .byte $80
+                .byte $08
+                .byte $04
+                .byte $05
+                .byte $00
+                .byte $00
+                .byte $01
+                .byte $80
+                .byte $08
+                .byte $04
+                .byte $06
+                .byte $80
+                .byte $08
+                .byte $05
+                .byte $0A
+                .byte $80
+                .byte $08
+                .byte $00
+                .byte $05
+                .byte $00
+                .byte $00
+
+LB812:
+;ORA (&80,x)      :\ B812= 01 80       ..
+                .byte $01
+                .byte $80
+;PHP              :\ B814= 08          .
+                .byte $08
+;BRK              :\ B815= 00          .
+                .byte $00
+;.LB816
+;ASL A            :\ B816= 0A          .
+                .byte $0A
+;BRA LB829        :\ B817= 80 10       ..
+                .byte $80
+                .byte $10
+;ORA (&80,x)      :\ B819= 01 80       ..
+                .byte $01
+                .byte $80
+;BPL LB79D        :\ B81B= 10 80       ..
+                .byte $10
+                .byte $80
+                .byte $07
+                .byte $00
+                .byte $03
+;BRA LB7CB        :\ B820= 80 A9       .)
+; LDA &A2          :\ B822= A5 A2       %"
+; BRK              :\ B824= 00          .
+                .byte $80
+LB821:
+                lda #$A5
+osbyteX00Y00:
+                ldx #$00
+osbyteY00:
+                ldy #$00
+-
+                jmp OSBYTE
+
+LB82A:
+                lda #$9C
+                ldy #$9F
+                bra -
+
+LB830:
+                ldy #$00
+LB832:
+                ldx #$FF
+                phx
+LB835:
+                pla
+                inc a
+                pha
+                phy
+                jsr LB89E
+LB83C:
+                cmp #'.'
+                beq LB858
+                cmp #'@'
+                bcs LB846
+                lda #$00
+LB846:
+                and #$5F
+                inx
+                eor LB86B,x
+                beq LB853
+                asl a
+                beq LB858
+                bra LB85D
+
+LB853:
+                iny
+                lda ($F2),y
+                bra LB83C
+
+LB858:
+                iny
+                pla
+                pla
+                clc
+                rts
+
+LB85D:
+                ply
+LB85E:
+                lda LB86B,x
+                bne LB866
+                sec
+                pla
+                rts
+
+LB866:
+                bmi LB835
+                inx
+                bra LB85E
+
+LB86B:
+                .byte $43
+                .byte $4B
+                .byte $cc,$4d,$43
+                .byte $cc,$50,$52
+                .byte $4F
+                .byte $D4
+                .byte $52,$46
+                .byte $C3
+                .byte $54
+                .byte $46,$c3
+                .byte $57
+                .byte $57
+                .byte $cd,$41,$57
+                .byte $cd,$56,$44
+                .byte $d5,$4d
+                .byte $4F
+                .byte $44
+                .byte $c5,$4f
+                .byte $ce,$4f,$46
+                .byte $c6,$54
+                .byte $45,$52
+                .byte $4d,$49,$4e
+                .byte $41,$cc
+                .byte $42
+                .byte $42
+                .byte $C3
+                .byte $47
+                .byte $D3
+                .byte $54
+                .byte $54
+                .byte $D9
+                .byte $00
+LB89E:
+                dey
+LB89F:
+                iny
+                lda ($F2),y
+                cmp #$20
+                beq LB89F
+                cmp #$0D
+                rts
+
+LB8A9:
+                stz $3A
+                stz $3B
+LB8AD:
+                cmp #$30
+                bcc LB8B5
+                cmp #$3A
+                bcc LB8B7
+LB8B5:
+                sec
+                rts
+
+LB8B7:
+                sbc #$2F
+                pha
+                lda $3B
+                pha
+                lda $3A
+                asl a
+                rol $3B
+                asl a
+                rol $3B
+                clc
+                adc $3A
+                sta $3A
+                pla
+                adc $3B
+                sta $3B
+                asl $3A
+                rol $3B
+                pla
+                clc
+                adc $3A
+                sta $3A
+                bcc LB8DE
+                inc $3B
+                clc
+LB8DE:
+                rts
