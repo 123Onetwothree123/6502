@@ -13,23 +13,10 @@
 
 int main(int argc, char const *argv[])
 {
-#ifdef CONFIG_SDB
-    if (argc < 2)
-    {
-        std::println("检测到无参数模式运行，进入SDB模式");
-        memory MemoryObject;
-        BuiltinImage BuiltinImage;
-        BuiltinImage.Load(MemoryObject);
-        CentralProcessingUnit CPU(MemoryObject);
-        CPU.reset();
-        SDB::MainLoop(CPU, MemoryObject);
-        return 0;
-    }
-#endif
     memory MemoryObject;
     if (argc < 2)
     {
-        std::println("无参数且SDB已禁用，运行内置镜像");
+        std::println("无参数模式，加载内置镜像");
         BuiltinImage BuiltinImage;
         BuiltinImage.Load(MemoryObject);
     }
@@ -48,6 +35,11 @@ int main(int argc, char const *argv[])
     }
     CentralProcessingUnit CPU(MemoryObject);
     CPU.reset();
+#ifdef CONFIG_SDB
+    std::println("SDB已启用，进入SDB模式");
+    SDB::MainLoop(CPU, MemoryObject);
+    return 0;
+#endif
 #ifdef CONFIG_UART
     uart::SetupStdin(); // SDB 模式由 linenoise 管理终端，这里只接管运行模式
 #endif
